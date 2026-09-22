@@ -239,7 +239,7 @@ Three MongoDB collections:
 | Daemon `/health` timeout (3s) | Log `clued: daemon failed to start` to stderr, exit 0 |
 | Enricher `enrich()` throws | Log error, set `enriched.<name>_failed: true`, skip doc permanently |
 | Backfill file read error | Log per-file warning, continue with remaining sessions |
-| `EADDRINUSE` on daemon start | POST initial event to running server via HTTP, exit 0 |
+| `EADDRINUSE` on daemon start | Exit 0 cleanly — events arrive via HTTP relay, not stdin, so no forwarding needed |
 
 ---
 
