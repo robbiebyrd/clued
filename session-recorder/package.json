@@ -1,0 +1,9 @@
+{
+  "name": "session-recorder",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Streams Claude Code hook events and session transcripts to MongoDB",
+  "dependencies": {
+    "mongodb": "^6.17.0"
+  }
+}
