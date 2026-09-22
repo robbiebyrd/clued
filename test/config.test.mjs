@@ -72,3 +72,13 @@ test('projectsDir expands ~ to home directory', () => {
     assert.ok(!cfg.projectsDir.includes('~'));
   });
 });
+
+test('mongoUrl expands ~ to home directory', () => {
+  const cfgPath = join(TMP, 'config-mongo-tilde.json');
+  writeFileSync(cfgPath, JSON.stringify({ mongoUrl: '~/mongo/local.db' }));
+  cleanEnv(() => {
+    const cfg = loadConfig(cfgPath);
+    assert.ok(cfg.mongoUrl.startsWith(homedir()), `expected ${cfg.mongoUrl} to start with ${homedir()}`);
+    assert.ok(!cfg.mongoUrl.includes('~'));
+  });
+});
