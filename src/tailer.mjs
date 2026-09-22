@@ -6,20 +6,23 @@ export function tailFile(filePath, onLine) {
   let stopped = false;
   let watcher = null;
   let pollTimer = null;
+  let inFlight = false;
 
   const read = () => {
-    if (stopped) return;
+    if (stopped || inFlight) return;
+    inFlight = true;
     try {
       const size = fs.statSync(filePath).size;
-      if (size <= pos) return;
+      if (size <= pos) { inFlight = false; return; }
       const rl = readline.createInterface({
         input: fs.createReadStream(filePath, { start: pos, end: size - 1 }),
         crlfDelay: Infinity,
       });
       const batch = [];
       rl.on('line', l => { if (l.trim()) batch.push(l); });
-      rl.on('close', () => { pos = size; batch.forEach(onLine); });
-    } catch { /* file temporarily unavailable */ }
+      rl.on('error', () => { rl.close(); inFlight = false; });
+      rl.on('close', () => { pos = size; inFlight = false; batch.forEach(onLine); });
+    } catch { inFlight = false; /* file temporarily unavailable */ }
   };
 
   const start = () => {
