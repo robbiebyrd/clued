@@ -19,14 +19,12 @@ function extractBinaries(command) {
     .map(stage => stage.trim())
     .filter(Boolean)
     .map(stage => {
-      // Skip env-var assignments (FOO=bar) at the start of a stage
-      const tokens = stage.split(/\s+/);
-      const binary = tokens.find(t => !/^\w+=/.test(t));
+      const stageWords = stage.split(/\s+/);
+      const binary = stageWords.find(t => !/^\w+=/.test(t));
       return binary ? binary.replace(/^["']|["']$/g, '') : null;
     })
     .filter(Boolean);
 
-  // Deduplicate, strip path prefixes, skip shell builtins
   const BUILTINS = new Set(['if','then','else','fi','for','do','done','while','case','esac','echo','cd','export','source','.','[','[[',']]',']']);
   return [...new Set(tokens.map(t => t.split('/').pop()).filter(t => t && !BUILTINS.has(t)))];
 }

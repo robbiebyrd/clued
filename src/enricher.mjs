@@ -30,7 +30,7 @@ export function startEnrichmentLoop(mongo, enrichers) {
         .find({ [doneKey]: { $exists: false }, [failedKey]: { $exists: false } })
         .limit(100)
         .toArray()
-        .catch(() => []);
+        .catch(err => { console.error('clued enricher query failed:', err.message); return []; });
 
       for (const doc of docs) {
         if (!enricher.matches(doc)) continue;
