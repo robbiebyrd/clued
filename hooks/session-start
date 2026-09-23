@@ -15,12 +15,12 @@ health_ok() {
 }
 
 if health_ok; then
-  node "${PLUGIN_ROOT}/src/backfill.mjs" &>/dev/null &
+  node "${PLUGIN_ROOT}/dist/backfill.mjs" &>/dev/null &
   disown
   exit 0
 fi
 
-node "${PLUGIN_ROOT}/src/daemon.mjs" &>/dev/null &
+node "${PLUGIN_ROOT}/dist/daemon.mjs" &>/dev/null &
 DAEMON_PID=$!
 disown
 
@@ -31,7 +31,7 @@ for _ in $(seq 1 15); do
     exit 0
   fi
   if health_ok; then
-    node "${PLUGIN_ROOT}/src/backfill.mjs" &>/dev/null &
+    node "${PLUGIN_ROOT}/dist/backfill.mjs" &>/dev/null &
     disown
     exit 0
   fi

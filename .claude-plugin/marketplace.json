@@ -8,7 +8,10 @@
     {
       "name": "clued",
       "description": "MongoDB session mirror — captures every hook event and stores it in MongoDB with an enricher pipeline",
-      "source": "./"
+      "source": {
+        "source": "github",
+        "repo": "robbiebyrd/clued"
+      }
     }
   ]
 }
