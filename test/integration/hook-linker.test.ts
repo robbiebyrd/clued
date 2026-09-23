@@ -1,4 +1,4 @@
-import { test, after } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createClient } from '../../src/mongo';
 import { matches, enrich, name, collection } from '../../enrichers/hook-linker';
@@ -10,16 +10,8 @@ const TEST_CONFIG = {
 };
 
 let mongo: MongoDb;
-after(async () => {
-  if (mongo) {
-    await mongo.db.dropDatabase();
-    await mongo.close();
-  }
-});
-
-test('setup', async () => {
-  mongo = await createClient(TEST_CONFIG);
-});
+before(async () => { mongo = await createClient(TEST_CONFIG); });
+after(async () => { await mongo.db.dropDatabase(); await mongo.close(); });
 
 test('name and collection', () => {
   assert.equal(name, 'hook-linker');
@@ -39,11 +31,7 @@ test('returns empty arrays for line with no tool_use content', async () => {
 test('collects tool_use_id from attachment.toolUseID and finds matching hook event', async () => {
   const toolUseId  = 'test-tuid-1';
   const session_id = 'sess-hook-test';
-
-  const hookDoc = { session_id, tool_name: 'Bash', created_at: new Date() } as Record<string, unknown>;
-  // Use the same field name as TOOL_USE_ID_FIELD in the implementation
-  hookDoc['tool_use_id'] = toolUseId;
-  const inserted = await mongo.hookEvents.insertOne(hookDoc);
+  const inserted   = await mongo.hookEvents.insertOne({ session_id, tool_name: 'Bash', tool_use_id: toolUseId, created_at: new Date() });
 
   const doc = {
     session_id,
@@ -59,10 +47,7 @@ test('collects tool_use_id from attachment.toolUseID and finds matching hook eve
 test('collects tool_use ids from assistant message content blocks', async () => {
   const toolUseId  = 'test-tuid-2';
   const session_id = 'sess-hook-test-2';
-
-  const hookDoc = { session_id, tool_name: 'Read', created_at: new Date() } as Record<string, unknown>;
-  hookDoc['tool_use_id'] = toolUseId;
-  const inserted = await mongo.hookEvents.insertOne(hookDoc);
+  const inserted   = await mongo.hookEvents.insertOne({ session_id, tool_name: 'Read', tool_use_id: toolUseId, created_at: new Date() });
 
   const doc = {
     session_id,
