@@ -2,40 +2,54 @@
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 DEFAULT_PORT=8085
+DEFAULT_MCP_PORT=8086
 
 if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
   PORT=$(jq -r ".port // ${DEFAULT_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_PORT")
+  MCP_PORT=$(jq -r ".mcpPort // ${DEFAULT_MCP_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_MCP_PORT")
 else
   PORT=$DEFAULT_PORT
+  MCP_PORT=$DEFAULT_MCP_PORT
 fi
 PORT="${CLUED_PORT:-$PORT}"
+MCP_PORT="${CLUED_MCP_PORT:-$MCP_PORT}"
 
-health_ok() {
+daemon_ok() {
   curl -sf --max-time 1 "http://127.0.0.1:${PORT}/health" &>/dev/null
 }
 
-if health_ok; then
-  node "${PLUGIN_ROOT}/src/backfill.mjs" &>/dev/null &
+mcp_ok() {
+  curl -sf --max-time 1 "http://127.0.0.1:${MCP_PORT}/health" &>/dev/null
+}
+
+if ! daemon_ok; then
+  node "${PLUGIN_ROOT}/src/daemon.mjs" &>/dev/null &
+  DAEMON_PID=$!
   disown
-  exit 0
+  for _ in $(seq 1 15); do
+    sleep 0.2
+    if ! kill -0 "$DAEMON_PID" 2>/dev/null; then
+      echo "clued: daemon exited on startup — check MongoDB connection (${CLUED_MONGO_URL:-see config.json})" >&2
+      break
+    fi
+    if daemon_ok; then break; fi
+  done
 fi
 
-node "${PLUGIN_ROOT}/src/daemon.mjs" &>/dev/null &
-DAEMON_PID=$!
+if ! mcp_ok; then
+  node "${PLUGIN_ROOT}/src/mcp.mjs" &>/dev/null &
+  MCP_PID=$!
+  disown
+  for _ in $(seq 1 15); do
+    sleep 0.2
+    if ! kill -0 "$MCP_PID" 2>/dev/null; then
+      echo "clued: mcp server exited on startup — check MongoDB connection (${CLUED_MONGO_URL:-see config.json})" >&2
+      break
+    fi
+    if mcp_ok; then break; fi
+  done
+fi
+
+node "${PLUGIN_ROOT}/src/backfill.mjs" &>/dev/null &
 disown
-
-for _ in $(seq 1 15); do
-  sleep 0.2
-  if ! kill -0 "$DAEMON_PID" 2>/dev/null; then
-    echo "clued: daemon exited on startup — check MongoDB connection (${CLUED_MONGO_URL:-see config.json})" >&2
-    exit 0
-  fi
-  if health_ok; then
-    node "${PLUGIN_ROOT}/src/backfill.mjs" &>/dev/null &
-    disown
-    exit 0
-  fi
-done
-
-echo "clued: daemon failed to respond on port ${PORT} within 3s" >&2
 exit 0
