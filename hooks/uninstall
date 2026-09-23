@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Non-interactive cleanup for clued services and optional artefacts.
+# Usage: uninstall [--keep-config] [--keep-mongo-binary]
+#
+# Always:  stops daemon, stops MCP server
+# macOS:   unloads and removes ~/Library/LaunchAgents/org.mongodb.mongod.plist
+# Flags:
+#   --keep-config          skip removing ~/.claude/plugins/data/clued/
+#   --keep-mongo-binary    skip removing ~/mongodb/ (tarball install only)
+
+KEEP_CONFIG=0
+KEEP_MONGO_BINARY=0
+for arg in "$@"; do
+  case "$arg" in
+    --keep-config)         KEEP_CONFIG=1 ;;
+    --keep-mongo-binary)   KEEP_MONGO_BINARY=1 ;;
+  esac
+done
+
+CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
+DEFAULT_PORT=8085
+DEFAULT_MCP_PORT=8086
+
+if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
+  PORT=$(jq -r ".port // ${DEFAULT_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_PORT")
+  MCP_PORT=$(jq -r ".mcpPort // ${DEFAULT_MCP_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_MCP_PORT")
+else
+  PORT=$DEFAULT_PORT
+  MCP_PORT=$DEFAULT_MCP_PORT
+fi
+
+# --- Stop daemon ---
+if curl -sf --max-time 1 "http://127.0.0.1:${PORT}/health" &>/dev/null; then
+  pkill -f "dist/daemon.mjs" 2>/dev/null && echo "clued: daemon stopped" || true
+fi
+
+# --- Stop MCP server ---
+if curl -sf --max-time 1 "http://127.0.0.1:${MCP_PORT}/health" &>/dev/null; then
+  pkill -f "dist/mcp.mjs" 2>/dev/null && echo "clued: mcp server stopped" || true
+fi
+
+# --- macOS launchd plist ---
+PLIST=~/Library/LaunchAgents/org.mongodb.mongod.plist
+if [[ "$(uname -s)" == "Darwin" && -f "$PLIST" ]]; then
+  launchctl unload "$PLIST" 2>/dev/null || true
+  rm "$PLIST"
+  echo "clued: removed launchd plist"
+fi
+
+# --- Config and data dir ---
+if [[ $KEEP_CONFIG -eq 0 && -d "${HOME}/.claude/plugins/data/clued" ]]; then
+  rm -rf "${HOME}/.claude/plugins/data/clued"
+  echo "clued: removed config dir"
+fi
+
+# --- MongoDB tarball binaries ---
+if [[ $KEEP_MONGO_BINARY -eq 0 && -d "${HOME}/mongodb" ]]; then
+  rm -rf "${HOME}/mongodb"
+  echo "clued: removed mongodb binaries (~~/mongodb)"
+fi
+
+echo "clued: uninstall complete"
