@@ -5,11 +5,12 @@ import type { MongoDb } from './mongo';
 import type { Config } from './config';
 
 export interface Enricher {
-  name:       string;
-  collection: string;
-  enabled?:   boolean;
+  name:        string;
+  collection:  string;
+  enabled?:    boolean;
+  batchLimit?: number;
   matches(doc: Record<string, unknown>): boolean;
-  enrich(doc: Record<string, unknown>): Promise<unknown>;
+  enrich(doc: Record<string, unknown>, mongo: MongoDb): Promise<unknown>;
 }
 
 export async function loadEnrichers(
@@ -43,9 +44,10 @@ export function startEnrichmentLoop(
       const coll      = mongo.db.collection(enricher.collection);
       const failedKey = `enriched.${enricher.name}_failed`;
       const doneKey   = `enriched.${enricher.name}`;
+      const limit     = enricher.batchLimit ?? 100;
       const docs = await coll
         .find({ [doneKey]: { $exists: false }, [failedKey]: { $exists: false } })
-        .limit(100)
+        .limit(limit)
         .toArray()
         .catch((err: Error) => { console.error('clued enricher query failed:', err.message); return []; });
 
@@ -53,7 +55,7 @@ export function startEnrichmentLoop(
         const d = doc as Record<string, unknown>;
         if (!enricher.matches(d)) continue;
         try {
-          const result = await enricher.enrich(d);
+          const result = await enricher.enrich(d, mongo);
           await coll.updateOne({ _id: doc._id }, { $set: { [doneKey]: result } });
         } catch (err) {
           const e = err as Error;

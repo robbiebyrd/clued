@@ -132,3 +132,29 @@ test('startEnrichmentLoop skips docs where matches returns false', async (t) => 
 
   assert.equal(updated.length, 0);
 });
+
+test('startEnrichmentLoop respects batchLimit', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+
+  const queried: number[] = [];
+  const mockCollection = {
+    find: () => ({ limit: (n: number) => { queried.push(n); return { toArray: async () => [] }; } }),
+    updateOne: async () => {},
+  };
+  const mockMongo = { db: { collection: () => mockCollection } } as unknown as MongoDb;
+  const enricher = {
+    name: 'limited',
+    collection: 'hook_events',
+    batchLimit: 25,
+    matches: () => true,
+    enrich: async () => ({}),
+  };
+
+  const loop = startEnrichmentLoop(mockMongo, [enricher]);
+  t.mock.timers.tick(5000);
+  await new Promise(resolve => setImmediate(resolve));
+  loop.stop();
+
+  assert.ok(queried.length >= 1, 'at least one query made');
+  assert.ok(queried.every(n => n === 25), `expected limit 25, got: ${queried}`);
+});
