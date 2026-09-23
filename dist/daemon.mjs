@@ -31997,6 +31997,7 @@ var DEFAULTS = {
   mongoUrl: "mongodb://localhost:27018",
   dbName: "claude_sessions",
   port: 8085,
+  mcpPort: 8086,
   projectsDir: join(homedir(), ".claude", "projects"),
   disabledEnrichers: []
 };
@@ -32014,6 +32015,7 @@ function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
   if (process.env.CLUED_MONGO_URL) cfg.mongoUrl = process.env.CLUED_MONGO_URL;
   if (process.env.CLUED_DB_NAME) cfg.dbName = process.env.CLUED_DB_NAME;
   if (process.env.CLUED_PORT) cfg.port = parseInt(process.env.CLUED_PORT, 10);
+  if (process.env.CLUED_MCP_PORT) cfg.mcpPort = parseInt(process.env.CLUED_MCP_PORT, 10);
   if (process.env.CLUED_PROJECTS_DIR) cfg.projectsDir = process.env.CLUED_PROJECTS_DIR;
   cfg.projectsDir = expandHome(cfg.projectsDir);
   cfg.mongoUrl = expandHome(cfg.mongoUrl);
@@ -32028,6 +32030,7 @@ async function createClient({ mongoUrl, dbName }) {
   const db = client.db(dbName);
   const results = await Promise.allSettled([
     db.collection("sessions").createIndex({ session_id: 1 }, { unique: true }),
+    db.collection("sessions").createIndex({ git_origin: 1 }),
     db.collection("hook_events").createIndex({ session_id: 1 }),
     db.collection("hook_events").createIndex({ created_at: -1 }),
     db.collection("transcript_lines").createIndex({ session_id: 1, seq: 1 }, { unique: true })
@@ -32161,12 +32164,19 @@ function startEnrichmentLoop(mongo2, enrichers2) {
 
 // src/git.mjs
 import { execFile } from "child_process";
-function getGitOrigin(dir) {
-  return new Promise((resolve) => {
-    execFile("git", ["-C", dir, "remote", "get-url", "origin"], (err, stdout) => {
-      resolve(err ? null : stdout.trim() || null);
-    });
-  });
+import { promisify } from "util";
+var execFileAsync = promisify(execFile);
+async function getGitOrigin(cwd) {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["-C", cwd, "remote", "get-url", "origin"],
+      { timeout: 2e3 }
+    );
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 // src/daemon.mjs
@@ -32184,12 +32194,12 @@ async function trackSession({ session_id, transcript_path, cwd } = {}) {
   if (tracked.has(session_id)) {
     const state2 = tracked.get(session_id);
     if (!state2.gitOriginFound && cwd) {
-      const gitOrigin2 = await getGitOrigin(cwd);
-      if (gitOrigin2) {
+      const gitOrigin = await getGitOrigin(cwd);
+      if (gitOrigin) {
         state2.gitOriginFound = true;
         mongo.sessions.updateOne(
           { session_id, git_origin: { $exists: false } },
-          { $set: { git_origin: gitOrigin2 } }
+          { $set: { git_origin: gitOrigin } }
         ).catch(() => {
         });
       }
@@ -32200,17 +32210,16 @@ async function trackSession({ session_id, transcript_path, cwd } = {}) {
   const state = { gitOriginFound: false };
   tracked.set(session_id, state);
   const now = /* @__PURE__ */ new Date();
-  const gitOrigin = cwd ? await getGitOrigin(cwd) : null;
-  if (gitOrigin) state.gitOriginFound = true;
-  const gitFields = gitOrigin ? { git_origin: gitOrigin } : {};
-  mongo.sessions.updateOne(
-    { session_id },
-    {
-      $set: { session_id, transcript_path, cwd, last_seen: now, ...gitFields },
-      $setOnInsert: { started_at: now }
-    },
-    { upsert: true }
-  ).catch(() => {
+  Promise.resolve(cwd ? getGitOrigin(cwd) : null).then((git_origin) => {
+    if (git_origin) state.gitOriginFound = true;
+    const $set = { session_id, transcript_path, cwd, last_seen: now };
+    if (git_origin) $set.git_origin = git_origin;
+    mongo.sessions.updateOne(
+      { session_id },
+      { $set, $setOnInsert: { started_at: now } },
+      { upsert: true }
+    ).catch(() => {
+    });
   });
   if (!transcript_path) return;
   tailFile(transcript_path, (raw) => {
