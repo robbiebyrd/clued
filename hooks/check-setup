@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
+
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  printf '{"systemMessage":"clued: run /clued-setup to finish configuring this plugin"}\n'
+fi
