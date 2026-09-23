@@ -1,22 +1,23 @@
-import { test, before, after } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir, homedir } from 'os';
+import { loadConfig } from '../src/config';
 
 const TMP = join(tmpdir(), `clued-test-config-${process.pid}`);
 mkdirSync(TMP, { recursive: true });
 
 after(() => rmSync(TMP, { recursive: true, force: true }));
 
-function withEnv(vars, fn) {
-  const saved = {};
+function withEnv(vars: Record<string, string | undefined>, fn: () => void): void {
+  const saved: Record<string, string | undefined> = {};
   for (const [k, v] of Object.entries(vars)) {
     saved[k] = process.env[k];
     if (v === undefined) delete process.env[k];
     else process.env[k] = v;
   }
-  try { return fn(); }
+  try { fn(); }
   finally {
     for (const [k, v] of Object.entries(saved)) {
       if (v === undefined) delete process.env[k];
@@ -26,11 +27,9 @@ function withEnv(vars, fn) {
 }
 
 const ENV_KEYS = ['CLUED_MONGO_URL', 'CLUED_DB_NAME', 'CLUED_PORT', 'CLUED_MCP_PORT', 'CLUED_PROJECTS_DIR'];
-function cleanEnv(fn) {
-  return withEnv(Object.fromEntries(ENV_KEYS.map(k => [k, undefined])), fn);
+function cleanEnv(fn: () => void): void {
+  withEnv(Object.fromEntries(ENV_KEYS.map(k => [k, undefined])), fn);
 }
-
-const { loadConfig } = await import('../src/config.mjs');
 
 test('returns defaults when no config file and no env vars', () => {
   cleanEnv(() => {

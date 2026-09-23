@@ -1,21 +1,28 @@
 import { readdir, readFile } from 'fs/promises';
 import { join, basename } from 'path';
 import { fileURLToPath } from 'url';
-import { createClient } from './mongo.mjs';
-import { loadConfig } from './config.mjs';
-import { getGitOrigin } from './git.mjs';
+import { createClient } from './mongo';
+import { loadConfig }   from './config';
+import { getGitOrigin } from './git';
+import type { MongoDb } from './mongo';
+import type { Config }  from './config';
 
 // Hyphens are ambiguous with path separators, so project_path is best-effort metadata only.
-export function decodeProjectPath(dirName) {
+export function decodeProjectPath(dirName: string): string {
   return '/' + dirName.slice(1).replaceAll('-', '/');
 }
 
-async function processSession(mongo, projectPath, sessionId, filePath) {
+async function processSession(
+  mongo: MongoDb,
+  projectPath: string,
+  sessionId: string,
+  filePath: string,
+): Promise<number> {
   const now = new Date();
 
   const git_origin = await getGitOrigin(projectPath);
 
-  const $set = { session_id: sessionId, project_path: projectPath, transcript_path: filePath, last_seen: now };
+  const $set: Record<string, unknown> = { session_id: sessionId, project_path: projectPath, transcript_path: filePath, last_seen: now };
   if (git_origin) $set.git_origin = git_origin;
 
   await mongo.sessions.updateOne(
@@ -24,18 +31,18 @@ async function processSession(mongo, projectPath, sessionId, filePath) {
     { upsert: true }
   );
 
-  const content = await readFile(filePath, 'utf8');
+  const content  = await readFile(filePath, 'utf8');
   const rawLines = content.split('\n').filter(l => l.trim());
   if (rawLines.length === 0) return 0;
 
   const ops = rawLines.map((raw, seq) => {
-    let line;
+    let line: unknown;
     try { line = JSON.parse(raw); } catch { line = { raw }; }
     return {
       updateOne: {
         filter: { session_id: sessionId, seq },
         update: { $set: { session_id: sessionId, seq, line }, $setOnInsert: { created_at: now } },
-        upsert:  true,
+        upsert: true,
       },
     };
   });
@@ -44,9 +51,9 @@ async function processSession(mongo, projectPath, sessionId, filePath) {
   return rawLines.length;
 }
 
-export async function backfill(config, mongo) {
+export async function backfill(config: Pick<Config, 'projectsDir'>, mongo: MongoDb): Promise<void> {
   const dirs = await readdir(config.projectsDir, { withFileTypes: true }).catch(() => []);
-  const sessions = [];
+  const sessions: Array<{ projectPath: string; sessionId: string; filePath: string }> = [];
 
   for (const dir of dirs.filter(d => d.isDirectory())) {
     const projectPath = decodeProjectPath(dir.name);
@@ -68,8 +75,8 @@ export async function backfill(config, mongo) {
       batch.map(s => processSession(mongo, s.projectPath, s.sessionId, s.filePath))
     );
     for (let j = 0; j < results.length; j++) {
-      if (results[j].status === 'fulfilled')  totalLines += results[j].value;
-      else console.error(`clued backfill error (${batch[j].filePath}):`, results[j].reason?.message);
+      if (results[j].status === 'fulfilled')  totalLines += (results[j] as PromiseFulfilledResult<number>).value;
+      else console.error(`clued backfill error (${batch[j].filePath}):`, (results[j] as PromiseRejectedResult).reason?.message);
     }
   }
 

@@ -5,26 +5,30 @@ import { EventEmitter } from 'events';
 import { spawn } from 'child_process';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createClient } from '../../src/mongo.mjs';
+import { createClient } from '../../src/mongo';
+import type { MongoDb } from '../../src/mongo';
+import type { ChildProcess } from 'child_process';
 
 const ROOT      = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const MCP_PATH  = join(ROOT, 'src/mcp.mjs');
+const MCP_PATH  = join(ROOT, 'src/mcp.ts');
 const TEST_PORT = 18086;
 const TEST_DB   = `clued_mcp_test_${Date.now()}`;
 const TEST_URL  = process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018';
 
-let mcpProc, mongo;
+let mcpProc: ChildProcess | undefined;
+let mongo: MongoDb;
 
-// --- helpers ---
+interface SSEMessage { event?: string; data?: string; [key: string]: string | undefined; }
+interface SSEConnection { endpoint: string; emitter: EventEmitter; close: () => void; }
 
-function healthCheck() {
+function healthCheck(): Promise<boolean> {
   return new Promise(resolve => {
     http.get(`http://127.0.0.1:${TEST_PORT}/health`, res => resolve(res.statusCode === 200))
       .on('error', () => resolve(false));
   });
 }
 
-function openSSE() {
+function openSSE(): Promise<SSEConnection> {
   return new Promise((resolve, reject) => {
     const emitter = new EventEmitter();
     let buf = '';
@@ -32,13 +36,13 @@ function openSSE() {
       { hostname: '127.0.0.1', port: TEST_PORT, path: '/sse' },
       res => {
         res.setEncoding('utf8');
-        res.on('data', chunk => {
+        res.on('data', (chunk: string) => {
           buf += chunk;
           const blocks = buf.split('\n\n');
-          buf = blocks.pop();
+          buf = blocks.pop() ?? '';
           for (const block of blocks) {
             if (!block.trim()) continue;
-            const msg = {};
+            const msg: SSEMessage = {};
             for (const line of block.split('\n')) {
               const i = line.indexOf(':');
               if (i < 0) continue;
@@ -51,14 +55,14 @@ function openSSE() {
     );
     req.on('error', reject);
     req.end();
-    emitter.once('message', msg => {
-      if (msg.event === 'endpoint') resolve({ endpoint: msg.data, emitter, close: () => req.destroy() });
+    emitter.once('message', (msg: SSEMessage) => {
+      if (msg.event === 'endpoint') resolve({ endpoint: msg.data ?? '', emitter, close: () => req.destroy() });
       else reject(new Error(`expected endpoint event, got: ${JSON.stringify(msg)}`));
     });
   });
 }
 
-function callTool(endpoint, id, name, args, meta) {
+function callTool(endpoint: string, id: number, name: string, args: Record<string, unknown>, meta?: Record<string, unknown>): Promise<number | undefined> {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       jsonrpc: '2.0', id, method: 'tools/call',
@@ -75,14 +79,14 @@ function callTool(endpoint, id, name, args, meta) {
   });
 }
 
-function collectUntilResult(emitter, id, timeoutMs = 5000) {
+function collectUntilResult(emitter: EventEmitter, id: number, timeoutMs = 5000): Promise<Record<string, unknown>[]> {
   return new Promise((resolve, reject) => {
-    const events = [];
+    const events: Record<string, unknown>[] = [];
     const timer = setTimeout(() => reject(new Error('timeout waiting for result')), timeoutMs);
-    function handler(msg) {
+    function handler(msg: SSEMessage) {
       if (!msg.data) return;
-      let parsed;
-      try { parsed = JSON.parse(msg.data); } catch { return; }
+      let parsed: Record<string, unknown>;
+      try { parsed = JSON.parse(msg.data) as Record<string, unknown>; } catch { return; }
       events.push(parsed);
       if (parsed.id === id) {
         clearTimeout(timer);
@@ -94,10 +98,8 @@ function collectUntilResult(emitter, id, timeoutMs = 5000) {
   });
 }
 
-// --- lifecycle ---
-
 before(async () => {
-  mcpProc = spawn(process.execPath, [MCP_PATH], {
+  mcpProc = spawn(process.execPath, ['--import', 'tsx/esm', MCP_PATH], {
     env: { ...process.env, CLUED_MCP_PORT: String(TEST_PORT), CLUED_DB_NAME: TEST_DB, CLUED_MONGO_URL: TEST_URL },
     stdio: 'pipe',
   });
@@ -107,7 +109,6 @@ before(async () => {
   }
   mongo = await createClient({ mongoUrl: TEST_URL, dbName: TEST_DB });
 
-  // Seed test data
   const now = new Date();
   await mongo.sessions.insertMany([
     { session_id: 'sess-1', project_path: '/home/user/myrepo',
@@ -122,13 +123,13 @@ before(async () => {
   ]);
   await mongo.hookEvents.insertMany([
     { session_id: 'sess-1', tool_name: 'Bash',
-      tool_input: { command: 'git status' },   created_at: new Date(now - 3000) },
+      tool_input: { command: 'git status' },   created_at: new Date(now.getTime() - 3000) },
     { session_id: 'sess-1', tool_name: 'Bash',
-      tool_input: { command: 'npm install' },  created_at: new Date(now - 2000) },
+      tool_input: { command: 'npm install' },  created_at: new Date(now.getTime() - 2000) },
     { session_id: 'sess-1', tool_name: 'Bash',
-      tool_input: { command: 'git status' },   created_at: new Date(now - 1000) },
+      tool_input: { command: 'git status' },   created_at: new Date(now.getTime() - 1000) },
     { session_id: 'sess-2', tool_name: 'Bash',
-      tool_input: { command: 'cargo build' },  created_at: new Date(now) },
+      tool_input: { command: 'cargo build' },  created_at: new Date(now.getTime()) },
   ]);
   await mongo.transcriptLines.insertMany(
     Array.from({ length: 25 }, (_, i) => ({
@@ -147,8 +148,6 @@ after(async () => {
   if (mongo) { await mongo.db.dropDatabase(); await mongo.close(); }
 });
 
-// --- tests ---
-
 test('GET /health returns 200', async () => {
   assert.ok(await healthCheck());
 });
@@ -166,9 +165,9 @@ test('find_sessions returns sessions matching git_origin', async () => {
   const [result] = await pending;
   close();
   assert.ok(result.result, `expected result, got: ${JSON.stringify(result)}`);
-  const sessions = JSON.parse(result.result.content[0].text);
+  const sessions = JSON.parse((result.result as { content: Array<{ text: string }> }).content[0].text) as Array<Record<string, unknown>>;
   assert.equal(sessions.length, 2);
-  assert.ok(sessions.every(s => s.git_origin.includes('myrepo')));
+  assert.ok(sessions.every(s => (s.git_origin as string).includes('myrepo')));
 });
 
 test('find_sessions returns sessions matching project_path', async () => {
@@ -177,7 +176,7 @@ test('find_sessions returns sessions matching project_path', async () => {
   await callTool(endpoint, 2, 'find_sessions', { project_path: '/home/user/other' });
   const [result] = await pending;
   close();
-  const sessions = JSON.parse(result.result.content[0].text);
+  const sessions = JSON.parse((result.result as { content: Array<{ text: string }> }).content[0].text) as Array<Record<string, unknown>>;
   assert.equal(sessions.length, 1);
   assert.equal(sessions[0].session_id, 'sess-2');
 });
@@ -188,7 +187,7 @@ test('find_sessions returns empty array when no sessions match', async () => {
   await callTool(endpoint, 3, 'find_sessions', { git_origin: 'nonexistent/repo' });
   const [result] = await pending;
   close();
-  const sessions = JSON.parse(result.result.content[0].text);
+  const sessions = JSON.parse((result.result as { content: Array<{ text: string }> }).content[0].text) as unknown[];
   assert.deepEqual(sessions, []);
 });
 
@@ -198,7 +197,7 @@ test('find_sessions result includes event_count', async () => {
   await callTool(endpoint, 4, 'find_sessions', { project_path: '/home/user/myrepo', limit: 5 });
   const [result] = await pending;
   close();
-  const sessions = JSON.parse(result.result.content[0].text);
+  const sessions = JSON.parse((result.result as { content: Array<{ text: string }> }).content[0].text) as Array<Record<string, unknown>>;
   const sess1 = sessions.find(s => s.session_id === 'sess-1');
   assert.ok(sess1, 'sess-1 not in results');
   assert.equal(typeof sess1.event_count, 'number');
@@ -211,9 +210,9 @@ test('search_commands returns matching commands across sessions', async () => {
   await callTool(endpoint, 5, 'search_commands', { pattern: 'git' });
   const [result] = await pending;
   close();
-  const matches = JSON.parse(result.result.content[0].text);
+  const matches = JSON.parse((result.result as { content: Array<{ text: string }> }).content[0].text) as Array<Record<string, unknown>>;
   assert.ok(matches.length >= 2);
-  assert.ok(matches.every(m => m.command.includes('git')));
+  assert.ok(matches.every(m => (m.command as string).includes('git')));
   assert.ok(matches[0].session_id !== undefined);
   assert.ok(matches[0].project_path !== undefined);
 });
@@ -224,7 +223,7 @@ test('search_commands scoped by git_origin returns only matching sessions', asyn
   await callTool(endpoint, 6, 'search_commands', { pattern: 'build', git_origin: 'user/other' });
   const [result] = await pending;
   close();
-  const matches = JSON.parse(result.result.content[0].text);
+  const matches = JSON.parse((result.result as { content: Array<{ text: string }> }).content[0].text) as Array<Record<string, unknown>>;
   assert.equal(matches.length, 1);
   assert.equal(matches[0].command, 'cargo build');
   assert.equal(matches[0].session_id, 'sess-2');
@@ -236,7 +235,7 @@ test('search_commands returns empty array when pattern matches nothing', async (
   await callTool(endpoint, 7, 'search_commands', { pattern: 'xyzzy_no_match_ever' });
   const [result] = await pending;
   close();
-  const matches = JSON.parse(result.result.content[0].text);
+  const matches = JSON.parse((result.result as { content: Array<{ text: string }> }).content[0].text) as unknown[];
   assert.deepEqual(matches, []);
 });
 
@@ -247,16 +246,14 @@ test('get_session_context returns metadata, top_commands, first/last lines', asy
   const [result] = await pending;
   close();
   assert.ok(result.result, `expected result, got error: ${JSON.stringify(result.error)}`);
-  const ctx = JSON.parse(result.result.content[0].text);
-  assert.equal(ctx.session.session_id, 'sess-1');
-  assert.equal(ctx.session.git_origin, 'https://github.com/user/myrepo.git');
-  // top_commands: 2 distinct (git status, npm install), most recent first
+  const ctx = JSON.parse((result.result as { content: Array<{ text: string }> }).content[0].text) as Record<string, unknown>;
+  assert.equal((ctx.session as Record<string, unknown>).session_id, 'sess-1');
+  assert.equal((ctx.session as Record<string, unknown>).git_origin, 'https://github.com/user/myrepo.git');
   assert.deepEqual(ctx.top_commands, ['git status', 'npm install']);
-  // sess-1 has 25 lines: first 20 present, last 20 present (overlap is fine)
-  assert.equal(ctx.first_lines.length, 20);
-  assert.equal(ctx.first_lines[0].seq, 0);
-  assert.equal(ctx.last_lines.length, 20);
-  assert.equal(ctx.last_lines[19].seq, 24);
+  assert.equal((ctx.first_lines as unknown[]).length, 20);
+  assert.equal(((ctx.first_lines as Array<Record<string, unknown>>)[0]).seq, 0);
+  assert.equal((ctx.last_lines as unknown[]).length, 20);
+  assert.equal(((ctx.last_lines as Array<Record<string, unknown>>)[19]).seq, 24);
 });
 
 test('get_session_context returns error for unknown session_id', async () => {
@@ -266,7 +263,7 @@ test('get_session_context returns error for unknown session_id', async () => {
   const [result] = await pending;
   close();
   assert.ok(result.error, 'expected error response');
-  assert.equal(result.error.message, 'session not found');
+  assert.equal((result.error as { message: string }).message, 'session not found');
 });
 
 test('read_transcript returns paginated lines', async () => {
@@ -276,7 +273,7 @@ test('read_transcript returns paginated lines', async () => {
   const [result] = await pending;
   close();
   assert.ok(result.result);
-  const lines = JSON.parse(result.result.content[0].text);
+  const lines = JSON.parse((result.result as { content: Array<{ text: string }> }).content[0].text) as Array<Record<string, unknown>>;
   assert.equal(lines.length, 10);
   assert.equal(lines[0].seq, 0);
   assert.equal(lines[9].seq, 9);
@@ -284,25 +281,23 @@ test('read_transcript returns paginated lines', async () => {
 
 test('read_transcript with progressToken sends progress notifications before final result', async () => {
   const { endpoint, emitter, close } = await openSSE();
-  // sess-3 has 120 lines — 3 batches of 50, 50, 20 → at least 2 progress notifications
   const pending = collectUntilResult(emitter, 21);
   await callTool(endpoint, 21, 'read_transcript', { session_id: 'sess-3', offset: 0, limit: 200 },
     { progressToken: 'tok-21' });
   const events = await pending;
   close();
-  const notifications = events.filter(e => e.method === 'notifications/progress');
+  const notifications = events.filter(e => (e as Record<string, unknown>).method === 'notifications/progress');
   const finalResult   = events.at(-1);
   assert.ok(notifications.length >= 1, 'expected at least one progress notification');
-  // notifications carry only numeric fields, not line data
   for (const n of notifications) {
-    assert.equal(typeof n.params.progress, 'number');
-    assert.equal(typeof n.params.total,    'number');
-    assert.ok(n.params.data === undefined, 'progress notification must not carry line data');
-    assert.equal(n.params.progressToken, 'tok-21');
+    const params = (n as Record<string, Record<string, unknown>>).params;
+    assert.equal(typeof params.progress, 'number');
+    assert.equal(typeof params.total,    'number');
+    assert.ok(params.data === undefined, 'progress notification must not carry line data');
+    assert.equal(params.progressToken, 'tok-21');
   }
-  // final result comes after all notifications
-  assert.ok(finalResult.result, 'last event must be the tool result');
-  const lines = JSON.parse(finalResult.result.content[0].text);
+  assert.ok((finalResult as Record<string, unknown>).result, 'last event must be the tool result');
+  const lines = JSON.parse(((finalResult as Record<string, unknown>).result as { content: Array<{ text: string }> }).content[0].text) as unknown[];
   assert.equal(lines.length, 120);
 });
 
@@ -313,5 +308,5 @@ test('read_transcript returns error for unknown session_id', async () => {
   const [result] = await pending;
   close();
   assert.ok(result.error);
-  assert.equal(result.error.message, 'session not found');
+  assert.equal((result.error as { message: string }).message, 'session not found');
 });

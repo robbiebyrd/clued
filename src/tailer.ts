@@ -1,11 +1,15 @@
 import fs from 'fs';
 import readline from 'readline';
 
-export function tailFile(filePath, onLine) {
+interface Tailer {
+  stop(): void;
+}
+
+export function tailFile(filePath: string, onLine: (line: string) => void): Tailer {
   let pos = 0;
   let stopped = false;
-  let watcher = null;
-  let pollTimer = null;
+  let watcher: fs.FSWatcher | null = null;
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
   let inFlight = false;
 
   const read = () => {
@@ -18,7 +22,7 @@ export function tailFile(filePath, onLine) {
         input: fs.createReadStream(filePath, { start: pos, end: size - 1 }),
         crlfDelay: Infinity,
       });
-      const batch = [];
+      const batch: string[] = [];
       rl.on('line', l => { if (l.trim()) batch.push(l); });
       rl.on('error', () => { rl.close(); inFlight = false; });
       rl.on('close', () => { pos = size; inFlight = false; batch.forEach(onLine); });
@@ -38,8 +42,8 @@ export function tailFile(filePath, onLine) {
   return {
     stop() {
       stopped = true;
-      if (watcher)    { watcher.close();        watcher = null;    }
-      if (pollTimer)  { clearInterval(pollTimer); pollTimer = null; }
+      if (watcher)   { watcher.close();         watcher = null;    }
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     },
   };
 }

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { loadEnrichers, startEnrichmentLoop } from '../src/enricher.mjs';
+import { loadEnrichers, startEnrichmentLoop } from '../src/enricher';
+import type { MongoDb } from '../src/mongo';
 
 const TMP = join(tmpdir(), `clued-enricher-test-${process.pid}`);
 mkdirSync(TMP, { recursive: true });
@@ -60,16 +61,16 @@ test('returns empty array for missing enrichers directory', async () => {
 test('startEnrichmentLoop enriches matching docs on success', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval'] });
 
-  const updated = [];
+  const updated: unknown[] = [];
   const mockCollection = {
     find: () => ({ limit: () => ({ toArray: async () => [{ _id: 'id1', tool_name: 'Bash', tool_input: { command: 'ls' } }] }) }),
-    updateOne: async (filter, update) => { updated.push({ filter, update }); },
+    updateOne: async (_filter: unknown, update: unknown) => { updated.push({ filter: _filter, update }); },
   };
-  const mockMongo = { db: { collection: () => mockCollection } };
+  const mockMongo = { db: { collection: () => mockCollection } } as unknown as MongoDb;
   const enricher = {
     name: 'test-enricher',
     collection: 'hook_events',
-    matches: doc => doc.tool_name === 'Bash',
+    matches: (doc: Record<string, unknown>) => doc.tool_name === 'Bash',
     enrich: async () => ({ result: 'ok' }),
   };
 
@@ -79,18 +80,18 @@ test('startEnrichmentLoop enriches matching docs on success', async (t) => {
   loop.stop();
 
   assert.equal(updated.length, 1);
-  assert.deepEqual(updated[0].update, { $set: { 'enriched.test-enricher': { result: 'ok' } } });
+  assert.deepEqual((updated[0] as { update: unknown }).update, { $set: { 'enriched.test-enricher': { result: 'ok' } } });
 });
 
 test('startEnrichmentLoop writes failure field when enrich throws', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval'] });
 
-  const updated = [];
+  const updated: Array<Record<string, Record<string, Record<string, unknown>>>> = [];
   const mockCollection = {
     find: () => ({ limit: () => ({ toArray: async () => [{ _id: 'id2', tool_name: 'Bash', tool_input: { command: 'ls' } }] }) }),
-    updateOne: async (_filter, update) => { updated.push(update); },
+    updateOne: async (_filter: unknown, update: unknown) => { updated.push(update as typeof updated[0]); },
   };
-  const mockMongo = { db: { collection: () => mockCollection } };
+  const mockMongo = { db: { collection: () => mockCollection } } as unknown as MongoDb;
   const enricher = {
     name: 'failing-enricher',
     collection: 'hook_events',
@@ -111,16 +112,16 @@ test('startEnrichmentLoop writes failure field when enrich throws', async (t) =>
 test('startEnrichmentLoop skips docs where matches returns false', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval'] });
 
-  const updated = [];
+  const updated: unknown[] = [];
   const mockCollection = {
     find: () => ({ limit: () => ({ toArray: async () => [{ _id: 'id3', tool_name: 'NotBash' }] }) }),
-    updateOne: async (_filter, update) => { updated.push(update); },
+    updateOne: async (_filter: unknown, update: unknown) => { updated.push(update); },
   };
-  const mockMongo = { db: { collection: () => mockCollection } };
+  const mockMongo = { db: { collection: () => mockCollection } } as unknown as MongoDb;
   const enricher = {
     name: 'selective-enricher',
     collection: 'hook_events',
-    matches: doc => doc.tool_name === 'Bash',
+    matches: (doc: Record<string, unknown>) => doc.tool_name === 'Bash',
     enrich: async () => ({ result: 'ok' }),
   };
 

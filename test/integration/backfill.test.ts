@@ -4,12 +4,12 @@ import { mkdirSync, writeFileSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
+import { createClient } from '../../src/mongo';
+import { backfill, decodeProjectPath } from '../../src/backfill';
+import type { MongoDb } from '../../src/mongo';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
-import { createClient } from '../../src/mongo.mjs';
-import { backfill, decodeProjectPath } from '../../src/backfill.mjs';
-
 const TMP = join(tmpdir(), `clued-backfill-test-${process.pid}`);
 const TEST_CONFIG = {
   mongoUrl:    process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018',
@@ -17,7 +17,7 @@ const TEST_CONFIG = {
   projectsDir: TMP,
 };
 
-let mongo;
+let mongo: MongoDb;
 after(async () => {
   if (mongo) { await mongo.db.dropDatabase(); await mongo.close(); }
   rmSync(TMP, { recursive: true, force: true });
@@ -46,12 +46,12 @@ test('upserts sessions and transcript lines from project directories', async () 
 
   const session = await mongo.sessions.findOne({ session_id: sessionId });
   assert.ok(session, 'session doc not found');
-  assert.equal(session.project_path, '/Users/test/myproject');
+  assert.equal((session as Record<string, unknown>).project_path, '/Users/test/myproject');
 
   const lines = await mongo.transcriptLines.find({ session_id: sessionId }).sort({ seq: 1 }).toArray();
   assert.equal(lines.length, 2);
-  assert.equal(lines[0].line.type, 'human');
-  assert.equal(lines[1].line.type, 'assistant');
+  assert.equal((lines[0] as unknown as { line: Record<string, unknown> }).line.type, 'human');
+  assert.equal((lines[1] as unknown as { line: Record<string, unknown> }).line.type, 'assistant');
 });
 
 test('is idempotent — re-running does not duplicate lines', async () => {
@@ -67,8 +67,6 @@ test('handles empty project directory gracefully', async () => {
 });
 
 test('backfill sets git_origin when projectPath is a git repo', async () => {
-  // /private/tmp/claude has no hyphens in any path component, so decodeProjectPath
-  // round-trips cleanly: '-private-tmp-claude-gitrepotest<pid>' → '/private/tmp/claude/gitrepotest<pid>'
   const gitRepoPath = `/private/tmp/claude/gitrepotest${process.pid}`;
   const dirName     = gitRepoPath.replaceAll('/', '-');
   const projectsDir = join(tmpdir(), `clued-bf-gitprojects-${process.pid}`);
@@ -81,16 +79,16 @@ test('backfill sets git_origin when projectPath is a git repo', async () => {
     JSON.stringify({ type: 'human', text: 'hi' }) + '\n');
 
   const fakeOrigin = 'https://github.com/test/fake-repo.git';
-  execSync(`git init --template='' ${gitRepoPath}`, { stdio: 'ignore' });
-  execSync(`git -C ${gitRepoPath} remote add origin ${fakeOrigin}`, { stdio: 'ignore' });
+  execFileSync('git', ['init', '--template=', gitRepoPath], { stdio: 'ignore' });
+  execFileSync('git', ['-C', gitRepoPath, 'remote', 'add', 'origin', fakeOrigin], { stdio: 'ignore' });
 
   const gitConfig = { ...TEST_CONFIG, dbName: `clued_bf_git_test_${Date.now()}`, projectsDir };
-  const gitMongo  = await (await import('../../src/mongo.mjs')).createClient(gitConfig);
+  const gitMongo  = await createClient(gitConfig);
   try {
     await backfill(gitConfig, gitMongo);
     const session = await gitMongo.sessions.findOne({ session_id: sessionId });
     assert.ok(session, 'session not found');
-    assert.equal(session.git_origin, fakeOrigin);
+    assert.equal((session as Record<string, unknown>).git_origin, fakeOrigin);
   } finally {
     await gitMongo.db.dropDatabase();
     await gitMongo.close();

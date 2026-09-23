@@ -4,7 +4,7 @@ import { mkdirSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
-import { getGitOrigin } from '../src/git.mjs';
+import { getGitOrigin } from '../src/git';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 

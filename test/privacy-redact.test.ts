@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-
-const { matches, enrich, enabled, name } = await import('../enrichers/privacy-redact.mjs');
+import { matches, enrich, enabled, name } from '../enrichers/privacy-redact';
 
 test('is disabled by default', () => {
   assert.equal(enabled, false);

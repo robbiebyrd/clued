@@ -3,15 +3,14 @@ import assert from 'node:assert/strict';
 import { writeFileSync, appendFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { tailFile } from '../src/tailer';
 
-const { tailFile } = await import('../src/tailer.mjs');
-
-function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+function delay(ms: number): Promise<void> { return new Promise(r => setTimeout(r, ms)); }
 
 test('delivers lines present at start', async () => {
   const f = join(tmpdir(), `tail-${Date.now()}-1.jsonl`);
   writeFileSync(f, '{"a":1}\n{"b":2}\n');
-  const lines = [];
+  const lines: string[] = [];
   const { stop } = tailFile(f, l => lines.push(l));
   await delay(200);
   stop();
@@ -22,7 +21,7 @@ test('delivers lines present at start', async () => {
 test('delivers lines appended after start', async () => {
   const f = join(tmpdir(), `tail-${Date.now()}-2.jsonl`);
   writeFileSync(f, '{"a":1}\n');
-  const lines = [];
+  const lines: string[] = [];
   const { stop } = tailFile(f, l => lines.push(l));
   await delay(100);
   appendFileSync(f, '{"b":2}\n');
@@ -34,7 +33,7 @@ test('delivers lines appended after start', async () => {
 
 test('waits for file to appear then delivers lines', async () => {
   const f = join(tmpdir(), `tail-${Date.now()}-3.jsonl`);
-  const lines = [];
+  const lines: string[] = [];
   const { stop } = tailFile(f, l => lines.push(l));
   await delay(300);
   writeFileSync(f, '{"x":1}\n');
@@ -47,7 +46,7 @@ test('waits for file to appear then delivers lines', async () => {
 test('stop() halts delivery of new lines', async () => {
   const f = join(tmpdir(), `tail-${Date.now()}-4.jsonl`);
   writeFileSync(f, '{"a":1}\n');
-  const lines = [];
+  const lines: string[] = [];
   const { stop } = tailFile(f, l => lines.push(l));
   await delay(100);
   stop();

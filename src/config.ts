@@ -2,9 +2,18 @@ import { readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 
+export interface Config {
+  mongoUrl:          string;
+  dbName:            string;
+  port:              number;
+  mcpPort:           number;
+  projectsDir:       string;
+  disabledEnrichers: string[];
+}
+
 const DEFAULT_CONFIG_PATH = join(homedir(), '.claude', 'plugins', 'data', 'clued', 'config.json');
 
-const DEFAULTS = {
+const DEFAULTS: Config = {
   mongoUrl:          'mongodb://localhost:27018',
   dbName:            'claude_sessions',
   port:              8085,
@@ -13,18 +22,17 @@ const DEFAULTS = {
   disabledEnrichers: [],
 };
 
-function expandHome(val) {
-  if (typeof val !== 'string') return val;
+function expandHome(val: string): string {
   return val.startsWith('~/') ? join(homedir(), val.slice(2)) : val;
 }
 
-export function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
-  let fileConfig = {};
+export function loadConfig(configPath = DEFAULT_CONFIG_PATH): Config {
+  let fileConfig: Partial<Config> = {};
   try {
-    fileConfig = JSON.parse(readFileSync(configPath, 'utf8'));
+    fileConfig = JSON.parse(readFileSync(configPath, 'utf8')) as Partial<Config>;
   } catch { /* absent or unreadable — use defaults */ }
 
-  const cfg = { ...DEFAULTS, ...fileConfig };
+  const cfg: Config = { ...DEFAULTS, ...fileConfig };
 
   if (process.env.CLUED_MONGO_URL)    cfg.mongoUrl    = process.env.CLUED_MONGO_URL;
   if (process.env.CLUED_DB_NAME)      cfg.dbName      = process.env.CLUED_DB_NAME;

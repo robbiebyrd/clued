@@ -2,16 +2,21 @@
   "name": "clued",
   "version": "1.0.0",
   "type": "module",
+  "packageManager": "pnpm@10.26.0",
   "description": "Claude Code plugin — mirrors session data to MongoDB",
   "scripts": {
-    "build": "node build.mjs",
-    "test": "node --test 'test/*.test.mjs'",
-    "test:integration": "node --test 'test/integration/*.test.mjs'"
+    "build":            "node --import tsx/esm src/build.ts",
+    "typecheck":        "tsc --noEmit",
+    "test":             "node --import tsx/esm --test 'test/*.test.ts'",
+    "test:integration": "node --import tsx/esm --test 'test/integration/*.test.ts'"
   },
   "dependencies": {
     "mongodb": "^6.17.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "@types/node": "^26.6.2",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }

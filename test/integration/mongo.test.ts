@@ -1,13 +1,14 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createClient } from '../../src/mongo.mjs';
+import { createClient } from '../../src/mongo';
+import type { MongoDb } from '../../src/mongo';
 
 const TEST_CONFIG = {
   mongoUrl: process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018',
   dbName:   `clued_test_${Date.now()}`,
 };
 
-let mongo;
+let mongo: MongoDb;
 after(async () => {
   if (mongo) {
     await mongo.db.dropDatabase();
@@ -30,13 +31,13 @@ test('upserts a session doc', async () => {
     { upsert: true }
   );
   const found = await mongo.sessions.findOne({ session_id: 'test-123' });
-  assert.equal(found.cwd, '/tmp');
+  assert.equal((found as Record<string, unknown>)?.cwd, '/tmp');
 });
 
 test('inserts a hook event', async () => {
   await mongo.hookEvents.insertOne({ session_id: 'test-123', type: 'PreToolUse', created_at: new Date() });
   const found = await mongo.hookEvents.findOne({ session_id: 'test-123' });
-  assert.equal(found.type, 'PreToolUse');
+  assert.equal((found as Record<string, unknown>)?.type, 'PreToolUse');
 });
 
 test('upserts transcript lines by session_id + seq', async () => {

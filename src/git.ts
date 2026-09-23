@@ -3,7 +3,7 @@ import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
 
-export async function getGitOrigin(cwd) {
+export async function getGitOrigin(cwd: string): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync(
       'git', ['-C', cwd, 'remote', 'get-url', 'origin'],

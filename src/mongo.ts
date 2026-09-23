@@ -1,6 +1,15 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, Collection, Db } from 'mongodb';
+import type { Config } from './config';
 
-export async function createClient({ mongoUrl, dbName }) {
+export interface MongoDb {
+  db:              Db;
+  sessions:        Collection;
+  hookEvents:      Collection;
+  transcriptLines: Collection;
+  close:           () => Promise<void>;
+}
+
+export async function createClient({ mongoUrl, dbName }: Pick<Config, 'mongoUrl' | 'dbName'>): Promise<MongoDb> {
   const client = new MongoClient(mongoUrl);
   await client.connect();
   const db = client.db(dbName);
@@ -15,7 +24,7 @@ export async function createClient({ mongoUrl, dbName }) {
     db.collection('transcript_lines').createIndex({ session_id: 1, seq: 1 }, { unique: true }),
   ]);
   for (const r of results) {
-    if (r.status === 'rejected') console.error('clued: index warning:', r.reason.message);
+    if (r.status === 'rejected') console.error('clued: index warning:', (r.reason as Error).message);
   }
 
   return {
