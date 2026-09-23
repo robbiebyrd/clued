@@ -153,9 +153,18 @@ Returns paginated transcript lines for a session. For large transcripts, the ser
 {
   "session_id": "string",
   "offset":     "number (optional, default 0)",
-  "limit":      "number (optional, default 200)",
-  "_meta": {
-    "progressToken": "string | number (optional — include to receive progress notifications)"
+  "limit":      "number (optional, default 200)"
+}
+```
+
+To receive progress notifications, the client passes `_meta.progressToken` in the `params` of the `tools/call` JSON-RPC request (transport-level — not part of the tool's `arguments`):
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "read_transcript",
+    "arguments": { "session_id": "...", "offset": 0, "limit": 200 },
+    "_meta": { "progressToken": "token-abc" }
   }
 }
 ```
@@ -171,7 +180,7 @@ Returns paginated transcript lines for a session. For large transcripts, the ser
 
 Returns MCP error `"session not found"` if `session_id` is unknown.
 
-**Progress notifications** (sent when `progressToken` is present): each page of fetched lines is sent as a `notifications/progress` event with `{ progressToken, progress, total, data: lines[] }` before the final tool result. The final result contains all lines.
+**Progress notifications** (sent when `progressToken` is present): as each batch of 50 lines is fetched from MongoDB, the server sends a `notifications/progress` event with `{ progressToken, progress, total }` — where `progress` is the count of lines fetched so far and `total` is the estimated total (total transcript lines for the session). The final tool result contains all fetched lines.
 
 ---
 
@@ -186,7 +195,7 @@ The MCP HTTP+SSE transport protocol:
 
 For `find_sessions`, `get_session_context`, and `search_commands`: single result event, no progress notifications.
 
-For `read_transcript` when `_meta.progressToken` is present: the server fetches lines in batches of 50 from MongoDB, sends a `notifications/progress` event per batch, then sends the final tool result containing all lines. If the client disconnects mid-stream, the MongoDB cursor is aborted and the session is cleaned up.
+For `read_transcript` when `_meta.progressToken` is present (passed in `params._meta` of the `tools/call` request): the server fetches lines in batches of 50 from MongoDB, sends a `notifications/progress` event per batch with `{ progressToken, progress, total }` (numeric-only — no line data in the notification), then sends the final tool result containing all fetched lines. If the client disconnects mid-stream, the MongoDB cursor is aborted and the session is cleaned up.
 
 ---
 
@@ -260,7 +269,7 @@ If both services are already healthy (the common case after first startup), step
 - `search_commands` scoped by `git_origin` returns only matching sessions
 - `search_commands` returns empty array when pattern matches nothing
 - `read_transcript` returns paginated lines
-- `read_transcript` with `progressToken` sends progress notifications before final result
+- `read_transcript` with `progressToken` (in `params._meta`) sends at least one `notifications/progress` SSE event (with numeric `progress` and `total` fields, no line data) on the SSE channel before the final `tools/call` result event arrives
 - `read_transcript` returns error for unknown `session_id`
 
 ---
