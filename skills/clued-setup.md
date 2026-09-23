@@ -293,5 +293,13 @@ Tell the user:
 - MCP server status: running on port 8086 / failed
 - On macOS tarball install: launchd plist written to `~/Library/LaunchAgents/org.mongodb.mongod.plist` — mongod restarts automatically at login with `KeepAlive: true`
 - Hooks are registered automatically via `hooks.json` — no manual settings edit needed
-- To customise: drop a `.mjs` enricher into `<plugin-root>/enrichers/` and restart the daemon
+- To add a custom enricher: create a `.ts` file in `<plugin-root>/enrichers/`, then rebuild and restart:
+  ```bash
+  # Install mise if not present: https://mise.jdx.dev
+  cd <plugin-root>
+  mise install          # sets up Node.js + pnpm per mise.toml
+  pnpm install --frozen-lockfile
+  pnpm run lint && pnpm run build
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
+  ```
 - To enable the privacy-redact enricher: remove `privacy-redact` from `disabledEnrichers` in `config.json`
