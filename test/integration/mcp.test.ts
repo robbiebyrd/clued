@@ -5,15 +5,20 @@ import { EventEmitter } from 'events';
 import { spawn } from 'child_process';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { writeFileSync, mkdirSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
 import { createClient } from '../../src/mongo';
 import type { MongoDb } from '../../src/mongo';
 import type { ChildProcess } from 'child_process';
 
-const ROOT      = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const MCP_PATH  = join(ROOT, 'src/mcp.ts');
-const TEST_PORT = 18086;
-const TEST_DB   = `clued_mcp_test_${Date.now()}`;
-const TEST_URL  = process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018';
+const ROOT        = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const MCP_PATH    = join(ROOT, 'src/mcp.ts');
+const TEST_PORT   = 18086;
+const TEST_DB     = `clued_mcp_test_${Date.now()}`;
+const TEST_URL    = process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018';
+const TMP_DIR     = join(tmpdir(), `clued-mcp-test-${process.pid}`);
+const CLAUDE_CONFIG = join(TMP_DIR, 'claude-config.json');
+const TEST_ACCOUNT  = 'test-mcp-account';
 
 let mcpProc: ChildProcess | undefined;
 let mongo: MongoDb;
@@ -99,8 +104,17 @@ function collectUntilResult(emitter: EventEmitter, id: number, timeoutMs = 5000)
 }
 
 before(async () => {
+  mkdirSync(TMP_DIR, { recursive: true });
+  writeFileSync(CLAUDE_CONFIG, JSON.stringify({ lastKnownAccountUuid: TEST_ACCOUNT }));
+
   mcpProc = spawn(process.execPath, ['--import', 'tsx/esm', MCP_PATH], {
-    env: { ...process.env, CLUED_MCP_PORT: String(TEST_PORT), CLUED_DB_NAME: TEST_DB, CLUED_MONGO_URL: TEST_URL },
+    env: {
+      ...process.env,
+      CLUED_MCP_PORT: String(TEST_PORT),
+      CLUED_DB_NAME: TEST_DB,
+      CLUED_MONGO_URL: TEST_URL,
+      CLUED_CLAUDE_APP_CONFIG_PATH: CLAUDE_CONFIG,
+    },
     stdio: 'pipe',
   });
   for (let i = 0; i < 30; i++) {
@@ -111,41 +125,55 @@ before(async () => {
 
   const now = new Date();
   await mongo.sessions.insertMany([
-    { session_id: 'sess-1', project_path: '/home/user/myrepo',
+    { session_id: 'sess-1', account_id: TEST_ACCOUNT, project_path: '/home/user/myrepo',
       git_origin: 'https://github.com/user/myrepo.git',
       cwd: '/home/user/myrepo', started_at: now, last_seen: now },
-    { session_id: 'sess-2', project_path: '/home/user/other',
+    { session_id: 'sess-2', account_id: TEST_ACCOUNT, project_path: '/home/user/other',
       git_origin: 'https://github.com/user/other.git',
       cwd: '/home/user/other',  started_at: now, last_seen: now },
-    { session_id: 'sess-3', project_path: '/home/user/myrepo',
+    { session_id: 'sess-3', account_id: TEST_ACCOUNT, project_path: '/home/user/myrepo',
       git_origin: 'https://github.com/user/myrepo.git',
       cwd: '/home/user/myrepo', started_at: now, last_seen: now },
   ]);
   await mongo.hookEvents.insertMany([
-    { session_id: 'sess-1', tool_name: 'Bash',
+    { session_id: 'sess-1', account_id: TEST_ACCOUNT, tool_name: 'Bash',
       tool_input: { command: 'git status' },   created_at: new Date(now.getTime() - 3000) },
-    { session_id: 'sess-1', tool_name: 'Bash',
+    { session_id: 'sess-1', account_id: TEST_ACCOUNT, tool_name: 'Bash',
       tool_input: { command: 'npm install' },  created_at: new Date(now.getTime() - 2000) },
-    { session_id: 'sess-1', tool_name: 'Bash',
+    { session_id: 'sess-1', account_id: TEST_ACCOUNT, tool_name: 'Bash',
       tool_input: { command: 'git status' },   created_at: new Date(now.getTime() - 1000) },
-    { session_id: 'sess-2', tool_name: 'Bash',
+    { session_id: 'sess-2', account_id: TEST_ACCOUNT, tool_name: 'Bash',
       tool_input: { command: 'cargo build' },  created_at: new Date(now.getTime()) },
   ]);
   await mongo.transcriptLines.insertMany(
     Array.from({ length: 25 }, (_, i) => ({
-      session_id: 'sess-1', seq: i, line: { type: 'msg', index: i }, created_at: now,
+      session_id: 'sess-1', account_id: TEST_ACCOUNT, seq: i, line: { type: 'msg', index: i }, created_at: now,
     }))
   );
   await mongo.transcriptLines.insertMany(
     Array.from({ length: 120 }, (_, i) => ({
-      session_id: 'sess-3', seq: i, line: { type: 'msg', index: i }, created_at: now,
+      session_id: 'sess-3', account_id: TEST_ACCOUNT, seq: i, line: { type: 'msg', index: i }, created_at: now,
     }))
   );
+
+  // Cross-account isolation test data
+  await mongo.sessions.insertMany([
+    { session_id: 'sess-acct-1', account_id: TEST_ACCOUNT,    project_path: '/home/user/acct', started_at: now, last_seen: now },
+    { session_id: 'sess-acct-2', account_id: 'other-account', project_path: '/home/other/acct', started_at: now, last_seen: now },
+  ]);
+  await mongo.hookEvents.insertOne({
+    session_id: 'sess-acct-2', account_id: 'other-account',
+    tool_name: 'Bash', tool_input: { command: 'echo hello' }, created_at: now,
+  });
+  await mongo.transcriptLines.insertMany([
+    { session_id: 'sess-acct-2', account_id: 'other-account', seq: 0, line: { type: 'human' }, created_at: now },
+  ]);
 });
 
 after(async () => {
   mcpProc?.kill('SIGTERM');
   if (mongo) { await mongo.db.dropDatabase(); await mongo.close(); }
+  rmSync(TMP_DIR, { recursive: true, force: true });
 });
 
 test('GET /health returns 200', async () => {
@@ -305,6 +333,63 @@ test('read_transcript returns error for unknown session_id', async () => {
   const { endpoint, emitter, close } = await openSSE();
   const pending = collectUntilResult(emitter, 22);
   await callTool(endpoint, 22, 'read_transcript', { session_id: 'no-such-session' });
+  const [result] = await pending;
+  close();
+  assert.ok(result.error);
+  assert.equal((result.error as { message: string }).message, 'session not found');
+});
+
+test('find_sessions does not return sessions from other accounts', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 100);
+  await callTool(endpoint, 100, 'find_sessions', {});
+  const [result] = await pending;
+  close();
+  const sessions = JSON.parse(
+    (result.result as { content: Array<{ text: string }> }).content[0].text
+  ) as Array<Record<string, unknown>>;
+  assert.ok(!sessions.some(s => s.session_id === 'sess-acct-2'), 'sess-acct-2 (other account) must not appear');
+  assert.ok(sessions.some(s => s.session_id === 'sess-acct-1'), 'sess-acct-1 (own account) must appear');
+});
+
+test('get_session_context returns "session not found" for foreign account session', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 101);
+  await callTool(endpoint, 101, 'get_session_context', { session_id: 'sess-acct-2' });
+  const [result] = await pending;
+  close();
+  assert.ok(result.error, 'expected error for foreign session');
+  assert.equal((result.error as { message: string }).message, 'session not found');
+});
+
+test('search_commands does not return commands from other account', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 102);
+  await callTool(endpoint, 102, 'search_commands', { pattern: 'echo' });
+  const [result] = await pending;
+  close();
+  const matches = JSON.parse(
+    (result.result as { content: Array<{ text: string }> }).content[0].text
+  ) as Array<Record<string, unknown>>;
+  assert.deepEqual(matches, [], 'echo command belongs to other-account and must not appear');
+});
+
+test('search_commands with foreign session_id returns empty (ownership check)', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 103);
+  await callTool(endpoint, 103, 'search_commands', { session_id: 'sess-acct-2', pattern: 'echo' });
+  const [result] = await pending;
+  close();
+  const matches = JSON.parse(
+    (result.result as { content: Array<{ text: string }> }).content[0].text
+  ) as Array<Record<string, unknown>>;
+  assert.deepEqual(matches, []);
+});
+
+test('read_transcript returns "session not found" for foreign account session', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 104);
+  await callTool(endpoint, 104, 'read_transcript', { session_id: 'sess-acct-2' });
   const [result] = await pending;
   close();
   assert.ok(result.error);
