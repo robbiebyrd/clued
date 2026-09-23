@@ -1,8 +1,12 @@
 import { readdir, readFile } from 'fs/promises';
 import { join, basename } from 'path';
 import { fileURLToPath } from 'url';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { createClient } from './mongo.mjs';
 import { loadConfig } from './config.mjs';
+
+const execFileAsync = promisify(execFile);
 
 // Hyphens are ambiguous with path separators, so project_path is best-effort metadata only.
 export function decodeProjectPath(dirName) {
@@ -11,12 +15,22 @@ export function decodeProjectPath(dirName) {
 
 async function processSession(mongo, projectPath, sessionId, filePath) {
   const now = new Date();
+
+  let git_origin = null;
+  try {
+    const { stdout } = await execFileAsync(
+      'git', ['-C', projectPath, 'remote', 'get-url', 'origin'],
+      { timeout: 2000 }
+    );
+    git_origin = stdout.trim() || null;
+  } catch { /* not a git repo or git unavailable */ }
+
+  const $set = { session_id: sessionId, project_path: projectPath, transcript_path: filePath, last_seen: now };
+  if (git_origin) $set.git_origin = git_origin;
+
   await mongo.sessions.updateOne(
     { session_id: sessionId },
-    {
-      $set:         { session_id: sessionId, project_path: projectPath, transcript_path: filePath, last_seen: now },
-      $setOnInsert: { started_at: now },
-    },
+    { $set, $setOnInsert: { started_at: now } },
     { upsert: true }
   );
 
