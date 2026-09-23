@@ -255,10 +255,41 @@ If `jq` is not available, read the file and add or merge the key manually:
 
 Do not duplicate the `"clued"` key if it already exists with the correct URL.
 
-## Step 7 — Start the daemon
+## Step 7 — Determine plugin root
+
+For a directory-sourced installation, read the plugin root from `~/.claude/settings.json`:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
+CLUED_PLUGIN_ROOT=$(jq -r '
+  .extraKnownMarketplaces
+  | to_entries[]
+  | select(.value.source.source == "directory")
+  | select(.value.source.path | test("clued"))
+  | .value.source.path
+' ~/.claude/settings.json 2>/dev/null | head -1)
+```
+
+If that returns empty (e.g. installed from a marketplace, not a directory), find the
+most recently modified cache entry instead:
+
+```bash
+CLUED_PLUGIN_ROOT=$(ls -dt ~/.claude/plugins/cache/*/clued/*/ 2>/dev/null | head -1)
+```
+
+Confirm the path looks right before continuing.
+
+## Step 8 — Register hooks and start the daemon
+
+Register clued's hooks into `~/.claude/settings.json`:
+
+```bash
+bash "${CLUED_PLUGIN_ROOT}/hooks/register-hooks"
+```
+
+Then start the daemon and MCP server:
+
+```bash
+bash "${CLUED_PLUGIN_ROOT}/hooks/session-start"
 ```
 
 Wait 2 seconds, then verify both services:
@@ -273,33 +304,34 @@ the error:
 
 ```bash
 # Daemon
-timeout 3 node "${CLAUDE_PLUGIN_ROOT}/dist/daemon.mjs" 2>&1 || true
+timeout 3 node "${CLUED_PLUGIN_ROOT}/dist/daemon.mjs" 2>&1 || true
 
 # MCP server
-timeout 3 node "${CLAUDE_PLUGIN_ROOT}/dist/mcp.mjs" 2>&1 || true
+timeout 3 node "${CLUED_PLUGIN_ROOT}/dist/mcp.mjs" 2>&1 || true
 ```
 
 Most common failure cause: MongoDB isn't reachable at the configured URL. Confirm
 the port is open with `nc -z <host> <port>` before retrying.
 
-## Step 8 — Confirm to user
+## Step 9 — Confirm to user
 
 Tell the user:
 
 - MongoDB option chosen and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
 - MCP server registered in `~/.claude/settings.json` under `mcpServers.clued` (URL: `http://127.0.0.1:8086/sse`)
+- Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`
 - Daemon status: running on port 8085 / failed (show error output)
 - MCP server status: running on port 8086 / failed
 - On macOS tarball install: launchd plist written to `~/Library/LaunchAgents/org.mongodb.mongod.plist` — mongod restarts automatically at login with `KeepAlive: true`
-- Hooks are registered automatically via `hooks.json` — no manual settings edit needed
+- Ask the user to run `/reload-plugins` for hooks to take effect in this session
 - To add a custom enricher: create a `.ts` file in `<plugin-root>/enrichers/`, then rebuild and restart:
   ```bash
   # Install mise if not present: https://mise.jdx.dev
-  cd <plugin-root>
+  cd "${CLUED_PLUGIN_ROOT}"
   mise install          # sets up Node.js + pnpm per mise.toml
   pnpm install --frozen-lockfile
   pnpm run lint && pnpm run build
-  bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
+  bash "${CLUED_PLUGIN_ROOT}/hooks/session-start"
   ```
 - To enable the privacy-redact enricher: remove `privacy-redact` from `disabledEnrichers` in `config.json`

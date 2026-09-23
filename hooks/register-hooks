@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Writes clued hook entries into ~/.claude/settings.json (or $CLAUDE_CONFIG_DIR/settings.json).
+# Safe to run multiple times: replaces stale clued entries, preserves all others.
+
+HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RELAY="${HOOKS_DIR}/event-relay"
+CHECK_SETUP="${HOOKS_DIR}/check-setup"
+SESSION_START="${HOOKS_DIR}/session-start"
+SETTINGS="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
+
+if ! command -v jq &>/dev/null; then
+  echo "clued register-hooks: jq not found, skipping hook registration" >&2
+  exit 0
+fi
+
+if [[ ! -f "$SETTINGS" ]]; then
+  mkdir -p "$(dirname "$SETTINGS")"
+  echo '{}' > "$SETTINGS"
+fi
+
+TMP="${SETTINGS}.tmp.$$"
+jq \
+  --arg relay         "$RELAY" \
+  --arg check_setup   "$CHECK_SETUP" \
+  --arg session_start "$SESSION_START" \
+  '
+  def is_clued:
+    [.hooks[].command] | any(test("/hooks/(event-relay|session-start|check-setup)$"));
+
+  def relay_hook(cmd):
+    {"hooks": [{"type": "command", "command": cmd, "async": true}]};
+
+  def replace(ev; entry):
+    .hooks[ev] = ((.hooks[ev] // []) | map(select(is_clued | not))) + [entry];
+
+  . |
+  replace("SessionStart";
+    {"hooks": [
+      {"type": "command", "command": $check_setup},
+      {"type": "command", "command": $session_start, "async": true}
+    ]}) |
+  replace("PreToolUse";       relay_hook($relay)) |
+  replace("PostToolUse";      relay_hook($relay)) |
+  replace("UserPromptSubmit"; relay_hook($relay)) |
+  replace("Stop";             relay_hook($relay)) |
+  replace("SessionEnd";       relay_hook($relay)) |
+  replace("Notification";     relay_hook($relay)) |
+  replace("SubagentStop";     relay_hook($relay))
+  ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
+
+echo "clued: registered hooks in $SETTINGS"

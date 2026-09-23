@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Keep hooks registered in settings.json pointing to this plugin installation.
+"${PLUGIN_ROOT}/hooks/register-hooks" &>/dev/null &
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 DEFAULT_PORT=8085
 DEFAULT_MCP_PORT=8086
