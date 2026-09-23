@@ -113,7 +113,6 @@ test('backfill stamps account_id on sessions and transcript lines', async () => 
   const m = await createClient({
     mongoUrl: process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018',
     dbName:   `clued_bf_acct_test_${Date.now()}`,
-    projectsDir: TMP_CLAUDE,
   });
   try {
     await backfill({ projectsDir: TMP_CLAUDE }, m, acctId);
