@@ -1,12 +1,11 @@
 import http from 'http';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { loadConfig }                         from './config.mjs';
 import { createClient }                       from './mongo.mjs';
 import { tailFile }                           from './tailer.mjs';
 import { loadEnrichers, startEnrichmentLoop } from './enricher.mjs';
+import { getGitOrigin }                       from './git.mjs';
 
 const ENRICHERS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'enrichers');
 
@@ -17,20 +16,6 @@ const mongo     = await createClient(config).catch(err => {
 });
 const enrichers = await loadEnrichers(ENRICHERS_DIR, config);
 const loop      = startEnrichmentLoop(mongo, enrichers);
-
-const execFileAsync = promisify(execFile);
-
-async function getGitOrigin(cwd) {
-  try {
-    const { stdout } = await execFileAsync(
-      'git', ['-C', cwd, 'remote', 'get-url', 'origin'],
-      { timeout: 2000 }
-    );
-    return stdout.trim() || null;
-  } catch {
-    return null;
-  }
-}
 
 const tracked = new Map();
 

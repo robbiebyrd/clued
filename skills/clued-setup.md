@@ -26,6 +26,7 @@ Write the config to `~/.claude/plugins/data/clued/config.json` (create parent di
   "mongoUrl": "<user's URL>",
   "dbName": "<user's DB name>",
   "port": 8085,
+  "mcpPort": 8086,
   "projectsDir": "~/.claude/projects",
   "disabledEnrichers": []
 }

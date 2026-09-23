@@ -11,6 +11,8 @@ const mongo  = await createClient(config).catch(err => {
 
 const sessions = new Map();
 
+const MAX_LIMIT = 500;
+
 function sseWrite(res, data) {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
@@ -24,6 +26,7 @@ function pushProgress(res, progressToken, progress, total) {
 }
 
 async function findSessions({ project_path, git_origin, query, limit = 10 }) {
+  limit = Math.min(limit, MAX_LIMIT);
   const filter = {};
   if (project_path) filter.project_path = { $regex: project_path, $options: 'i' };
   if (git_origin)   filter.git_origin   = { $regex: git_origin,   $options: 'i' };
@@ -43,12 +46,14 @@ async function findSessions({ project_path, git_origin, query, limit = 10 }) {
 }
 
 async function searchCommands({ pattern, session_id, git_origin, limit = 20 }) {
+  limit = Math.min(limit, MAX_LIMIT);
   let sessionIds;
   if (session_id) {
     sessionIds = [session_id];
   } else if (git_origin) {
     const ss = await mongo.sessions
       .find({ git_origin: { $regex: git_origin, $options: 'i' } }, { projection: { session_id: 1 } })
+      .limit(MAX_LIMIT)
       .toArray();
     sessionIds = ss.map(s => s.session_id);
     if (sessionIds.length === 0) return [];
@@ -83,7 +88,7 @@ async function searchCommands({ pattern, session_id, git_origin, limit = 20 }) {
 
 async function getSessionContext({ session_id }) {
   const session = await mongo.sessions.findOne({ session_id }, { projection: { _id: 0 } });
-  if (!session) throw Object.assign(new Error('session not found'), { isMcpError: true });
+  if (!session) throw new Error('session not found');
 
   const bashEvents = await mongo.hookEvents
     .find({ session_id, tool_name: 'Bash', 'tool_input.command': { $type: 'string' } })
@@ -132,8 +137,9 @@ async function getSessionContext({ session_id }) {
 }
 
 async function readTranscript({ session_id, offset = 0, limit = 200 }, progressToken, sseRes) {
+  limit = Math.min(limit, MAX_LIMIT);
   const session = await mongo.sessions.findOne({ session_id });
-  if (!session) throw Object.assign(new Error('session not found'), { isMcpError: true });
+  if (!session) throw new Error('session not found');
 
   const total = await mongo.transcriptLines.countDocuments({ session_id });
   const BATCH = 50;
