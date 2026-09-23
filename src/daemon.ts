@@ -7,6 +7,7 @@ import { tailFile }                           from './tailer';
 import { loadEnrichers, startEnrichmentLoop } from './enricher';
 import { getGitOrigin, getGitBranch }          from './git';
 import { readAccountId }                       from './account';
+import { appendToWal, flushWal }              from './wal';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dir      = dirname(__filename);
@@ -23,6 +24,12 @@ const mongo     = await createClient(config).catch(err => {
 });
 const enrichers = await loadEnrichers(ENRICHERS_DIR, config);
 const loop      = startEnrichmentLoop(mongo, enrichers);
+
+const walInsert = (doc: Record<string, unknown>) =>
+  mongo.hookEvents.insertOne({ ...doc, created_at: doc.created_at ?? new Date() }).then(() => undefined);
+
+await flushWal(config.walPath, walInsert).catch(() => {});
+const walFlushInterval = setInterval(() => { flushWal(config.walPath, walInsert).catch(() => {}); }, 60_000);
 
 interface SessionState { gitOriginFound: boolean; }
 const tracked = new Map<string, SessionState>();
@@ -100,7 +107,11 @@ const server = http.createServer((req, res) => {
       if (data.session_id) {
         mongo.sessions.updateOne({ session_id: data.session_id, account_id }, { $set: { last_seen: new Date() } }).catch(() => {});
       }
-      await mongo.hookEvents.insertOne({ ...data, account_id, created_at: new Date() });
+      try {
+        await mongo.hookEvents.insertOne({ ...data, account_id, created_at: new Date() });
+      } catch {
+        appendToWal(config.walPath, { ...data, account_id, created_at: new Date().toISOString() });
+      }
       res.writeHead(200); res.end('ok');
     } catch (e) {
       res.writeHead(400); res.end((e as Error).message);
@@ -121,6 +132,7 @@ server.on('error', async (e: NodeJS.ErrnoException) => {
 server.listen(config.port, '127.0.0.1');
 
 const shutdown = async () => {
+  clearInterval(walFlushInterval);
   server.close();
   loop.stop();
   await mongo.close();

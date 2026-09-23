@@ -31990,7 +31990,7 @@ import { randomUUID } from "crypto";
 // src/config.ts
 import { readFileSync } from "fs";
 import { homedir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
 var DEFAULT_CONFIG_PATH = join(homedir(), ".claude", "plugins", "data", "clued", "config.json");
 var DEFAULTS = {
   mongoUrl: "mongodb://localhost:27018",
@@ -31998,7 +31998,9 @@ var DEFAULTS = {
   port: 8085,
   mcpPort: 8086,
   projectsDir: join(homedir(), ".claude", "projects"),
-  disabledEnrichers: []
+  disabledEnrichers: [],
+  claudeAppConfigPath: join(homedir(), "Library", "Application Support", "Claude", "config.json"),
+  walPath: join(homedir(), ".claude", "plugins", "data", "clued", "events.wal")
 };
 function expandHome(val) {
   return val.startsWith("~/") ? join(homedir(), val.slice(2)) : val;
@@ -32015,8 +32017,11 @@ function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
   if (process.env.CLUED_PORT) cfg.port = parseInt(process.env.CLUED_PORT, 10);
   if (process.env.CLUED_MCP_PORT) cfg.mcpPort = parseInt(process.env.CLUED_MCP_PORT, 10);
   if (process.env.CLUED_PROJECTS_DIR) cfg.projectsDir = process.env.CLUED_PROJECTS_DIR;
+  if (process.env.CLUED_CLAUDE_APP_CONFIG_PATH) cfg.claudeAppConfigPath = process.env.CLUED_CLAUDE_APP_CONFIG_PATH;
   cfg.projectsDir = expandHome(cfg.projectsDir);
   cfg.mongoUrl = expandHome(cfg.mongoUrl);
+  cfg.claudeAppConfigPath = expandHome(cfg.claudeAppConfigPath);
+  cfg.walPath = process.env.CLUED_WAL_PATH ?? join(dirname(configPath), "events.wal");
   return cfg;
 }
 
@@ -32031,7 +32036,12 @@ async function createClient({ mongoUrl, dbName }) {
     db.collection("sessions").createIndex({ git_origin: 1 }),
     db.collection("hook_events").createIndex({ session_id: 1 }),
     db.collection("hook_events").createIndex({ created_at: -1 }),
-    db.collection("transcript_lines").createIndex({ session_id: 1, seq: 1 }, { unique: true })
+    db.collection("transcript_lines").createIndex({ session_id: 1, seq: 1 }, { unique: true }),
+    db.collection("sessions").createIndex({ account_id: 1, last_seen: -1 }),
+    db.collection("sessions").createIndex({ account_id: 1, git_origin: 1 }),
+    db.collection("sessions").createIndex({ account_id: 1, git_origin: 1, git_branch: 1 }),
+    db.collection("hook_events").createIndex({ account_id: 1, session_id: 1, created_at: -1 }),
+    db.collection("transcript_lines").createIndex({ account_id: 1, session_id: 1, seq: 1 })
   ]);
   for (const r of results) {
     if (r.status === "rejected") console.error("clued: index warning:", r.reason.message);

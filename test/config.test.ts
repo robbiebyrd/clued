@@ -113,6 +113,14 @@ test('CLUED_CLAUDE_APP_CONFIG_PATH env var overrides claudeAppConfigPath', () =>
   });
 });
 
+test('walPath is co-located with the config file', () => {
+  const cfgPath = join(TMP, 'subdir', 'config.json');
+  cleanEnv(() => {
+    const cfg = loadConfig(cfgPath);
+    assert.equal(cfg.walPath, join(TMP, 'subdir', 'events.wal'));
+  });
+});
+
 test('claudeAppConfigPath expands ~ to home directory', () => {
   const cfgPath = join(TMP, 'config-app-tilde.json');
   writeFileSync(cfgPath, JSON.stringify({ claudeAppConfigPath: '~/Library/Application Support/Claude/config.json' }));

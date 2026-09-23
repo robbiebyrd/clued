@@ -31985,13 +31985,13 @@ var require_lib3 = __commonJS({
 
 // src/daemon.ts
 import http from "http";
-import { join as join3, dirname } from "path";
+import { join as join3, dirname as dirname3 } from "path";
 import { fileURLToPath } from "url";
 
 // src/config.ts
 import { readFileSync } from "fs";
 import { homedir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
 var DEFAULT_CONFIG_PATH = join(homedir(), ".claude", "plugins", "data", "clued", "config.json");
 var DEFAULTS = {
   mongoUrl: "mongodb://localhost:27018",
@@ -31999,7 +31999,9 @@ var DEFAULTS = {
   port: 8085,
   mcpPort: 8086,
   projectsDir: join(homedir(), ".claude", "projects"),
-  disabledEnrichers: []
+  disabledEnrichers: [],
+  claudeAppConfigPath: join(homedir(), "Library", "Application Support", "Claude", "config.json"),
+  walPath: join(homedir(), ".claude", "plugins", "data", "clued", "events.wal")
 };
 function expandHome(val) {
   return val.startsWith("~/") ? join(homedir(), val.slice(2)) : val;
@@ -32016,8 +32018,11 @@ function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
   if (process.env.CLUED_PORT) cfg.port = parseInt(process.env.CLUED_PORT, 10);
   if (process.env.CLUED_MCP_PORT) cfg.mcpPort = parseInt(process.env.CLUED_MCP_PORT, 10);
   if (process.env.CLUED_PROJECTS_DIR) cfg.projectsDir = process.env.CLUED_PROJECTS_DIR;
+  if (process.env.CLUED_CLAUDE_APP_CONFIG_PATH) cfg.claudeAppConfigPath = process.env.CLUED_CLAUDE_APP_CONFIG_PATH;
   cfg.projectsDir = expandHome(cfg.projectsDir);
   cfg.mongoUrl = expandHome(cfg.mongoUrl);
+  cfg.claudeAppConfigPath = expandHome(cfg.claudeAppConfigPath);
+  cfg.walPath = process.env.CLUED_WAL_PATH ?? join(dirname(configPath), "events.wal");
   return cfg;
 }
 
@@ -32032,7 +32037,12 @@ async function createClient({ mongoUrl, dbName }) {
     db.collection("sessions").createIndex({ git_origin: 1 }),
     db.collection("hook_events").createIndex({ session_id: 1 }),
     db.collection("hook_events").createIndex({ created_at: -1 }),
-    db.collection("transcript_lines").createIndex({ session_id: 1, seq: 1 }, { unique: true })
+    db.collection("transcript_lines").createIndex({ session_id: 1, seq: 1 }, { unique: true }),
+    db.collection("sessions").createIndex({ account_id: 1, last_seen: -1 }),
+    db.collection("sessions").createIndex({ account_id: 1, git_origin: 1 }),
+    db.collection("sessions").createIndex({ account_id: 1, git_origin: 1, git_branch: 1 }),
+    db.collection("hook_events").createIndex({ account_id: 1, session_id: 1, created_at: -1 }),
+    db.collection("transcript_lines").createIndex({ account_id: 1, session_id: 1, seq: 1 })
   ]);
   for (const r of results) {
     if (r.status === "rejected") console.error("clued: index warning:", r.reason.message);
@@ -32181,30 +32191,95 @@ async function getGitOrigin(cwd) {
     return null;
   }
 }
+async function getGitBranch(cwd) {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["-C", cwd, "branch", "--show-current"],
+      { timeout: 2e3 }
+    );
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+// src/account.ts
+import { readFileSync as readFileSync2 } from "fs";
+function readAccountId(path) {
+  try {
+    const raw = readFileSync2(path, "utf8");
+    const data = JSON.parse(raw);
+    const id = data.lastKnownAccountUuid ?? "unknown";
+    if (id === "unknown") console.warn("clued: account ID unavailable \u2014 isolation is degraded");
+    return id;
+  } catch {
+    console.warn("clued: account ID unavailable \u2014 isolation is degraded");
+    return "unknown";
+  }
+}
+
+// src/wal.ts
+import { appendFileSync, existsSync, mkdirSync, readFileSync as readFileSync3, writeFileSync } from "fs";
+import { dirname as dirname2 } from "path";
+function appendToWal(walPath, event) {
+  mkdirSync(dirname2(walPath), { recursive: true });
+  appendFileSync(walPath, JSON.stringify(event) + "\n");
+}
+async function flushWal(walPath, insert) {
+  if (!existsSync(walPath)) return;
+  const lines = readFileSync3(walPath, "utf8").split("\n").filter(Boolean);
+  if (lines.length === 0) return;
+  const failed = [];
+  for (const line of lines) {
+    let doc;
+    try {
+      doc = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    try {
+      await insert(doc);
+    } catch {
+      failed.push(line);
+    }
+  }
+  writeFileSync(walPath, failed.length > 0 ? failed.join("\n") + "\n" : "");
+}
 
 // src/daemon.ts
 var __filename = fileURLToPath(import.meta.url);
-var __dir = dirname(__filename);
+var __dir = dirname3(__filename);
 var ENRICHERS_DIR = __filename.endsWith(".ts") ? join3(__dir, "..", "enrichers") : join3(__dir, "enrichers");
 var config = loadConfig();
+var account_id = readAccountId(config.claudeAppConfigPath);
 var mongo = await createClient(config).catch((err) => {
   console.error("clued daemon: MongoDB connection failed:", err.message);
   process.exit(1);
 });
 var enrichers = await loadEnrichers(ENRICHERS_DIR, config);
 var loop = startEnrichmentLoop(mongo, enrichers);
+var walInsert = (doc) => mongo.hookEvents.insertOne({ ...doc, created_at: doc.created_at ?? /* @__PURE__ */ new Date() }).then(() => void 0);
+await flushWal(config.walPath, walInsert).catch(() => {
+});
+var walFlushInterval = setInterval(() => {
+  flushWal(config.walPath, walInsert).catch(() => {
+  });
+}, 6e4);
 var tracked = /* @__PURE__ */ new Map();
 async function trackSession({ session_id, transcript_path, cwd } = {}) {
   if (!session_id) return;
   if (tracked.has(session_id)) {
     const state2 = tracked.get(session_id);
     if (!state2.gitOriginFound && cwd) {
-      const gitOrigin = await getGitOrigin(cwd);
+      const [gitOrigin, gitBranch] = await Promise.all([getGitOrigin(cwd), getGitBranch(cwd)]);
       if (gitOrigin) {
         state2.gitOriginFound = true;
+        const $set = { git_origin: gitOrigin };
+        if (gitBranch) $set.git_branch = gitBranch;
         mongo.sessions.updateOne(
           { session_id, git_origin: { $exists: false } },
-          { $set: { git_origin: gitOrigin } }
+          { $set }
         ).catch(() => {
         });
       }
@@ -32215,10 +32290,14 @@ async function trackSession({ session_id, transcript_path, cwd } = {}) {
   const state = { gitOriginFound: false };
   tracked.set(session_id, state);
   const now = /* @__PURE__ */ new Date();
-  Promise.resolve(cwd ? getGitOrigin(cwd) : null).then((git_origin) => {
+  Promise.all([
+    cwd ? getGitOrigin(cwd) : Promise.resolve(null),
+    cwd ? getGitBranch(cwd) : Promise.resolve(null)
+  ]).then(([git_origin, git_branch]) => {
     if (git_origin) state.gitOriginFound = true;
-    const $set = { session_id, transcript_path, cwd, last_seen: now };
+    const $set = { session_id, transcript_path, cwd, last_seen: now, account_id };
     if (git_origin) $set.git_origin = git_origin;
+    if (git_branch) $set.git_branch = git_branch;
     mongo.sessions.updateOne(
       { session_id },
       { $set, $setOnInsert: { started_at: now } },
@@ -32237,7 +32316,7 @@ async function trackSession({ session_id, transcript_path, cwd } = {}) {
     const seq = seqRef.value++;
     mongo.transcriptLines.updateOne(
       { session_id, seq },
-      { $set: { session_id, seq, line }, $setOnInsert: { created_at: /* @__PURE__ */ new Date() } },
+      { $set: { session_id, seq, line, account_id }, $setOnInsert: { created_at: /* @__PURE__ */ new Date() } },
       { upsert: true }
     ).catch(() => {
     });
@@ -32263,10 +32342,14 @@ var server = http.createServer((req, res) => {
       const data = JSON.parse(body);
       trackSession(data);
       if (data.session_id) {
-        mongo.sessions.updateOne({ session_id: data.session_id }, { $set: { last_seen: /* @__PURE__ */ new Date() } }).catch(() => {
+        mongo.sessions.updateOne({ session_id: data.session_id, account_id }, { $set: { last_seen: /* @__PURE__ */ new Date() } }).catch(() => {
         });
       }
-      await mongo.hookEvents.insertOne({ ...data, created_at: /* @__PURE__ */ new Date() });
+      try {
+        await mongo.hookEvents.insertOne({ ...data, account_id, created_at: /* @__PURE__ */ new Date() });
+      } catch {
+        appendToWal(config.walPath, { ...data, account_id, created_at: (/* @__PURE__ */ new Date()).toISOString() });
+      }
       res.writeHead(200);
       res.end("ok");
     } catch (e) {
@@ -32286,6 +32369,7 @@ server.on("error", async (e) => {
 });
 server.listen(config.port, "127.0.0.1");
 var shutdown = async () => {
+  clearInterval(walFlushInterval);
   server.close();
   loop.stop();
   await mongo.close();

@@ -5,7 +5,7 @@ import { spawn } from 'child_process';
 import { execFileSync } from 'child_process';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { mkdirSync, rmSync, writeFileSync } from 'fs';
+import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { createClient } from '../../src/mongo';
 import type { MongoDb } from '../../src/mongo';
@@ -244,6 +244,55 @@ test('git_branch is stamped on session when cwd is a git repo', async () => {
   }
   assert.ok(doc, 'session with git_branch not found');
   assert.ok(typeof (doc as Record<string, unknown>).git_branch === 'string', 'git_branch should be a string');
+});
+
+test('daemon flushes WAL entries into MongoDB on startup', async () => {
+  const walPort  = TEST_PORT + 20;
+  const walDb    = TEST_DB + '_wal';
+  const walPath  = join(TMP_DIR, 'startup.wal');
+  writeFileSync(walPath, [
+    JSON.stringify({ session_id: 'wal-flush-1', type: 'PreToolUse',  tool_name: 'Bash' }),
+    JSON.stringify({ session_id: 'wal-flush-2', type: 'PostToolUse', tool_name: 'Read' }),
+  ].join('\n') + '\n');
+
+  const walProc  = spawn(process.execPath, ['--import', 'tsx/esm', DAEMON_PATH], {
+    env: {
+      ...process.env,
+      CLUED_PORT:                  String(walPort),
+      CLUED_DB_NAME:               walDb,
+      CLUED_MONGO_URL:             TEST_URL,
+      CLUED_CLAUDE_APP_CONFIG_PATH: CLAUDE_CONFIG,
+      CLUED_WAL_PATH:              walPath,
+    },
+    stdio: 'pipe',
+  });
+  const walMongo = await createClient({ mongoUrl: TEST_URL, dbName: walDb });
+  try {
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      const ok = await new Promise(resolve => {
+        http.get(`http://127.0.0.1:${walPort}/health`, res => resolve(res.statusCode === 200)).on('error', () => resolve(false));
+      });
+      if (ok) break;
+    }
+    // Give the startup flush a moment to complete
+    await new Promise(r => setTimeout(r, 500));
+
+    const doc1 = await walMongo.hookEvents.findOne({ session_id: 'wal-flush-1' });
+    const doc2 = await walMongo.hookEvents.findOne({ session_id: 'wal-flush-2' });
+    assert.ok(doc1, 'wal-flush-1 not found in MongoDB after startup flush');
+    assert.equal((doc1 as Record<string, unknown>).tool_name, 'Bash');
+    assert.ok(doc2, 'wal-flush-2 not found in MongoDB after startup flush');
+    assert.equal((doc2 as Record<string, unknown>).tool_name, 'Read');
+
+    const walContent = readFileSync(walPath, 'utf8').trim();
+    assert.equal(walContent, '', 'WAL should be empty after successful flush');
+  } finally {
+    walProc.kill('SIGTERM');
+    await walMongo.db.dropDatabase();
+    await walMongo.close();
+    rmSync(walPath, { force: true });
+  }
 });
 
 test('account_id is "unknown" when claude config is missing', async () => {

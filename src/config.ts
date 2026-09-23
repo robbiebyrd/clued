@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { homedir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
 
 export interface Config {
   mongoUrl:             string;
@@ -10,6 +10,7 @@ export interface Config {
   projectsDir:          string;
   disabledEnrichers:    string[];
   claudeAppConfigPath:  string;
+  walPath:              string;
 }
 
 const DEFAULT_CONFIG_PATH = join(homedir(), '.claude', 'plugins', 'data', 'clued', 'config.json');
@@ -22,6 +23,7 @@ const DEFAULTS: Config = {
   projectsDir:          join(homedir(), '.claude', 'projects'),
   disabledEnrichers:    [],
   claudeAppConfigPath:  join(homedir(), 'Library', 'Application Support', 'Claude', 'config.json'),
+  walPath:              join(homedir(), '.claude', 'plugins', 'data', 'clued', 'events.wal'),
 };
 
 function expandHome(val: string): string {
@@ -46,6 +48,7 @@ export function loadConfig(configPath = DEFAULT_CONFIG_PATH): Config {
   cfg.projectsDir         = expandHome(cfg.projectsDir);
   cfg.mongoUrl            = expandHome(cfg.mongoUrl);
   cfg.claudeAppConfigPath = expandHome(cfg.claudeAppConfigPath);
+  cfg.walPath             = process.env.CLUED_WAL_PATH ?? join(dirname(configPath), 'events.wal');
 
   return cfg;
 }
