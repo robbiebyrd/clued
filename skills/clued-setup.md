@@ -26,7 +26,8 @@ Present the user with two options. **Local binary is the default.**
 > "How would you like to run MongoDB for clued?
 >
 > 1. **Local binary** (recommended) — install MongoDB directly on this machine; no Docker required
-> 2. **Docker** — run MongoDB in a container via docker-compose"
+> 2. **Docker** — run MongoDB in a container via docker-compose
+> 3. **Remote** — connect to an existing MongoDB instance (Atlas, VPS, self-hosted, etc.)"
 
 Wait for their answer before continuing.
 
@@ -168,16 +169,28 @@ docker compose -f "${CLAUDE_PLUGIN_ROOT}/docker-compose.transcripts.yml" ps
 
 ---
 
+### Option C: Remote
+
+Ask the user for their full MongoDB connection string. Examples:
+
+- MongoDB Atlas: `mongodb+srv://user:password@cluster.mongodb.net/`
+- Self-hosted with auth: `mongodb://user:password@host:27017/`
+- Plain remote: `mongodb://host:27017/`
+
+No installation or service-start steps needed. Skip straight to Step 4.
+
+---
+
 ## Step 4 — Gather clued config
 
 Ask the user for:
 
-| Setting | Default (binary) | Default (Docker) |
-|---------|-----------------|-----------------|
-| MongoDB URL | `mongodb://localhost:27017` | `mongodb://localhost:27018` |
-| Database name | `claude_sessions` | `claude_sessions` |
+| Setting | Default (binary) | Default (Docker) | Remote |
+|---------|-----------------|-----------------|--------|
+| MongoDB URL | `mongodb://localhost:27017` | `mongodb://localhost:27018` | *(user-provided)* |
+| Database name | `claude_sessions` | `claude_sessions` | `claude_sessions` |
 
-Accept the defaults if the user does not specify otherwise.
+Accept the defaults if the user does not specify otherwise. For remote, the URL is required — do not proceed without it.
 
 ## Step 5 — Write config file
 
