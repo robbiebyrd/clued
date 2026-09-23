@@ -26,7 +26,7 @@ function withEnv(vars: Record<string, string | undefined>, fn: () => void): void
   }
 }
 
-const ENV_KEYS = ['CLUED_MONGO_URL', 'CLUED_DB_NAME', 'CLUED_PORT', 'CLUED_MCP_PORT', 'CLUED_PROJECTS_DIR'];
+const ENV_KEYS = ['CLUED_MONGO_URL', 'CLUED_DB_NAME', 'CLUED_PORT', 'CLUED_MCP_PORT', 'CLUED_PROJECTS_DIR', 'CLUED_CLAUDE_APP_CONFIG_PATH'];
 function cleanEnv(fn: () => void): void {
   withEnv(Object.fromEntries(ENV_KEYS.map(k => [k, undefined])), fn);
 }
@@ -94,5 +94,31 @@ test('CLUED_MCP_PORT env var overrides mcpPort', () => {
             CLUED_PORT: undefined, CLUED_PROJECTS_DIR: undefined }, () => {
     const cfg = loadConfig(join(TMP, 'nonexistent.json'));
     assert.equal(cfg.mcpPort, 9086);
+  });
+});
+
+test('claudeAppConfigPath has a default value containing Claude', () => {
+  cleanEnv(() => {
+    const cfg = loadConfig(join(TMP, 'nonexistent.json'));
+    assert.ok(cfg.claudeAppConfigPath.includes('Claude'), `expected path to include 'Claude', got ${cfg.claudeAppConfigPath}`);
+    assert.ok(cfg.claudeAppConfigPath.endsWith('config.json'));
+  });
+});
+
+test('CLUED_CLAUDE_APP_CONFIG_PATH env var overrides claudeAppConfigPath', () => {
+  withEnv({ CLUED_CLAUDE_APP_CONFIG_PATH: '/custom/path/config.json', CLUED_MONGO_URL: undefined,
+            CLUED_DB_NAME: undefined, CLUED_PORT: undefined, CLUED_PROJECTS_DIR: undefined, CLUED_MCP_PORT: undefined }, () => {
+    const cfg = loadConfig(join(TMP, 'nonexistent.json'));
+    assert.equal(cfg.claudeAppConfigPath, '/custom/path/config.json');
+  });
+});
+
+test('claudeAppConfigPath expands ~ to home directory', () => {
+  const cfgPath = join(TMP, 'config-app-tilde.json');
+  writeFileSync(cfgPath, JSON.stringify({ claudeAppConfigPath: '~/Library/Application Support/Claude/config.json' }));
+  cleanEnv(() => {
+    const cfg = loadConfig(cfgPath);
+    assert.ok(cfg.claudeAppConfigPath.startsWith(homedir()), `expected ${cfg.claudeAppConfigPath} to start with ${homedir()}`);
+    assert.ok(!cfg.claudeAppConfigPath.includes('~'));
   });
 });
