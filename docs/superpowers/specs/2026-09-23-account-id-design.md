@@ -138,8 +138,9 @@ Promise.all([
     { $set, $setOnInsert: { started_at: now } },
     { upsert: true }
   ).catch(() => {});
-  // tailFile call remains here, outside the Promise.all .then(), unchanged
 });
+// The tailFile call is placed AFTER the Promise.all(...).then(...) chain,
+// guarded by `if (!transcript_path) return;`, unchanged from the current implementation.
 ```
 
 **Retry path** (fires on subsequent events when `!state.gitOriginFound && cwd`):
@@ -225,7 +226,19 @@ Transcript line ops gain `account_id` in `$set`:
 update: { $set: { session_id: sessionId, seq, line, account_id }, $setOnInsert: { created_at: now } },
 ```
 
-`account_id` is read at module level in the backfill standalone entry point, before `backfill()` is called, using `readAccountId(config.claudeAppConfigPath)`. It is passed down to `processSession` — either as a parameter added to its signature, or via `config` if `Config` gains the field (which it does via Section 2). The backfill process reads `config.claudeAppConfigPath` the same way the daemon does.
+`account_id` is computed once in the standalone entry point as `const account_id = readAccountId(config.claudeAppConfigPath)` before `backfill()` is called. It is passed as a fifth parameter to `processSession`:
+
+```ts
+async function processSession(
+  mongo: MongoDb,
+  projectPath: string,
+  sessionId: string,
+  filePath: string,
+  account_id: string,
+): Promise<number>
+```
+
+`backfill()` itself is also updated to accept and forward `account_id`.
 
 **Important:** Existing documents written before this feature lack `account_id`. Running backfill after deploying stamps `account_id` onto all historical session and transcript line documents. Hook events cannot be retroactively stamped (no backfill path for hook_events exists). The setup documentation should note that a backfill run is recommended after upgrading.
 
@@ -286,6 +299,8 @@ Every query gains an `account_id` filter:
 const filter: Record<string, unknown> = { account_id };
 ```
 
+`account_id` is set unconditionally as the first key. The subsequent `project_path`, `git_origin`, and `query`/`$or` conditions are all ANDed with it — MongoDB evaluates `{ account_id, $or: [...] }` as an AND of the account filter with the `$or` clause, so all branches of `findSessions` are covered by this single assignment.
+
 ### `getSessionContext`
 
 ```ts
@@ -335,7 +350,7 @@ A foreign `session_id` returns `"session not found"` — identical to a nonexist
 
 ## Section 7: New Shared Utility (`src/account.ts`)
 
-`readAccountId` is extracted to avoid duplication between daemon and MCP server:
+`readAccountId` is extracted to avoid duplication between daemon and MCP server. The implementation matches Section 1 exactly — including the startup warning:
 
 ```ts
 import { readFileSync } from 'fs';
@@ -344,8 +359,11 @@ export function readAccountId(path: string): string {
   try {
     const raw  = readFileSync(path, 'utf8');
     const data = JSON.parse(raw) as { lastKnownAccountUuid?: string };
-    return data.lastKnownAccountUuid ?? 'unknown';
+    const id   = data.lastKnownAccountUuid ?? 'unknown';
+    if (id === 'unknown') console.warn('clued: account ID unavailable — isolation is degraded');
+    return id;
   } catch {
+    console.warn('clued: account ID unavailable — isolation is degraded');
     return 'unknown';
   }
 }
@@ -391,6 +409,10 @@ export function readAccountId(path: string): string {
 - Write a temp `config.json` with `lastKnownAccountUuid: "test-account-uuid"`. Set `CLUED_CLAUDE_APP_CONFIG_PATH`. Assert that session, hook_event, and transcript_line documents all have `account_id: "test-account-uuid"`.
 - Assert `git_branch` appears on session doc when daemon receives an event with a valid git `cwd`.
 - When `CLUED_CLAUDE_APP_CONFIG_PATH` points to a missing file, assert `account_id: "unknown"` on documents.
+
+### `test/integration/backfill.test.ts`
+
+- Run backfill with `CLUED_CLAUDE_APP_CONFIG_PATH` pointing to a temp file containing `{ "lastKnownAccountUuid": "backfill-account-uuid" }`. Assert that all resulting `sessions` and `transcript_lines` documents have `account_id: "backfill-account-uuid"`.
 
 ### `test/integration/mcp.test.ts`
 
