@@ -183,15 +183,27 @@ docker info 2>&1 | head -1
 If Docker is not running, ask the user to start Docker Desktop and confirm before
 continuing.
 
+Determine the plugin root (same logic as Step 7 — run this now if doing Docker setup):
+
+```bash
+CLUED_PLUGIN_ROOT=$(jq -r '
+  .extraKnownMarketplaces | to_entries[]
+  | select(.value.source.source == "directory")
+  | select(.value.source.path | test("clued"))
+  | .value.source.path
+' ~/.claude/settings.json 2>/dev/null | head -1)
+CLUED_PLUGIN_ROOT="${CLUED_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/*/clued/*/ 2>/dev/null | head -1)}"
+```
+
 Start MongoDB using the included compose file:
 
 ```bash
-docker compose -f "${CLAUDE_PLUGIN_ROOT}/docker-compose.transcripts.yml" up -d mongodb
+docker compose -f "${CLUED_PLUGIN_ROOT}/docker-compose.transcripts.yml" up -d mongodb
 ```
 
 **Docker default port: `27018`** (avoids clashing with a local mongod on 27017).
 
-Verify: `docker compose -f "${CLAUDE_PLUGIN_ROOT}/docker-compose.transcripts.yml" ps`
+Verify: `docker compose -f "${CLUED_PLUGIN_ROOT}/docker-compose.transcripts.yml" ps`
 
 ---
 
