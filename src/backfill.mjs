@@ -4,11 +4,7 @@ import { fileURLToPath } from 'url';
 import { createClient } from './mongo.mjs';
 import { loadConfig } from './config.mjs';
 
-// Claude Code encodes absolute paths by replacing each / with -
-// (including the leading slash), so /Users/alice/foo → -Users-alice-foo.
-// Decode is best-effort: replace - with /. Paths containing hyphenated
-// directory components (e.g. /Users/rob-byrd/foo) will decode incorrectly;
-// project_path is stored as metadata only — transcript data is unaffected.
+// Hyphens are ambiguous with path separators, so project_path is best-effort metadata only.
 export function decodeProjectPath(dirName) {
   return '/' + dirName.slice(1).replaceAll('-', '/');
 }
@@ -34,7 +30,7 @@ async function processSession(mongo, projectPath, sessionId, filePath) {
     return {
       updateOne: {
         filter: { session_id: sessionId, seq },
-        update: { $set: { session_id: sessionId, seq, line, created_at: now } },
+        update: { $set: { session_id: sessionId, seq, line }, $setOnInsert: { created_at: now } },
         upsert:  true,
       },
     };
