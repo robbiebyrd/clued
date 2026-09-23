@@ -239,3 +239,32 @@ test('search_commands returns empty array when pattern matches nothing', async (
   const matches = JSON.parse(result.result.content[0].text);
   assert.deepEqual(matches, []);
 });
+
+test('get_session_context returns metadata, top_commands, first/last lines', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 10);
+  await callTool(endpoint, 10, 'get_session_context', { session_id: 'sess-1' });
+  const [result] = await pending;
+  close();
+  assert.ok(result.result, `expected result, got error: ${JSON.stringify(result.error)}`);
+  const ctx = JSON.parse(result.result.content[0].text);
+  assert.equal(ctx.session.session_id, 'sess-1');
+  assert.equal(ctx.session.git_origin, 'https://github.com/user/myrepo.git');
+  // top_commands: 2 distinct (git status, npm install), most recent first
+  assert.deepEqual(ctx.top_commands, ['git status', 'npm install']);
+  // sess-1 has 25 lines: first 20 present, last 20 present (overlap is fine)
+  assert.equal(ctx.first_lines.length, 20);
+  assert.equal(ctx.first_lines[0].seq, 0);
+  assert.equal(ctx.last_lines.length, 20);
+  assert.equal(ctx.last_lines[19].seq, 24);
+});
+
+test('get_session_context returns error for unknown session_id', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 11);
+  await callTool(endpoint, 11, 'get_session_context', { session_id: 'does-not-exist' });
+  const [result] = await pending;
+  close();
+  assert.ok(result.error, 'expected error response');
+  assert.equal(result.error.message, 'session not found');
+});

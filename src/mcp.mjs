@@ -73,10 +73,61 @@ async function searchCommands({ pattern, session_id, git_origin, limit = 20 }) {
   }));
 }
 
+async function getSessionContext({ session_id }) {
+  const session = await mongo.sessions.findOne({ session_id }, { projection: { _id: 0 } });
+  if (!session) throw Object.assign(new Error('session not found'), { isMcpError: true });
+
+  const bashEvents = await mongo.hookEvents
+    .find({ session_id, tool_name: 'Bash', 'tool_input.command': { $type: 'string' } })
+    .sort({ created_at: -1 })
+    .limit(100)
+    .toArray();
+  const seen = new Set();
+  const top_commands = [];
+  for (const ev of bashEvents) {
+    const cmd = ev.tool_input.command;
+    if (!seen.has(cmd)) {
+      seen.add(cmd);
+      top_commands.push(cmd);
+      if (top_commands.length >= 10) break;
+    }
+  }
+
+  const first_lines = await mongo.transcriptLines
+    .find({ session_id }, { projection: { _id: 0 } })
+    .sort({ seq: 1 })
+    .limit(20)
+    .toArray();
+
+  const total = await mongo.transcriptLines.countDocuments({ session_id });
+  const last_lines = total > 20
+    ? (await mongo.transcriptLines
+        .find({ session_id }, { projection: { _id: 0 } })
+        .sort({ seq: -1 })
+        .limit(20)
+        .toArray()).reverse()
+    : [];
+
+  return {
+    session: {
+      session_id:   session.session_id,
+      project_path: session.project_path,
+      git_origin:   session.git_origin ?? null,
+      cwd:          session.cwd,
+      started_at:   session.started_at,
+      last_seen:    session.last_seen,
+    },
+    top_commands,
+    first_lines,
+    last_lines,
+  };
+}
+
 async function handleToolCall(name, args, meta, sseRes) {
   switch (name) {
-    case 'find_sessions':   return findSessions(args);
-    case 'search_commands': return searchCommands(args);
+    case 'find_sessions':       return findSessions(args);
+    case 'get_session_context': return getSessionContext(args);
+    case 'search_commands':     return searchCommands(args);
     default: throw new Error(`unknown tool: ${name}`);
   }
 }
