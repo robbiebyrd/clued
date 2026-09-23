@@ -242,7 +242,7 @@ export interface Enricher {
 ```
 
 **Notes:**
-- Calls Claude API. Model: `claude-haiku-4-5-20251001` (verify against Anthropic docs before implementing — use the cheapest available Haiku model ID at implementation time).
+- Calls Claude API. Model: `claude-haiku-4-5-20251001` (verified against Anthropic API reference as of 2026-09-23; re-verify at implementation time as model IDs change with new releases).
 - Gated by `enabled = false` by default; opt-in via removing from `disabledEnrichers` config or setting `enabled = true` in the file.
 - Prompt: `"Summarize what Claude is doing in this message in one sentence (max 20 words):"` followed by the concatenated text content.
 
