@@ -1,15 +1,13 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync, rmSync } from 'fs';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { tmpdir } from 'os';
-import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 import { createClient } from '../../src/mongo';
 import { backfill, decodeProjectPath } from '../../src/backfill';
 import type { MongoDb } from '../../src/mongo';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const TMP = join(tmpdir(), `clued-backfill-test-${process.pid}`);
 const TEST_CONFIG = {
   mongoUrl:    process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018',

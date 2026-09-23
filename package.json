@@ -5,9 +5,10 @@
   "packageManager": "pnpm@10.26.0",
   "description": "Claude Code plugin — mirrors session data to MongoDB",
   "scripts": {
-    "build":            "node --import tsx/esm src/build.ts",
-    "typecheck":        "tsc --noEmit",
-    "test":             "node --import tsx/esm --test 'test/*.test.ts'",
+    "build": "node --import tsx/esm src/build.ts",
+    "lint": "oxlint src/ test/ enrichers/",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx/esm --test 'test/*.test.ts'",
     "test:integration": "node --import tsx/esm --test 'test/integration/*.test.ts'"
   },
   "dependencies": {
@@ -16,6 +17,7 @@
   "devDependencies": {
     "@types/node": "^26.6.2",
     "esbuild": "^0.28.2",
+    "oxlint": "1.85.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
