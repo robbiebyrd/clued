@@ -201,12 +201,50 @@ Write to `~/.claude/plugins/data/clued/config.json` (create parent directories i
   "mongoUrl": "<chosen URL>",
   "dbName": "<chosen DB name>",
   "port": 8085,
+  "mcpPort": 8086,
   "projectsDir": "~/.claude/projects",
   "disabledEnrichers": []
 }
 ```
 
-## Step 6 — Start the daemon
+## Step 6 — Register MCP server in Claude settings
+
+Read `~/.claude/settings.json`. Add the MCP server entry under `mcpServers`:
+
+```json
+"mcpServers": {
+  "clued": { "type": "sse", "url": "http://127.0.0.1:8086/sse" }
+}
+```
+
+If `mcpServers` already exists, merge the `"clued"` key in. Do not duplicate if `"clued"` is already present.
+
+## Step 7 — Add relay hooks to user settings
+
+Read `~/.claude/settings.json`. Add a hook entry for each of these event types, pointing at `${CLAUDE_PLUGIN_ROOT}/hooks/event-relay` with `async: true`:
+
+`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PostToolBatch`, `Notification`,
+`UserPromptSubmit`, `Stop`, `SubagentStop`, `WorktreeCreate`, `WorktreeRemove`,
+`InstructionsLoaded`, `CwdChanged`, `FileChanged`
+
+Each entry uses this shape:
+```json
+{
+  "hooks": [
+    {
+      "type": "command",
+      "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+      "async": true
+    }
+  ]
+}
+```
+
+Do not duplicate entries if they already exist.
+
+## Step 8 — Start the daemon
+
+Run the session-start hook manually to confirm the daemon and MCP server start:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
@@ -216,9 +254,10 @@ Wait 2 seconds, then check health:
 
 ```bash
 curl -sf http://127.0.0.1:8085/health && echo "daemon is running"
+curl -sf http://127.0.0.1:8086/health && echo "mcp server is running"
 ```
 
-If the health check fails, check for an error by running the daemon directly in the foreground for 3 seconds:
+If a health check fails, check for an error by running the process directly in the foreground for 3 seconds:
 
 ```bash
 timeout 3 node "${CLAUDE_PLUGIN_ROOT}/dist/daemon.mjs" 2>&1 || true
@@ -226,13 +265,14 @@ timeout 3 node "${CLAUDE_PLUGIN_ROOT}/dist/daemon.mjs" 2>&1 || true
 
 Report any error output to the user.
 
-## Step 7 — Confirm to user
+## Step 9 — Confirm to user
 
 Tell the user:
 
 - Which MongoDB option they chose and what URL is configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
-- Daemon status: running on port 8085 / failed (with error)
-- The plugin hooks are registered automatically via `hooks.json` — no manual settings edit needed
-- How to customise: drop a `.mjs` enricher into `<plugin-root>/enrichers/` and restart the daemon
-- How to enable the privacy-redact enricher: remove `privacy-redact` from `disabledEnrichers` in `config.json`
+- Relay hooks added to `~/.claude/settings.json`
+- MCP server registered in `~/.claude/settings.json` under `mcpServers.clued` (URL: `http://127.0.0.1:8086/sse`)
+- Daemon status (running on port 8085 / failed with error)
+- How to add custom enrichers: drop a `.mjs` file in `<plugin-root>/enrichers/` and restart the daemon
+- How to enable the privacy-redact enricher: remove `privacy-redact` from `disabledEnrichers` in `config.json` (or set `enabled: true` in the file)

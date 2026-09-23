@@ -5,6 +5,9 @@ import { spawn } from 'child_process';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '../../src/mongo.mjs';
+import { mkdirSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { execSync } from 'child_process';
 
 const ROOT        = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const DAEMON_PATH = join(ROOT, 'src/daemon.mjs');
@@ -158,4 +161,25 @@ test('enrichment circuit breaker writes _failed on error', async () => {
   // bash-binaries.matches() requires typeof command === 'string', so this doc won't match
   // and bash-binaries_failed won't be written. The test documents the circuit breaker mechanism.
   // If doc is null here, that's expected — the enricher correctly skips non-string commands.
+});
+
+test('POST /event populates git_origin from cwd', async () => {
+  const tmpDir = join(tmpdir(), `clued-git-test-${Date.now()}`);
+  mkdirSync(tmpDir, { recursive: true });
+  try {
+    execSync('git init && git remote add origin https://github.com/test/mcp-repo.git',
+      { cwd: tmpDir, stdio: 'pipe' });
+    const status = await post({ session_id: 'daemon-git-test', cwd: tmpDir });
+    assert.equal(status, 200);
+    let doc;
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      doc = await mongo.sessions.findOne({ session_id: 'daemon-git-test', git_origin: { $exists: true } });
+      if (doc) break;
+    }
+    assert.ok(doc, 'git_origin not populated within 2s');
+    assert.equal(doc.git_origin, 'https://github.com/test/mcp-repo.git');
+  } finally {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
 });

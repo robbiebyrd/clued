@@ -11,15 +11,16 @@ export function decodeProjectPath(dirName) {
 }
 
 async function processSession(mongo, projectPath, sessionId, filePath) {
-  const now       = new Date();
-  const gitOrigin = await getGitOrigin(projectPath);
-  const gitFields = gitOrigin ? { git_origin: gitOrigin } : {};
+  const now = new Date();
+
+  const git_origin = await getGitOrigin(projectPath);
+
+  const $set = { session_id: sessionId, project_path: projectPath, transcript_path: filePath, last_seen: now };
+  if (git_origin) $set.git_origin = git_origin;
+
   await mongo.sessions.updateOne(
     { session_id: sessionId },
-    {
-      $set:         { session_id: sessionId, project_path: projectPath, transcript_path: filePath, last_seen: now, ...gitFields },
-      $setOnInsert: { started_at: now },
-    },
+    { $set, $setOnInsert: { started_at: now } },
     { upsert: true }
   );
 

@@ -1,9 +1,16 @@
 import { execFile } from 'child_process';
+import { promisify } from 'util';
 
-export function getGitOrigin(dir) {
-  return new Promise(resolve => {
-    execFile('git', ['-C', dir, 'remote', 'get-url', 'origin'], (err, stdout) => {
-      resolve(err ? null : stdout.trim() || null);
-    });
-  });
+const execFileAsync = promisify(execFile);
+
+export async function getGitOrigin(cwd) {
+  try {
+    const { stdout } = await execFileAsync(
+      'git', ['-C', cwd, 'remote', 'get-url', 'origin'],
+      { timeout: 2000 }
+    );
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
 }

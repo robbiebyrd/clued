@@ -8,6 +8,7 @@ const DEFAULTS = {
   mongoUrl:          'mongodb://localhost:27018',
   dbName:            'claude_sessions',
   port:              8085,
+  mcpPort:           8086,
   projectsDir:       join(homedir(), '.claude', 'projects'),
   disabledEnrichers: [],
 };
@@ -28,6 +29,7 @@ export function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
   if (process.env.CLUED_MONGO_URL)    cfg.mongoUrl    = process.env.CLUED_MONGO_URL;
   if (process.env.CLUED_DB_NAME)      cfg.dbName      = process.env.CLUED_DB_NAME;
   if (process.env.CLUED_PORT)         cfg.port        = parseInt(process.env.CLUED_PORT, 10);
+  if (process.env.CLUED_MCP_PORT)     cfg.mcpPort     = parseInt(process.env.CLUED_MCP_PORT, 10);
   if (process.env.CLUED_PROJECTS_DIR) cfg.projectsDir = process.env.CLUED_PROJECTS_DIR;
 
   cfg.projectsDir = expandHome(cfg.projectsDir);

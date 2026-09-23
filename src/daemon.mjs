@@ -41,18 +41,17 @@ async function trackSession({ session_id, transcript_path, cwd } = {}) {
   const state  = { gitOriginFound: false };
   tracked.set(session_id, state);
 
-  const now       = new Date();
-  const gitOrigin = cwd ? await getGitOrigin(cwd) : null;
-  if (gitOrigin) state.gitOriginFound = true;
-  const gitFields = gitOrigin ? { git_origin: gitOrigin } : {};
-  mongo.sessions.updateOne(
-    { session_id },
-    {
-      $set:         { session_id, transcript_path, cwd, last_seen: now, ...gitFields },
-      $setOnInsert: { started_at: now },
-    },
-    { upsert: true }
-  ).catch(() => {});
+  const now = new Date();
+  Promise.resolve(cwd ? getGitOrigin(cwd) : null).then(git_origin => {
+    if (git_origin) state.gitOriginFound = true;
+    const $set = { session_id, transcript_path, cwd, last_seen: now };
+    if (git_origin) $set.git_origin = git_origin;
+    mongo.sessions.updateOne(
+      { session_id },
+      { $set, $setOnInsert: { started_at: now } },
+      { upsert: true }
+    ).catch(() => {});
+  });
 
   if (!transcript_path) return;
 
