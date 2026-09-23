@@ -18,7 +18,7 @@ The server uses the MCP HTTP+SSE transport, runs alongside the existing daemon, 
 1. Let Claude Code autonomously search past sessions by project, git origin, and command history.
 2. Support the cross-machine continuity use case: same git remote → find relevant past sessions regardless of which machine ran them.
 3. Start with excerpts and summaries; allow drill-down to full transcript on demand.
-4. Stream large transcript reads progressively over SSE rather than blocking on a full query.
+4. Stream large transcript reads progressively using MCP progress notifications.
 5. Keep the existing daemon unchanged — recording and search are separate concerns.
 
 ---
@@ -29,6 +29,7 @@ The server uses the MCP HTTP+SSE transport, runs alongside the existing daemon, 
 |---|---|---|
 | `src/mcp.mjs` | Create | MCP HTTP+SSE server — tool registry, request routing, SSE lifecycle |
 | `src/config.mjs` | Modify | Add `mcpPort: 8086`, `CLUED_MCP_PORT` env override |
+| `src/mongo.mjs` | Modify | Add index on `sessions.git_origin` |
 | `hooks/session-start` | Modify | Health-check + self-heal MCP server alongside daemon |
 | `skills/clued-setup.md` | Modify | Add step to register `mcpServers.clued` in `~/.claude/settings.json` |
 | `test/integration/mcp.test.mjs` | Create | Integration tests — real MongoDB, real HTTP |
@@ -39,12 +40,15 @@ The server uses the MCP HTTP+SSE transport, runs alongside the existing daemon, 
 
 `src/mcp.mjs` is a standalone Node.js ESM process. It shares `loadConfig()` and `createClient()` with the daemon but runs independently — separate PID, separate MongoDB connection, separate port.
 
-**Transport:** MCP HTTP+SSE (the spec's standard persistent transport).
-- `GET /sse` — client holds this open; server pushes tool results and notifications down it.
-- `POST /mcp` — client sends tool call requests here; server responds over the SSE stream.
+**Transport:** MCP HTTP+SSE — the spec's standard persistent transport. The protocol uses two channels:
+
+- `GET /sse` — client holds this open. On connection, the server sends an SSE `endpoint` event carrying the POST URL for this session (e.g., `http://127.0.0.1:8086/message?sessionId=<uuid>`). All subsequent server→client messages (tool results, progress notifications, errors) are pushed down this channel.
+- `POST /message?sessionId=<id>` — client sends JSON-RPC 2.0 messages here (tool calls, initialize, ping). Server responds with `202 Accepted` immediately, then pushes the actual result as an SSE `data:` event on the client's open GET channel, routed by `sessionId`.
 - `GET /health` — returns 200 `ok` for liveness checks.
 
-**Lifecycle:** `session-start` spawns and health-checks the MCP server immediately after the daemon is confirmed healthy, before triggering backfill. Same self-healing pattern: `GET /health` → if down, spawn detached → poll up to 3s → log warning and exit 0 if unreachable.
+Each `GET /sse` connection gets a unique `sessionId` (UUID). The server maps `sessionId → SSE response` to route POST results back to the right client. When a client disconnects, its session is removed.
+
+**Lifecycle:** `session-start` health-checks and self-heals both the daemon and the MCP server independently before triggering backfill — see Section 5 for the updated hook flow.
 
 **Registration:** Users add the server to `~/.claude/settings.json` via `clued-setup`:
 ```json
@@ -73,12 +77,12 @@ Finds sessions matching a project or repository. `git_origin` is the preferred c
 }
 ```
 
-**Output:** Array of session objects:
+**Output:** Array of session objects (empty array if no matches):
 ```json
 {
   "session_id":    "string",
   "project_path":  "string",
-  "git_origin":    "string",
+  "git_origin":    "string | null",
   "cwd":           "string",
   "started_at":    "ISO date",
   "last_seen":     "ISO date",
@@ -100,10 +104,10 @@ Returns a summary of a session — enough to understand what was done without lo
 **Output:**
 ```json
 {
-  "session":       "{ session_id, project_path, git_origin, cwd, started_at, last_seen }",
-  "top_commands":  "string[] (up to 10 distinct Bash commands, most recent first)",
-  "first_lines":   "object[] (first 20 transcript lines)",
-  "last_lines":    "object[] (last 20 transcript lines)"
+  "session":      "{ session_id, project_path, git_origin, cwd, started_at, last_seen }",
+  "top_commands": "string[] (up to 10 distinct Bash commands, most recent first)",
+  "first_lines":  "object[] (first 20 transcript lines)",
+  "last_lines":   "object[] (last 20 transcript lines)"
 }
 ```
 
@@ -118,35 +122,41 @@ Searches Bash tool invocations across sessions. Useful for recalling a specific 
 **Input:**
 ```json
 {
-  "pattern":     "string (regex, applied to tool_input.command)",
-  "session_id":  "string (optional, scope to one session)",
-  "git_origin":  "string (optional, regex — scope to all sessions for a repo)",
-  "limit":       "number (optional, default 20)"
+  "pattern":    "string (regex, applied to tool_input.command)",
+  "session_id": "string (optional, scope to one session)",
+  "git_origin": "string (optional, regex — scope to all sessions for a repo)",
+  "limit":      "number (optional, default 20)"
 }
 ```
 
-**Output:** Array of matches:
+**Output:** Array of matches (empty array if no matches):
 ```json
 {
-  "session_id":  "string",
-  "git_origin":  "string",
-  "command":     "string",
-  "created_at":  "ISO date"
+  "session_id":   "string",
+  "project_path": "string",
+  "git_origin":   "string | null",
+  "command":      "string",
+  "created_at":   "ISO date"
 }
 ```
+
+`project_path` is included so results are human-readable when `git_origin` is null (i.e., sessions not inside a git repository).
 
 ---
 
 ### `read_transcript`
 
-Returns paginated transcript lines for a session. Over SSE, pages are streamed progressively as they are fetched from MongoDB — Claude Code receives the first page before the full query completes.
+Returns paginated transcript lines for a session. For large transcripts, the server sends MCP progress notifications (`notifications/progress`) as each page is fetched, so the client sees lines arriving before the full result is ready. The caller includes `_meta.progressToken` in the tool call to opt in to progress events; without it, the server waits for all pages before sending the result.
 
 **Input:**
 ```json
 {
   "session_id": "string",
   "offset":     "number (optional, default 0)",
-  "limit":      "number (optional, default 200)"
+  "limit":      "number (optional, default 200)",
+  "_meta": {
+    "progressToken": "string | number (optional — include to receive progress notifications)"
+  }
 }
 ```
 
@@ -161,20 +171,22 @@ Returns paginated transcript lines for a session. Over SSE, pages are streamed p
 
 Returns MCP error `"session not found"` if `session_id` is unknown.
 
+**Progress notifications** (sent when `progressToken` is present): each page of fetched lines is sent as a `notifications/progress` event with `{ progressToken, progress, total, data: lines[] }` before the final tool result. The final result contains all lines.
+
 ---
 
 ## Section 3: Streaming
 
-The MCP HTTP+SSE transport uses two channels:
+The MCP HTTP+SSE transport protocol:
 
-- The `GET /sse` channel is held open by the client. The server pushes all tool results, errors, and notifications down this channel as SSE `data:` events.
-- The `POST /mcp` channel accepts tool call requests from the client.
+1. Client opens `GET /sse`. Server sends an SSE `endpoint` event: `data: http://127.0.0.1:<mcpPort>/message?sessionId=<uuid>`.
+2. Client sends JSON-RPC messages via `POST /message?sessionId=<uuid>`. Server responds `202 Accepted` immediately.
+3. Server pushes the actual JSON-RPC response as an SSE `data:` event on the client's open GET channel, matched by `sessionId`.
+4. Progress notifications (`notifications/progress`) follow the same channel — pushed as SSE `data:` events before the final result.
 
-For `find_sessions`, `get_session_context`, and `search_commands`, results are a single JSON payload sent as one SSE event.
+For `find_sessions`, `get_session_context`, and `search_commands`: single result event, no progress notifications.
 
-For `read_transcript`, the server fetches lines in pages from MongoDB and emits each page as a partial SSE event before the full result completes. This allows Claude Code to begin reading immediately for large transcripts.
-
-The server maintains one SSE connection per connected client. No state is held between connections — a reconnecting client gets a fresh session.
+For `read_transcript` when `_meta.progressToken` is present: the server fetches lines in batches of 50 from MongoDB, sends a `notifications/progress` event per batch, then sends the final tool result containing all lines. If the client disconnects mid-stream, the MongoDB cursor is aborted and the session is cleaned up.
 
 ---
 
@@ -186,7 +198,7 @@ The server maintains one SSE connection per connected client. No state is held b
 | MongoDB drops during a tool call | Return MCP error with message; server stays alive |
 | Tool returns no results | Return empty array — not an error |
 | `get_session_context` / `read_transcript` with unknown `session_id` | Return MCP error: `"session not found"` |
-| `read_transcript` client disconnects mid-stream | Abort MongoDB cursor, clean up — no crash |
+| `read_transcript` client disconnects mid-stream | Abort MongoDB cursor, remove session mapping — no crash |
 | `EADDRINUSE` on startup | Exit 0 — another instance won the race |
 | Malformed tool call input | Return MCP error with validation message |
 
@@ -204,12 +216,23 @@ The server maintains one SSE connection per connected client. No state is held b
 
 Environment variable override: `CLUED_MCP_PORT`.
 
-**`hooks/session-start`** updated flow:
-1. Read `port` and `mcpPort` from config.
-2. Health-check daemon → spawn if down → poll.
-3. Health-check MCP server → spawn if down → poll.
+**`src/mongo.mjs`** gains one new index in `createClient()`:
+
+```js
+db.collection('sessions').createIndex({ git_origin: 1 }),
+```
+
+Added to the `Promise.allSettled` block alongside the existing indexes. Supports efficient `git_origin`-filtered queries in `find_sessions` and `search_commands`.
+
+**`hooks/session-start`** updated flow — preserves the existing fast-exit pattern for both services:
+
+1. Read `port` and `mcpPort` from config (via `jq` + env override, same pattern as current hook).
+2. If daemon is NOT healthy: spawn daemon detached, poll up to 3s.
+3. If MCP server is NOT healthy: spawn MCP server detached, poll up to 3s.
 4. Trigger backfill detached.
 5. Exit 0.
+
+If both services are already healthy (the common case after first startup), steps 2 and 3 are each a single fast health-check that succeeds immediately, preserving the fast-exit behaviour. Each service is checked and healed independently — a failed MCP server does not prevent backfill from running.
 
 **`skills/clued-setup.md`** gains a new step (after writing `config.json`, before verifying daemon):
 
@@ -223,19 +246,22 @@ Environment variable override: `CLUED_MCP_PORT`.
 
 ## Section 6: Testing
 
-`test/integration/mcp.test.mjs` — integration tests using a test port (`18086`) and a unique test DB (`clued_mcp_test_<timestamp>`). The test `before` hook spawns the MCP server process (same pattern as `daemon.test.mjs`), waits for `/health`, and creates a direct MongoDB client for assertions.
+`test/integration/mcp.test.mjs` — integration tests using a test port (`18086`) and a unique test DB (`clued_mcp_test_<timestamp>`). The test `before` hook spawns the MCP server process (same pattern as `daemon.test.mjs`), waits for `/health`, and creates a direct MongoDB client for seeding data and assertions.
 
 **Tests:**
 - `GET /health` returns 200
-- `GET /sse` establishes SSE connection (receives initial protocol handshake)
+- `GET /sse` establishes SSE connection and receives `endpoint` event
 - `find_sessions` returns sessions matching `git_origin` filter
 - `find_sessions` returns sessions matching `project_path` filter
-- `get_session_context` returns metadata + commands + first/last lines
-- `get_session_context` returns error for unknown session_id
+- `find_sessions` returns empty array when no sessions match
+- `get_session_context` returns metadata + top commands + first/last lines
+- `get_session_context` returns error for unknown `session_id`
 - `search_commands` returns matching commands across sessions
 - `search_commands` scoped by `git_origin` returns only matching sessions
+- `search_commands` returns empty array when pattern matches nothing
 - `read_transcript` returns paginated lines
-- `read_transcript` returns error for unknown session_id
+- `read_transcript` with `progressToken` sends progress notifications before final result
+- `read_transcript` returns error for unknown `session_id`
 
 ---
 
