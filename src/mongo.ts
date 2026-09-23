@@ -22,6 +22,11 @@ export async function createClient({ mongoUrl, dbName }: Pick<Config, 'mongoUrl'
     db.collection('hook_events').createIndex({ session_id: 1 }),
     db.collection('hook_events').createIndex({ created_at: -1 }),
     db.collection('transcript_lines').createIndex({ session_id: 1, seq: 1 }, { unique: true }),
+    db.collection('sessions').createIndex({ account_id: 1, last_seen: -1 }),
+    db.collection('sessions').createIndex({ account_id: 1, git_origin: 1 }),
+    db.collection('sessions').createIndex({ account_id: 1, git_origin: 1, git_branch: 1 }),
+    db.collection('hook_events').createIndex({ account_id: 1, session_id: 1, created_at: -1 }),
+    db.collection('transcript_lines').createIndex({ account_id: 1, session_id: 1, seq: 1 }),
   ]);
   for (const r of results) {
     if (r.status === 'rejected') console.error('clued: index warning:', (r.reason as Error).message);
