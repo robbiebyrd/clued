@@ -31,7 +31,19 @@ Write the config to `~/.claude/plugins/data/clued/config.json` (create parent di
 }
 ```
 
-### 3. Add relay hooks to user settings
+### 3. Register MCP server in Claude settings
+
+Read `~/.claude/settings.json`. Add the MCP server entry under `mcpServers`:
+
+```json
+"mcpServers": {
+  "clued": { "type": "sse", "url": "http://127.0.0.1:8086/sse" }
+}
+```
+
+If `mcpServers` already exists, merge the `"clued"` key in. Do not duplicate if `"clued"` is already present.
+
+### 4. Add relay hooks to user settings
 
 Read `~/.claude/settings.json`. Add a hook entry for each of these event types, pointing at `${CLAUDE_PLUGIN_ROOT}/hooks/event-relay` with `async: true`:
 
@@ -54,7 +66,7 @@ Each entry uses this shape:
 
 Do not duplicate entries if they already exist.
 
-### 4. Verify daemon
+### 5. Verify daemon
 
 Run the session-start hook manually to confirm the daemon starts:
 
@@ -68,11 +80,13 @@ Then check health:
 curl -sf http://127.0.0.1:8085/health && echo "daemon is running"
 ```
 
-### 5. Confirm to user
+### 6. Confirm to user
 
 Tell the user:
 - Config written to `~/.claude/plugins/data/clued/config.json`
 - Relay hooks added to `~/.claude/settings.json`
+- MCP server URL: `http://127.0.0.1:8086/sse`
+- Registered in `~/.claude/settings.json` under `mcpServers.clued`
 - Daemon status (running / failed to start)
 - How to add custom enrichers: drop a `.mjs` file in `<plugin-root>/enrichers/` and restart the daemon
 - How to enable the privacy-redact enricher: remove `privacy-redact` from `disabledEnrichers` in `config.json` (or set `enabled: true` in the file)
