@@ -234,16 +234,26 @@ EOF
 
 ## Step 6 — Register MCP server in Claude settings
 
-Read `~/.claude/settings.json`. Add the MCP server entry under `mcpServers`:
+Read `~/.claude/settings.json` and merge in the `clued` MCP server entry. Use `jq`
+if available (safest), otherwise edit the file directly:
+
+```bash
+# With jq (preferred — handles existing mcpServers keys cleanly)
+jq '.mcpServers.clued = {"type":"sse","url":"http://127.0.0.1:8086/sse"}' \
+  ~/.claude/settings.json > /tmp/settings.tmp && mv /tmp/settings.tmp ~/.claude/settings.json
+```
+
+If `jq` is not available, read the file and add or merge the key manually:
 
 ```json
-"mcpServers": {
-  "clued": { "type": "sse", "url": "http://127.0.0.1:8086/sse" }
+{
+  "mcpServers": {
+    "clued": { "type": "sse", "url": "http://127.0.0.1:8086/sse" }
+  }
 }
 ```
 
-If `mcpServers` already exists, merge the `"clued"` key in — do not duplicate if
-already present.
+Do not duplicate the `"clued"` key if it already exists with the correct URL.
 
 ## Step 7 — Start the daemon
 
@@ -262,7 +272,11 @@ If a health check fails, run the failing process briefly in the foreground to se
 the error:
 
 ```bash
+# Daemon
 timeout 3 node "${CLAUDE_PLUGIN_ROOT}/dist/daemon.mjs" 2>&1 || true
+
+# MCP server
+timeout 3 node "${CLAUDE_PLUGIN_ROOT}/dist/mcp.mjs" 2>&1 || true
 ```
 
 Most common failure cause: MongoDB isn't reachable at the configured URL. Confirm
