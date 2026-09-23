@@ -5,6 +5,7 @@ import { loadConfig }                         from './config.mjs';
 import { createClient }                       from './mongo.mjs';
 import { tailFile }                           from './tailer.mjs';
 import { loadEnrichers, startEnrichmentLoop } from './enricher.mjs';
+import { getGitOrigin }                       from './git.mjs';
 
 const ENRICHERS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'enrichers');
 
@@ -16,18 +17,38 @@ const mongo     = await createClient(config).catch(err => {
 const enrichers = await loadEnrichers(ENRICHERS_DIR, config);
 const loop      = startEnrichmentLoop(mongo, enrichers);
 
-const tracked = new Map();
+const tracked = new Map(); // session_id -> { gitOriginFound }
 
-function trackSession({ session_id, transcript_path, cwd } = {}) {
-  if (!session_id || tracked.has(session_id)) return;
+async function trackSession({ session_id, transcript_path, cwd } = {}) {
+  if (!session_id) return;
+
+  if (tracked.has(session_id)) {
+    const state = tracked.get(session_id);
+    if (!state.gitOriginFound && cwd) {
+      const gitOrigin = await getGitOrigin(cwd);
+      if (gitOrigin) {
+        state.gitOriginFound = true;
+        mongo.sessions.updateOne(
+          { session_id, git_origin: { $exists: false } },
+          { $set: { git_origin: gitOrigin } }
+        ).catch(() => {});
+      }
+    }
+    return;
+  }
+
   const seqRef = { value: 0 };
-  tracked.set(session_id, seqRef);
+  const state  = { gitOriginFound: false };
+  tracked.set(session_id, state);
 
-  const now = new Date();
+  const now       = new Date();
+  const gitOrigin = cwd ? await getGitOrigin(cwd) : null;
+  if (gitOrigin) state.gitOriginFound = true;
+  const gitFields = gitOrigin ? { git_origin: gitOrigin } : {};
   mongo.sessions.updateOne(
     { session_id },
     {
-      $set:         { session_id, transcript_path, cwd, last_seen: now },
+      $set:         { session_id, transcript_path, cwd, last_seen: now, ...gitFields },
       $setOnInsert: { started_at: now },
     },
     { upsert: true }

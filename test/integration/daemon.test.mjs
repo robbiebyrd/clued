@@ -83,6 +83,49 @@ test('unknown routes return 404', async () => {
   assert.equal(code, 404);
 });
 
+test('session created with git cwd gets git_origin populated', async () => {
+  const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
+  const status = await post({ session_id: 'daemon-git-test', transcript_path: '/tmp/git-fake.jsonl', cwd: ROOT });
+  assert.equal(status, 200);
+  let doc;
+  for (let i = 0; i < 20; i++) {
+    await new Promise(r => setTimeout(r, 100));
+    doc = await mongo.sessions.findOne({ session_id: 'daemon-git-test', git_origin: { $exists: true } });
+    if (doc) break;
+  }
+  assert.ok(doc, 'session with git_origin not found');
+  assert.match(doc.git_origin, /clued/);
+});
+
+test('session created with non-git cwd has no git_origin', async () => {
+  const status = await post({ session_id: 'daemon-nogit-test', transcript_path: '/tmp/nogit-fake.jsonl', cwd: '/tmp' });
+  assert.equal(status, 200);
+  await new Promise(r => setTimeout(r, 300));
+  const doc = await mongo.sessions.findOne({ session_id: 'daemon-nogit-test' });
+  assert.ok(doc, 'session doc not found');
+  assert.equal(doc.git_origin, undefined);
+});
+
+test('session gets git_origin when cwd is first provided on a later event', async () => {
+  // First event: no cwd → no git_origin
+  await post({ session_id: 'daemon-git-late', transcript_path: '/tmp/git-late.jsonl' });
+  await new Promise(r => setTimeout(r, 300));
+  const initial = await mongo.sessions.findOne({ session_id: 'daemon-git-late' });
+  assert.ok(initial, 'session not created on first event');
+  assert.equal(initial.git_origin, undefined, 'git_origin should not be set yet');
+
+  // Second event: cwd points to a git repo
+  await post({ session_id: 'daemon-git-late', cwd: ROOT });
+  let doc;
+  for (let i = 0; i < 20; i++) {
+    await new Promise(r => setTimeout(r, 100));
+    doc = await mongo.sessions.findOne({ session_id: 'daemon-git-late', git_origin: { $exists: true } });
+    if (doc) break;
+  }
+  assert.ok(doc, 'git_origin not set after cwd was provided');
+  assert.match(doc.git_origin, /clued/);
+});
+
 test('enrichment loop writes enriched field to hook event', async () => {
   await post({ session_id: 'enrich-test', type: 'PostToolUse', tool_name: 'Bash',
     tool_input: { command: 'git status && npm install' } });

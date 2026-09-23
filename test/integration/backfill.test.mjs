@@ -1,8 +1,12 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync, rmSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { tmpdir } from 'os';
+import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 import { createClient } from '../../src/mongo.mjs';
 import { backfill, decodeProjectPath } from '../../src/backfill.mjs';
 
@@ -60,4 +64,37 @@ test('handles empty project directory gracefully', async () => {
   const emptyDir = join(TMP, '-Users-test-empty');
   mkdirSync(emptyDir, { recursive: true });
   await assert.doesNotReject(() => backfill(TEST_CONFIG, mongo));
+});
+
+test('backfill sets git_origin when projectPath is a git repo', async () => {
+  // /private/tmp/claude has no hyphens in any path component, so decodeProjectPath
+  // round-trips cleanly: '-private-tmp-claude-gitrepotest<pid>' → '/private/tmp/claude/gitrepotest<pid>'
+  const gitRepoPath = `/private/tmp/claude/gitrepotest${process.pid}`;
+  const dirName     = gitRepoPath.replaceAll('/', '-');
+  const projectsDir = join(tmpdir(), `clued-bf-gitprojects-${process.pid}`);
+  const projDir     = join(projectsDir, dirName);
+  const sessionId   = 'bbbbcccc-dddd-eeee-ffff-000000000000';
+
+  mkdirSync(projDir,     { recursive: true });
+  mkdirSync(gitRepoPath, { recursive: true });
+  writeFileSync(join(projDir, `${sessionId}.jsonl`),
+    JSON.stringify({ type: 'human', text: 'hi' }) + '\n');
+
+  const fakeOrigin = 'https://github.com/test/fake-repo.git';
+  execSync(`git init --template='' ${gitRepoPath}`, { stdio: 'ignore' });
+  execSync(`git -C ${gitRepoPath} remote add origin ${fakeOrigin}`, { stdio: 'ignore' });
+
+  const gitConfig = { ...TEST_CONFIG, dbName: `clued_bf_git_test_${Date.now()}`, projectsDir };
+  const gitMongo  = await (await import('../../src/mongo.mjs')).createClient(gitConfig);
+  try {
+    await backfill(gitConfig, gitMongo);
+    const session = await gitMongo.sessions.findOne({ session_id: sessionId });
+    assert.ok(session, 'session not found');
+    assert.equal(session.git_origin, fakeOrigin);
+  } finally {
+    await gitMongo.db.dropDatabase();
+    await gitMongo.close();
+    rmSync(projectsDir, { recursive: true, force: true });
+    rmSync(gitRepoPath, { recursive: true, force: true });
+  }
 });

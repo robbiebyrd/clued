@@ -3,6 +3,7 @@ import { join, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from './mongo.mjs';
 import { loadConfig } from './config.mjs';
+import { getGitOrigin } from './git.mjs';
 
 // Hyphens are ambiguous with path separators, so project_path is best-effort metadata only.
 export function decodeProjectPath(dirName) {
@@ -10,11 +11,13 @@ export function decodeProjectPath(dirName) {
 }
 
 async function processSession(mongo, projectPath, sessionId, filePath) {
-  const now = new Date();
+  const now       = new Date();
+  const gitOrigin = await getGitOrigin(projectPath);
+  const gitFields = gitOrigin ? { git_origin: gitOrigin } : {};
   await mongo.sessions.updateOne(
     { session_id: sessionId },
     {
-      $set:         { session_id: sessionId, project_path: projectPath, transcript_path: filePath, last_seen: now },
+      $set:         { session_id: sessionId, project_path: projectPath, transcript_path: filePath, last_seen: now, ...gitFields },
       $setOnInsert: { started_at: now },
     },
     { upsert: true }

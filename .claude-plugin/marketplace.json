@@ -1,0 +1,14 @@
+{
+  "name": "clued-local",
+  "owner": {
+    "name": "Robbie Byrd",
+    "email": "me@robbiebyrd.com"
+  },
+  "plugins": [
+    {
+      "name": "clued",
+      "description": "MongoDB session mirror — captures every hook event and stores it in MongoDB with an enricher pipeline",
+      "source": "./"
+    }
+  ]
+}
