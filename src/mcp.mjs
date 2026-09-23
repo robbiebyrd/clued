@@ -15,8 +15,70 @@ function sseWrite(res, data) {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
+async function findSessions({ project_path, git_origin, query, limit = 10 }) {
+  const filter = {};
+  if (project_path) filter.project_path = { $regex: project_path, $options: 'i' };
+  if (git_origin)   filter.git_origin   = { $regex: git_origin,   $options: 'i' };
+  if (query) filter.$or = [
+    { project_path: { $regex: query, $options: 'i' } },
+    { cwd:          { $regex: query, $options: 'i' } },
+  ];
+  const docs = await mongo.sessions
+    .find(filter, { projection: { _id: 0, session_id: 1, project_path: 1, git_origin: 1, cwd: 1, started_at: 1, last_seen: 1 } })
+    .sort({ last_seen: -1 })
+    .limit(limit)
+    .toArray();
+  const counts = await Promise.all(
+    docs.map(s => mongo.transcriptLines.countDocuments({ session_id: s.session_id }))
+  );
+  return docs.map((s, i) => ({ ...s, event_count: counts[i] }));
+}
+
+async function searchCommands({ pattern, session_id, git_origin, limit = 20 }) {
+  let sessionIds;
+  if (session_id) {
+    sessionIds = [session_id];
+  } else if (git_origin) {
+    const ss = await mongo.sessions
+      .find({ git_origin: { $regex: git_origin, $options: 'i' } }, { projection: { session_id: 1 } })
+      .toArray();
+    sessionIds = ss.map(s => s.session_id);
+    if (sessionIds.length === 0) return [];
+  }
+
+  const filter = { tool_name: 'Bash', 'tool_input.command': { $regex: pattern, $options: 'i' } };
+  if (sessionIds) filter.session_id = { $in: sessionIds };
+
+  const events = await mongo.hookEvents
+    .find(filter, { projection: { _id: 0, session_id: 1, tool_input: 1, created_at: 1 } })
+    .sort({ created_at: -1 })
+    .limit(limit)
+    .toArray();
+
+  const uniqueIds = [...new Set(events.map(e => e.session_id))];
+  const sessionMap = new Map();
+  if (uniqueIds.length > 0) {
+    const ss = await mongo.sessions
+      .find({ session_id: { $in: uniqueIds } }, { projection: { session_id: 1, project_path: 1, git_origin: 1 } })
+      .toArray();
+    for (const s of ss) sessionMap.set(s.session_id, s);
+  }
+
+  return events.map(ev => ({
+    session_id:   ev.session_id,
+    project_path: sessionMap.get(ev.session_id)?.project_path ?? null,
+    git_origin:   sessionMap.get(ev.session_id)?.git_origin   ?? null,
+    command:      ev.tool_input.command,
+    created_at:   ev.created_at,
+  }));
+}
+
 async function handleToolCall(name, args, meta, sseRes) {
-  throw new Error(`unknown tool: ${name}`);
+  switch (name) {
+    case 'find_sessions':   return findSessions(args);
+    case 'search_commands': return searchCommands(args);
+    default: throw new Error(`unknown tool: ${name}`);
+  }
 }
 
 const server = http.createServer(async (req, res) => {
