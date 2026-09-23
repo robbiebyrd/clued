@@ -37,7 +37,7 @@ if ! daemon_ok; then
 fi
 
 if ! mcp_ok; then
-  node "${PLUGIN_ROOT}/src/mcp.mjs" &>/dev/null &
+  node "${PLUGIN_ROOT}/dist/mcp.mjs" &>/dev/null &
   MCP_PID=$!
   disown
   for _ in $(seq 1 15); do
