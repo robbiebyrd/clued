@@ -39,6 +39,8 @@ Both the daemon and MCP server read this value **once at startup** using a synch
 
 If the file is absent, unreadable, or the key is missing, `account_id` defaults to `"unknown"`. The daemon and MCP server continue to operate normally.
 
+**Known limitation of the `"unknown"` fallback:** When two processes (or two users on a shared MongoDB instance) both produce `account_id: "unknown"` due to a missing config file, their documents intermingle — the same cross-pollution the feature is designed to prevent. This is an acceptable degraded-mode behaviour. A warning is logged at startup when `"unknown"` is used so operators are aware isolation is degraded.
+
 The path is configurable via `CLUED_CLAUDE_APP_CONFIG_PATH` env var, following the existing pattern for `CLUED_PLAN_USAGE_PATH`.
 
 ```ts
@@ -46,8 +48,11 @@ function readAccountId(path: string): string {
   try {
     const raw  = readFileSync(path, 'utf8');
     const data = JSON.parse(raw) as { lastKnownAccountUuid?: string };
-    return data.lastKnownAccountUuid ?? 'unknown';
+    const id   = data.lastKnownAccountUuid ?? 'unknown';
+    if (id === 'unknown') console.warn('clued: account ID unavailable — isolation is degraded');
+    return id;
   } catch {
+    console.warn('clued: account ID unavailable — isolation is degraded');
     return 'unknown';
   }
 }
@@ -81,9 +86,11 @@ Returns `null` for detached HEAD (empty stdout), non-git directories, and git co
 
 ```ts
 claudeAppConfigPath: string
-// DEFAULTS value: ~/Library/Application Support/Claude/config.json
+// DEFAULTS value: join(homedir(), 'Library', 'Application Support', 'Claude', 'config.json')
 // env override: CLUED_CLAUDE_APP_CONFIG_PATH
 ```
+
+The default is built with `join(homedir(), ...)` — the same pattern used for `projectsDir` in the existing `DEFAULTS`. The `expandHome` call in the post-processing block is applied for env-var overrides that use `~/` syntax.
 
 In `loadConfig()`, add alongside the existing env-var block:
 
@@ -113,7 +120,9 @@ const account_id = readAccountId(config.claudeAppConfigPath);
 
 ### 3b — Session tracking (`trackSession`)
 
-`git_origin` and `git_branch` are fetched in parallel. Both are written to the session document:
+`git_origin` and `git_branch` are fetched in parallel. Both are written to the session document.
+
+**Initial registration path** (fires once, when `session_id` is first seen):
 
 ```ts
 Promise.all([
@@ -129,10 +138,30 @@ Promise.all([
     { $set, $setOnInsert: { started_at: now } },
     { upsert: true }
   ).catch(() => {});
+  // tailFile call remains here, outside the Promise.all .then(), unchanged
 });
 ```
 
-The `gitOriginFound` retry logic (for subsequent events where `cwd` arrives late) is unchanged. `git_branch` is captured only at initial session creation and not re-fetched — branch changes within a session are not tracked.
+**Retry path** (fires on subsequent events when `!state.gitOriginFound && cwd`):
+
+The retry path is updated to fetch both `git_origin` and `git_branch` in parallel. Previously it only fetched `git_origin` and wrote `$set: { git_origin }`. Now:
+
+```ts
+if (!state.gitOriginFound && cwd) {
+  const [gitOrigin, gitBranch] = await Promise.all([getGitOrigin(cwd), getGitBranch(cwd)]);
+  if (gitOrigin) {
+    state.gitOriginFound = true;
+    const $set: Record<string, unknown> = { git_origin: gitOrigin };
+    if (gitBranch) $set.git_branch = gitBranch;
+    mongo.sessions.updateOne(
+      { session_id, git_origin: { $exists: false } },
+      { $set }
+    ).catch(() => {});
+  }
+}
+```
+
+`git_branch` is only captured once — either in the initial registration or the first successful retry — and not re-fetched afterwards. Branch changes within a session are not tracked.
 
 ### 3c — Hook event enrichment
 
@@ -140,6 +169,15 @@ The `gitOriginFound` retry logic (for subsequent events where `cwd` arrives late
 
 ```ts
 await mongo.hookEvents.insertOne({ ...data, account_id, created_at: new Date() });
+```
+
+The `last_seen` heartbeat `updateOne` that fires on every event (daemon.ts, HTTP handler) also gains `account_id` in its filter for defence-in-depth:
+
+```ts
+mongo.sessions.updateOne(
+  { session_id: data.session_id, account_id },
+  { $set: { last_seen: new Date() } }
+).catch(() => {});
 ```
 
 ### 3d — Transcript line enrichment
@@ -187,6 +225,8 @@ Transcript line ops gain `account_id` in `$set`:
 update: { $set: { session_id: sessionId, seq, line, account_id }, $setOnInsert: { created_at: now } },
 ```
 
+`account_id` is read at module level in the backfill standalone entry point, before `backfill()` is called, using `readAccountId(config.claudeAppConfigPath)`. It is passed down to `processSession` — either as a parameter added to its signature, or via `config` if `Config` gains the field (which it does via Section 2). The backfill process reads `config.claudeAppConfigPath` the same way the daemon does.
+
 **Important:** Existing documents written before this feature lack `account_id`. Running backfill after deploying stamps `account_id` onto all historical session and transcript line documents. Hook events cannot be retroactively stamped (no backfill path for hook_events exists). The setup documentation should note that a backfill run is recommended after upgrading.
 
 ---
@@ -200,9 +240,6 @@ All new indexes are added to the existing `Promise.allSettled` block.
 ```ts
 // List all sessions for an account, sorted by recency
 db.collection('sessions').createIndex({ account_id: 1, last_seen: -1 }),
-
-// Direct session lookup within an account
-db.collection('sessions').createIndex({ account_id: 1, session_id: 1 }),
 
 // Find an account's sessions by repo
 db.collection('sessions').createIndex({ account_id: 1, git_origin: 1 }),
@@ -264,11 +301,25 @@ mongo.transcriptLines.find({ session_id, account_id })
 
 ### `searchCommands`
 
-```ts
-// sessions lookup
-mongo.sessions.find({ account_id, git_origin: { $regex: ... } }, ...)
+When `session_id` is passed directly (the fast-path that skips the sessions lookup), an ownership check is added first:
 
-// hook_events lookup
+```ts
+if (session_id) {
+  const owned = await mongo.sessions.findOne({ session_id, account_id }, { projection: { session_id: 1 } });
+  if (!owned) return [];
+  sessionIds = [session_id];
+}
+```
+
+When filtering by `git_origin`, `account_id` is prepended to the sessions query:
+
+```ts
+mongo.sessions.find({ account_id, git_origin: { $regex: git_origin, $options: 'i' } }, ...)
+```
+
+`account_id` is added to the hook_events filter in all paths:
+
+```ts
 filter.account_id = account_id;
 ```
 
@@ -306,7 +357,7 @@ export function readAccountId(path: string): string {
 
 | Scenario | Behaviour |
 |---|---|
-| `config.json` absent or `lastKnownAccountUuid` missing | `account_id` = `"unknown"` — daemon and MCP operate normally |
+| `config.json` absent or `lastKnownAccountUuid` missing | `account_id` = `"unknown"` — startup warning logged; isolation is degraded but daemon and MCP operate normally |
 | `git branch --show-current` fails | `git_branch` omitted from session doc |
 | Detached HEAD | `git branch --show-current` returns empty stdout → `git_branch` = `null` → omitted |
 | Session queried by wrong account | Returns `"session not found"` — same as nonexistent session |
@@ -343,7 +394,12 @@ export function readAccountId(path: string): string {
 
 ### `test/integration/mcp.test.ts`
 
-- Seed two sessions: `sess-acct-1` with `account_id: "acct-a"` and `sess-acct-2` with `account_id: "acct-b"`. Set module-level `account_id = "acct-a"`. Assert `find_sessions` returns only `sess-acct-1`. Assert `get_session_context({ session_id: "sess-acct-2" })` throws `"session not found"`.
+- Seed two sessions: `sess-acct-1` with `account_id: "acct-a"` and `sess-acct-2` with `account_id: "acct-b"`. Also seed a `hook_events` doc for `sess-acct-2` with `tool_name: "Bash"` and `tool_input.command: "echo hello"`. Set module-level `account_id = "acct-a"`.
+  - Assert `find_sessions` returns only `sess-acct-1`.
+  - Assert `get_session_context({ session_id: "sess-acct-2" })` throws `"session not found"`.
+  - Assert `search_commands({ pattern: "echo" })` returns empty (no match for `acct-a`).
+  - Assert `search_commands({ session_id: "sess-acct-2", pattern: "echo" })` returns empty (ownership check blocks the foreign session_id fast-path).
+  - Assert `read_transcript({ session_id: "sess-acct-2" })` throws `"session not found"`.
 
 ---
 
