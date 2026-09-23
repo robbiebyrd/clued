@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
+DEFAULT_PORT=8085
+
+if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
+  PORT=$(jq -r ".port // ${DEFAULT_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_PORT")
+else
+  PORT=$DEFAULT_PORT
+fi
+PORT="${CLUED_PORT:-$PORT}"
+
+/usr/bin/curl -sf -X POST "http://127.0.0.1:${PORT}/event" \
+  -H "Content-Type: application/json" \
+  --data-binary @- 2>/dev/null || true
