@@ -206,4 +206,13 @@ Most common failure: MongoDB not reachable. Confirm with `nc -z <host> <port>`.
 - Daemon on port 8085 / MCP server on port 8086 — running or failed with error
 - macOS tarball: launchd plist at `~/Library/LaunchAgents/org.mongodb.mongod.plist` auto-restarts mongod at login
 - Hooks registered automatically via `hooks.json` — no manual settings edit needed
-- Customise: drop a `.mjs` enricher into `<plugin-root>/enrichers/` and restart the daemon
+- To add a custom enricher: create a `.ts` file in `<plugin-root>/enrichers/`, then rebuild and restart:
+  ```bash
+  # Install mise if not present: https://mise.jdx.dev
+  cd <plugin-root>
+  mise install          # sets up Node.js + pnpm per mise.toml
+  pnpm install --frozen-lockfile
+  pnpm run lint && pnpm run build
+  bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
+  ```
+- To enable the privacy-redact enricher: remove `privacy-redact` from `disabledEnrichers` in `config.json`
