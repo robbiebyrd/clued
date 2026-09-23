@@ -15,6 +15,14 @@ function sseWrite(res, data) {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
+function pushProgress(res, progressToken, progress, total) {
+  sseWrite(res, {
+    jsonrpc: '2.0',
+    method: 'notifications/progress',
+    params: { progressToken, progress, total },
+  });
+}
+
 async function findSessions({ project_path, git_origin, query, limit = 10 }) {
   const filter = {};
   if (project_path) filter.project_path = { $regex: project_path, $options: 'i' };
@@ -123,11 +131,38 @@ async function getSessionContext({ session_id }) {
   };
 }
 
+async function readTranscript({ session_id, offset = 0, limit = 200 }, progressToken, sseRes) {
+  const session = await mongo.sessions.findOne({ session_id });
+  if (!session) throw Object.assign(new Error('session not found'), { isMcpError: true });
+
+  const total = await mongo.transcriptLines.countDocuments({ session_id });
+  const BATCH = 50;
+  const allLines = [];
+
+  for (let batchStart = offset; batchStart < offset + limit; batchStart += BATCH) {
+    const batchLimit = Math.min(BATCH, offset + limit - batchStart);
+    const lines = await mongo.transcriptLines
+      .find({ session_id }, { projection: { _id: 0 } })
+      .sort({ seq: 1 })
+      .skip(batchStart)
+      .limit(batchLimit)
+      .toArray();
+    allLines.push(...lines);
+    if (progressToken !== undefined && sseRes && lines.length > 0) {
+      pushProgress(sseRes, progressToken, allLines.length, total);
+    }
+    if (lines.length < batchLimit) break;
+  }
+
+  return allLines;
+}
+
 async function handleToolCall(name, args, meta, sseRes) {
   switch (name) {
     case 'find_sessions':       return findSessions(args);
     case 'get_session_context': return getSessionContext(args);
     case 'search_commands':     return searchCommands(args);
+    case 'read_transcript':     return readTranscript(args, meta?.progressToken, sseRes);
     default: throw new Error(`unknown tool: ${name}`);
   }
 }

@@ -268,3 +268,50 @@ test('get_session_context returns error for unknown session_id', async () => {
   assert.ok(result.error, 'expected error response');
   assert.equal(result.error.message, 'session not found');
 });
+
+test('read_transcript returns paginated lines', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 20);
+  await callTool(endpoint, 20, 'read_transcript', { session_id: 'sess-1', offset: 0, limit: 10 });
+  const [result] = await pending;
+  close();
+  assert.ok(result.result);
+  const lines = JSON.parse(result.result.content[0].text);
+  assert.equal(lines.length, 10);
+  assert.equal(lines[0].seq, 0);
+  assert.equal(lines[9].seq, 9);
+});
+
+test('read_transcript with progressToken sends progress notifications before final result', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  // sess-3 has 120 lines — 3 batches of 50, 50, 20 → at least 2 progress notifications
+  const pending = collectUntilResult(emitter, 21);
+  await callTool(endpoint, 21, 'read_transcript', { session_id: 'sess-3', offset: 0, limit: 200 },
+    { progressToken: 'tok-21' });
+  const events = await pending;
+  close();
+  const notifications = events.filter(e => e.method === 'notifications/progress');
+  const finalResult   = events.at(-1);
+  assert.ok(notifications.length >= 1, 'expected at least one progress notification');
+  // notifications carry only numeric fields, not line data
+  for (const n of notifications) {
+    assert.equal(typeof n.params.progress, 'number');
+    assert.equal(typeof n.params.total,    'number');
+    assert.ok(n.params.data === undefined, 'progress notification must not carry line data');
+    assert.equal(n.params.progressToken, 'tok-21');
+  }
+  // final result comes after all notifications
+  assert.ok(finalResult.result, 'last event must be the tool result');
+  const lines = JSON.parse(finalResult.result.content[0].text);
+  assert.equal(lines.length, 120);
+});
+
+test('read_transcript returns error for unknown session_id', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 22);
+  await callTool(endpoint, 22, 'read_transcript', { session_id: 'no-such-session' });
+  const [result] = await pending;
+  close();
+  assert.ok(result.error);
+  assert.equal(result.error.message, 'session not found');
+});
