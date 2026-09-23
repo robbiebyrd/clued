@@ -1,9 +1,11 @@
 import http, { ServerResponse } from 'http';
 import { randomUUID } from 'crypto';
-import { loadConfig }  from './config';
-import { createClient } from './mongo';
+import { loadConfig }    from './config';
+import { createClient }  from './mongo';
+import { readAccountId } from './account';
 
-const config = loadConfig();
+const config     = loadConfig();
+const account_id = readAccountId(config.claudeAppConfigPath);
 const mongo  = await createClient(config).catch(err => {
   console.error('clued mcp: MongoDB connection failed:', (err as Error).message);
   process.exit(1);
@@ -33,7 +35,7 @@ interface FindSessionsArgs {
 
 async function findSessions({ project_path, git_origin, query, limit = 10 }: FindSessionsArgs) {
   limit = Math.min(limit, MAX_LIMIT);
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = { account_id };
   if (project_path) filter.project_path = { $regex: project_path, $options: 'i' };
   if (git_origin)   filter.git_origin   = { $regex: git_origin,   $options: 'i' };
   if (query) filter.$or = [
@@ -62,10 +64,12 @@ async function searchCommands({ pattern, session_id, git_origin, limit = 20 }: S
   limit = Math.min(limit, MAX_LIMIT);
   let sessionIds: string[] | undefined;
   if (session_id) {
+    const owned = await mongo.sessions.findOne({ session_id, account_id }, { projection: { session_id: 1 } });
+    if (!owned) return [];
     sessionIds = [session_id];
   } else if (git_origin) {
     const ss = await mongo.sessions
-      .find({ git_origin: { $regex: git_origin, $options: 'i' } }, { projection: { session_id: 1 } })
+      .find({ account_id, git_origin: { $regex: git_origin, $options: 'i' } }, { projection: { session_id: 1 } })
       .limit(MAX_LIMIT)
       .toArray();
     sessionIds = ss.map(s => s.session_id as string);
@@ -74,6 +78,7 @@ async function searchCommands({ pattern, session_id, git_origin, limit = 20 }: S
 
   const filter: Record<string, unknown> = { tool_name: 'Bash', 'tool_input.command': { $regex: pattern, $options: 'i' } };
   if (sessionIds) filter.session_id = { $in: sessionIds };
+  filter.account_id = account_id;
 
   const events = await mongo.hookEvents
     .find(filter, { projection: { _id: 0, session_id: 1, tool_input: 1, created_at: 1 } })
@@ -100,11 +105,11 @@ async function searchCommands({ pattern, session_id, git_origin, limit = 20 }: S
 }
 
 async function getSessionContext({ session_id }: { session_id: string }) {
-  const session = await mongo.sessions.findOne({ session_id }, { projection: { _id: 0 } });
+  const session = await mongo.sessions.findOne({ session_id, account_id }, { projection: { _id: 0 } });
   if (!session) throw new Error('session not found');
 
   const bashEvents = await mongo.hookEvents
-    .find({ session_id, tool_name: 'Bash', 'tool_input.command': { $type: 'string' } })
+    .find({ session_id, account_id, tool_name: 'Bash', 'tool_input.command': { $type: 'string' } })
     .sort({ created_at: -1 })
     .limit(100)
     .toArray();
@@ -120,15 +125,15 @@ async function getSessionContext({ session_id }: { session_id: string }) {
   }
 
   const first_lines = await mongo.transcriptLines
-    .find({ session_id }, { projection: { _id: 0 } })
+    .find({ session_id, account_id }, { projection: { _id: 0 } })
     .sort({ seq: 1 })
     .limit(20)
     .toArray();
 
-  const total = await mongo.transcriptLines.countDocuments({ session_id });
+  const total = await mongo.transcriptLines.countDocuments({ session_id, account_id });
   const last_lines = total > 20
     ? (await mongo.transcriptLines
-        .find({ session_id }, { projection: { _id: 0 } })
+        .find({ session_id, account_id }, { projection: { _id: 0 } })
         .sort({ seq: -1 })
         .limit(20)
         .toArray()).reverse()
@@ -157,17 +162,17 @@ async function readTranscript(
   sseRes: ServerResponse | undefined,
 ) {
   limit = Math.min(limit, MAX_LIMIT);
-  const session = await mongo.sessions.findOne({ session_id });
+  const session = await mongo.sessions.findOne({ session_id, account_id });
   if (!session) throw new Error('session not found');
 
-  const total = await mongo.transcriptLines.countDocuments({ session_id });
+  const total = await mongo.transcriptLines.countDocuments({ session_id, account_id });
   const BATCH = 50;
   const allLines: unknown[] = [];
 
   for (let batchStart = offset; batchStart < offset + limit; batchStart += BATCH) {
     const batchLimit = Math.min(BATCH, offset + limit - batchStart);
     const lines = await mongo.transcriptLines
-      .find({ session_id }, { projection: { _id: 0 } })
+      .find({ session_id, account_id }, { projection: { _id: 0 } })
       .sort({ seq: 1 })
       .skip(batchStart)
       .limit(batchLimit)
