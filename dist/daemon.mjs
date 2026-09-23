@@ -32141,7 +32141,8 @@ function startEnrichmentLoop(mongo2, enrichers2) {
       const coll = mongo2.db.collection(enricher.collection);
       const failedKey = `enriched.${enricher.name}_failed`;
       const doneKey = `enriched.${enricher.name}`;
-      const docs = await coll.find({ [doneKey]: { $exists: false }, [failedKey]: { $exists: false } }).limit(100).toArray().catch((err) => {
+      const limit = enricher.batchLimit ?? 100;
+      const docs = await coll.find({ [doneKey]: { $exists: false }, [failedKey]: { $exists: false } }).limit(limit).toArray().catch((err) => {
         console.error("clued enricher query failed:", err.message);
         return [];
       });
@@ -32149,7 +32150,7 @@ function startEnrichmentLoop(mongo2, enrichers2) {
         const d = doc;
         if (!enricher.matches(d)) continue;
         try {
-          const result = await enricher.enrich(d);
+          const result = await enricher.enrich(d, mongo2);
           await coll.updateOne({ _id: doc._id }, { $set: { [doneKey]: result } });
         } catch (err) {
           const e = err;
