@@ -5,15 +5,13 @@ export const enabled    = true;
 interface ToolSummary { id: string; name: string; inputKeys: string[]; }
 interface Result { tools: ToolSummary[]; has_thinking: boolean; }
 
-const EMPTY: Result = { tools: [], has_thinking: false };
-
 export function matches(_doc: Record<string, unknown>): boolean {
   return true;
 }
 
 export async function enrich(doc: Record<string, unknown>): Promise<Result> {
   const msg = (doc.line as Record<string, unknown> | undefined)?.message as Record<string, unknown> | undefined;
-  if (msg?.role !== 'assistant') return EMPTY;
+  if (msg?.role !== 'assistant') return { tools: [], has_thinking: false };
 
   const content = (msg.content ?? []) as Array<Record<string, unknown>>;
   const tools: ToolSummary[] = [];

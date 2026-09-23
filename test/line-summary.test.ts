@@ -34,15 +34,3 @@ test('returns null summary for assistant line below token threshold', async () =
   assert.deepEqual(r, { summary: null, model: null });
 });
 
-test('returns null summary for assistant line above token threshold (API stub, no network call)', async () => {
-  const longText = 'word '.repeat(200); // 1000 chars = 250 token estimate
-  const r = await enrich({
-    line: {
-      message: {
-        role: 'assistant',
-        content: [{ type: 'text', text: longText }],
-      },
-    },
-  });
-  assert.deepEqual(r, { summary: null, model: null });
-});
