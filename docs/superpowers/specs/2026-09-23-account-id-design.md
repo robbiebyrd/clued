@@ -364,6 +364,12 @@ const session = await mongo.sessions.findOne({ session_id, account_id });
 
 A foreign `session_id` returns `"session not found"` — identical to a nonexistent session. No information leakage.
 
+The downstream `transcriptLines` queries also gain `account_id` for defence-in-depth, consistent with the same treatment applied to `getSessionContext`'s downstream queries:
+
+```ts
+mongo.transcriptLines.find({ session_id, account_id }, ...)
+```
+
 ---
 
 ## Section 7: New Shared Utility (`src/account.ts`)
