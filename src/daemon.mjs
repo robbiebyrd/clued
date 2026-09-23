@@ -1,6 +1,8 @@
 import http from 'http';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { loadConfig }                         from './config.mjs';
 import { createClient }                       from './mongo.mjs';
 import { tailFile }                           from './tailer.mjs';
@@ -16,6 +18,20 @@ const mongo     = await createClient(config).catch(err => {
 const enrichers = await loadEnrichers(ENRICHERS_DIR, config);
 const loop      = startEnrichmentLoop(mongo, enrichers);
 
+const execFileAsync = promisify(execFile);
+
+async function getGitOrigin(cwd) {
+  try {
+    const { stdout } = await execFileAsync(
+      'git', ['-C', cwd, 'remote', 'get-url', 'origin'],
+      { timeout: 2000 }
+    );
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 const tracked = new Map();
 
 function trackSession({ session_id, transcript_path, cwd } = {}) {
@@ -24,14 +40,15 @@ function trackSession({ session_id, transcript_path, cwd } = {}) {
   tracked.set(session_id, seqRef);
 
   const now = new Date();
-  mongo.sessions.updateOne(
-    { session_id },
-    {
-      $set:         { session_id, transcript_path, cwd, last_seen: now },
-      $setOnInsert: { started_at: now },
-    },
-    { upsert: true }
-  ).catch(() => {});
+  Promise.resolve(cwd ? getGitOrigin(cwd) : null).then(git_origin => {
+    const $set = { session_id, transcript_path, cwd, last_seen: now };
+    if (git_origin) $set.git_origin = git_origin;
+    mongo.sessions.updateOne(
+      { session_id },
+      { $set, $setOnInsert: { started_at: now } },
+      { upsert: true }
+    ).catch(() => {});
+  });
 
   if (!transcript_path) return;
 
