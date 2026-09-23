@@ -5,7 +5,7 @@ import { spawn } from 'child_process';
 import { execFileSync } from 'child_process';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { mkdirSync, rmSync } from 'fs';
+import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { createClient } from '../../src/mongo';
 import type { MongoDb } from '../../src/mongo';
@@ -16,6 +16,9 @@ const DAEMON_PATH = join(ROOT, 'src/daemon.ts');
 const TEST_PORT   = 18085;
 const TEST_DB     = `clued_daemon_test_${Date.now()}`;
 const TEST_URL    = process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018';
+const TMP_DIR     = join(tmpdir(), `clued-daemon-test-${process.pid}`);
+const CLAUDE_CONFIG = join(TMP_DIR, 'claude-config.json');
+const TEST_ACCOUNT = 'test-account-uuid';
 
 let daemonProc: ChildProcess | undefined;
 let mongo: MongoDb;
@@ -42,8 +45,17 @@ function healthCheck(): Promise<boolean> {
 }
 
 before(async () => {
+  mkdirSync(TMP_DIR, { recursive: true });
+  writeFileSync(CLAUDE_CONFIG, JSON.stringify({ lastKnownAccountUuid: TEST_ACCOUNT }));
+
   daemonProc = spawn(process.execPath, ['--import', 'tsx/esm', DAEMON_PATH], {
-    env: { ...process.env, CLUED_PORT: String(TEST_PORT), CLUED_DB_NAME: TEST_DB, CLUED_MONGO_URL: TEST_URL },
+    env: {
+      ...process.env,
+      CLUED_PORT: String(TEST_PORT),
+      CLUED_DB_NAME: TEST_DB,
+      CLUED_MONGO_URL: TEST_URL,
+      CLUED_CLAUDE_APP_CONFIG_PATH: CLAUDE_CONFIG,
+    },
     stdio: 'pipe',
   });
 
@@ -58,6 +70,7 @@ before(async () => {
 after(async () => {
   daemonProc?.kill('SIGTERM');
   if (mongo) { await mongo.db.dropDatabase(); await mongo.close(); }
+  rmSync(TMP_DIR, { recursive: true, force: true });
 });
 
 test('GET /health returns 200', async () => {
@@ -182,5 +195,97 @@ test('POST /event populates git_origin from cwd', async () => {
     assert.equal((doc as Record<string, unknown>).git_origin, 'https://github.com/test/mcp-repo.git');
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('account_id is stamped on hook events', async () => {
+  const status = await post({ session_id: 'daemon-acct-hook', type: 'PreToolUse', tool_name: 'Bash' });
+  assert.equal(status, 200);
+  await new Promise(r => setTimeout(r, 200));
+  const doc = await mongo.hookEvents.findOne({ session_id: 'daemon-acct-hook' });
+  assert.ok(doc, 'hook event not found');
+  assert.equal((doc as Record<string, unknown>).account_id, TEST_ACCOUNT);
+});
+
+test('account_id is stamped on sessions', async () => {
+  const status = await post({ session_id: 'daemon-acct-sess', transcript_path: '/tmp/acct-sess.jsonl', cwd: '/tmp' });
+  assert.equal(status, 200);
+  await new Promise(r => setTimeout(r, 200));
+  const doc = await mongo.sessions.findOne({ session_id: 'daemon-acct-sess' });
+  assert.ok(doc, 'session not found');
+  assert.equal((doc as Record<string, unknown>).account_id, TEST_ACCOUNT);
+});
+
+test('account_id is stamped on transcript lines', async () => {
+  const tmpDir2 = join(TMP_DIR, 'transcript-acct');
+  mkdirSync(tmpDir2, { recursive: true });
+  const jsonlPath = join(tmpDir2, 'session.jsonl');
+  writeFileSync(jsonlPath, JSON.stringify({ type: 'user', message: { role: 'user', content: 'hello' } }) + '\n');
+  const status = await post({ session_id: 'daemon-acct-line', transcript_path: jsonlPath, cwd: '/tmp' });
+  assert.equal(status, 200);
+  let doc;
+  for (let i = 0; i < 20; i++) {
+    await new Promise(r => setTimeout(r, 100));
+    doc = await mongo.transcriptLines.findOne({ session_id: 'daemon-acct-line' });
+    if (doc) break;
+  }
+  assert.ok(doc, 'transcript line not found');
+  assert.equal((doc as Record<string, unknown>).account_id, TEST_ACCOUNT);
+});
+
+test('git_branch is stamped on session when cwd is a git repo', async () => {
+  const status = await post({ session_id: 'daemon-branch-test', transcript_path: '/tmp/branch.jsonl', cwd: ROOT });
+  assert.equal(status, 200);
+  let doc;
+  for (let i = 0; i < 20; i++) {
+    await new Promise(r => setTimeout(r, 100));
+    doc = await mongo.sessions.findOne({ session_id: 'daemon-branch-test', git_branch: { $exists: true } });
+    if (doc) break;
+  }
+  assert.ok(doc, 'session with git_branch not found');
+  assert.ok(typeof (doc as Record<string, unknown>).git_branch === 'string', 'git_branch should be a string');
+});
+
+test('account_id is "unknown" when claude config is missing', async () => {
+  const altPort = TEST_PORT + 10;
+  const altDb   = TEST_DB + '_noconfig';
+  const missingConfig = join(TMP_DIR, 'nonexistent-claude-config.json');
+  const altProc = spawn(process.execPath, ['--import', 'tsx/esm', DAEMON_PATH], {
+    env: {
+      ...process.env,
+      CLUED_PORT: String(altPort),
+      CLUED_DB_NAME: altDb,
+      CLUED_MONGO_URL: TEST_URL,
+      CLUED_CLAUDE_APP_CONFIG_PATH: missingConfig,
+    },
+    stdio: 'pipe',
+  });
+  const altMongo = await createClient({ mongoUrl: TEST_URL, dbName: altDb });
+  try {
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      const ok = await new Promise(resolve => {
+        http.get(`http://127.0.0.1:${altPort}/health`, res => resolve(res.statusCode === 200)).on('error', () => resolve(false));
+      });
+      if (ok) break;
+    }
+    const body = JSON.stringify({ session_id: 'daemon-unknown-acct', type: 'PreToolUse', tool_name: 'Bash' });
+    await new Promise<void>((resolve, reject) => {
+      const req = http.request(
+        { hostname: '127.0.0.1', port: altPort, path: '/event', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } },
+        res => { res.resume(); res.on('end', resolve); }
+      );
+      req.on('error', reject);
+      req.end(body);
+    });
+    await new Promise(r => setTimeout(r, 200));
+    const doc = await altMongo.hookEvents.findOne({ session_id: 'daemon-unknown-acct' });
+    assert.ok(doc, 'hook event not found');
+    assert.equal((doc as Record<string, unknown>).account_id, 'unknown');
+  } finally {
+    altProc.kill('SIGTERM');
+    await altMongo.db.dropDatabase();
+    await altMongo.close();
   }
 });
