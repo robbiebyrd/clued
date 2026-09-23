@@ -32055,8 +32055,24 @@ async function createClient({ mongoUrl, dbName }) {
   };
 }
 
+// src/account.ts
+import { readFileSync as readFileSync2 } from "fs";
+function readAccountId(path) {
+  try {
+    const raw = readFileSync2(path, "utf8");
+    const data = JSON.parse(raw);
+    const id = data.lastKnownAccountUuid ?? "unknown";
+    if (id === "unknown") console.warn("clued: account ID unavailable \u2014 isolation is degraded");
+    return id;
+  } catch {
+    console.warn("clued: account ID unavailable \u2014 isolation is degraded");
+    return "unknown";
+  }
+}
+
 // src/mcp.ts
 var config = loadConfig();
+var account_id = readAccountId(config.claudeAppConfigPath);
 var mongo = await createClient(config).catch((err) => {
   console.error("clued mcp: MongoDB connection failed:", err.message);
   process.exit(1);
@@ -32077,7 +32093,7 @@ function pushProgress(res, progressToken, progress, total) {
 }
 async function findSessions({ project_path, git_origin, query, limit = 10 }) {
   limit = Math.min(limit, MAX_LIMIT);
-  const filter = {};
+  const filter = { account_id };
   if (project_path) filter.project_path = { $regex: project_path, $options: "i" };
   if (git_origin) filter.git_origin = { $regex: git_origin, $options: "i" };
   if (query) filter.$or = [
@@ -32094,14 +32110,17 @@ async function searchCommands({ pattern, session_id, git_origin, limit = 20 }) {
   limit = Math.min(limit, MAX_LIMIT);
   let sessionIds;
   if (session_id) {
+    const owned = await mongo.sessions.findOne({ session_id, account_id }, { projection: { session_id: 1 } });
+    if (!owned) return [];
     sessionIds = [session_id];
   } else if (git_origin) {
-    const ss = await mongo.sessions.find({ git_origin: { $regex: git_origin, $options: "i" } }, { projection: { session_id: 1 } }).limit(MAX_LIMIT).toArray();
+    const ss = await mongo.sessions.find({ account_id, git_origin: { $regex: git_origin, $options: "i" } }, { projection: { session_id: 1 } }).limit(MAX_LIMIT).toArray();
     sessionIds = ss.map((s) => s.session_id);
     if (sessionIds.length === 0) return [];
   }
   const filter = { tool_name: "Bash", "tool_input.command": { $regex: pattern, $options: "i" } };
   if (sessionIds) filter.session_id = { $in: sessionIds };
+  filter.account_id = account_id;
   const events = await mongo.hookEvents.find(filter, { projection: { _id: 0, session_id: 1, tool_input: 1, created_at: 1 } }).sort({ created_at: -1 }).limit(limit).toArray();
   const uniqueIds = [...new Set(events.map((e) => e.session_id))];
   const sessionMap = /* @__PURE__ */ new Map();
@@ -32118,9 +32137,9 @@ async function searchCommands({ pattern, session_id, git_origin, limit = 20 }) {
   }));
 }
 async function getSessionContext({ session_id }) {
-  const session = await mongo.sessions.findOne({ session_id }, { projection: { _id: 0 } });
+  const session = await mongo.sessions.findOne({ session_id, account_id }, { projection: { _id: 0 } });
   if (!session) throw new Error("session not found");
-  const bashEvents = await mongo.hookEvents.find({ session_id, tool_name: "Bash", "tool_input.command": { $type: "string" } }).sort({ created_at: -1 }).limit(100).toArray();
+  const bashEvents = await mongo.hookEvents.find({ session_id, account_id, tool_name: "Bash", "tool_input.command": { $type: "string" } }).sort({ created_at: -1 }).limit(100).toArray();
   const seen = /* @__PURE__ */ new Set();
   const top_commands = [];
   for (const ev of bashEvents) {
@@ -32131,9 +32150,9 @@ async function getSessionContext({ session_id }) {
       if (top_commands.length >= 10) break;
     }
   }
-  const first_lines = await mongo.transcriptLines.find({ session_id }, { projection: { _id: 0 } }).sort({ seq: 1 }).limit(20).toArray();
-  const total = await mongo.transcriptLines.countDocuments({ session_id });
-  const last_lines = total > 20 ? (await mongo.transcriptLines.find({ session_id }, { projection: { _id: 0 } }).sort({ seq: -1 }).limit(20).toArray()).reverse() : [];
+  const first_lines = await mongo.transcriptLines.find({ session_id, account_id }, { projection: { _id: 0 } }).sort({ seq: 1 }).limit(20).toArray();
+  const total = await mongo.transcriptLines.countDocuments({ session_id, account_id });
+  const last_lines = total > 20 ? (await mongo.transcriptLines.find({ session_id, account_id }, { projection: { _id: 0 } }).sort({ seq: -1 }).limit(20).toArray()).reverse() : [];
   return {
     session: {
       session_id: session.session_id,
@@ -32150,14 +32169,14 @@ async function getSessionContext({ session_id }) {
 }
 async function readTranscript({ session_id, offset = 0, limit = 200 }, progressToken, sseRes) {
   limit = Math.min(limit, MAX_LIMIT);
-  const session = await mongo.sessions.findOne({ session_id });
+  const session = await mongo.sessions.findOne({ session_id, account_id });
   if (!session) throw new Error("session not found");
-  const total = await mongo.transcriptLines.countDocuments({ session_id });
+  const total = await mongo.transcriptLines.countDocuments({ session_id, account_id });
   const BATCH = 50;
   const allLines = [];
   for (let batchStart = offset; batchStart < offset + limit; batchStart += BATCH) {
     const batchLimit = Math.min(BATCH, offset + limit - batchStart);
-    const lines = await mongo.transcriptLines.find({ session_id }, { projection: { _id: 0 } }).sort({ seq: 1 }).skip(batchStart).limit(batchLimit).toArray();
+    const lines = await mongo.transcriptLines.find({ session_id, account_id }, { projection: { _id: 0 } }).sort({ seq: 1 }).skip(batchStart).limit(batchLimit).toArray();
     allLines.push(...lines);
     if (progressToken !== void 0 && sseRes && lines.length > 0) {
       pushProgress(sseRes, progressToken, allLines.length, total);
