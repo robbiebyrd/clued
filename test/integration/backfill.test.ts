@@ -8,7 +8,8 @@ import { createClient } from '../../src/mongo';
 import { backfill, decodeProjectPath } from '../../src/backfill';
 import type { MongoDb } from '../../src/mongo';
 
-const TMP = join(tmpdir(), `clued-backfill-test-${process.pid}`);
+const TMP       = join(tmpdir(), `clued-backfill-test-${process.pid}`);
+const TMP_CLAUDE = join(tmpdir(), `clued-bf-claude-${process.pid}`);
 const TEST_CONFIG = {
   mongoUrl:    process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018',
   dbName:      `clued_bf_test_${Date.now()}`,
@@ -18,7 +19,8 @@ const TEST_CONFIG = {
 let mongo: MongoDb;
 after(async () => {
   if (mongo) { await mongo.db.dropDatabase(); await mongo.close(); }
-  rmSync(TMP, { recursive: true, force: true });
+  rmSync(TMP,       { recursive: true, force: true });
+  rmSync(TMP_CLAUDE, { recursive: true, force: true });
 });
 
 test('decodeProjectPath converts encoded dir name to absolute path', () => {
@@ -40,7 +42,7 @@ test('upserts sessions and transcript lines from project directories', async () 
   ].join('\n') + '\n');
 
   mongo = await createClient(TEST_CONFIG);
-  await backfill(TEST_CONFIG, mongo);
+  await backfill(TEST_CONFIG, mongo, '');
 
   const session = await mongo.sessions.findOne({ session_id: sessionId });
   assert.ok(session, 'session doc not found');
@@ -53,7 +55,7 @@ test('upserts sessions and transcript lines from project directories', async () 
 });
 
 test('is idempotent — re-running does not duplicate lines', async () => {
-  await backfill(TEST_CONFIG, mongo);
+  await backfill(TEST_CONFIG, mongo, '');
   const count = await mongo.transcriptLines.countDocuments({ session_id: 'aaaabbbb-cccc-dddd-eeee-ffffffffffff' });
   assert.equal(count, 2);
 });
@@ -61,7 +63,7 @@ test('is idempotent — re-running does not duplicate lines', async () => {
 test('handles empty project directory gracefully', async () => {
   const emptyDir = join(TMP, '-Users-test-empty');
   mkdirSync(emptyDir, { recursive: true });
-  await assert.doesNotReject(() => backfill(TEST_CONFIG, mongo));
+  await assert.doesNotReject(() => backfill(TEST_CONFIG, mongo, ''));
 });
 
 test('backfill sets git_origin when projectPath is a git repo', async () => {
@@ -83,7 +85,7 @@ test('backfill sets git_origin when projectPath is a git repo', async () => {
   const gitConfig = { ...TEST_CONFIG, dbName: `clued_bf_git_test_${Date.now()}`, projectsDir };
   const gitMongo  = await createClient(gitConfig);
   try {
-    await backfill(gitConfig, gitMongo);
+    await backfill(gitConfig, gitMongo, '');
     const session = await gitMongo.sessions.findOne({ session_id: sessionId });
     assert.ok(session, 'session not found');
     assert.equal((session as Record<string, unknown>).git_origin, fakeOrigin);
@@ -92,5 +94,37 @@ test('backfill sets git_origin when projectPath is a git repo', async () => {
     await gitMongo.close();
     rmSync(projectsDir, { recursive: true, force: true });
     rmSync(gitRepoPath, { recursive: true, force: true });
+  }
+});
+
+test('backfill stamps account_id on sessions and transcript lines', async () => {
+  mkdirSync(TMP_CLAUDE, { recursive: true });
+  const claudeConfig = join(TMP_CLAUDE, 'config.json');
+  writeFileSync(claudeConfig, JSON.stringify({ lastKnownAccountUuid: 'backfill-account-uuid' }));
+
+  const projDir   = join(TMP_CLAUDE, '-Users-test-acctproject');
+  const sessionId = 'ccccdddd-eeee-ffff-0000-111111111111';
+  mkdirSync(projDir, { recursive: true });
+  writeFileSync(join(projDir, `${sessionId}.jsonl`),
+    JSON.stringify({ type: 'human', text: 'test' }) + '\n');
+
+  const { readAccountId } = await import('../../src/account');
+  const acctId = readAccountId(claudeConfig);
+  const m = await createClient({
+    mongoUrl: process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018',
+    dbName:   `clued_bf_acct_test_${Date.now()}`,
+    projectsDir: TMP_CLAUDE,
+  });
+  try {
+    await backfill({ projectsDir: TMP_CLAUDE }, m, acctId);
+    const sess = await m.sessions.findOne({ session_id: sessionId });
+    assert.ok(sess, 'session not found');
+    assert.equal((sess as Record<string, unknown>).account_id, 'backfill-account-uuid');
+    const line = await m.transcriptLines.findOne({ session_id: sessionId });
+    assert.ok(line, 'transcript line not found');
+    assert.equal((line as Record<string, unknown>).account_id, 'backfill-account-uuid');
+  } finally {
+    await m.db.dropDatabase();
+    await m.close();
   }
 });

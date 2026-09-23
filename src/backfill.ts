@@ -3,7 +3,8 @@ import { join, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from './mongo';
 import { loadConfig }   from './config';
-import { getGitOrigin } from './git';
+import { getGitOrigin, getGitBranch } from './git';
+import { readAccountId }              from './account';
 import type { MongoDb } from './mongo';
 import type { Config }  from './config';
 
@@ -17,13 +18,21 @@ async function processSession(
   projectPath: string,
   sessionId: string,
   filePath: string,
+  account_id: string,
 ): Promise<number> {
   const now = new Date();
 
-  const git_origin = await getGitOrigin(projectPath);
+  const [git_origin, git_branch] = await Promise.all([
+    getGitOrigin(projectPath),
+    getGitBranch(projectPath),
+  ]);
 
-  const $set: Record<string, unknown> = { session_id: sessionId, project_path: projectPath, transcript_path: filePath, last_seen: now };
+  const $set: Record<string, unknown> = {
+    session_id: sessionId, project_path: projectPath, transcript_path: filePath,
+    last_seen: now, account_id,
+  };
   if (git_origin) $set.git_origin = git_origin;
+  if (git_branch) $set.git_branch = git_branch;
 
   await mongo.sessions.updateOne(
     { session_id: sessionId },
@@ -41,7 +50,7 @@ async function processSession(
     return {
       updateOne: {
         filter: { session_id: sessionId, seq },
-        update: { $set: { session_id: sessionId, seq, line }, $setOnInsert: { created_at: now } },
+        update: { $set: { session_id: sessionId, seq, line, account_id }, $setOnInsert: { created_at: now } },
         upsert: true,
       },
     };
@@ -51,7 +60,7 @@ async function processSession(
   return rawLines.length;
 }
 
-export async function backfill(config: Pick<Config, 'projectsDir'>, mongo: MongoDb): Promise<void> {
+export async function backfill(config: Pick<Config, 'projectsDir'>, mongo: MongoDb, account_id: string): Promise<void> {
   const dirs = await readdir(config.projectsDir, { withFileTypes: true }).catch(() => []);
   const sessions: Array<{ projectPath: string; sessionId: string; filePath: string }> = [];
 
@@ -72,7 +81,7 @@ export async function backfill(config: Pick<Config, 'projectsDir'>, mongo: Mongo
   for (let i = 0; i < sessions.length; i += 5) {
     const batch   = sessions.slice(i, i + 5);
     const results = await Promise.allSettled(
-      batch.map(s => processSession(mongo, s.projectPath, s.sessionId, s.filePath))
+      batch.map(s => processSession(mongo, s.projectPath, s.sessionId, s.filePath, account_id))
     );
     for (let j = 0; j < results.length; j++) {
       if (results[j].status === 'fulfilled')  totalLines += (results[j] as PromiseFulfilledResult<number>).value;
@@ -85,10 +94,11 @@ export async function backfill(config: Pick<Config, 'projectsDir'>, mongo: Mongo
 
 // Standalone entry point
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const config = loadConfig();
-  const mongo  = await createClient(config);
+  const config     = loadConfig();
+  const account_id = readAccountId(config.claudeAppConfigPath);
+  const mongo      = await createClient(config);
   try {
-    await backfill(config, mongo);
+    await backfill(config, mongo, account_id);
   } finally {
     await mongo.close();
   }
