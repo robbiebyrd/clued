@@ -124,6 +124,8 @@ const account_id = readAccountId(config.claudeAppConfigPath);
 
 **Initial registration path** (fires once, when `session_id` is first seen):
 
+The existing `Promise.resolve(cwd ? getGitOrigin(cwd) : null).then(...)` call is replaced in its entirety with the following `Promise.all` pattern:
+
 ```ts
 Promise.all([
   cwd ? getGitOrigin(cwd) : Promise.resolve(null),
@@ -226,7 +228,25 @@ Transcript line ops gain `account_id` in `$set`:
 update: { $set: { session_id: sessionId, seq, line, account_id }, $setOnInsert: { created_at: now } },
 ```
 
-`account_id` is computed once in the standalone entry point as `const account_id = readAccountId(config.claudeAppConfigPath)` before `backfill()` is called. It is passed as a fifth parameter to `processSession`:
+`account_id` is computed once in the standalone entry point and passed through the call chain:
+
+```ts
+// Standalone entry point
+const account_id = readAccountId(config.claudeAppConfigPath);
+await backfill(config, mongo, account_id);
+```
+
+`backfill()` gains a third parameter and forwards it to `processSession`:
+
+```ts
+export async function backfill(
+  config: Pick<Config, 'projectsDir'>,
+  mongo: MongoDb,
+  account_id: string,
+): Promise<void>
+```
+
+`processSession` gains a fifth parameter:
 
 ```ts
 async function processSession(
@@ -237,8 +257,6 @@ async function processSession(
   account_id: string,
 ): Promise<number>
 ```
-
-`backfill()` itself is also updated to accept and forward `account_id`.
 
 **Important:** Existing documents written before this feature lack `account_id`. Running backfill after deploying stamps `account_id` onto all historical session and transcript line documents. Hook events cannot be retroactively stamped (no backfill path for hook_events exists). The setup documentation should note that a backfill run is recommended after upgrading.
 
@@ -394,8 +412,8 @@ export function readAccountId(path: string): string {
 ### `test/account.test.ts` (new)
 
 - Returns `lastKnownAccountUuid` value when file exists and key is present
-- Returns `"unknown"` when file is absent
-- Returns `"unknown"` when key is missing
+- Returns `"unknown"` when file is absent; asserts `console.warn` was called with `'clued: account ID unavailable — isolation is degraded'`
+- Returns `"unknown"` when key is missing; asserts `console.warn` was called with the same message
 - Returns `"unknown"` when file is invalid JSON
 
 ### `test/git.test.ts` (new)
