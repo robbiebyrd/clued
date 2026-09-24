@@ -67,6 +67,20 @@ function openSSE(): Promise<SSEConnection> {
   });
 }
 
+function callRpc(endpoint: string, id: number, method: string, params: Record<string, unknown>): Promise<number | undefined> {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ jsonrpc: '2.0', id, method, params });
+    const url = new URL(endpoint);
+    const req = http.request({
+      hostname: url.hostname, port: Number(url.port),
+      path: `${url.pathname}${url.search}`, method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+    }, res => { res.resume(); resolve(res.statusCode); });
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
 function callTool(endpoint: string, id: number, name: string, args: Record<string, unknown>, meta?: Record<string, unknown>): Promise<number | undefined> {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
@@ -394,4 +408,42 @@ test('read_transcript returns "session not found" for foreign account session', 
   close();
   assert.ok(result.error);
   assert.equal((result.error as { message: string }).message, 'session not found');
+});
+
+test('initialize returns protocolVersion and server capabilities', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 200);
+  await callRpc(endpoint, 200, 'initialize', {
+    protocolVersion: '2024-11-05',
+    capabilities: {},
+    clientInfo: { name: 'test', version: '1' },
+  });
+  const [result] = await pending;
+  close();
+  assert.ok(result.result, `expected result, got: ${JSON.stringify(result)}`);
+  const r = result.result as Record<string, unknown>;
+  assert.equal(typeof r.protocolVersion, 'string');
+  assert.ok(r.capabilities, 'missing capabilities');
+  assert.ok(r.serverInfo, 'missing serverInfo');
+  assert.equal((r.serverInfo as Record<string, unknown>).name, 'clued');
+});
+
+test('tools/list returns all four tools with input schemas', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 201);
+  await callRpc(endpoint, 201, 'tools/list', {});
+  const [result] = await pending;
+  close();
+  assert.ok(result.result, `expected result, got: ${JSON.stringify(result)}`);
+  const tools = (result.result as { tools: Array<Record<string, unknown>> }).tools;
+  assert.ok(Array.isArray(tools), 'tools must be an array');
+  const names = tools.map(t => t.name);
+  assert.ok(names.includes('find_sessions'),       'missing find_sessions');
+  assert.ok(names.includes('get_session_context'), 'missing get_session_context');
+  assert.ok(names.includes('search_commands'),     'missing search_commands');
+  assert.ok(names.includes('read_transcript'),     'missing read_transcript');
+  for (const tool of tools) {
+    assert.equal(typeof tool.description, 'string', `${tool.name} missing description`);
+    assert.ok(tool.inputSchema, `${tool.name} missing inputSchema`);
+  }
 });
