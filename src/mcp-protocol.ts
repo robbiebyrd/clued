@@ -55,6 +55,19 @@ export const TOOLS = [
       required: ['session_id'],
     },
   },
+  {
+    name: 'restore_session',
+    description: 'Restore a session from MongoDB to the local filesystem. Reconstructs the main JSONL, subagent files, tool-result blobs, and file-history backups.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        session_id:   { type: 'string', description: 'Session to restore' },
+        project_path: { type: 'string', description: 'Override the recorded project path (use when username/homedir differs on this machine)' },
+        projects_dir: { type: 'string', description: 'Override the target ~/.claude/projects directory' },
+      },
+      required: ['session_id'],
+    },
+  },
 ];
 
 export interface JsonRpcRequest {
