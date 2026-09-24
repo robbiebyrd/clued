@@ -59,9 +59,10 @@ The setup wizard will:
 2. Ask how you want to run MongoDB (local binary, Docker, or remote)
 3. Install and start MongoDB if needed
 4. Write a config file to `~/.claude/plugins/data/clued/config.json`
-5. Register the clued MCP server in `~/.claude/settings.json`
-6. Start the daemon and MCP server
-7. Verify everything is running
+5. Start the daemon and MCP server
+6. Verify everything is running
+
+The MCP tools (`find_sessions`, `get_session_context`, `search_commands`, `read_transcript`) are provided by the plugin's `.mcp.json`, which launches the server over stdio — no settings edit needed.
 
 ---
 

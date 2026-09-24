@@ -254,28 +254,19 @@ jq '.devRepoPath = "/path/to/clued"' \
 
 Replace `/path/to/clued` with the actual repo path. Skip this for normal installations.
 
-## Step 6 — Register MCP server in Claude settings
+## Step 6 — MCP server (no action needed)
 
-Read `~/.claude/settings.json` and merge in the `clued` MCP server entry. Use `jq`
-if available (safest), otherwise edit the file directly:
+The plugin ships its own `.mcp.json`, so Claude Code launches the clued MCP server
+itself over stdio (`node ${CLAUDE_PLUGIN_ROOT}/dist/mcp.mjs --stdio`) — no settings
+edit is required. Its tools appear after `/reload-plugins` or in the next session.
+
+Claude Code does not read `mcpServers` from `~/.claude/settings.json`. If an older
+setup left a `mcpServers.clued` entry there, remove it:
 
 ```bash
-# With jq (preferred — handles existing mcpServers keys cleanly)
-jq '.mcpServers.clued = {"type":"sse","url":"http://127.0.0.1:8086/sse"}' \
-  ~/.claude/settings.json > /tmp/settings.tmp && mv /tmp/settings.tmp ~/.claude/settings.json
+jq 'del(.mcpServers.clued) | if .mcpServers == {} then del(.mcpServers) else . end' \
+  ~/.claude/settings.json > ~/.claude/settings.json.tmp && mv ~/.claude/settings.json.tmp ~/.claude/settings.json
 ```
-
-If `jq` is not available, read the file and add or merge the key manually:
-
-```json
-{
-  "mcpServers": {
-    "clued": { "type": "sse", "url": "http://127.0.0.1:8086/sse" }
-  }
-}
-```
-
-Do not duplicate the `"clued"` key if it already exists with the correct URL.
 
 ## Step 7 — Determine plugin root
 
@@ -341,7 +332,7 @@ Tell the user:
 
 - MongoDB option chosen and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
-- MCP server registered in `~/.claude/settings.json` under `mcpServers.clued` (URL: `http://127.0.0.1:8086/sse`)
+- MCP server provided by the plugin's `.mcp.json` (stdio) — no settings entry needed
 - Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`
 - Daemon status: running on port 8085 / failed (show error output)
 - MCP server status: running on port 8086 / failed
