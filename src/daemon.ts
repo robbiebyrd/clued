@@ -9,6 +9,7 @@ import { getGitOrigin, getGitBranch }          from './git';
 import { readAccountId }                       from './account';
 import { readHostInfo }                        from './host';
 import { appendToWal, flushWal }              from './wal';
+import { watchArtifactDirs }                  from './artifact-watcher';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dir      = dirname(__filename);
