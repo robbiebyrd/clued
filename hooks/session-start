@@ -10,9 +10,17 @@ DEFAULT_MCP_PORT=8086
 if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
   PORT=$(jq -r ".port // ${DEFAULT_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_PORT")
   MCP_PORT=$(jq -r ".mcpPort // ${DEFAULT_MCP_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_MCP_PORT")
+  DEV_REPO=$(jq -r '.devRepoPath // empty' "$CONFIG_FILE" 2>/dev/null)
 else
   PORT=$DEFAULT_PORT
   MCP_PORT=$DEFAULT_MCP_PORT
+fi
+
+# When devRepoPath is set in config, sync the latest built binaries into this
+# plugin installation so the running processes always match the dev build.
+if [[ -n "$DEV_REPO" && -d "$DEV_REPO/dist" ]]; then
+  rsync -a "$DEV_REPO/dist/" "${PLUGIN_ROOT}/dist/" 2>/dev/null || \
+    cp -R "$DEV_REPO/dist/." "${PLUGIN_ROOT}/dist/"
 fi
 PORT="${CLUED_PORT:-$PORT}"
 MCP_PORT="${CLUED_MCP_PORT:-$MCP_PORT}"
