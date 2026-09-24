@@ -26,7 +26,8 @@ function withEnv(vars: Record<string, string | undefined>, fn: () => void): void
   }
 }
 
-const ENV_KEYS = ['CLUED_MONGO_URL', 'CLUED_DB_NAME', 'CLUED_PORT', 'CLUED_MCP_PORT', 'CLUED_PROJECTS_DIR', 'CLUED_CLAUDE_APP_CONFIG_PATH'];
+const ENV_KEYS = ['CLUED_MONGO_URL', 'CLUED_DB_NAME', 'CLUED_PORT', 'CLUED_MCP_PORT',
+                  'CLUED_PROJECTS_DIR', 'CLUED_CLAUDE_APP_CONFIG_PATH', 'CLUED_FILE_HISTORY_DIR'];
 function cleanEnv(fn: () => void): void {
   withEnv(Object.fromEntries(ENV_KEYS.map(k => [k, undefined])), fn);
 }
@@ -128,5 +129,32 @@ test('claudeAppConfigPath expands ~ to home directory', () => {
     const cfg = loadConfig(cfgPath);
     assert.ok(cfg.claudeAppConfigPath.startsWith(homedir()), `expected ${cfg.claudeAppConfigPath} to start with ${homedir()}`);
     assert.ok(!cfg.claudeAppConfigPath.includes('~'));
+  });
+});
+
+test('fileHistoryDir has a default value containing file-history', () => {
+  cleanEnv(() => {
+    const cfg = loadConfig(join(TMP, 'nonexistent.json'));
+    assert.ok(cfg.fileHistoryDir.includes('file-history'), `got ${cfg.fileHistoryDir}`);
+    assert.ok(!cfg.fileHistoryDir.includes('~'));
+  });
+});
+
+test('fileHistoryDir expands ~ to home directory', () => {
+  const cfgPath = join(TMP, 'config-fh.json');
+  writeFileSync(cfgPath, JSON.stringify({ fileHistoryDir: '~/.claude/file-history' }));
+  cleanEnv(() => {
+    const cfg = loadConfig(cfgPath);
+    assert.ok(cfg.fileHistoryDir.startsWith(homedir()), `got ${cfg.fileHistoryDir}`);
+    assert.ok(!cfg.fileHistoryDir.includes('~'));
+  });
+});
+
+test('CLUED_FILE_HISTORY_DIR env var overrides fileHistoryDir', () => {
+  withEnv({ CLUED_FILE_HISTORY_DIR: '/custom/file-history', CLUED_MONGO_URL: undefined,
+            CLUED_DB_NAME: undefined, CLUED_PORT: undefined, CLUED_PROJECTS_DIR: undefined,
+            CLUED_MCP_PORT: undefined, CLUED_CLAUDE_APP_CONFIG_PATH: undefined }, () => {
+    const cfg = loadConfig(join(TMP, 'nonexistent.json'));
+    assert.equal(cfg.fileHistoryDir, '/custom/file-history');
   });
 });
