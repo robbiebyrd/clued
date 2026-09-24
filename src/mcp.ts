@@ -5,6 +5,8 @@ import { loadConfig }    from './config';
 import { dispatch, JsonRpcRequest } from './mcp-protocol';
 import { createClient }  from './mongo';
 import { readAccountId } from './account';
+import { restoreSession } from './restore';
+import type { RestoreSessionArgs } from './restore';
 
 const config     = loadConfig();
 const account_id = readAccountId(config.claudeAppConfigPath);
@@ -214,6 +216,7 @@ async function handleToolCall(
     case 'get_session_context': return getSessionContext(args as { session_id: string });
     case 'search_commands':     return searchCommands(args as unknown as SearchCommandsArgs);
     case 'read_transcript':     return readTranscript(args as unknown as ReadTranscriptArgs, meta?.progressToken, notify);
+    case 'restore_session':     return restoreSession(args as unknown as RestoreSessionArgs, account_id, await getMongo(), config.fileHistoryDir);
     default: throw new Error(`unknown tool: ${name}`);
   }
 }

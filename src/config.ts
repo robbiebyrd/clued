@@ -8,6 +8,7 @@ export interface Config {
   port:                 number;
   mcpPort:              number;
   projectsDir:          string;
+  fileHistoryDir:       string;
   disabledEnrichers:    string[];
   claudeAppConfigPath:  string;
   walPath:              string;
@@ -21,6 +22,7 @@ const DEFAULTS: Config = {
   port:                 8085,
   mcpPort:              8086,
   projectsDir:          join(homedir(), '.claude', 'projects'),
+  fileHistoryDir:       join(homedir(), '.claude', 'file-history'),
   disabledEnrichers:    [],
   claudeAppConfigPath:  join(homedir(), 'Library', 'Application Support', 'Claude', 'config.json'),
   walPath:              join(homedir(), '.claude', 'plugins', 'data', 'clued', 'events.wal'),
@@ -43,9 +45,11 @@ export function loadConfig(configPath = DEFAULT_CONFIG_PATH): Config {
   if (process.env.CLUED_PORT)                   cfg.port                = parseInt(process.env.CLUED_PORT, 10);
   if (process.env.CLUED_MCP_PORT)               cfg.mcpPort             = parseInt(process.env.CLUED_MCP_PORT, 10);
   if (process.env.CLUED_PROJECTS_DIR)           cfg.projectsDir         = process.env.CLUED_PROJECTS_DIR;
+  if (process.env.CLUED_FILE_HISTORY_DIR)       cfg.fileHistoryDir      = process.env.CLUED_FILE_HISTORY_DIR;
   if (process.env.CLUED_CLAUDE_APP_CONFIG_PATH) cfg.claudeAppConfigPath = process.env.CLUED_CLAUDE_APP_CONFIG_PATH;
 
   cfg.projectsDir         = expandHome(cfg.projectsDir);
+  cfg.fileHistoryDir      = expandHome(cfg.fileHistoryDir);
   cfg.mongoUrl            = expandHome(cfg.mongoUrl);
   cfg.claudeAppConfigPath = expandHome(cfg.claudeAppConfigPath);
   cfg.walPath             = process.env.CLUED_WAL_PATH ?? join(dirname(configPath), 'events.wal');

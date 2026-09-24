@@ -9,6 +9,7 @@ import { getGitOrigin, getGitBranch }          from './git';
 import { readAccountId }                       from './account';
 import { readHostInfo }                        from './host';
 import { appendToWal, flushWal }              from './wal';
+import { watchArtifactDirs }                  from './artifact-watcher';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dir      = dirname(__filename);
@@ -91,6 +92,10 @@ async function trackSession({ session_id, transcript_path, cwd }: {
       { upsert: true }
     ).catch(() => {});
   });
+
+  const sessionDir      = join(dirname(transcript_path), session_id);
+  const fileHistoryPath = join(config.fileHistoryDir, session_id);
+  watchArtifactDirs(session_id, sessionDir, fileHistoryPath, mongo, account_id, host);
 }
 
 const server = http.createServer((req, res) => {
