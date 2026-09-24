@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { readdirSync } from 'fs';
+import { readdirSync, chmodSync } from 'fs';
 
 const BANNER = "import { createRequire } from 'module'; const require = createRequire(import.meta.url);";
 const SHEBANG_BANNER = `#!/usr/bin/env node\n${BANNER}`;
@@ -24,3 +24,6 @@ await Promise.all([
   build({ ...shared, entryPoints: ['src/mcp.ts'],      outfile: 'dist/mcp.mjs', banner: { js: SHEBANG_BANNER } }),
   ...enricherEntries.map(e => build({ ...shared, ...e })),
 ]);
+
+// npm bin scripts must be executable
+chmodSync('dist/mcp.mjs', 0o755);
