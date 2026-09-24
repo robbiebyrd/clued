@@ -256,12 +256,14 @@ Replace `/path/to/clued` with the actual repo path. Skip this for normal install
 
 ## Step 6 — MCP server (no action needed)
 
-The plugin ships its own `.mcp.json`, so Claude Code launches the clued MCP server
-itself over stdio (`node ${CLAUDE_PLUGIN_ROOT}/dist/mcp.mjs --stdio`) — no settings
-edit is required. Its tools appear after `/reload-plugins` or in the next session.
+The plugin ships a `.mcp.json` and the `session-start` hook rewrites it with the
+absolute path to `dist/mcp.mjs` on every session start. Claude Code reads the file
+at startup and spawns the MCP server as a child process over stdio — no settings
+edit is required. **MCP tools appear in the next fresh session** (a new Claude Code
+window or `exit` + reopen); `/reload-plugins` alone is not sufficient.
 
-Claude Code does not read `mcpServers` from `~/.claude/settings.json`. If an older
-setup left a `mcpServers.clued` entry there, remove it:
+If an older setup left a `mcpServers.clued` SSE entry in `~/.claude/settings.json`,
+remove it to avoid a conflicting stale connection:
 
 ```bash
 jq 'del(.mcpServers.clued) | if .mcpServers == {} then del(.mcpServers) else . end' \
@@ -319,8 +321,12 @@ the error:
 # Daemon
 timeout 3 node "${CLUED_PLUGIN_ROOT}/dist/daemon.mjs" 2>&1 || true
 
-# MCP server
+# MCP server (HTTP/SSE companion — Claude Code uses stdio, not this port)
 timeout 3 node "${CLUED_PLUGIN_ROOT}/dist/mcp.mjs" 2>&1 || true
+
+# Test the stdio MCP directly (what Claude Code actually spawns):
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | \
+  timeout 3 node "${CLUED_PLUGIN_ROOT}/dist/mcp.mjs" --stdio 2>&1
 ```
 
 Most common failure cause: MongoDB isn't reachable at the configured URL. Confirm
@@ -332,12 +338,12 @@ Tell the user:
 
 - MongoDB option chosen and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
-- MCP server provided by the plugin's `.mcp.json` (stdio) — no settings entry needed
+- MCP server: provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns it automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
 - Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`
 - Daemon status: running on port 8085 / failed (show error output)
-- MCP server status: running on port 8086 / failed
+- HTTP/SSE companion status: running on port 8086 / failed (this is for backward-compat only; Claude Code uses stdio for tools)
 - On macOS tarball install: launchd plist written to `~/Library/LaunchAgents/org.mongodb.mongod.plist` — mongod restarts automatically at login with `KeepAlive: true`
-- Ask the user to run `/reload-plugins` for hooks to take effect in this session
+- Ask the user to run `/reload-plugins` then **start a new session** for all changes (hooks + MCP tools) to take effect
 - To add a custom enricher: create a `.ts` file in `<plugin-root>/enrichers/`, then rebuild and restart:
   ```bash
   # Install mise if not present: https://mise.jdx.dev
