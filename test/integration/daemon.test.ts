@@ -16,9 +16,10 @@ const DAEMON_PATH = join(ROOT, 'src/daemon.ts');
 const TEST_PORT   = 18085;
 const TEST_DB     = `clued_daemon_test_${Date.now()}`;
 const TEST_URL    = process.env.CLUED_MONGO_URL || 'mongodb://localhost:27018';
-const TMP_DIR     = join(tmpdir(), `clued-daemon-test-${process.pid}`);
-const CLAUDE_CONFIG = join(TMP_DIR, 'claude-config.json');
-const TEST_ACCOUNT = 'test-account-uuid';
+const TMP_DIR      = join(tmpdir(), `clued-daemon-test-${process.pid}`);
+const CLAUDE_CONFIG  = join(TMP_DIR, 'claude-config.json');
+const FILE_HIST_DIR  = join(TMP_DIR, 'file-history');
+const TEST_ACCOUNT   = 'test-account-uuid';
 
 let daemonProc: ChildProcess | undefined;
 let mongo: MongoDb;
@@ -46,15 +47,17 @@ function healthCheck(): Promise<boolean> {
 
 before(async () => {
   mkdirSync(TMP_DIR, { recursive: true });
+  mkdirSync(FILE_HIST_DIR, { recursive: true });
   writeFileSync(CLAUDE_CONFIG, JSON.stringify({ lastKnownAccountUuid: TEST_ACCOUNT }));
 
   daemonProc = spawn(process.execPath, ['--import', 'tsx/esm', DAEMON_PATH], {
     env: {
       ...process.env,
-      CLUED_PORT: String(TEST_PORT),
-      CLUED_DB_NAME: TEST_DB,
-      CLUED_MONGO_URL: TEST_URL,
+      CLUED_PORT:                  String(TEST_PORT),
+      CLUED_DB_NAME:               TEST_DB,
+      CLUED_MONGO_URL:             TEST_URL,
       CLUED_CLAUDE_APP_CONFIG_PATH: CLAUDE_CONFIG,
+      CLUED_FILE_HISTORY_DIR:      FILE_HIST_DIR,
     },
     stdio: 'pipe',
   });
@@ -293,6 +296,59 @@ test('daemon flushes WAL entries into MongoDB on startup', async () => {
     await walMongo.close();
     rmSync(walPath, { force: true });
   }
+});
+
+test('watchArtifactDirs wired: tool-result captured after /event', async () => {
+  const SESSION        = 'sess-wired-tr-001';
+  const projDir        = join(TMP_DIR, 'projects', 'proj-wired-a');
+  const transcriptPath = join(projDir, `${SESSION}.jsonl`);
+  const sessionDir     = join(projDir, SESSION);
+  const toolResultsDir = join(sessionDir, 'tool-results');
+
+  mkdirSync(projDir, { recursive: true });
+  writeFileSync(transcriptPath, '');
+
+  const status = await post({ session_id: SESSION, transcript_path: transcriptPath });
+  assert.equal(status, 200);
+
+  // Let watchArtifactDirs initialize before creating the watched directory
+  await new Promise(r => setTimeout(r, 1000));
+
+  mkdirSync(toolResultsDir, { recursive: true });
+  writeFileSync(join(toolResultsDir, 'result.txt'), 'daemon wired output');
+
+  // Wait for 2s poll cycle + margin
+  await new Promise(r => setTimeout(r, 3000));
+
+  const doc = await mongo.blobs.findOne({ session_id: SESSION, blob_type: 'tool-result', name: 'result.txt' });
+  assert.ok(doc, 'tool-result blob not captured via daemon /event wiring');
+  assert.equal((doc as Record<string, unknown>).content, 'daemon wired output');
+});
+
+test('watchArtifactDirs wired: file-history captured after /event', async () => {
+  const SESSION        = 'sess-wired-fh-001';
+  const projDir        = join(TMP_DIR, 'projects', 'proj-wired-b');
+  const transcriptPath = join(projDir, `${SESSION}.jsonl`);
+  const fileHistPath   = join(FILE_HIST_DIR, SESSION);
+
+  mkdirSync(projDir, { recursive: true });
+  writeFileSync(transcriptPath, '');
+
+  const status = await post({ session_id: SESSION, transcript_path: transcriptPath });
+  assert.equal(status, 200);
+
+  await new Promise(r => setTimeout(r, 1000));
+
+  mkdirSync(fileHistPath, { recursive: true });
+  writeFileSync(join(fileHistPath, 'snap001'), 'snapshot data');
+
+  await new Promise(r => setTimeout(r, 3000));
+
+  const doc = await mongo.blobs.findOne({ session_id: SESSION, blob_type: 'file-history', name: 'snap001' });
+  assert.ok(doc, 'file-history blob not captured via daemon /event wiring');
+  assert.equal((doc as Record<string, unknown>).encoding, 'base64');
+  const decoded = Buffer.from((doc as Record<string, unknown>).content as string, 'base64').toString('utf8');
+  assert.equal(decoded, 'snapshot data');
 });
 
 test('account_id is "unknown" when claude config is missing', async () => {
