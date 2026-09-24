@@ -32,8 +32,17 @@ test('returns null for a non-existent path', async () => {
 });
 
 test('getGitBranch returns branch name for current repo', async () => {
-  const branch = await getGitBranch(ROOT);
-  assert.ok(typeof branch === 'string' && branch.length > 0, `expected a branch name, got ${JSON.stringify(branch)}`);
+  // Use a fresh temp repo with a named branch — CI checkouts are detached HEAD.
+  const tmp = join(tmpdir(), `clued-git-branch-named-${process.pid}`);
+  mkdirSync(tmp, { recursive: true });
+  try {
+    execFileSync('git', ['init', '-b', 'test-branch'], { cwd: tmp });
+    execFileSync('git', ['commit', '--allow-empty', '-m', 'init'], { cwd: tmp });
+    const branch = await getGitBranch(tmp);
+    assert.ok(typeof branch === 'string' && branch.length > 0, `expected a branch name, got ${JSON.stringify(branch)}`);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('getGitBranch returns null for a plain directory', async () => {
