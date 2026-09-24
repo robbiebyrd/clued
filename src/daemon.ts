@@ -7,6 +7,7 @@ import { tailFile }                           from './tailer';
 import { loadEnrichers, startEnrichmentLoop } from './enricher';
 import { getGitOrigin, getGitBranch }          from './git';
 import { readAccountId }                       from './account';
+import { readHostInfo }                        from './host';
 import { appendToWal, flushWal }              from './wal';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +19,7 @@ const ENRICHERS_DIR = __filename.endsWith('.ts')
 
 const config     = loadConfig();
 const account_id = readAccountId(config.claudeAppConfigPath);
+const host       = readHostInfo();
 const mongo     = await createClient(config).catch(err => {
   console.error('clued daemon: MongoDB connection failed:', (err as Error).message);
   process.exit(1);
@@ -66,7 +68,7 @@ async function trackSession({ session_id, transcript_path, cwd }: {
     cwd ? getGitBranch(cwd) : Promise.resolve(null),
   ]).then(([git_origin, git_branch]) => {
     if (git_origin) state.gitOriginFound = true;
-    const $set: Record<string, unknown> = { session_id, transcript_path, cwd, last_seen: now, account_id };
+    const $set: Record<string, unknown> = { session_id, transcript_path, cwd, last_seen: now, account_id, host };
     if (git_origin) $set.git_origin = git_origin;
     if (git_branch) $set.git_branch = git_branch;
     mongo.sessions.updateOne(
@@ -85,7 +87,7 @@ async function trackSession({ session_id, transcript_path, cwd }: {
     // Upsert on {session_id, seq} to survive daemon restart + backfill race without duplicates.
     mongo.transcriptLines.updateOne(
       { session_id, seq },
-      { $set: { session_id, seq, line, account_id }, $setOnInsert: { created_at: new Date() } },
+      { $set: { session_id, seq, line, account_id, host }, $setOnInsert: { created_at: new Date() } },
       { upsert: true }
     ).catch(() => {});
   });
@@ -108,9 +110,9 @@ const server = http.createServer((req, res) => {
         mongo.sessions.updateOne({ session_id: data.session_id, account_id }, { $set: { last_seen: new Date() } }).catch(() => {});
       }
       try {
-        await mongo.hookEvents.insertOne({ ...data, account_id, created_at: new Date() });
+        await mongo.hookEvents.insertOne({ ...data, account_id, host, created_at: new Date() });
       } catch {
-        appendToWal(config.walPath, { ...data, account_id, created_at: new Date().toISOString() });
+        appendToWal(config.walPath, { ...data, account_id, host, created_at: new Date().toISOString() });
       }
       res.writeHead(200); res.end('ok');
     } catch (e) {
