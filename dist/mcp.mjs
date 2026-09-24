@@ -32159,10 +32159,15 @@ function readAccountId(path) {
 // src/mcp.ts
 var config = loadConfig();
 var account_id = readAccountId(config.claudeAppConfigPath);
-var mongo = await createClient(config).catch((err) => {
-  console.error("clued mcp: MongoDB connection failed:", err.message);
-  process.exit(1);
-});
+var _mongo;
+async function getMongo() {
+  if (!_mongo) {
+    _mongo = await createClient(config).catch((err) => {
+      throw new Error(`MongoDB connection failed: ${err.message}`);
+    });
+  }
+  return _mongo;
+}
 var sessions = /* @__PURE__ */ new Map();
 var MAX_LIMIT = 500;
 function sseWrite(res, data) {
@@ -32186,6 +32191,7 @@ async function findSessions({ project_path, git_origin, query, limit = 10 }) {
     { project_path: { $regex: query, $options: "i" } },
     { cwd: { $regex: query, $options: "i" } }
   ];
+  const mongo = await getMongo();
   const docs = await mongo.sessions.find(filter, { projection: { _id: 0, session_id: 1, project_path: 1, git_origin: 1, cwd: 1, started_at: 1, last_seen: 1 } }).sort({ last_seen: -1 }).limit(limit).toArray();
   const counts = await Promise.all(
     docs.map((s) => mongo.transcriptLines.countDocuments({ session_id: s.session_id }))
@@ -32194,6 +32200,7 @@ async function findSessions({ project_path, git_origin, query, limit = 10 }) {
 }
 async function searchCommands({ pattern, session_id, git_origin, limit = 20 }) {
   limit = Math.min(limit, MAX_LIMIT);
+  const mongo = await getMongo();
   let sessionIds;
   if (session_id) {
     const owned = await mongo.sessions.findOne({ session_id, account_id }, { projection: { session_id: 1 } });
@@ -32223,6 +32230,7 @@ async function searchCommands({ pattern, session_id, git_origin, limit = 20 }) {
   }));
 }
 async function getSessionContext({ session_id }) {
+  const mongo = await getMongo();
   const session = await mongo.sessions.findOne({ session_id, account_id }, { projection: { _id: 0 } });
   if (!session) throw new Error("session not found");
   const bashEvents = await mongo.hookEvents.find({ session_id, account_id, tool_name: "Bash", "tool_input.command": { $type: "string" } }).sort({ created_at: -1 }).limit(100).toArray();
@@ -32255,6 +32263,7 @@ async function getSessionContext({ session_id }) {
 }
 async function readTranscript({ session_id, offset = 0, limit = 200 }, progressToken, notify) {
   limit = Math.min(limit, MAX_LIMIT);
+  const mongo = await getMongo();
   const session = await mongo.sessions.findOne({ session_id, account_id });
   if (!session) throw new Error("session not found");
   const total = await mongo.transcriptLines.countDocuments({ session_id, account_id });
@@ -32356,7 +32365,7 @@ if (process.argv.includes("--stdio")) {
     if (reply) notify(reply);
   });
   rl.on("close", async () => {
-    await mongo.close();
+    await _mongo?.close();
     process.exit(0);
   });
 } else {
@@ -32365,18 +32374,18 @@ if (process.argv.includes("--stdio")) {
 function startHttpServer() {
   server.on("error", async (e) => {
     if (e.code === "EADDRINUSE") {
-      await mongo.close();
+      await _mongo?.close();
       process.exit(0);
     }
     console.error("clued mcp error:", e.message);
-    await mongo.close();
+    await _mongo?.close();
     process.exit(1);
   });
   server.listen(config.mcpPort, "127.0.0.1");
 }
 var shutdown = async () => {
   server.close();
-  await mongo.close();
+  await _mongo?.close();
   process.exit(0);
 };
 process.on("SIGTERM", shutdown);

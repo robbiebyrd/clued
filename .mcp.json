@@ -1,8 +1,6 @@
 {
-  "mcpServers": {
-    "clued": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/mcp.mjs", "--stdio"]
-    }
+  "clued": {
+    "command": "node",
+    "args": ["${CLAUDE_PLUGIN_ROOT}/dist/mcp.mjs", "--stdio"]
   }
 }
