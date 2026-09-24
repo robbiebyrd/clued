@@ -1,6 +1,6 @@
 {
   "clued": {
     "command": "node",
-    "args": ["${CLAUDE_PLUGIN_ROOT}/dist/mcp.mjs", "--stdio"]
+    "args": ["/Users/robbiebyrd/Projects/clued/dist/mcp.mjs", "--stdio"]
   }
 }
