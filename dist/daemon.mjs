@@ -6714,9 +6714,9 @@ var require_utils = __commonJS({
     function isUint8Array(value) {
       return value != null && typeof value === "object" && Symbol.toStringTag in value && value[Symbol.toStringTag] === "Uint8Array";
     }
-    function hostMatchesWildcards(host, wildcards) {
+    function hostMatchesWildcards(host2, wildcards) {
       for (const wildcard of wildcards) {
-        if (host === wildcard || wildcard.startsWith("*.") && host?.endsWith(wildcard.substring(2, wildcard.length)) || wildcard.startsWith("*/") && host?.endsWith(wildcard.substring(2, wildcard.length))) {
+        if (host2 === wildcard || wildcard.startsWith("*.") && host2?.endsWith(wildcard.substring(2, wildcard.length)) || wildcard.startsWith("*/") && host2?.endsWith(wildcard.substring(2, wildcard.length))) {
           return true;
         }
       }
@@ -7236,11 +7236,11 @@ var require_utils = __commonJS({
       static fromString(s) {
         return new _HostAddress(s);
       }
-      static fromHostPort(host, port) {
-        if (host.includes(":")) {
-          host = `[${host}]`;
+      static fromHostPort(host2, port) {
+        if (host2.includes(":")) {
+          host2 = `[${host2}]`;
         }
-        return _HostAddress.fromString(`${host}:${port}`);
+        return _HostAddress.fromString(`${host2}:${port}`);
       }
       static fromSrvRecord({ name, port }) {
         return _HostAddress.fromHostPort(name, port);
@@ -7249,9 +7249,9 @@ var require_utils = __commonJS({
         if (this.socketPath) {
           return { host: this.socketPath, port: 0 };
         }
-        const host = this.host ?? "";
+        const host2 = this.host ?? "";
         const port = this.port ?? 0;
-        return { host, port };
+        return { host: host2, port };
       }
     };
     exports.HostAddress = HostAddress;
@@ -7407,8 +7407,8 @@ var require_utils = __commonJS({
     exports.COSMOS_DB_CHECK = /\.cosmos\.azure\.com$/;
     exports.DOCUMENT_DB_MSG = "You appear to be connected to a DocumentDB cluster. For more information regarding feature compatibility and support please visit https://www.mongodb.com/supportability/documentdb";
     exports.COSMOS_DB_MSG = "You appear to be connected to a CosmosDB cluster. For more information regarding feature compatibility and support please visit https://www.mongodb.com/supportability/cosmosdb";
-    function isHostMatch(match, host) {
-      return host && match.test(host.toLowerCase()) ? true : false;
+    function isHostMatch(match, host2) {
+      return host2 && match.test(host2.toLowerCase()) ? true : false;
     }
     function promiseWithResolvers() {
       let resolve;
@@ -10126,8 +10126,8 @@ var require_mongo_logger = __commonJS({
       log.commandName = commandEvent.commandName;
       log.requestId = commandEvent.requestId;
       log.driverConnectionId = commandEvent.connectionId;
-      const { host, port } = utils_1.HostAddress.fromString(commandEvent.address).toHostPort();
-      log.serverHost = host;
+      const { host: host2, port } = utils_1.HostAddress.fromString(commandEvent.address).toHostPort();
+      log.serverHost = host2;
       log.serverPort = port;
       if (commandEvent?.serviceId) {
         log.serviceId = commandEvent.serviceId.toHexString();
@@ -10137,8 +10137,8 @@ var require_mongo_logger = __commonJS({
       return log;
     }
     function attachConnectionFields(log, event) {
-      const { host, port } = utils_1.HostAddress.fromString(event.address).toHostPort();
-      log.serverHost = host;
+      const { host: host2, port } = utils_1.HostAddress.fromString(event.address).toHostPort();
+      log.serverHost = host2;
       log.serverPort = port;
       return log;
     }
@@ -10150,8 +10150,8 @@ var require_mongo_logger = __commonJS({
       const { awaited, connectionId } = serverHeartbeatEvent;
       log.awaited = awaited;
       log.driverConnectionId = serverHeartbeatEvent.connectionId;
-      const { host, port } = utils_1.HostAddress.fromString(connectionId).toHostPort();
-      log.serverHost = host;
+      const { host: host2, port } = utils_1.HostAddress.fromString(connectionId).toHostPort();
+      log.serverHost = host2;
       log.serverPort = port;
       return log;
     }
@@ -10841,12 +10841,12 @@ var require_gssapi = __commonJS({
       const { username, password } = credentials;
       const mechanismProperties = credentials.mechanismProperties;
       const serviceName = mechanismProperties.SERVICE_NAME ?? "mongodb";
-      const host = await performGSSAPICanonicalizeHostName(hostAddress.host, mechanismProperties);
+      const host2 = await performGSSAPICanonicalizeHostName(hostAddress.host, mechanismProperties);
       const initOptions = {};
       if (password != null) {
         Object.assign(initOptions, { user: username, password });
       }
-      const spnHost = mechanismProperties.SERVICE_HOST ?? host;
+      const spnHost = mechanismProperties.SERVICE_HOST ?? host2;
       let spn = `${serviceName}${process.platform === "win32" ? "/" : "@"}${spnHost}`;
       if ("SERVICE_REALM" in mechanismProperties) {
         spn = `${spn}@${mechanismProperties.SERVICE_REALM}`;
@@ -10883,29 +10883,29 @@ var require_gssapi = __commonJS({
       const response = await client.unwrap(payload);
       return await client.wrap(response || "", { user });
     }
-    async function performGSSAPICanonicalizeHostName(host, mechanismProperties) {
+    async function performGSSAPICanonicalizeHostName(host2, mechanismProperties) {
       const mode = mechanismProperties.CANONICALIZE_HOST_NAME;
       if (!mode || mode === exports.GSSAPICanonicalizationValue.none) {
-        return host;
+        return host2;
       }
       if (mode === exports.GSSAPICanonicalizationValue.on || mode === exports.GSSAPICanonicalizationValue.forwardAndReverse) {
-        const { address } = await dns.promises.lookup(host);
+        const { address } = await dns.promises.lookup(host2);
         try {
           const results = await dns.promises.resolvePtr(address);
-          return results.length > 0 ? results[0] : host;
+          return results.length > 0 ? results[0] : host2;
         } catch {
-          return await resolveCname(host);
+          return await resolveCname(host2);
         }
       } else {
-        return await resolveCname(host);
+        return await resolveCname(host2);
       }
     }
-    async function resolveCname(host) {
+    async function resolveCname(host2) {
       try {
-        const results = await dns.promises.resolveCname(host);
-        return results.length > 0 ? results[0] : host;
+        const results = await dns.promises.resolveCname(host2);
+        return results.length > 0 ? results[0] : host2;
       } catch {
-        return host;
+        return host2;
       }
     }
     function loadKrb() {
@@ -11056,8 +11056,8 @@ var require_mongo_credentials = __commonJS({
             if (!Array.isArray(hosts)) {
               throw new error_1.MongoInvalidArgumentError(ALLOWED_HOSTS_ERROR);
             }
-            for (const host of hosts) {
-              if (typeof host !== "string") {
+            for (const host2 of hosts) {
+              if (typeof host2 !== "string") {
                 throw new error_1.MongoInvalidArgumentError(ALLOWED_HOSTS_ERROR);
               }
             }
@@ -13050,14 +13050,14 @@ var require_url_state_machine = __commonJS({
       }
       return longestIndex;
     }
-    function serializeHost(host) {
-      if (typeof host === "number") {
-        return serializeIPv4(host);
+    function serializeHost(host2) {
+      if (typeof host2 === "number") {
+        return serializeIPv4(host2);
       }
-      if (host instanceof Array) {
-        return `[${serializeIPv6(host)}]`;
+      if (host2 instanceof Array) {
+        return `[${serializeIPv6(host2)}]`;
       }
-      return host;
+      return host2;
     }
     function domainToASCII(domain, beStrict = false) {
       const result = tr46.toASCII(domain, {
@@ -13388,11 +13388,11 @@ var require_url_state_machine = __commonJS({
         if (this.stateOverride === "hostname") {
           return false;
         }
-        const host = parseHost(this.buffer, isNotSpecial(this.url));
-        if (host === failure) {
+        const host2 = parseHost(this.buffer, isNotSpecial(this.url));
+        if (host2 === failure) {
           return failure;
         }
-        this.url.host = host;
+        this.url.host = host2;
         this.buffer = "";
         this.state = "port";
       } else if (isNaN(c) || c === p("/") || c === p("?") || c === p("#") || isSpecial(this.url) && c === p("\\")) {
@@ -13404,11 +13404,11 @@ var require_url_state_machine = __commonJS({
           this.parseError = true;
           return false;
         }
-        const host = parseHost(this.buffer, isNotSpecial(this.url));
-        if (host === failure) {
+        const host2 = parseHost(this.buffer, isNotSpecial(this.url));
+        if (host2 === failure) {
           return failure;
         }
-        this.url.host = host;
+        this.url.host = host2;
         this.buffer = "";
         this.state = "path start";
         if (this.stateOverride) {
@@ -13519,14 +13519,14 @@ var require_url_state_machine = __commonJS({
           }
           this.state = "path start";
         } else {
-          let host = parseHost(this.buffer, isNotSpecial(this.url));
-          if (host === failure) {
+          let host2 = parseHost(this.buffer, isNotSpecial(this.url));
+          if (host2 === failure) {
             return failure;
           }
-          if (host === "localhost") {
-            host = "";
+          if (host2 === "localhost") {
+            host2 = "";
           }
-          this.url.host = host;
+          this.url.host = host2;
           if (this.stateOverride) {
             return false;
           }
@@ -15316,7 +15316,7 @@ var require_lib2 = __commonJS({
           if (this.isSRV && this.hosts.length !== 1) {
             throw new MongoParseError("mongodb+srv URI cannot have multiple service names");
           }
-          if (this.isSRV && this.hosts.some((host) => host.includes(":"))) {
+          if (this.isSRV && this.hosts.some((host2) => host2.includes(":"))) {
             throw new MongoParseError("mongodb+srv URI cannot have port number");
           }
         }
@@ -18958,9 +18958,9 @@ var require_server_description = __commonJS({
         }
         this.address = typeof address === "string" ? utils_1.HostAddress.fromString(address).toString() : address.toString();
         this.type = parseServerType(hello, options);
-        this.hosts = hello?.hosts?.map((host) => host.toLowerCase()) ?? [];
-        this.passives = hello?.passives?.map((host) => host.toLowerCase()) ?? [];
-        this.arbiters = hello?.arbiters?.map((host) => host.toLowerCase()) ?? [];
+        this.hosts = hello?.hosts?.map((host2) => host2.toLowerCase()) ?? [];
+        this.passives = hello?.passives?.map((host2) => host2.toLowerCase()) ?? [];
+        this.arbiters = hello?.arbiters?.map((host2) => host2.toLowerCase()) ?? [];
         this.tags = hello?.tags ?? {};
         this.minWireVersion = hello?.minWireVersion ?? 0;
         this.maxWireVersion = hello?.maxWireVersion ?? 0;
@@ -24231,7 +24231,7 @@ var require_mongodb_aws = __commonJS({
         };
         const saslStartResponse = await connection.command((0, utils_1.ns)(`${db}.$cmd`), saslStart, void 0);
         const serverResponse = BSON.deserialize(saslStartResponse.payload.buffer, bsonOptions);
-        const host = serverResponse.h;
+        const host2 = serverResponse.h;
         const serverNonce = serverResponse.s.buffer;
         if (serverNonce.length !== 64) {
           throw new error_1.MongoRuntimeError(`Invalid server nonce length ${serverNonce.length}, expected 64`);
@@ -24239,13 +24239,13 @@ var require_mongodb_aws = __commonJS({
         if (!utils_1.ByteUtils.equals(serverNonce.subarray(0, nonce.byteLength), nonce)) {
           throw new error_1.MongoRuntimeError("Server nonce does not begin with client nonce");
         }
-        if (host.length < 1 || host.length > 255 || host.indexOf("..") !== -1) {
-          throw new error_1.MongoRuntimeError(`Server returned an invalid host: "${host}"`);
+        if (host2.length < 1 || host2.length > 255 || host2.indexOf("..") !== -1) {
+          throw new error_1.MongoRuntimeError(`Server returned an invalid host: "${host2}"`);
         }
         const body = "Action=GetCallerIdentity&Version=2011-06-15";
         const options = sign({
           method: "POST",
-          host,
+          host: host2,
           region: deriveRegion(serverResponse.h),
           service: "sts",
           headers: {
@@ -24291,8 +24291,8 @@ var require_mongodb_aws = __commonJS({
       const temporaryCredentials = await awsCredentialFetcher.getCredentials();
       return makeMongoCredentialsFromAWSTemp(temporaryCredentials);
     }
-    function deriveRegion(host) {
-      const parts = host.split(".");
+    function deriveRegion(host2) {
+      const parts = host2.split(".");
       if (parts.length === 1 || parts[1] === "amazonaws") {
         return "us-east-1";
       }
@@ -26301,8 +26301,8 @@ var require_server_selection_events = __commonJS({
         super(selector, topologyDescription, operation);
         this.name = constants_1.SERVER_SELECTION_SUCCEEDED;
         this.message = "Server selection succeeded";
-        const { host, port } = utils_1.HostAddress.fromString(address).toHostPort();
-        this.serverHost = host;
+        const { host: host2, port } = utils_1.HostAddress.fromString(address).toHostPort();
+        this.serverHost = host2;
         this.serverPort = port;
       }
     };
@@ -27232,17 +27232,17 @@ var require_mongo_client = __commonJS({
         }
         if (typeof options.srvHost === "string") {
           const hosts = await (0, connection_string_1.resolveSRVRecord)(options);
-          for (const [index, host] of hosts.entries()) {
-            options.hosts[index] = host;
+          for (const [index, host2] of hosts.entries()) {
+            options.hosts[index] = host2;
           }
         }
         if (options.credentials?.mechanism === providers_1.AuthMechanism.MONGODB_OIDC) {
           const allowedHosts = options.credentials?.mechanismProperties?.ALLOWED_HOSTS || mongo_credentials_1.DEFAULT_ALLOWED_HOSTS;
           const isServiceAuth = !!options.credentials?.mechanismProperties?.ENVIRONMENT;
           if (!isServiceAuth) {
-            for (const host of options.hosts) {
-              if (!(0, utils_1.hostMatchesWildcards)(host.toHostPort().host, allowedHosts)) {
-                throw new error_1.MongoInvalidArgumentError(`Host '${host}' is not valid for OIDC authentication with ALLOWED_HOSTS of '${allowedHosts.join(",")}'`);
+            for (const host2 of options.hosts) {
+              if (!(0, utils_1.hostMatchesWildcards)(host2.toHostPort().host, allowedHosts)) {
+                throw new error_1.MongoInvalidArgumentError(`Host '${host2}' is not valid for OIDC authentication with ALLOWED_HOSTS of '${allowedHosts.join(",")}'`);
               }
             }
           }
@@ -32219,6 +32219,19 @@ function readAccountId(path) {
   }
 }
 
+// src/host.ts
+import { hostname as osHostname, networkInterfaces } from "os";
+function readHostInfo() {
+  const hostname = osHostname();
+  const ifaces = networkInterfaces();
+  for (const iface of Object.values(ifaces)) {
+    if (!iface) continue;
+    const entry = iface.find((a) => a.family === "IPv4" && !a.internal);
+    if (entry) return { hostname, ip: entry.address, mac: entry.mac };
+  }
+  return { hostname, ip: null, mac: null };
+}
+
 // src/wal.ts
 import { appendFileSync, existsSync, mkdirSync, readFileSync as readFileSync3, writeFileSync } from "fs";
 import { dirname as dirname2 } from "path";
@@ -32253,6 +32266,7 @@ var __dir = dirname3(__filename);
 var ENRICHERS_DIR = __filename.endsWith(".ts") ? join3(__dir, "..", "enrichers") : join3(__dir, "enrichers");
 var config = loadConfig();
 var account_id = readAccountId(config.claudeAppConfigPath);
+var host = readHostInfo();
 var mongo = await createClient(config).catch((err) => {
   console.error("clued daemon: MongoDB connection failed:", err.message);
   process.exit(1);
@@ -32295,7 +32309,7 @@ async function trackSession({ session_id, transcript_path, cwd } = {}) {
     cwd ? getGitBranch(cwd) : Promise.resolve(null)
   ]).then(([git_origin, git_branch]) => {
     if (git_origin) state.gitOriginFound = true;
-    const $set = { session_id, transcript_path, cwd, last_seen: now, account_id };
+    const $set = { session_id, transcript_path, cwd, last_seen: now, account_id, host };
     if (git_origin) $set.git_origin = git_origin;
     if (git_branch) $set.git_branch = git_branch;
     mongo.sessions.updateOne(
@@ -32316,7 +32330,7 @@ async function trackSession({ session_id, transcript_path, cwd } = {}) {
     const seq = seqRef.value++;
     mongo.transcriptLines.updateOne(
       { session_id, seq },
-      { $set: { session_id, seq, line, account_id }, $setOnInsert: { created_at: /* @__PURE__ */ new Date() } },
+      { $set: { session_id, seq, line, account_id, host }, $setOnInsert: { created_at: /* @__PURE__ */ new Date() } },
       { upsert: true }
     ).catch(() => {
     });
@@ -32346,9 +32360,9 @@ var server = http.createServer((req, res) => {
         });
       }
       try {
-        await mongo.hookEvents.insertOne({ ...data, account_id, created_at: /* @__PURE__ */ new Date() });
+        await mongo.hookEvents.insertOne({ ...data, account_id, host, created_at: /* @__PURE__ */ new Date() });
       } catch {
-        appendToWal(config.walPath, { ...data, account_id, created_at: (/* @__PURE__ */ new Date()).toISOString() });
+        appendToWal(config.walPath, { ...data, account_id, host, created_at: (/* @__PURE__ */ new Date()).toISOString() });
       }
       res.writeHead(200);
       res.end("ok");
