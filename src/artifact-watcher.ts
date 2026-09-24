@@ -8,13 +8,17 @@ import { tailFile } from './tailer';
 // until the directory exists, then uses fs.watch + 2s poll as a safety net
 // (required on macOS/kqueue where fs.watch on a directory does not reliably
 // fire for newly created files inside it).
+// Returns a stop() function that releases all handles (useful in tests).
 function watchDir(
   dirPath: string,
   onChange: (filename: string, fullPath: string) => void,
-): void {
+): () => void {
   const mtimes = new Map<string, number>();
+  let stopped = false;
+  let watcher: fs.FSWatcher | null = null;
 
   const check = () => {
+    if (stopped) return;
     let entries: fs.Dirent[];
     try { entries = fs.readdirSync(dirPath, { withFileTypes: true }); }
     catch { return; }
@@ -32,11 +36,11 @@ function watchDir(
 
   let watching = false;
   const tryWatch = () => {
-    if (watching || !fs.existsSync(dirPath)) return;
+    if (stopped || watching || !fs.existsSync(dirPath)) return;
     watching = true;
     try {
-      const w = fs.watch(dirPath, () => check());
-      w.on('error', () => {}); // poll fallback covers any watch errors
+      watcher = fs.watch(dirPath, () => check());
+      watcher.on('error', () => {}); // poll fallback covers any watch errors
     } catch { /* poll-only fallback */ }
     check();
   };
@@ -48,7 +52,15 @@ function watchDir(
   }, 500);
   tryWatch();
 
-  setInterval(check, 2000);
+  const pollInterval = setInterval(check, 2000);
+
+  return () => {
+    stopped = true;
+    clearInterval(readyInterval);
+    clearInterval(pollInterval);
+    watcher?.close();
+    watcher = null;
+  };
 }
 
 export function watchArtifactDirs(
@@ -58,13 +70,15 @@ export function watchArtifactDirs(
   mongo: MongoDb,
   account_id: string,
   host: unknown,
-): void {
+): () => void {
   const subagentsDir   = join(sessionDir, 'subagents');
   const toolResultsDir = join(sessionDir, 'tool-results');
+  const tailers: Array<{ stop(): void }> = [];
 
   // Subagents dir: tail JSONL files, read meta.json
   const subagentSeqs = new Map<string, { value: number }>();
-  watchDir(subagentsDir, (filename, fullPath) => {
+  const stopDirs: Array<() => void> = [];
+  stopDirs.push(watchDir(subagentsDir, (filename, fullPath) => {
     if (filename.endsWith('.jsonl')) {
       const subagent_id = filename.replace(/\.jsonl$/, '');
       // Guard: only start one tailer per subagent. watchDir fires onChange again
@@ -73,7 +87,7 @@ export function watchArtifactDirs(
       if (subagentSeqs.has(subagent_id)) return;
       const seqRef = { value: 0 };
       subagentSeqs.set(subagent_id, seqRef);
-      tailFile(fullPath, raw => {
+      tailers.push(tailFile(fullPath, raw => {
         let line: unknown;
         try { line = JSON.parse(raw); } catch { line = { raw }; }
         const seq = seqRef.value++;
@@ -83,7 +97,7 @@ export function watchArtifactDirs(
             $setOnInsert: { created_at: new Date() } },
           { upsert: true }
         ).catch(() => {});
-      });
+      }));
     } else if (filename.endsWith('.meta.json')) {
       let content: string;
       try { content = fs.readFileSync(fullPath, 'utf8'); } catch { return; }
@@ -94,10 +108,10 @@ export function watchArtifactDirs(
         { upsert: true }
       ).catch(() => {});
     }
-  });
+  }));
 
   // Tool-results dir: read blobs as utf8
-  watchDir(toolResultsDir, (filename, fullPath) => {
+  stopDirs.push(watchDir(toolResultsDir, (filename, fullPath) => {
     let content: string;
     try { content = fs.readFileSync(fullPath, 'utf8'); } catch { return; }
     mongo.blobs.updateOne(
@@ -106,10 +120,10 @@ export function watchArtifactDirs(
         $setOnInsert: { created_at: new Date() } },
       { upsert: true }
     ).catch(() => {});
-  });
+  }));
 
   // File-history dir: read blobs as base64
-  watchDir(fileHistoryPath, (filename, fullPath) => {
+  stopDirs.push(watchDir(fileHistoryPath, (filename, fullPath) => {
     let buf: Buffer;
     try { buf = fs.readFileSync(fullPath); } catch { return; }
     mongo.blobs.updateOne(
@@ -118,5 +132,10 @@ export function watchArtifactDirs(
         $setOnInsert: { created_at: new Date() } },
       { upsert: true }
     ).catch(() => {});
-  });
+  }));
+
+  return () => {
+    stopDirs.forEach(s => s());
+    tailers.forEach(t => t.stop());
+  };
 }

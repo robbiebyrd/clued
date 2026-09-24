@@ -16,8 +16,10 @@ const ACCOUNT  = 'acc-watcher';
 const HOST     = { hostname: 'test' };
 
 let mongo: MongoDb;
+const stoppers: Array<() => void> = [];
 
 after(async () => {
+  stoppers.forEach(s => s());
   await mongo?.db.dropDatabase();
   await mongo?.close();
   rmSync(TMP, { recursive: true, force: true });
@@ -34,7 +36,7 @@ test('captures tool-result blob when file appears in tool-results/', async () =>
   const fileHistPath  = join(TMP, 'tr-fh', SESSION);
   mkdirSync(sessionDir, { recursive: true });
 
-  watchArtifactDirs(SESSION, sessionDir, fileHistPath, mongo, ACCOUNT, HOST);
+  stoppers.push(watchArtifactDirs(SESSION, sessionDir, fileHistPath, mongo, ACCOUNT, HOST));
 
   const toolResultsDir = join(sessionDir, 'tool-results');
   mkdirSync(toolResultsDir);
@@ -54,7 +56,7 @@ test('captures file-history blob as base64 when file appears', async () => {
   const fileHistPath = join(TMP, 'fh-dir', SESSION2);
   mkdirSync(sessionDir, { recursive: true });
 
-  watchArtifactDirs(SESSION2, sessionDir, fileHistPath, mongo, ACCOUNT, HOST);
+  stoppers.push(watchArtifactDirs(SESSION2, sessionDir, fileHistPath, mongo, ACCOUNT, HOST));
 
   mkdirSync(fileHistPath, { recursive: true });
   const rawContent = 'binary file content';
@@ -76,7 +78,7 @@ test('tails subagent JSONL and captures subagent-meta', async () => {
   const subagentsDir = join(sessionDir, 'subagents');
   mkdirSync(subagentsDir, { recursive: true });
 
-  watchArtifactDirs(SESSION3, sessionDir, fileHistPath, mongo, ACCOUNT, HOST);
+  stoppers.push(watchArtifactDirs(SESSION3, sessionDir, fileHistPath, mongo, ACCOUNT, HOST));
 
   const agentId = 'agent-aabbccdd';
   writeFileSync(join(subagentsDir, `${agentId}.jsonl`),
@@ -102,7 +104,7 @@ test('updates content when tool-result file is overwritten', async () => {
   mkdirSync(toolResultsDir, { recursive: true });
 
   writeFileSync(join(toolResultsDir, 'mutable.txt'), 'version 1');
-  watchArtifactDirs(SESSION4, sessionDir, fileHistPath, mongo, ACCOUNT, HOST);
+  stoppers.push(watchArtifactDirs(SESSION4, sessionDir, fileHistPath, mongo, ACCOUNT, HOST));
 
   await delay(3000);
 
@@ -124,7 +126,7 @@ test('does not start duplicate tailer when subagent JSONL mtime changes', async 
 
   const agentId = 'agent-noduptest';
   writeFileSync(join(subagentsDir, `${agentId}.jsonl`), '{"type":"user"}\n');
-  watchArtifactDirs(SESSION5, sessionDir, fileHistPath, mongo, ACCOUNT, HOST);
+  stoppers.push(watchArtifactDirs(SESSION5, sessionDir, fileHistPath, mongo, ACCOUNT, HOST));
 
   await delay(3000);
 
