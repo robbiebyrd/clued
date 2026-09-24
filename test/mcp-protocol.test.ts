@@ -24,7 +24,7 @@ test('notifications get no reply', async () => {
 test('tools/list returns every tool with an input schema', async () => {
   const res = await dispatch({ id: 2, method: 'tools/list' }, noTool) as any;
   assert.deepEqual(res.result.tools.map((t: any) => t.name),
-    ['find_sessions', 'get_session_context', 'search_commands', 'read_transcript']);
+    ['find_sessions', 'get_session_context', 'search_commands', 'read_transcript', 'restore_session']);
   for (const t of TOOLS) assert.equal(t.inputSchema.type, 'object');
 });
 
