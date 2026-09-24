@@ -1,6 +1,6 @@
 {
   "clued": {
-    "command": "npx",
-    "args": ["-y", "@robbiebyrd/clued", "--stdio"]
+    "command": "sh",
+    "args": ["-c", "cd /tmp && npx -y @robbiebyrd/clued --stdio"]
   }
 }
