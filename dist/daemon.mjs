@@ -246,16 +246,28 @@ function readAccountId(path) {
 }
 
 // src/host.ts
-import { hostname as osHostname, networkInterfaces } from "os";
+import { hostname as osHostname, networkInterfaces, userInfo, platform, arch, release, type as osType } from "os";
 function readHostInfo() {
   const hostname = osHostname();
   const ifaces = networkInterfaces();
+  const user = userInfo();
+  const base = {
+    hostname,
+    ip: null,
+    mac: null,
+    username: user.username,
+    uid: user.uid,
+    platform: platform(),
+    arch: arch(),
+    os_release: release(),
+    os_type: osType()
+  };
   for (const iface of Object.values(ifaces)) {
     if (!iface) continue;
     const entry = iface.find((a) => a.family === "IPv4" && !a.internal);
-    if (entry) return { hostname, ip: entry.address, mac: entry.mac };
+    if (entry) return { ...base, ip: entry.address, mac: entry.mac };
   }
-  return { hostname, ip: null, mac: null };
+  return base;
 }
 
 // src/wal.ts

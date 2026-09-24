@@ -31,3 +31,38 @@ test('mac, when present, looks like a MAC address', () => {
     assert.match(r.mac, /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i);
   }
 });
+
+test('username is a non-empty string', () => {
+  const r = readHostInfo();
+  assert.equal(typeof r.username, 'string');
+  assert.ok(r.username.length > 0);
+});
+
+test('uid is a number', () => {
+  const r = readHostInfo();
+  assert.equal(typeof r.uid, 'number');
+});
+
+test('platform is a non-empty string', () => {
+  const r = readHostInfo();
+  assert.equal(typeof r.platform, 'string');
+  assert.ok(r.platform.length > 0);
+});
+
+test('arch is a non-empty string', () => {
+  const r = readHostInfo();
+  assert.equal(typeof r.arch, 'string');
+  assert.ok(r.arch.length > 0);
+});
+
+test('os_release is a non-empty string', () => {
+  const r = readHostInfo();
+  assert.equal(typeof r.os_release, 'string');
+  assert.ok(r.os_release.length > 0);
+});
+
+test('os_type is a non-empty string', () => {
+  const r = readHostInfo();
+  assert.equal(typeof r.os_type, 'string');
+  assert.ok(r.os_type.length > 0);
+});
