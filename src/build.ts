@@ -9,6 +9,7 @@ const shared = {
   platform: 'node'  as const,
   format:   'esm'   as const,
   banner:   { js: BANNER },
+  external: ['mongodb'],
 };
 
 const enricherEntries = readdirSync('enrichers')
