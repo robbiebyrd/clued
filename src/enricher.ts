@@ -42,8 +42,8 @@ export function startEnrichmentLoop(
   const timer = setInterval(async () => {
     for (const enricher of enrichers) {
       const coll      = mongo.db.collection(enricher.collection);
-      const failedKey = `enriched.${enricher.name}_failed`;
-      const doneKey   = `enriched.${enricher.name}`;
+      const failedKey = `enrichments.${enricher.name}_failed`;
+      const doneKey   = `enrichments.${enricher.name}`;
       const limit     = enricher.batchLimit ?? 100;
       const docs = await coll
         .find({ [doneKey]: { $exists: false }, [failedKey]: { $exists: false } })

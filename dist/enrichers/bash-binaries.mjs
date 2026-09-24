@@ -1,7 +1,9 @@
 import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-const name = "bash-binaries";
-const collection = "hook_events";
-const enabled = true;
+
+// enrichers/bash-binaries.ts
+var name = "bash-binaries";
+var collection = "hook_events";
+var enabled = true;
 function matches(doc) {
   const ti = doc.tool_input;
   return doc.tool_name === "Bash" && typeof ti?.command === "string";

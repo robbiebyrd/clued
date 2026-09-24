@@ -148,13 +148,13 @@ test('enrichment loop writes enriched field to hook event', async () => {
   let doc;
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 200));
-    doc = await mongo.hookEvents.findOne({ session_id: 'enrich-test', 'enriched.bash-binaries': { $exists: true } });
+    doc = await mongo.hookEvents.findOne({ session_id: 'enrich-test', 'enrichments.bash-binaries': { $exists: true } });
     if (doc) break;
   }
-  assert.ok(doc, 'enriched.bash-binaries not written within 6s');
-  const enriched = (doc as Record<string, Record<string, { binaries: string[] }>>).enriched;
-  assert.ok(Array.isArray(enriched['bash-binaries'].binaries));
-  assert.ok(enriched['bash-binaries'].binaries.includes('git'));
+  assert.ok(doc, 'enrichments.bash-binaries not written within 6s');
+  const enrichments = (doc as Record<string, Record<string, { binaries: string[] }>>).enrichments;
+  assert.ok(Array.isArray(enrichments['bash-binaries'].binaries));
+  assert.ok(enrichments['bash-binaries'].binaries.includes('git'));
 });
 
 test('enrichment circuit breaker writes _failed on error', async () => {
@@ -168,7 +168,7 @@ test('enrichment circuit breaker writes _failed on error', async () => {
     await new Promise(r => setTimeout(r, 200));
     doc = await mongo.hookEvents.findOne({
       session_id: 'enrich-fail-test',
-      'enriched.bash-binaries_failed': { $exists: true },
+      'enrichments.bash-binaries_failed': { $exists: true },
     });
     if (doc) break;
   }

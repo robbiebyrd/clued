@@ -1,4 +1,5 @@
 import { build } from 'esbuild';
+import { readdirSync } from 'fs';
 
 const BANNER = "import { createRequire } from 'module'; const require = createRequire(import.meta.url);";
 
@@ -9,10 +10,16 @@ const shared = {
   banner:   { js: BANNER },
 };
 
+const enricherEntries = readdirSync('enrichers')
+  .filter(f => f.endsWith('.ts'))
+  .map(f => ({
+    entryPoints: [`enrichers/${f}`],
+    outfile:     `dist/enrichers/${f.replace(/\.ts$/, '.mjs')}`,
+  }));
+
 await Promise.all([
-  build({ ...shared, entryPoints: ['src/daemon.ts'],              outfile: 'dist/daemon.mjs'                          }),
-  build({ ...shared, entryPoints: ['src/backfill.ts'],            outfile: 'dist/backfill.mjs'                        }),
-  build({ ...shared, entryPoints: ['src/mcp.ts'],                 outfile: 'dist/mcp.mjs'                             }),
-  build({ ...shared, bundle: false, entryPoints: ['enrichers/bash-binaries.ts'],  outfile: 'dist/enrichers/bash-binaries.mjs'  }),
-  build({ ...shared, bundle: false, entryPoints: ['enrichers/privacy-redact.ts'], outfile: 'dist/enrichers/privacy-redact.mjs' }),
+  build({ ...shared, entryPoints: ['src/daemon.ts'],   outfile: 'dist/daemon.mjs'   }),
+  build({ ...shared, entryPoints: ['src/backfill.ts'], outfile: 'dist/backfill.mjs' }),
+  build({ ...shared, entryPoints: ['src/mcp.ts'],      outfile: 'dist/mcp.mjs'      }),
+  ...enricherEntries.map(e => build({ ...shared, ...e })),
 ]);

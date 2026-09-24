@@ -1,8 +1,10 @@
 import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-const name = "privacy-redact";
-const collection = "transcript_lines";
-const enabled = false;
-const PATTERNS = [
+
+// enrichers/privacy-redact.ts
+var name = "privacy-redact";
+var collection = "transcript_lines";
+var enabled = false;
+var PATTERNS = [
   { label: "api-key", re: /\b(sk-[A-Za-z0-9]{20,})\b/g },
   { label: "email", re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z]{2,}\b/gi },
   { label: "aws-key", re: /\b(AKIA[0-9A-Z]{16})\b/g },

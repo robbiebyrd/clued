@@ -80,7 +80,7 @@ test('startEnrichmentLoop enriches matching docs on success', async (t) => {
   loop.stop();
 
   assert.equal(updated.length, 1);
-  assert.deepEqual((updated[0] as { update: unknown }).update, { $set: { 'enriched.test-enricher': { result: 'ok' } } });
+  assert.deepEqual((updated[0] as { update: unknown }).update, { $set: { 'enrichments.test-enricher': { result: 'ok' } } });
 });
 
 test('startEnrichmentLoop writes failure field when enrich throws', async (t) => {
@@ -105,8 +105,8 @@ test('startEnrichmentLoop writes failure field when enrich throws', async (t) =>
   loop.stop();
 
   assert.equal(updated.length, 1);
-  assert.equal(updated[0].$set['enriched.failing-enricher_failed'].message, 'boom');
-  assert.ok(updated[0].$set['enriched.failing-enricher_failed'].at instanceof Date);
+  assert.equal(updated[0].$set['enrichments.failing-enricher_failed'].message, 'boom');
+  assert.ok(updated[0].$set['enrichments.failing-enricher_failed'].at instanceof Date);
 });
 
 test('startEnrichmentLoop skips docs where matches returns false', async (t) => {
