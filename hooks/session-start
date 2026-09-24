@@ -27,9 +27,11 @@ mcp_ok() {
   curl -sf --max-time 1 "http://127.0.0.1:${MCP_PORT}/health" &>/dev/null
 }
 
-# When devRepoPath is set, sync the latest built binaries. Only restart servers
-# if files actually changed — restarting breaks Claude Code's MCP connection.
+# When devRepoPath is set, sync built binaries and .mcp.json. Only restart
+# servers if dist files changed — restarting breaks Claude Code's MCP connection.
+# .mcp.json changes take effect on next relaunch (Claude Code reads it at startup).
 if [[ -n "$DEV_REPO" && -d "$DEV_REPO/dist" ]]; then
+  [[ -f "$DEV_REPO/.mcp.json" ]] && cp "$DEV_REPO/.mcp.json" "${PLUGIN_ROOT}/.mcp.json" 2>/dev/null
   CHANGED=$(rsync -ai "$DEV_REPO/dist/" "${PLUGIN_ROOT}/dist/" 2>/dev/null | grep -v '/$')
   if [[ -n "$CHANGED" ]]; then
     kill "$(lsof -ti :${PORT})"     2>/dev/null || true
