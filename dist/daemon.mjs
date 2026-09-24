@@ -303,7 +303,10 @@ import fs2 from "fs";
 import { join as join3 } from "path";
 function watchDir(dirPath, onChange) {
   const mtimes = /* @__PURE__ */ new Map();
+  let stopped = false;
+  let watcher = null;
   const check = () => {
+    if (stopped) return;
     let entries;
     try {
       entries = fs2.readdirSync(dirPath, { withFileTypes: true });
@@ -326,11 +329,11 @@ function watchDir(dirPath, onChange) {
   };
   let watching = false;
   const tryWatch = () => {
-    if (watching || !fs2.existsSync(dirPath)) return;
+    if (stopped || watching || !fs2.existsSync(dirPath)) return;
     watching = true;
     try {
-      const w = fs2.watch(dirPath, () => check());
-      w.on("error", () => {
+      watcher = fs2.watch(dirPath, () => check());
+      watcher.on("error", () => {
       });
     } catch {
     }
@@ -342,19 +345,28 @@ function watchDir(dirPath, onChange) {
     tryWatch();
   }, 500);
   tryWatch();
-  setInterval(check, 2e3);
+  const pollInterval = setInterval(check, 2e3);
+  return () => {
+    stopped = true;
+    clearInterval(readyInterval);
+    clearInterval(pollInterval);
+    watcher?.close();
+    watcher = null;
+  };
 }
 function watchArtifactDirs(session_id, sessionDir, fileHistoryPath, mongo2, account_id2, host2) {
   const subagentsDir = join3(sessionDir, "subagents");
   const toolResultsDir = join3(sessionDir, "tool-results");
+  const tailers = [];
   const subagentSeqs = /* @__PURE__ */ new Map();
-  watchDir(subagentsDir, (filename, fullPath) => {
+  const stopDirs = [];
+  stopDirs.push(watchDir(subagentsDir, (filename, fullPath) => {
     if (filename.endsWith(".jsonl")) {
       const subagent_id = filename.replace(/\.jsonl$/, "");
       if (subagentSeqs.has(subagent_id)) return;
       const seqRef = { value: 0 };
       subagentSeqs.set(subagent_id, seqRef);
-      tailFile(fullPath, (raw) => {
+      tailers.push(tailFile(fullPath, (raw) => {
         let line;
         try {
           line = JSON.parse(raw);
@@ -371,7 +383,7 @@ function watchArtifactDirs(session_id, sessionDir, fileHistoryPath, mongo2, acco
           { upsert: true }
         ).catch(() => {
         });
-      });
+      }));
     } else if (filename.endsWith(".meta.json")) {
       let content;
       try {
@@ -389,8 +401,8 @@ function watchArtifactDirs(session_id, sessionDir, fileHistoryPath, mongo2, acco
       ).catch(() => {
       });
     }
-  });
-  watchDir(toolResultsDir, (filename, fullPath) => {
+  }));
+  stopDirs.push(watchDir(toolResultsDir, (filename, fullPath) => {
     let content;
     try {
       content = fs2.readFileSync(fullPath, "utf8");
@@ -406,8 +418,8 @@ function watchArtifactDirs(session_id, sessionDir, fileHistoryPath, mongo2, acco
       { upsert: true }
     ).catch(() => {
     });
-  });
-  watchDir(fileHistoryPath, (filename, fullPath) => {
+  }));
+  stopDirs.push(watchDir(fileHistoryPath, (filename, fullPath) => {
     let buf;
     try {
       buf = fs2.readFileSync(fullPath);
@@ -423,7 +435,11 @@ function watchArtifactDirs(session_id, sessionDir, fileHistoryPath, mongo2, acco
       { upsert: true }
     ).catch(() => {
     });
-  });
+  }));
+  return () => {
+    stopDirs.forEach((s) => s());
+    tailers.forEach((t) => t.stop());
+  };
 }
 
 // src/daemon.ts
