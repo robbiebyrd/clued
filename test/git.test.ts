@@ -37,7 +37,7 @@ test('getGitBranch returns branch name for current repo', async () => {
   mkdirSync(tmp, { recursive: true });
   try {
     execFileSync('git', ['init', '-b', 'test-branch'], { cwd: tmp });
-    execFileSync('git', ['commit', '--allow-empty', '-m', 'init'], { cwd: tmp });
+    execFileSync('git', ['-c', 'user.email=test@test.com', '-c', 'user.name=Test', 'commit', '--allow-empty', '-m', 'init'], { cwd: tmp });
     const branch = await getGitBranch(tmp);
     assert.ok(typeof branch === 'string' && branch.length > 0, `expected a branch name, got ${JSON.stringify(branch)}`);
   } finally {
