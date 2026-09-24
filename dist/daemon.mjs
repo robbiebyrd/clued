@@ -16484,7 +16484,7 @@ var require_state_machine = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.StateMachine = void 0;
-    var fs2 = __require("fs/promises");
+    var fs3 = __require("fs/promises");
     var net = __require("net");
     var tls = __require("tls");
     var bson_1 = require_bson2();
@@ -16771,11 +16771,11 @@ var require_state_machine = __commonJS({
           options.secureContext = tlsOptions.secureContext;
         }
         if (tlsOptions.tlsCertificateKeyFile) {
-          const cert = await fs2.readFile(tlsOptions.tlsCertificateKeyFile);
+          const cert = await fs3.readFile(tlsOptions.tlsCertificateKeyFile);
           options.cert = options.key = cert;
         }
         if (tlsOptions.tlsCAFile) {
-          options.ca = await fs2.readFile(tlsOptions.tlsCAFile);
+          options.ca = await fs3.readFile(tlsOptions.tlsCAFile);
         }
         if (tlsOptions.tlsCertificateKeyFilePassword) {
           options.passphrase = tlsOptions.tlsCertificateKeyFilePassword;
@@ -24698,7 +24698,7 @@ var require_token_machine_workflow = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.callback = void 0;
-    var fs2 = __require("fs");
+    var fs3 = __require("fs");
     var error_1 = require_error();
     var TOKEN_MISSING_ERROR = "OIDC_TOKEN_FILE must be set in the environment.";
     var callback = async () => {
@@ -24706,7 +24706,7 @@ var require_token_machine_workflow = __commonJS({
       if (!tokenFile) {
         throw new error_1.MongoAWSError(TOKEN_MISSING_ERROR);
       }
-      const token = await fs2.promises.readFile(tokenFile, "utf8");
+      const token = await fs3.promises.readFile(tokenFile, "utf8");
       return { accessToken: token };
     };
     exports.callback = callback;
@@ -31985,7 +31985,7 @@ var require_lib3 = __commonJS({
 
 // src/daemon.ts
 import http from "http";
-import { join as join3, dirname as dirname3 } from "path";
+import { join as join4, dirname as dirname3 } from "path";
 import { fileURLToPath } from "url";
 
 // src/config.ts
@@ -31999,6 +31999,7 @@ var DEFAULTS = {
   port: 8085,
   mcpPort: 8086,
   projectsDir: join(homedir(), ".claude", "projects"),
+  fileHistoryDir: join(homedir(), ".claude", "file-history"),
   disabledEnrichers: [],
   claudeAppConfigPath: join(homedir(), "Library", "Application Support", "Claude", "config.json"),
   walPath: join(homedir(), ".claude", "plugins", "data", "clued", "events.wal")
@@ -32018,8 +32019,10 @@ function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
   if (process.env.CLUED_PORT) cfg.port = parseInt(process.env.CLUED_PORT, 10);
   if (process.env.CLUED_MCP_PORT) cfg.mcpPort = parseInt(process.env.CLUED_MCP_PORT, 10);
   if (process.env.CLUED_PROJECTS_DIR) cfg.projectsDir = process.env.CLUED_PROJECTS_DIR;
+  if (process.env.CLUED_FILE_HISTORY_DIR) cfg.fileHistoryDir = process.env.CLUED_FILE_HISTORY_DIR;
   if (process.env.CLUED_CLAUDE_APP_CONFIG_PATH) cfg.claudeAppConfigPath = process.env.CLUED_CLAUDE_APP_CONFIG_PATH;
   cfg.projectsDir = expandHome(cfg.projectsDir);
+  cfg.fileHistoryDir = expandHome(cfg.fileHistoryDir);
   cfg.mongoUrl = expandHome(cfg.mongoUrl);
   cfg.claudeAppConfigPath = expandHome(cfg.claudeAppConfigPath);
   cfg.walPath = process.env.CLUED_WAL_PATH ?? join(dirname(configPath), "events.wal");
@@ -32042,7 +32045,11 @@ async function createClient({ mongoUrl, dbName }) {
     db.collection("sessions").createIndex({ account_id: 1, git_origin: 1 }),
     db.collection("sessions").createIndex({ account_id: 1, git_origin: 1, git_branch: 1 }),
     db.collection("hook_events").createIndex({ account_id: 1, session_id: 1, created_at: -1 }),
-    db.collection("transcript_lines").createIndex({ account_id: 1, session_id: 1, seq: 1 })
+    db.collection("transcript_lines").createIndex({ account_id: 1, session_id: 1, seq: 1 }),
+    db.collection("subagent_lines").createIndex({ session_id: 1, subagent_id: 1, seq: 1 }, { unique: true }),
+    db.collection("subagent_lines").createIndex({ account_id: 1, session_id: 1, subagent_id: 1, seq: 1 }),
+    db.collection("blobs").createIndex({ session_id: 1, blob_type: 1, name: 1 }, { unique: true }),
+    db.collection("blobs").createIndex({ account_id: 1, session_id: 1, blob_type: 1 })
   ]);
   for (const r of results) {
     if (r.status === "rejected") console.error("clued: index warning:", r.reason.message);
@@ -32052,6 +32059,8 @@ async function createClient({ mongoUrl, dbName }) {
     sessions: db.collection("sessions"),
     hookEvents: db.collection("hook_events"),
     transcriptLines: db.collection("transcript_lines"),
+    subagentLines: db.collection("subagent_lines"),
+    blobs: db.collection("blobs"),
     close: () => client.close()
   };
 }
@@ -32260,10 +32269,138 @@ async function flushWal(walPath, insert) {
   writeFileSync(walPath, failed.length > 0 ? failed.join("\n") + "\n" : "");
 }
 
+// src/artifact-watcher.ts
+import fs2 from "fs";
+import { join as join3 } from "path";
+function watchDir(dirPath, onChange) {
+  const mtimes = /* @__PURE__ */ new Map();
+  const check = () => {
+    let entries;
+    try {
+      entries = fs2.readdirSync(dirPath, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      let mtime;
+      try {
+        mtime = fs2.statSync(join3(dirPath, entry.name)).mtimeMs;
+      } catch {
+        continue;
+      }
+      if (mtimes.get(entry.name) !== mtime) {
+        mtimes.set(entry.name, mtime);
+        onChange(entry.name, join3(dirPath, entry.name));
+      }
+    }
+  };
+  let watching = false;
+  const tryWatch = () => {
+    if (watching || !fs2.existsSync(dirPath)) return;
+    watching = true;
+    try {
+      const w = fs2.watch(dirPath, () => check());
+      w.on("error", () => {
+      });
+    } catch {
+    }
+    check();
+  };
+  const readyInterval = setInterval(() => {
+    if (!fs2.existsSync(dirPath)) return;
+    clearInterval(readyInterval);
+    tryWatch();
+  }, 500);
+  tryWatch();
+  setInterval(check, 2e3);
+}
+function watchArtifactDirs(session_id, sessionDir, fileHistoryPath, mongo2, account_id2, host2) {
+  const subagentsDir = join3(sessionDir, "subagents");
+  const toolResultsDir = join3(sessionDir, "tool-results");
+  const subagentSeqs = /* @__PURE__ */ new Map();
+  watchDir(subagentsDir, (filename, fullPath) => {
+    if (filename.endsWith(".jsonl")) {
+      const subagent_id = filename.replace(/\.jsonl$/, "");
+      if (subagentSeqs.has(subagent_id)) return;
+      const seqRef = { value: 0 };
+      subagentSeqs.set(subagent_id, seqRef);
+      tailFile(fullPath, (raw) => {
+        let line;
+        try {
+          line = JSON.parse(raw);
+        } catch {
+          line = { raw };
+        }
+        const seq = seqRef.value++;
+        mongo2.subagentLines.updateOne(
+          { session_id, subagent_id, seq },
+          {
+            $set: { session_id, subagent_id, seq, line, account_id: account_id2, host: host2 },
+            $setOnInsert: { created_at: /* @__PURE__ */ new Date() }
+          },
+          { upsert: true }
+        ).catch(() => {
+        });
+      });
+    } else if (filename.endsWith(".meta.json")) {
+      let content;
+      try {
+        content = fs2.readFileSync(fullPath, "utf8");
+      } catch {
+        return;
+      }
+      mongo2.blobs.updateOne(
+        { session_id, blob_type: "subagent-meta", name: filename },
+        {
+          $set: { content, encoding: "utf8", account_id: account_id2 },
+          $setOnInsert: { created_at: /* @__PURE__ */ new Date() }
+        },
+        { upsert: true }
+      ).catch(() => {
+      });
+    }
+  });
+  watchDir(toolResultsDir, (filename, fullPath) => {
+    let content;
+    try {
+      content = fs2.readFileSync(fullPath, "utf8");
+    } catch {
+      return;
+    }
+    mongo2.blobs.updateOne(
+      { session_id, blob_type: "tool-result", name: filename },
+      {
+        $set: { content, encoding: "utf8", account_id: account_id2 },
+        $setOnInsert: { created_at: /* @__PURE__ */ new Date() }
+      },
+      { upsert: true }
+    ).catch(() => {
+    });
+  });
+  watchDir(fileHistoryPath, (filename, fullPath) => {
+    let buf;
+    try {
+      buf = fs2.readFileSync(fullPath);
+    } catch {
+      return;
+    }
+    mongo2.blobs.updateOne(
+      { session_id, blob_type: "file-history", name: filename },
+      {
+        $set: { content: buf.toString("base64"), encoding: "base64", account_id: account_id2 },
+        $setOnInsert: { created_at: /* @__PURE__ */ new Date() }
+      },
+      { upsert: true }
+    ).catch(() => {
+    });
+  });
+}
+
 // src/daemon.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dir = dirname3(__filename);
-var ENRICHERS_DIR = __filename.endsWith(".ts") ? join3(__dir, "..", "enrichers") : join3(__dir, "enrichers");
+var ENRICHERS_DIR = __filename.endsWith(".ts") ? join4(__dir, "..", "enrichers") : join4(__dir, "enrichers");
 var config = loadConfig();
 var account_id = readAccountId(config.claudeAppConfigPath);
 var host = readHostInfo();
@@ -32335,6 +32472,9 @@ async function trackSession({ session_id, transcript_path, cwd } = {}) {
     ).catch(() => {
     });
   });
+  const sessionDir = join4(dirname3(transcript_path), session_id);
+  const fileHistoryPath = join4(config.fileHistoryDir, session_id);
+  watchArtifactDirs(session_id, sessionDir, fileHistoryPath, mongo, account_id, host);
 }
 var server = http.createServer((req, res) => {
   if (req.method === "GET" && req.url === "/health") {

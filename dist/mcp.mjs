@@ -32000,6 +32000,7 @@ var DEFAULTS = {
   port: 8085,
   mcpPort: 8086,
   projectsDir: join(homedir(), ".claude", "projects"),
+  fileHistoryDir: join(homedir(), ".claude", "file-history"),
   disabledEnrichers: [],
   claudeAppConfigPath: join(homedir(), "Library", "Application Support", "Claude", "config.json"),
   walPath: join(homedir(), ".claude", "plugins", "data", "clued", "events.wal")
@@ -32019,8 +32020,10 @@ function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
   if (process.env.CLUED_PORT) cfg.port = parseInt(process.env.CLUED_PORT, 10);
   if (process.env.CLUED_MCP_PORT) cfg.mcpPort = parseInt(process.env.CLUED_MCP_PORT, 10);
   if (process.env.CLUED_PROJECTS_DIR) cfg.projectsDir = process.env.CLUED_PROJECTS_DIR;
+  if (process.env.CLUED_FILE_HISTORY_DIR) cfg.fileHistoryDir = process.env.CLUED_FILE_HISTORY_DIR;
   if (process.env.CLUED_CLAUDE_APP_CONFIG_PATH) cfg.claudeAppConfigPath = process.env.CLUED_CLAUDE_APP_CONFIG_PATH;
   cfg.projectsDir = expandHome(cfg.projectsDir);
+  cfg.fileHistoryDir = expandHome(cfg.fileHistoryDir);
   cfg.mongoUrl = expandHome(cfg.mongoUrl);
   cfg.claudeAppConfigPath = expandHome(cfg.claudeAppConfigPath);
   cfg.walPath = process.env.CLUED_WAL_PATH ?? join(dirname(configPath), "events.wal");
@@ -32080,6 +32083,19 @@ var TOOLS = [
       },
       required: ["session_id"]
     }
+  },
+  {
+    name: "restore_session",
+    description: "Restore a session from MongoDB to the local filesystem. Reconstructs the main JSONL, subagent files, tool-result blobs, and file-history backups.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        session_id: { type: "string", description: "Session to restore" },
+        project_path: { type: "string", description: "Override the recorded project path (use when username/homedir differs on this machine)" },
+        projects_dir: { type: "string", description: "Override the target ~/.claude/projects directory" }
+      },
+      required: ["session_id"]
+    }
   }
 ];
 async function dispatch(rpc, callTool) {
@@ -32128,7 +32144,11 @@ async function createClient({ mongoUrl, dbName }) {
     db.collection("sessions").createIndex({ account_id: 1, git_origin: 1 }),
     db.collection("sessions").createIndex({ account_id: 1, git_origin: 1, git_branch: 1 }),
     db.collection("hook_events").createIndex({ account_id: 1, session_id: 1, created_at: -1 }),
-    db.collection("transcript_lines").createIndex({ account_id: 1, session_id: 1, seq: 1 })
+    db.collection("transcript_lines").createIndex({ account_id: 1, session_id: 1, seq: 1 }),
+    db.collection("subagent_lines").createIndex({ session_id: 1, subagent_id: 1, seq: 1 }, { unique: true }),
+    db.collection("subagent_lines").createIndex({ account_id: 1, session_id: 1, subagent_id: 1, seq: 1 }),
+    db.collection("blobs").createIndex({ session_id: 1, blob_type: 1, name: 1 }, { unique: true }),
+    db.collection("blobs").createIndex({ account_id: 1, session_id: 1, blob_type: 1 })
   ]);
   for (const r of results) {
     if (r.status === "rejected") console.error("clued: index warning:", r.reason.message);
@@ -32138,6 +32158,8 @@ async function createClient({ mongoUrl, dbName }) {
     sessions: db.collection("sessions"),
     hookEvents: db.collection("hook_events"),
     transcriptLines: db.collection("transcript_lines"),
+    subagentLines: db.collection("subagent_lines"),
+    blobs: db.collection("blobs"),
     close: () => client.close()
   };
 }
@@ -32155,6 +32177,87 @@ function readAccountId(path) {
     console.warn("clued: account ID unavailable \u2014 isolation is degraded");
     return "unknown";
   }
+}
+
+// src/restore.ts
+import { mkdirSync, createWriteStream, writeFileSync } from "fs";
+import { join as join2, basename, dirname as dirname2 } from "path";
+async function restoreSession({ session_id, project_path, projects_dir }, account_id2, mongo, fileHistoryDir) {
+  const session = await mongo.sessions.findOne({ session_id, account_id: account_id2 });
+  if (!session) throw new Error(`session not found: ${session_id}`);
+  let projDirName;
+  if (project_path) {
+    projDirName = "-" + project_path.replace(/^\//, "").replaceAll("/", "-");
+  } else if (session.transcript_path) {
+    projDirName = basename(dirname2(session.transcript_path));
+  } else if (session.project_path) {
+    projDirName = "-" + session.project_path.replace(/^\//, "").replaceAll("/", "-");
+  } else {
+    throw new Error(`session ${session_id} has no path information to derive target directory`);
+  }
+  const targetProjDir = join2(projects_dir ?? "", projDirName);
+  const sessionDir = join2(targetProjDir, session_id);
+  const subagentsDir = join2(sessionDir, "subagents");
+  const toolResultsDir = join2(sessionDir, "tool-results");
+  const sessionFhDir = join2(fileHistoryDir, session_id);
+  mkdirSync(targetProjDir, { recursive: true });
+  mkdirSync(subagentsDir, { recursive: true });
+  mkdirSync(toolResultsDir, { recursive: true });
+  mkdirSync(sessionFhDir, { recursive: true });
+  let files_written = 0;
+  let bytes_written = 0;
+  const missing = [];
+  const total = await mongo.transcriptLines.countDocuments({ session_id, account_id: account_id2 });
+  if (total === 0) {
+    missing.push("transcript_lines");
+  } else {
+    const jsonlPath = join2(targetProjDir, `${session_id}.jsonl`);
+    const ws = createWriteStream(jsonlPath, { flags: "w" });
+    const BATCH = 500;
+    for (let skip = 0; skip < total; skip += BATCH) {
+      const lines = await mongo.transcriptLines.find({ session_id, account_id: account_id2 }, { projection: { _id: 0, line: 1 } }).sort({ seq: 1 }).skip(skip).limit(BATCH).toArray();
+      for (const doc of lines) {
+        const row = JSON.stringify(doc.line) + "\n";
+        ws.write(row);
+        bytes_written += Buffer.byteLength(row);
+      }
+    }
+    await new Promise((resolve, reject) => {
+      ws.end((err) => err ? reject(err) : resolve());
+    });
+    files_written++;
+  }
+  const subagentIds = await mongo.subagentLines.distinct("subagent_id", { session_id, account_id: account_id2 });
+  for (const subagent_id of subagentIds) {
+    const lines = await mongo.subagentLines.find({ session_id, subagent_id, account_id: account_id2 }, { projection: { _id: 0, line: 1 } }).sort({ seq: 1 }).toArray();
+    const content = lines.map((d) => JSON.stringify(d.line)).join("\n") + "\n";
+    writeFileSync(join2(subagentsDir, `${subagent_id}.jsonl`), content);
+    bytes_written += Buffer.byteLength(content);
+    files_written++;
+  }
+  const blobs = await mongo.blobs.find({ session_id, account_id: account_id2 }).toArray();
+  const seenBlobTypes = /* @__PURE__ */ new Set();
+  for (const blobDoc of blobs) {
+    const b = blobDoc;
+    const blobType = b.blob_type;
+    const name = b.name;
+    const content = b.content;
+    const encoding = b.encoding;
+    seenBlobTypes.add(blobType);
+    let outPath;
+    if (blobType === "subagent-meta") outPath = join2(subagentsDir, name);
+    else if (blobType === "tool-result") outPath = join2(toolResultsDir, name);
+    else if (blobType === "file-history") outPath = join2(sessionFhDir, name);
+    else continue;
+    const buf = encoding === "base64" ? Buffer.from(content, "base64") : Buffer.from(content, "utf8");
+    writeFileSync(outPath, buf);
+    bytes_written += buf.length;
+    files_written++;
+  }
+  for (const expected of ["subagent-meta", "tool-result", "file-history"]) {
+    if (!seenBlobTypes.has(expected)) missing.push(expected);
+  }
+  return { files_written, bytes_written, missing };
 }
 
 // src/mcp.ts
@@ -32291,6 +32394,8 @@ async function handleToolCall(name, args, meta, notify) {
       return searchCommands(args);
     case "read_transcript":
       return readTranscript(args, meta?.progressToken, notify);
+    case "restore_session":
+      return restoreSession(args, account_id, await getMongo(), config.fileHistoryDir);
     default:
       throw new Error(`unknown tool: ${name}`);
   }

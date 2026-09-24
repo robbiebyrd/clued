@@ -32004,7 +32004,11 @@ async function createClient({ mongoUrl, dbName }) {
     db.collection("sessions").createIndex({ account_id: 1, git_origin: 1 }),
     db.collection("sessions").createIndex({ account_id: 1, git_origin: 1, git_branch: 1 }),
     db.collection("hook_events").createIndex({ account_id: 1, session_id: 1, created_at: -1 }),
-    db.collection("transcript_lines").createIndex({ account_id: 1, session_id: 1, seq: 1 })
+    db.collection("transcript_lines").createIndex({ account_id: 1, session_id: 1, seq: 1 }),
+    db.collection("subagent_lines").createIndex({ session_id: 1, subagent_id: 1, seq: 1 }, { unique: true }),
+    db.collection("subagent_lines").createIndex({ account_id: 1, session_id: 1, subagent_id: 1, seq: 1 }),
+    db.collection("blobs").createIndex({ session_id: 1, blob_type: 1, name: 1 }, { unique: true }),
+    db.collection("blobs").createIndex({ account_id: 1, session_id: 1, blob_type: 1 })
   ]);
   for (const r of results) {
     if (r.status === "rejected") console.error("clued: index warning:", r.reason.message);
@@ -32014,6 +32018,8 @@ async function createClient({ mongoUrl, dbName }) {
     sessions: db.collection("sessions"),
     hookEvents: db.collection("hook_events"),
     transcriptLines: db.collection("transcript_lines"),
+    subagentLines: db.collection("subagent_lines"),
+    blobs: db.collection("blobs"),
     close: () => client.close()
   };
 }
@@ -32029,6 +32035,7 @@ var DEFAULTS = {
   port: 8085,
   mcpPort: 8086,
   projectsDir: join(homedir(), ".claude", "projects"),
+  fileHistoryDir: join(homedir(), ".claude", "file-history"),
   disabledEnrichers: [],
   claudeAppConfigPath: join(homedir(), "Library", "Application Support", "Claude", "config.json"),
   walPath: join(homedir(), ".claude", "plugins", "data", "clued", "events.wal")
@@ -32048,8 +32055,10 @@ function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
   if (process.env.CLUED_PORT) cfg.port = parseInt(process.env.CLUED_PORT, 10);
   if (process.env.CLUED_MCP_PORT) cfg.mcpPort = parseInt(process.env.CLUED_MCP_PORT, 10);
   if (process.env.CLUED_PROJECTS_DIR) cfg.projectsDir = process.env.CLUED_PROJECTS_DIR;
+  if (process.env.CLUED_FILE_HISTORY_DIR) cfg.fileHistoryDir = process.env.CLUED_FILE_HISTORY_DIR;
   if (process.env.CLUED_CLAUDE_APP_CONFIG_PATH) cfg.claudeAppConfigPath = process.env.CLUED_CLAUDE_APP_CONFIG_PATH;
   cfg.projectsDir = expandHome(cfg.projectsDir);
+  cfg.fileHistoryDir = expandHome(cfg.fileHistoryDir);
   cfg.mongoUrl = expandHome(cfg.mongoUrl);
   cfg.claudeAppConfigPath = expandHome(cfg.claudeAppConfigPath);
   cfg.walPath = process.env.CLUED_WAL_PATH ?? join(dirname(configPath), "events.wal");
