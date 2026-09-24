@@ -4,7 +4,7 @@ import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { tmpdir } from 'os';
-import { execFileSync, execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const ROOT            = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTER_HOOKS  = join(ROOT, 'hooks/register-hooks');
@@ -47,8 +47,8 @@ test('register-hooks points to correct absolute paths', () => {
   assert.equal(relayCmd, join(HOOKS_DIR, 'event-relay'));
 
   const sessionCmds = hooks['SessionStart'][0].hooks.map(h => h.command);
-  assert.ok(sessionCmds.some(c => /check-setup$/.test(c)), 'check-setup missing from SessionStart');
-  assert.ok(sessionCmds.some(c => /session-start$/.test(c)), 'session-start missing from SessionStart');
+  assert.ok(sessionCmds.some(c => c.endsWith('check-setup')), 'check-setup missing from SessionStart');
+  assert.ok(sessionCmds.some(c => c.endsWith('session-start')), 'session-start missing from SessionStart');
 });
 
 test('register-hooks is idempotent — no duplicate entries', () => {
