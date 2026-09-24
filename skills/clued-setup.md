@@ -256,11 +256,16 @@ Replace `/path/to/clued` with the actual repo path. Skip this for normal install
 
 ## Step 6 — MCP server (no action needed)
 
-The plugin ships a `.mcp.json` and the `session-start` hook rewrites it with the
-absolute path to `dist/mcp.mjs` on every session start. Claude Code reads the file
-at startup and spawns the MCP server as a child process over stdio — no settings
-edit is required. **MCP tools appear in the next fresh session** (a new Claude Code
-window or `exit` + reopen); `/reload-plugins` alone is not sufficient.
+The plugin ships a `.mcp.json` that tells Claude Code to run:
+
+```
+npx -y @robbiebyrd/clued --stdio
+```
+
+Claude Code reads this at startup and spawns the MCP server as a stdio child
+process — no settings edit is required. **MCP tools appear in the next fresh
+session** (a new Claude Code window or `exit` + reopen); `/reload-plugins` alone
+is not sufficient.
 
 If an older setup left a `mcpServers.clued` SSE entry in `~/.claude/settings.json`,
 remove it to avoid a conflicting stale connection:

@@ -1,6 +1,6 @@
 {
   "clued": {
-    "command": "node",
-    "args": ["/Users/robbiebyrd/Projects/clued/dist/mcp.mjs", "--stdio"]
+    "command": "npx",
+    "args": ["-y", "@robbiebyrd/clued", "--stdio"]
   }
 }

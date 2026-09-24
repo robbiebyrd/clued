@@ -27,18 +27,6 @@ mcp_ok() {
   curl -sf --max-time 1 "http://127.0.0.1:${MCP_PORT}/health" &>/dev/null
 }
 
-# Write .mcp.json with the actual absolute plugin path so Claude Code can
-# spawn the stdio MCP without needing ${CLAUDE_PLUGIN_ROOT} to be expanded.
-# This runs on every session start so the path stays current.
-cat > "${PLUGIN_ROOT}/.mcp.json" << MCPEOF
-{
-  "clued": {
-    "command": "node",
-    "args": ["${PLUGIN_ROOT}/dist/mcp.mjs", "--stdio"]
-  }
-}
-MCPEOF
-
 # When devRepoPath is set, sync built binaries. Only restart servers if dist
 # files changed — restarting breaks Claude Code's MCP connection.
 if [[ -n "$DEV_REPO" && -d "$DEV_REPO/dist" ]]; then
