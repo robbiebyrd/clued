@@ -16,12 +16,6 @@ else
   MCP_PORT=$DEFAULT_MCP_PORT
 fi
 
-# When devRepoPath is set in config, sync the latest built binaries into this
-# plugin installation so the running processes always match the dev build.
-if [[ -n "$DEV_REPO" && -d "$DEV_REPO/dist" ]]; then
-  rsync -a "$DEV_REPO/dist/" "${PLUGIN_ROOT}/dist/" 2>/dev/null || \
-    cp -R "$DEV_REPO/dist/." "${PLUGIN_ROOT}/dist/"
-fi
 PORT="${CLUED_PORT:-$PORT}"
 MCP_PORT="${CLUED_MCP_PORT:-$MCP_PORT}"
 
@@ -32,6 +26,16 @@ daemon_ok() {
 mcp_ok() {
   curl -sf --max-time 1 "http://127.0.0.1:${MCP_PORT}/health" &>/dev/null
 }
+
+# When devRepoPath is set, sync the latest built binaries and force-restart
+# servers so Claude Code always connects to the up-to-date build.
+if [[ -n "$DEV_REPO" && -d "$DEV_REPO/dist" ]]; then
+  rsync -a "$DEV_REPO/dist/" "${PLUGIN_ROOT}/dist/" 2>/dev/null || \
+    cp -R "$DEV_REPO/dist/." "${PLUGIN_ROOT}/dist/"
+  kill "$(lsof -ti :${PORT})"    2>/dev/null || true
+  kill "$(lsof -ti :${MCP_PORT})" 2>/dev/null || true
+  sleep 0.5
+fi
 
 if ! daemon_ok; then
   node "${PLUGIN_ROOT}/dist/daemon.mjs" &>/dev/null &

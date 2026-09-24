@@ -244,6 +244,16 @@ cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
 EOF
 ```
 
+**For plugin developers only** — if this machine is the clued development repo, also add `devRepoPath` so session-start always syncs and force-restarts servers from the latest build:
+
+```bash
+jq '.devRepoPath = "/path/to/clued"' \
+  ~/.claude/plugins/data/clued/config.json > /tmp/clued.tmp && \
+  mv /tmp/clued.tmp ~/.claude/plugins/data/clued/config.json
+```
+
+Replace `/path/to/clued` with the actual repo path. Skip this for normal installations.
+
 ## Step 6 — Register MCP server in Claude settings
 
 Read `~/.claude/settings.json` and merge in the `clued` MCP server entry. Use `jq`
