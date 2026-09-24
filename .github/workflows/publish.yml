@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write   # required for --provenance
+      id-token: write   # required for OIDC trusted publishing
     steps:
       - uses: actions/checkout@v4
 
@@ -21,10 +21,11 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
 
+      - run: npm install -g npm@latest   # OIDC publishing requires npm >= 11.5.1
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm run build
 
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish --access public
+        # No NODE_AUTH_TOKEN needed — authenticated via GitHub OIDC trusted publisher
