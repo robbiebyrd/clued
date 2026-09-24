@@ -1,15 +1,19 @@
 {
   "name": "@robbiebyrd/clued",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "packageManager": "pnpm@10.26.0",
   "description": "Claude Code plugin — mirrors session data to MongoDB",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/robbiebyrd/clued.git"
+  },
   "bin": {
-    "clued": "./bin/clued.js"
+    "clued": "./bin/clued.cjs"
   },
   "files": [
     "dist/mcp.mjs",
-    "bin/clued.js"
+    "bin/clued.cjs"
   ],
   "scripts": {
     "build": "node --import tsx/esm src/build.ts",
