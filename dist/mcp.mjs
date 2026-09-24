@@ -31986,6 +31986,7 @@ var require_lib3 = __commonJS({
 // src/mcp.ts
 import http from "http";
 import { randomUUID } from "crypto";
+import { createInterface } from "readline";
 
 // src/config.ts
 import { readFileSync } from "fs";
@@ -32023,6 +32024,91 @@ function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
   cfg.claudeAppConfigPath = expandHome(cfg.claudeAppConfigPath);
   cfg.walPath = process.env.CLUED_WAL_PATH ?? join(dirname(configPath), "events.wal");
   return cfg;
+}
+
+// src/mcp-protocol.ts
+var SUPPORTED_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
+var DEFAULT_PROTOCOL_VERSION = "2025-06-18";
+var SERVER_INFO = { name: "clued", version: "1.0.0" };
+var TOOLS = [
+  {
+    name: "find_sessions",
+    description: "Find previous Claude Code sessions, newest first. Filters match (case-insensitive regex) against project path, cwd, and git origin.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Regex matched against the session project path" },
+        git_origin: { type: "string", description: "Regex matched against the git remote origin URL" },
+        query: { type: "string", description: "Regex matched against project path or cwd" },
+        limit: { type: "number", description: "Max sessions to return (default 10, max 500)" }
+      }
+    }
+  },
+  {
+    name: "get_session_context",
+    description: "Summarise one session: metadata, its most recent distinct Bash commands, and the first/last transcript lines.",
+    inputSchema: {
+      type: "object",
+      properties: { session_id: { type: "string" } },
+      required: ["session_id"]
+    }
+  },
+  {
+    name: "search_commands",
+    description: "Search Bash commands run in previous sessions, newest first.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        pattern: { type: "string", description: "Case-insensitive regex matched against the command" },
+        session_id: { type: "string", description: "Restrict to one session" },
+        git_origin: { type: "string", description: "Restrict to sessions whose git origin matches this regex" },
+        limit: { type: "number", description: "Max commands to return (default 20, max 500)" }
+      },
+      required: ["pattern"]
+    }
+  },
+  {
+    name: "read_transcript",
+    description: "Read transcript lines of a session in order, paginated by offset/limit.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        session_id: { type: "string" },
+        offset: { type: "number", description: "Line offset (default 0)" },
+        limit: { type: "number", description: "Lines to return (default 200, max 500)" }
+      },
+      required: ["session_id"]
+    }
+  }
+];
+async function dispatch(rpc, callTool) {
+  const { id, method, params = {} } = rpc;
+  if (id === void 0 || id === null) return void 0;
+  const ok = (result) => ({ jsonrpc: "2.0", id, result });
+  switch (method) {
+    case "initialize": {
+      const requested = params.protocolVersion;
+      const protocolVersion = requested && SUPPORTED_PROTOCOL_VERSIONS.includes(requested) ? requested : DEFAULT_PROTOCOL_VERSION;
+      return ok({ protocolVersion, capabilities: { tools: {} }, serverInfo: SERVER_INFO });
+    }
+    case "ping":
+      return ok({});
+    case "tools/list":
+      return ok({ tools: TOOLS });
+    case "tools/call":
+      try {
+        const result = await callTool(
+          params.name,
+          params.arguments || {},
+          params._meta || {}
+        );
+        return ok({ content: [{ type: "text", text: JSON.stringify(result) }] });
+      } catch (e) {
+        return { jsonrpc: "2.0", id, error: { code: -32e3, message: e.message } };
+      }
+    default:
+      return { jsonrpc: "2.0", id, error: { code: -32601, message: `method not found: ${method}` } };
+  }
 }
 
 // src/mongo.ts
@@ -32084,8 +32170,8 @@ function sseWrite(res, data) {
 
 `);
 }
-function pushProgress(res, progressToken, progress, total) {
-  sseWrite(res, {
+function pushProgress(notify, progressToken, progress, total) {
+  notify({
     jsonrpc: "2.0",
     method: "notifications/progress",
     params: { progressToken, progress, total }
@@ -32167,7 +32253,7 @@ async function getSessionContext({ session_id }) {
     last_lines
   };
 }
-async function readTranscript({ session_id, offset = 0, limit = 200 }, progressToken, sseRes) {
+async function readTranscript({ session_id, offset = 0, limit = 200 }, progressToken, notify) {
   limit = Math.min(limit, MAX_LIMIT);
   const session = await mongo.sessions.findOne({ session_id, account_id });
   if (!session) throw new Error("session not found");
@@ -32178,108 +32264,14 @@ async function readTranscript({ session_id, offset = 0, limit = 200 }, progressT
     const batchLimit = Math.min(BATCH, offset + limit - batchStart);
     const lines = await mongo.transcriptLines.find({ session_id, account_id }, { projection: { _id: 0 } }).sort({ seq: 1 }).skip(batchStart).limit(batchLimit).toArray();
     allLines.push(...lines);
-    if (progressToken !== void 0 && sseRes && lines.length > 0) {
-      pushProgress(sseRes, progressToken, allLines.length, total);
+    if (progressToken !== void 0 && notify && lines.length > 0) {
+      pushProgress(notify, progressToken, allLines.length, total);
     }
     if (lines.length < batchLimit) break;
   }
   return allLines;
 }
-var TOOLS = [
-  {
-    name: "find_sessions",
-    description: "Find Claude Code sessions by project path, git origin, or keyword.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        project_path: { type: "string", description: "Filter by project path (regex, case-insensitive)" },
-        git_origin: { type: "string", description: "Filter by git remote origin (regex, case-insensitive)" },
-        query: { type: "string", description: "Keyword search across project_path and cwd" },
-        limit: { type: "number", description: "Max results (default 10)" }
-      }
-    }
-  },
-  {
-    name: "get_session_context",
-    description: "Get session metadata, top bash commands, and first/last transcript lines for a session.",
-    inputSchema: {
-      type: "object",
-      required: ["session_id"],
-      properties: {
-        session_id: { type: "string", description: "Session ID to look up" }
-      }
-    }
-  },
-  {
-    name: "search_commands",
-    description: "Search bash commands across sessions by regex pattern.",
-    inputSchema: {
-      type: "object",
-      required: ["pattern"],
-      properties: {
-        pattern: { type: "string", description: "Regex pattern matched against command strings" },
-        session_id: { type: "string", description: "Limit to a specific session" },
-        git_origin: { type: "string", description: "Limit to sessions matching this git origin (regex)" },
-        limit: { type: "number", description: "Max results (default 20)" }
-      }
-    }
-  },
-  {
-    name: "read_transcript",
-    description: "Read transcript lines from a session with pagination and optional progress streaming.",
-    inputSchema: {
-      type: "object",
-      required: ["session_id"],
-      properties: {
-        session_id: { type: "string", description: "Session ID" },
-        offset: { type: "number", description: "Starting line index (default 0)" },
-        limit: { type: "number", description: "Lines to return (default 200, max 500)" }
-      }
-    }
-  }
-];
-async function handleRpc(method, params, id, sseRes) {
-  if (method === "initialize") {
-    sseWrite(sseRes, {
-      jsonrpc: "2.0",
-      id,
-      result: {
-        protocolVersion: "2024-11-05",
-        capabilities: { tools: {} },
-        serverInfo: { name: "clued", version: "1.0.0" }
-      }
-    });
-    return;
-  }
-  if (method === "tools/list") {
-    sseWrite(sseRes, { jsonrpc: "2.0", id, result: { tools: TOOLS } });
-    return;
-  }
-  if (method === "notifications/initialized") {
-    return;
-  }
-  if (method !== "tools/call") {
-    sseWrite(sseRes, { jsonrpc: "2.0", id, result: {} });
-    return;
-  }
-  const meta = params._meta || {};
-  try {
-    const result = await handleToolCall(
-      params.name,
-      params.arguments || {},
-      meta,
-      sseRes
-    );
-    sseWrite(sseRes, {
-      jsonrpc: "2.0",
-      id,
-      result: { content: [{ type: "text", text: JSON.stringify(result) }] }
-    });
-  } catch (e) {
-    sseWrite(sseRes, { jsonrpc: "2.0", id, error: { code: -32e3, message: e.message } });
-  }
-}
-async function handleToolCall(name, args, meta, sseRes) {
+async function handleToolCall(name, args, meta, notify) {
   switch (name) {
     case "find_sessions":
       return findSessions(args);
@@ -32288,7 +32280,7 @@ async function handleToolCall(name, args, meta, sseRes) {
     case "search_commands":
       return searchCommands(args);
     case "read_transcript":
-      return readTranscript(args, meta?.progressToken, sseRes);
+      return readTranscript(args, meta?.progressToken, notify);
     default:
       throw new Error(`unknown tool: ${name}`);
   }
@@ -32337,25 +32329,51 @@ data: http://127.0.0.1:${config.mcpPort}/message?sessionId=${sessionId}
       }
       res.writeHead(202);
       res.end();
-      const { id, method, params = {} } = rpc;
-      handleRpc(method, params, id, sseRes).catch(() => {
-      });
+      const notify = (msg) => sseWrite(sseRes, msg);
+      const reply = await dispatch(rpc, (name, args, meta) => handleToolCall(name, args, meta, notify));
+      if (reply) notify(reply);
     });
     return;
   }
   res.writeHead(404);
   res.end();
 });
-server.on("error", async (e) => {
-  if (e.code === "EADDRINUSE") {
+if (process.argv.includes("--stdio")) {
+  const notify = (msg) => {
+    process.stdout.write(JSON.stringify(msg) + "\n");
+  };
+  const rl = createInterface({ input: process.stdin });
+  rl.on("line", async (line) => {
+    if (!line.trim()) return;
+    let rpc;
+    try {
+      rpc = JSON.parse(line);
+    } catch {
+      notify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error" } });
+      return;
+    }
+    const reply = await dispatch(rpc, (name, args, meta) => handleToolCall(name, args, meta, notify));
+    if (reply) notify(reply);
+  });
+  rl.on("close", async () => {
     await mongo.close();
     process.exit(0);
-  }
-  console.error("clued mcp error:", e.message);
-  await mongo.close();
-  process.exit(1);
-});
-server.listen(config.mcpPort, "127.0.0.1");
+  });
+} else {
+  startHttpServer();
+}
+function startHttpServer() {
+  server.on("error", async (e) => {
+    if (e.code === "EADDRINUSE") {
+      await mongo.close();
+      process.exit(0);
+    }
+    console.error("clued mcp error:", e.message);
+    await mongo.close();
+    process.exit(1);
+  });
+  server.listen(config.mcpPort, "127.0.0.1");
+}
 var shutdown = async () => {
   server.close();
   await mongo.close();

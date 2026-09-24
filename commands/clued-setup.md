@@ -171,14 +171,18 @@ cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
 EOF
 ```
 
-## Step 6 — Register MCP server in Claude settings
+## Step 6 — MCP server (no action needed)
 
-Read `~/.claude/settings.json`. Merge this into `mcpServers` (do not duplicate if already present):
+The plugin ships its own `.mcp.json`, so Claude Code launches the clued MCP server
+itself over stdio (`node ${CLAUDE_PLUGIN_ROOT}/dist/mcp.mjs --stdio`) — no settings
+edit is required. Its tools appear after `/reload-plugins` or in the next session.
 
-```json
-"mcpServers": {
-  "clued": { "type": "sse", "url": "http://127.0.0.1:8086/sse" }
-}
+Claude Code does not read `mcpServers` from `~/.claude/settings.json`. If an older
+setup left a `mcpServers.clued` entry there, remove it:
+
+```bash
+jq 'del(.mcpServers.clued) | if .mcpServers == {} then del(.mcpServers) else . end' \
+  ~/.claude/settings.json > ~/.claude/settings.json.tmp && mv ~/.claude/settings.json.tmp ~/.claude/settings.json
 ```
 
 ## Step 7 — Start the daemon
@@ -202,7 +206,7 @@ Most common failure: MongoDB not reachable. Confirm with `nc -z <host> <port>`.
 
 - MongoDB option and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
-- MCP server registered under `mcpServers.clued` (`http://127.0.0.1:8086/sse`)
+- MCP server provided by the plugin's `.mcp.json` (stdio) — run `/reload-plugins` to load its tools
 - Daemon on port 8085 / MCP server on port 8086 — running or failed with error
 - macOS tarball: launchd plist at `~/Library/LaunchAgents/org.mongodb.mongod.plist` auto-restarts mongod at login
 - Hooks registered automatically via `hooks.json` — no manual settings edit needed

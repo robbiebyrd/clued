@@ -24,7 +24,7 @@ Use AskUserQuestion to confirm scope before touching anything. Example options:
 
 - **Services** (always offer): stop daemon (port 8085) and MCP server (port 8086)
 - **launchd plist** (macOS, only if plist is present): unload and remove `~/Library/LaunchAgents/org.mongodb.mongod.plist`
-- **Config** (only if present): remove `~/.claude/plugins/data/clued/` and unregister `mcpServers.clued` from `~/.claude/settings.json`
+- **Config** (only if present): remove `~/.claude/plugins/data/clued/` and remove any legacy `mcpServers.clued` entry from `~/.claude/settings.json`
 - **MongoDB binaries** (only if `~/mongodb/` is present): remove the tarball install at `~/mongodb/`
   - Note: MongoDB data at `~/data/db/` contains session transcripts — offer to keep or remove separately
 - **MongoDB data** (only if `~/data/db/` exists): remove `~/data/db/` — warn that this deletes all captured session transcripts
@@ -53,7 +53,7 @@ echo "launchd plist removed"
 
 ## Step 5 — Remove config and unregister MCP (if confirmed)
 
-Read `~/.claude/settings.json`. Remove the `"clued"` key from `mcpServers` and write it back with the Edit tool. If `mcpServers` becomes empty, remove it entirely.
+The stdio MCP server is declared by the plugin's `.mcp.json` and goes away with the plugin. Older setups may have left a `"clued"` key under `mcpServers` in `~/.claude/settings.json`; if present, remove it with the Edit tool. If `mcpServers` becomes empty, remove it entirely.
 
 Then remove the config directory:
 ```bash
