@@ -32185,6 +32185,100 @@ async function readTranscript({ session_id, offset = 0, limit = 200 }, progressT
   }
   return allLines;
 }
+var TOOLS = [
+  {
+    name: "find_sessions",
+    description: "Find Claude Code sessions by project path, git origin, or keyword.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Filter by project path (regex, case-insensitive)" },
+        git_origin: { type: "string", description: "Filter by git remote origin (regex, case-insensitive)" },
+        query: { type: "string", description: "Keyword search across project_path and cwd" },
+        limit: { type: "number", description: "Max results (default 10)" }
+      }
+    }
+  },
+  {
+    name: "get_session_context",
+    description: "Get session metadata, top bash commands, and first/last transcript lines for a session.",
+    inputSchema: {
+      type: "object",
+      required: ["session_id"],
+      properties: {
+        session_id: { type: "string", description: "Session ID to look up" }
+      }
+    }
+  },
+  {
+    name: "search_commands",
+    description: "Search bash commands across sessions by regex pattern.",
+    inputSchema: {
+      type: "object",
+      required: ["pattern"],
+      properties: {
+        pattern: { type: "string", description: "Regex pattern matched against command strings" },
+        session_id: { type: "string", description: "Limit to a specific session" },
+        git_origin: { type: "string", description: "Limit to sessions matching this git origin (regex)" },
+        limit: { type: "number", description: "Max results (default 20)" }
+      }
+    }
+  },
+  {
+    name: "read_transcript",
+    description: "Read transcript lines from a session with pagination and optional progress streaming.",
+    inputSchema: {
+      type: "object",
+      required: ["session_id"],
+      properties: {
+        session_id: { type: "string", description: "Session ID" },
+        offset: { type: "number", description: "Starting line index (default 0)" },
+        limit: { type: "number", description: "Lines to return (default 200, max 500)" }
+      }
+    }
+  }
+];
+async function handleRpc(method, params, id, sseRes) {
+  if (method === "initialize") {
+    sseWrite(sseRes, {
+      jsonrpc: "2.0",
+      id,
+      result: {
+        protocolVersion: "2024-11-05",
+        capabilities: { tools: {} },
+        serverInfo: { name: "clued", version: "1.0.0" }
+      }
+    });
+    return;
+  }
+  if (method === "tools/list") {
+    sseWrite(sseRes, { jsonrpc: "2.0", id, result: { tools: TOOLS } });
+    return;
+  }
+  if (method === "notifications/initialized") {
+    return;
+  }
+  if (method !== "tools/call") {
+    sseWrite(sseRes, { jsonrpc: "2.0", id, result: {} });
+    return;
+  }
+  const meta = params._meta || {};
+  try {
+    const result = await handleToolCall(
+      params.name,
+      params.arguments || {},
+      meta,
+      sseRes
+    );
+    sseWrite(sseRes, {
+      jsonrpc: "2.0",
+      id,
+      result: { content: [{ type: "text", text: JSON.stringify(result) }] }
+    });
+  } catch (e) {
+    sseWrite(sseRes, { jsonrpc: "2.0", id, error: { code: -32e3, message: e.message } });
+  }
+}
 async function handleToolCall(name, args, meta, sseRes) {
   switch (name) {
     case "find_sessions":
@@ -32244,25 +32338,8 @@ data: http://127.0.0.1:${config.mcpPort}/message?sessionId=${sessionId}
       res.writeHead(202);
       res.end();
       const { id, method, params = {} } = rpc;
-      try {
-        if (method !== "tools/call") {
-          sseWrite(sseRes, { jsonrpc: "2.0", id, result: {} });
-          return;
-        }
-        const result = await handleToolCall(
-          params.name,
-          params.arguments || {},
-          params._meta || {},
-          sseRes
-        );
-        sseWrite(sseRes, {
-          jsonrpc: "2.0",
-          id,
-          result: { content: [{ type: "text", text: JSON.stringify(result) }] }
-        });
-      } catch (e) {
-        sseWrite(sseRes, { jsonrpc: "2.0", id, error: { code: -32e3, message: e.message } });
-      }
+      handleRpc(method, params, id, sseRes).catch(() => {
+      });
     });
     return;
   }
