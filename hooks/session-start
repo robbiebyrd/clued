@@ -27,14 +27,16 @@ mcp_ok() {
   curl -sf --max-time 1 "http://127.0.0.1:${MCP_PORT}/health" &>/dev/null
 }
 
-# When devRepoPath is set, sync the latest built binaries and force-restart
-# servers so Claude Code always connects to the up-to-date build.
+# When devRepoPath is set, sync the latest built binaries. Only restart servers
+# if files actually changed — restarting breaks Claude Code's MCP connection.
 if [[ -n "$DEV_REPO" && -d "$DEV_REPO/dist" ]]; then
-  rsync -a "$DEV_REPO/dist/" "${PLUGIN_ROOT}/dist/" 2>/dev/null || \
-    cp -R "$DEV_REPO/dist/." "${PLUGIN_ROOT}/dist/"
-  kill "$(lsof -ti :${PORT})"    2>/dev/null || true
-  kill "$(lsof -ti :${MCP_PORT})" 2>/dev/null || true
-  sleep 0.5
+  CHANGED=$(rsync -ai "$DEV_REPO/dist/" "${PLUGIN_ROOT}/dist/" 2>/dev/null | grep -v '/$')
+  if [[ -n "$CHANGED" ]]; then
+    kill "$(lsof -ti :${PORT})"     2>/dev/null || true
+    kill "$(lsof -ti :${MCP_PORT})" 2>/dev/null || true
+    sleep 0.5
+    echo "clued: dist updated — servers restarted. Relaunch Claude Code to reconnect MCP." >&2
+  fi
 fi
 
 if ! daemon_ok; then
