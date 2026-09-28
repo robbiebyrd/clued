@@ -170,6 +170,16 @@ before(async () => {
     }))
   );
 
+  // Seed subagent_lines and blobs for get_full_session tests
+  await mongo.subagentLines.insertMany([
+    { session_id: 'sess-1', account_id: TEST_ACCOUNT, subagent_id: 'agent-a', seq: 0, line: { type: 'user' }, created_at: now },
+    { session_id: 'sess-1', account_id: TEST_ACCOUNT, subagent_id: 'agent-a', seq: 1, line: { type: 'assistant' }, created_at: now },
+  ]);
+  await mongo.blobs.insertMany([
+    { session_id: 'sess-1', account_id: TEST_ACCOUNT, blob_type: 'tool-result', name: 'out.txt',
+      content: 'secret-content', encoding: 'utf8', created_at: now },
+  ]);
+
   // Cross-account isolation test data
   await mongo.sessions.insertMany([
     { session_id: 'sess-acct-1', account_id: TEST_ACCOUNT,    project_path: '/home/user/acct', started_at: now, last_seen: now },
@@ -428,7 +438,7 @@ test('initialize returns protocolVersion and server capabilities', async () => {
   assert.equal((r.serverInfo as Record<string, unknown>).name, 'clued');
 });
 
-test('tools/list returns all four tools with input schemas', async () => {
+test('tools/list returns all tools with input schemas', async () => {
   const { endpoint, emitter, close } = await openSSE();
   const pending = collectUntilResult(emitter, 201);
   await callRpc(endpoint, 201, 'tools/list', {});
@@ -440,10 +450,54 @@ test('tools/list returns all four tools with input schemas', async () => {
   const names = tools.map(t => t.name);
   assert.ok(names.includes('find_sessions'),       'missing find_sessions');
   assert.ok(names.includes('get_session_context'), 'missing get_session_context');
+  assert.ok(names.includes('get_full_session'),    'missing get_full_session');
   assert.ok(names.includes('search_commands'),     'missing search_commands');
   assert.ok(names.includes('read_transcript'),     'missing read_transcript');
   for (const tool of tools) {
     assert.equal(typeof tool.description, 'string', `${tool.name} missing description`);
     assert.ok(tool.inputSchema, `${tool.name} missing inputSchema`);
   }
+});
+
+test('get_full_session returns all sub-collections for a session', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 30);
+  await callTool(endpoint, 30, 'get_full_session', { session_id: 'sess-1' });
+  const [result] = await pending;
+  close();
+  assert.ok(result.result, `expected result, got error: ${JSON.stringify(result.error)}`);
+  const doc = JSON.parse((result.result as { content: Array<{ text: string }> }).content[0].text) as Record<string, unknown>;
+  assert.equal(doc.session_id, 'sess-1');
+  assert.equal((doc.transcript_lines as unknown[]).length, 25);
+  assert.equal((doc.subagent_lines   as unknown[]).length, 2);
+  assert.equal((doc.blobs            as unknown[]).length, 1);
+  assert.equal((doc.hook_events      as unknown[]).length, 3);
+  // blob content must be stripped
+  const blob = (doc.blobs as Array<Record<string, unknown>>)[0];
+  assert.equal(blob.content, undefined, 'blob content must not be returned');
+  assert.equal(blob.name, 'out.txt');
+  // transcript_lines sorted by seq
+  const tl = doc.transcript_lines as Array<Record<string, unknown>>;
+  assert.equal(tl[0].seq, 0);
+  assert.equal(tl[24].seq, 24);
+});
+
+test('get_full_session returns error for unknown session_id', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 31);
+  await callTool(endpoint, 31, 'get_full_session', { session_id: 'does-not-exist' });
+  const [result] = await pending;
+  close();
+  assert.ok(result.error, 'expected error response');
+  assert.equal((result.error as { message: string }).message, 'session not found');
+});
+
+test('get_full_session returns "session not found" for foreign account session', async () => {
+  const { endpoint, emitter, close } = await openSSE();
+  const pending = collectUntilResult(emitter, 32);
+  await callTool(endpoint, 32, 'get_full_session', { session_id: 'sess-acct-2' });
+  const [result] = await pending;
+  close();
+  assert.ok(result.error, 'expected error for foreign session');
+  assert.equal((result.error as { message: string }).message, 'session not found');
 });

@@ -75,6 +75,15 @@ var TOOLS = [
     }
   },
   {
+    name: "get_full_session",
+    description: "Return the complete record for one session: metadata, all transcript lines, all subagent lines, blob metadata (content excluded), and all hook events.",
+    inputSchema: {
+      type: "object",
+      properties: { session_id: { type: "string" } },
+      required: ["session_id"]
+    }
+  },
+  {
     name: "search_commands",
     description: "Search Bash commands run in previous sessions, newest first.",
     inputSchema: {
@@ -442,6 +451,12 @@ async function getSessionContext({ session_id }) {
     last_lines
   };
 }
+async function getFullSession({ session_id }) {
+  const mongo = await getMongo();
+  const doc = await mongo.sessionFull.findOne({ session_id, account_id }, { projection: { _id: 0 } });
+  if (!doc) throw new Error("session not found");
+  return doc;
+}
 async function readTranscript({ session_id, offset = 0, limit = 200 }, progressToken, notify) {
   limit = Math.min(limit, MAX_LIMIT);
   const mongo = await getMongo();
@@ -467,6 +482,8 @@ async function handleToolCall(name, args, meta, notify) {
       return findSessions(args);
     case "get_session_context":
       return getSessionContext(args);
+    case "get_full_session":
+      return getFullSession(args);
     case "search_commands":
       return searchCommands(args);
     case "read_transcript":

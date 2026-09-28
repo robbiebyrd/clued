@@ -29,6 +29,15 @@ export const TOOLS = [
     },
   },
   {
+    name: 'get_full_session',
+    description: 'Return the complete record for one session: metadata, all transcript lines, all subagent lines, blob metadata (content excluded), and all hook events.',
+    inputSchema: {
+      type: 'object',
+      properties: { session_id: { type: 'string' } },
+      required: ['session_id'],
+    },
+  },
+  {
     name: 'search_commands',
     description: 'Search Bash commands run in previous sessions, newest first.',
     inputSchema: {

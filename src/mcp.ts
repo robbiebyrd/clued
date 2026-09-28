@@ -171,6 +171,13 @@ async function getSessionContext({ session_id }: { session_id: string }) {
   };
 }
 
+async function getFullSession({ session_id }: { session_id: string }) {
+  const mongo = await getMongo();
+  const doc = await mongo.sessionFull.findOne({ session_id, account_id }, { projection: { _id: 0 } });
+  if (!doc) throw new Error('session not found');
+  return doc;
+}
+
 interface ReadTranscriptArgs { session_id: string; offset?: number; limit?: number; }
 
 async function readTranscript(
@@ -214,6 +221,7 @@ async function handleToolCall(
   switch (name) {
     case 'find_sessions':       return findSessions(args as FindSessionsArgs);
     case 'get_session_context': return getSessionContext(args as { session_id: string });
+    case 'get_full_session':    return getFullSession(args as { session_id: string });
     case 'search_commands':     return searchCommands(args as unknown as SearchCommandsArgs);
     case 'read_transcript':     return readTranscript(args as unknown as ReadTranscriptArgs, meta?.progressToken, notify);
     case 'restore_session':     return restoreSession(args as unknown as RestoreSessionArgs, account_id, await getMongo(), config.fileHistoryDir);
