@@ -8,8 +8,63 @@ export interface MongoDb {
   transcriptLines: Collection;
   subagentLines:   Collection;
   blobs:           Collection;
+  sessionFull:     Collection;
   close:           () => Promise<void>;
 }
+
+// Aggregation view that joins all sub-collections for a session into one document.
+// blob content is excluded to avoid multi-MB payloads; redundant session_id / account_id /
+// host fields are stripped from sub-arrays since they're already on the parent.
+const SESSION_FULL_PIPELINE = [
+  {
+    $lookup: {
+      from: 'transcript_lines',
+      let:  { sid: '$session_id' },
+      pipeline: [
+        { $match:  { $expr: { $eq: ['$session_id', '$$sid'] } } },
+        { $sort:   { seq: 1 } },
+        { $unset:  ['_id', 'session_id', 'account_id', 'host'] },
+      ],
+      as: 'transcript_lines',
+    },
+  },
+  {
+    $lookup: {
+      from: 'subagent_lines',
+      let:  { sid: '$session_id' },
+      pipeline: [
+        { $match:  { $expr: { $eq: ['$session_id', '$$sid'] } } },
+        { $sort:   { subagent_id: 1, seq: 1 } },
+        { $unset:  ['_id', 'session_id', 'account_id', 'host'] },
+      ],
+      as: 'subagent_lines',
+    },
+  },
+  {
+    $lookup: {
+      from: 'blobs',
+      let:  { sid: '$session_id' },
+      pipeline: [
+        { $match:  { $expr: { $eq: ['$session_id', '$$sid'] } } },
+        { $sort:   { blob_type: 1, name: 1 } },
+        { $unset:  ['_id', 'session_id', 'account_id', 'content'] },
+      ],
+      as: 'blobs',
+    },
+  },
+  {
+    $lookup: {
+      from: 'hook_events',
+      let:  { sid: '$session_id' },
+      pipeline: [
+        { $match:  { $expr: { $eq: ['$session_id', '$$sid'] } } },
+        { $sort:   { created_at: 1 } },
+        { $unset:  ['_id', 'session_id', 'account_id'] },
+      ],
+      as: 'hook_events',
+    },
+  },
+];
 
 export async function createClient({ mongoUrl, dbName }: Pick<Config, 'mongoUrl' | 'dbName'>): Promise<MongoDb> {
   const client = new MongoClient(mongoUrl);
@@ -38,6 +93,17 @@ export async function createClient({ mongoUrl, dbName }: Pick<Config, 'mongoUrl'
     if (r.status === 'rejected') console.error('clued: index warning:', (r.reason as Error).message);
   }
 
+  try {
+    await db.createCollection('session_full', { viewOn: 'sessions', pipeline: SESSION_FULL_PIPELINE });
+  } catch (e: any) {
+    if (e.code === 48) {
+      // View exists — update pipeline to pick up any changes
+      await db.command({ collMod: 'session_full', viewOn: 'sessions', pipeline: SESSION_FULL_PIPELINE });
+    } else {
+      throw e;
+    }
+  }
+
   return {
     db,
     sessions:        db.collection('sessions'),
@@ -45,6 +111,7 @@ export async function createClient({ mongoUrl, dbName }: Pick<Config, 'mongoUrl'
     transcriptLines: db.collection('transcript_lines'),
     subagentLines:   db.collection('subagent_lines'),
     blobs:           db.collection('blobs'),
+    sessionFull:     db.collection('session_full'),
     close:           () => client.close(),
   };
 }

@@ -7,6 +7,56 @@ import { fileURLToPath } from "url";
 
 // src/mongo.ts
 import { MongoClient } from "mongodb";
+var SESSION_FULL_PIPELINE = [
+  {
+    $lookup: {
+      from: "transcript_lines",
+      let: { sid: "$session_id" },
+      pipeline: [
+        { $match: { $expr: { $eq: ["$session_id", "$$sid"] } } },
+        { $sort: { seq: 1 } },
+        { $unset: ["_id", "session_id", "account_id", "host"] }
+      ],
+      as: "transcript_lines"
+    }
+  },
+  {
+    $lookup: {
+      from: "subagent_lines",
+      let: { sid: "$session_id" },
+      pipeline: [
+        { $match: { $expr: { $eq: ["$session_id", "$$sid"] } } },
+        { $sort: { subagent_id: 1, seq: 1 } },
+        { $unset: ["_id", "session_id", "account_id", "host"] }
+      ],
+      as: "subagent_lines"
+    }
+  },
+  {
+    $lookup: {
+      from: "blobs",
+      let: { sid: "$session_id" },
+      pipeline: [
+        { $match: { $expr: { $eq: ["$session_id", "$$sid"] } } },
+        { $sort: { blob_type: 1, name: 1 } },
+        { $unset: ["_id", "session_id", "account_id", "content"] }
+      ],
+      as: "blobs"
+    }
+  },
+  {
+    $lookup: {
+      from: "hook_events",
+      let: { sid: "$session_id" },
+      pipeline: [
+        { $match: { $expr: { $eq: ["$session_id", "$$sid"] } } },
+        { $sort: { created_at: 1 } },
+        { $unset: ["_id", "session_id", "account_id"] }
+      ],
+      as: "hook_events"
+    }
+  }
+];
 async function createClient({ mongoUrl, dbName }) {
   const client = new MongoClient(mongoUrl);
   await client.connect();
@@ -30,6 +80,15 @@ async function createClient({ mongoUrl, dbName }) {
   for (const r of results) {
     if (r.status === "rejected") console.error("clued: index warning:", r.reason.message);
   }
+  try {
+    await db.createCollection("session_full", { viewOn: "sessions", pipeline: SESSION_FULL_PIPELINE });
+  } catch (e) {
+    if (e.code === 48) {
+      await db.command({ collMod: "session_full", viewOn: "sessions", pipeline: SESSION_FULL_PIPELINE });
+    } else {
+      throw e;
+    }
+  }
   return {
     db,
     sessions: db.collection("sessions"),
@@ -37,6 +96,7 @@ async function createClient({ mongoUrl, dbName }) {
     transcriptLines: db.collection("transcript_lines"),
     subagentLines: db.collection("subagent_lines"),
     blobs: db.collection("blobs"),
+    sessionFull: db.collection("session_full"),
     close: () => client.close()
   };
 }

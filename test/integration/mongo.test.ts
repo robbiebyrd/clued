@@ -103,3 +103,56 @@ test('upserts transcript lines by session_id + seq', async () => {
   const count = await mongo.transcriptLines.countDocuments({ session_id: 'test-123', seq: 0 });
   assert.equal(count, 1);
 });
+
+test('session_full view joins all sub-collections for a session', async () => {
+  const SID = 'view-test-session';
+  const now = new Date();
+
+  // Seed all five collections for SID
+  await mongo.sessions.updateOne(
+    { session_id: SID },
+    { $set: { session_id: SID, cwd: '/tmp', account_id: 'acc', host: { hostname: 'h' } },
+      $setOnInsert: { started_at: now } },
+    { upsert: true },
+  );
+  await mongo.transcriptLines.insertMany([
+    { session_id: SID, seq: 1, account_id: 'acc', host: { hostname: 'h' }, line: { type: 'human' } },
+    { session_id: SID, seq: 0, account_id: 'acc', host: { hostname: 'h' }, line: { type: 'system' } },
+  ]);
+  await mongo.subagentLines.insertOne(
+    { session_id: SID, subagent_id: 'agent-x', seq: 0, account_id: 'acc', host: { hostname: 'h' }, line: {} },
+  );
+  await mongo.blobs.insertOne(
+    { session_id: SID, blob_type: 'tool-result', name: 'out.txt', account_id: 'acc', content: 'secret', encoding: 'utf8', created_at: now },
+  );
+  await mongo.hookEvents.insertOne(
+    { session_id: SID, hook_event_name: 'PreToolUse', account_id: 'acc', created_at: now },
+  );
+
+  const doc = await mongo.sessionFull.findOne({ session_id: SID }) as Record<string, unknown> | null;
+  assert.ok(doc, 'session_full returned no document');
+
+  // transcript_lines sorted by seq, redundant fields stripped
+  const tl = doc.transcript_lines as Record<string, unknown>[];
+  assert.equal(tl.length, 2);
+  assert.equal((tl[0] as Record<string, unknown>).seq, 0, 'transcript_lines not sorted by seq');
+  assert.equal((tl[0] as Record<string, unknown>).session_id, undefined, 'session_id should be stripped');
+  assert.equal((tl[0] as Record<string, unknown>).account_id, undefined, 'account_id should be stripped');
+  assert.equal((tl[0] as Record<string, unknown>).host, undefined, 'host should be stripped');
+
+  // subagent_lines present
+  const sl = doc.subagent_lines as Record<string, unknown>[];
+  assert.equal(sl.length, 1);
+  assert.equal((sl[0] as Record<string, unknown>).subagent_id, 'agent-x');
+
+  // blobs present but content stripped
+  const blobs = doc.blobs as Record<string, unknown>[];
+  assert.equal(blobs.length, 1);
+  assert.equal((blobs[0] as Record<string, unknown>).name, 'out.txt');
+  assert.equal((blobs[0] as Record<string, unknown>).content, undefined, 'blob content must be stripped');
+
+  // hook_events present
+  const he = doc.hook_events as Record<string, unknown>[];
+  assert.equal(he.length, 1);
+  assert.equal((he[0] as Record<string, unknown>).hook_event_name, 'PreToolUse');
+});
