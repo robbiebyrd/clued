@@ -75,7 +75,7 @@ func TestRESTFlow(t *testing.T) {
 		t.Fatalf("create: %d %s", code, raw)
 	}
 	var plan struct {
-		Path        string `json:"path"`
+		Path        string                      `json:"path"`
 		FrontMatter struct{ ID, Status string } `json:"frontMatter"`
 	}
 	json.Unmarshal(env.Result, &plan)

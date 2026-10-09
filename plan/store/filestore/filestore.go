@@ -147,6 +147,7 @@ func (s *Store) ListPlans(context.Context) ([]*model.Plan, error) {
 		}
 		out = append(out, p)
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID() < out[j].ID() })
 	return out, nil
 }
 

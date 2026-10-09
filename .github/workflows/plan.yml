@@ -1,0 +1,31 @@
+name: Plan service
+
+on:
+  push:
+    paths:
+      - 'plan/**'
+      - '.github/workflows/plan.yml'
+  pull_request:
+    paths:
+      - 'plan/**'
+      - '.github/workflows/plan.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: plan/go.mod
+          cache-dependency-path: plan/go.sum
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test ./...

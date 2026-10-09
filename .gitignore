@@ -2,3 +2,5 @@ node_modules/
 .worktrees/
 .remember
 .orphaned_at
+plan/plan
+plan/cmd/plan/plan
