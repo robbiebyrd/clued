@@ -58,3 +58,20 @@ func TestSectionNumbers(t *testing.T) {
 		t.Error("broken template should fail")
 	}
 }
+
+func TestRenderPreservesBodyWhitespace(t *testing.T) {
+	body := Body{Summary: Summary{Goal: "line one  \nline two", Problem: "Intro\n\n```\ncode\n\n\n  indented  \n```"}}
+	out, err := Render(DefaultTemplate(), Data{Title: "T", Body: body})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "line one  \nline two") {
+		t.Errorf("hard break lost:\n%q", out)
+	}
+	if !strings.Contains(out, "```\ncode\n\n\n  indented  \n```") {
+		t.Errorf("code block changed:\n%q", out)
+	}
+	if strings.Contains(strings.SplitN(out, "```", 2)[0], "\n\n\n") {
+		t.Errorf("template blank lines not collapsed outside fences:\n%q", out)
+	}
+}

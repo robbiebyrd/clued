@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+
+	"github.com/robbiebyrd/clued/plan/markdown"
 )
 
 //go:embed default.md.tmpl
@@ -197,13 +199,15 @@ func Render(text string, data Data) (string, error) {
 	return tidy(buf.String()), nil
 }
 
-// tidy collapses runs of more than one blank line and ensures a trailing newline.
+// tidy collapses runs of more than one blank line outside fenced code blocks
+// (template conditionals leave them behind) and ensures a trailing newline.
+// Lines are otherwise left as supplied, so hard breaks (trailing spaces) and
+// code samples in body Markdown survive unchanged.
 func tidy(s string) string {
-	lines := strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n")
 	var out []string
 	blank := 0
-	for _, l := range lines {
-		if strings.TrimSpace(l) == "" {
+	for _, l := range markdown.Lines(strings.ReplaceAll(s, "\r\n", "\n")) {
+		if !l.InFence && strings.TrimSpace(l.Text) == "" {
 			blank++
 			if blank > 1 {
 				continue
@@ -212,7 +216,7 @@ func tidy(s string) string {
 			continue
 		}
 		blank = 0
-		out = append(out, strings.TrimRight(l, " \t"))
+		out = append(out, l.Text)
 	}
 	res := strings.TrimLeft(strings.Join(out, "\n"), "\n")
 	res = strings.TrimRight(res, "\n") + "\n"

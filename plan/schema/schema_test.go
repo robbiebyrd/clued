@@ -32,10 +32,19 @@ func TestValidateCreate(t *testing.T) {
 		t.Errorf("dsgn should validate: %v", p)
 	}
 	impl := load(t, "../testdata/create-impl.json")
-	// Raw input uses synonyms; before normalisation it must fail on status/priority/effort.
+	// Raw input uses synonyms; before normalisation each of status, priority
+	// and effort must be reported.
 	p := v.ValidateCreate(impl)
-	if len(p) == 0 {
-		t.Fatal("un-normalised impl input should fail")
+	for _, field := range []string{"/frontMatter/status", "/frontMatter/priority", "/frontMatter/effort"} {
+		found := false
+		for _, s := range p {
+			if strings.HasPrefix(s, field+":") {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("un-normalised input should report %s, got %v", field, p)
+		}
 	}
 	fm := impl["frontMatter"].(map[string]any)
 	fm["status"], fm["priority"], fm["effort"] = "ready", "2", "M"

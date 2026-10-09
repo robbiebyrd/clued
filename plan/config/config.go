@@ -4,11 +4,14 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -25,6 +28,9 @@ const DefaultStatus = "pending"
 const (
 	EnvConfig = "PLAN_CONFIG"
 )
+
+// typeNameRe is the shape a plan type must have to fit in a file name.
+var typeNameRe = regexp.MustCompile(`^[a-z0-9]{2,8}$`)
 
 // DefaultConfigFiles are looked up in the working directory, in order.
 var DefaultConfigFiles = []string{"plan.config.yaml", "plan.config.yml", "plan.config.json", ".plan.yaml", ".plan.json"}
@@ -187,11 +193,15 @@ func (c *Config) Overlay(data []byte, ext string) error {
 	var fc fileConfig
 	switch strings.ToLower(ext) {
 	case ".json":
-		if err := json.Unmarshal(data, &fc); err != nil {
+		dec := json.NewDecoder(bytes.NewReader(data))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&fc); err != nil {
 			return err
 		}
 	default:
-		if err := yaml.Unmarshal(data, &fc); err != nil {
+		dec := yaml.NewDecoder(bytes.NewReader(data))
+		dec.KnownFields(true)
+		if err := dec.Decode(&fc); err != nil && !errors.Is(err, io.EOF) {
 			return err
 		}
 	}
@@ -234,7 +244,7 @@ func (c *Config) Validate() error {
 		errs = append(errs, errors.New("at least one plan type is required"))
 	}
 	for _, t := range c.Types {
-		if t.Name == "" || strings.ToLower(t.Name) != t.Name || len(t.Name) < 2 || len(t.Name) > 8 {
+		if !typeNameRe.MatchString(t.Name) {
 			errs = append(errs, fmt.Errorf("plan type %q must be 2–8 lowercase alphanumerics", t.Name))
 		}
 	}
@@ -368,21 +378,36 @@ func (c *Config) NormalizeType(in string) (string, bool) {
 	return "", false
 }
 
-// NormalizePriority maps a number ("1", 1) or label ("P1", "Critical") to the value.
-func (c *Config) NormalizePriority(in any) (string, bool) {
-	var s string
+// scalarString renders a string or integral number as text; fractional
+// numbers and other types are rejected.
+func scalarString(in any) (string, bool) {
 	switch v := in.(type) {
 	case string:
-		s = v
+		return v, true
 	case float64:
-		s = fmt.Sprintf("%d", int(v))
+		if v != float64(int64(v)) {
+			return "", false
+		}
+		return fmt.Sprintf("%d", int64(v)), true
+	case float32:
+		if v != float32(int64(v)) {
+			return "", false
+		}
+		return fmt.Sprintf("%d", int64(v)), true
 	case int:
-		s = fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), true
 	case int64:
-		s = fmt.Sprintf("%d", v)
+		return fmt.Sprintf("%d", v), true
 	case json.Number:
-		s = v.String()
-	default:
+		return v.String(), true
+	}
+	return "", false
+}
+
+// NormalizePriority maps a number ("1", 1) or label ("P1", "Critical") to the value.
+func (c *Config) NormalizePriority(in any) (string, bool) {
+	s, ok := scalarString(in)
+	if !ok {
 		return "", false
 	}
 	n := norm(s)
@@ -403,19 +428,8 @@ func (c *Config) NormalizePriority(in any) (string, bool) {
 
 // NormalizeEffort maps a size ("M"), label ("Medium") or points ("5", 5) to the size.
 func (c *Config) NormalizeEffort(in any) (string, bool) {
-	var s string
-	switch v := in.(type) {
-	case string:
-		s = v
-	case float64:
-		s = fmt.Sprintf("%d", int(v))
-	case int:
-		s = fmt.Sprintf("%d", v)
-	case int64:
-		s = fmt.Sprintf("%d", v)
-	case json.Number:
-		s = v.String()
-	default:
+	s, ok := scalarString(in)
+	if !ok {
 		return "", false
 	}
 	n := norm(s)

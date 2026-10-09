@@ -4,7 +4,9 @@ package markdown
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 
@@ -19,7 +21,10 @@ const delimiter = "---"
 func Split(doc string) (frontMatter, content string, err error) {
 	s := strings.ReplaceAll(doc, "\r\n", "\n")
 	s = strings.TrimPrefix(s, "\xEF\xBB\xBF")
-	if !strings.HasPrefix(s, delimiter+"\n") && s != delimiter {
+	if !strings.HasPrefix(s, delimiter+"\n") {
+		if s == delimiter {
+			return "", "", fmt.Errorf("front matter block is not closed")
+		}
 		return "", "", fmt.Errorf("document does not start with a front matter block")
 	}
 	rest := s[len(delimiter)+1:]
@@ -70,7 +75,7 @@ func ParseFrontMatter(raw string) (model.FrontMatter, error) {
 	var fm model.FrontMatter
 	dec := yaml.NewDecoder(strings.NewReader(raw))
 	dec.KnownFields(true)
-	if err := dec.Decode(&fm); err != nil && !strings.Contains(err.Error(), "EOF") {
+	if err := dec.Decode(&fm); err != nil && !errors.Is(err, io.EOF) {
 		return fm, fmt.Errorf("front matter: %w", err)
 	}
 	return fm, nil
@@ -112,7 +117,7 @@ var (
 	h1Re = regexp.MustCompile(`(?m)^#[ \t]+(.*?)[ \t]*#*[ \t]*$`)
 	// numberedHeadingRe matches "## Phase 1: Name", "### 1.1: Section", "## 2. Name", "### 3.2 Name".
 	numberedHeadingRe = regexp.MustCompile(`(?m)^#{1,6}[ \t]+(?:[Pp]hase[ \t]+|[Ss]ection[ \t]+)?([0-9]+(?:\.[0-9]+)*)(?:[:.\-–—)][ \t]*|[ \t]+|$)`)
-	fenceRe           = regexp.MustCompile(`^(\x60{3,}|~{3,})`)
+	fenceRe           = regexp.MustCompile(`^[ ]{0,3}(\x60{3,}|~{3,})(.*)$`)
 )
 
 // FirstH1 returns the first level-1 heading text, if any.
@@ -127,19 +132,18 @@ func FirstH1(content string) (string, bool) {
 
 // SetH1 rewrites the first H1 to the title, or prepends one.
 func SetH1(content, title string) string {
-	lines := strings.Split(content, "\n")
-	inFence := false
+	lines := Lines(content)
 	for i, l := range lines {
-		if fenceRe.MatchString(strings.TrimSpace(l)) {
-			inFence = !inFence
+		if l.InFence {
 			continue
 		}
-		if inFence {
-			continue
-		}
-		if h1Re.MatchString(l) {
-			lines[i] = "# " + title
-			return strings.Join(lines, "\n")
+		if h1Re.MatchString(l.Text) {
+			out := make([]string, len(lines))
+			for j, x := range lines {
+				out[j] = x.Text
+			}
+			out[i] = "# " + title
+			return strings.Join(out, "\n")
 		}
 	}
 	heading := "# " + title + "\n\n"
@@ -172,6 +176,40 @@ func HasSection(content, number string) bool {
 	return false
 }
 
+// Line is one line of content with its fenced-code-block state.
+type Line struct {
+	Text string
+	// InFence is true for lines inside a fenced code block, fences included.
+	InFence bool
+}
+
+// Lines splits content into lines and marks those inside fenced code blocks.
+// A fence opens with three or more backticks or tildes and closes only on a
+// fence of the same character that is at least as long and carries no info
+// string (CommonMark rules), so a shorter or different fence inside a block
+// does not end it.
+func Lines(content string) []Line {
+	var out []Line
+	var fenceChar byte
+	fenceLen := 0
+	for _, l := range strings.Split(content, "\n") {
+		if fenceLen == 0 {
+			if m := fenceRe.FindStringSubmatch(l); m != nil {
+				fenceChar, fenceLen = m[1][0], len(m[1])
+				out = append(out, Line{Text: l, InFence: true})
+				continue
+			}
+			out = append(out, Line{Text: l})
+			continue
+		}
+		out = append(out, Line{Text: l, InFence: true})
+		if m := fenceRe.FindStringSubmatch(l); m != nil && m[1][0] == fenceChar && len(m[1]) >= fenceLen && strings.TrimSpace(m[2]) == "" {
+			fenceLen = 0
+		}
+	}
+	return out
+}
+
 type line struct {
 	text string
 }
@@ -179,16 +217,10 @@ type line struct {
 // contentLines yields lines outside fenced code blocks.
 func contentLines(content string) []line {
 	var out []line
-	inFence := false
-	for _, l := range strings.Split(content, "\n") {
-		if fenceRe.MatchString(strings.TrimSpace(l)) {
-			inFence = !inFence
-			continue
+	for _, l := range Lines(content) {
+		if !l.InFence {
+			out = append(out, line{text: l.Text})
 		}
-		if inFence {
-			continue
-		}
-		out = append(out, line{text: l})
 	}
 	return out
 }

@@ -79,3 +79,45 @@ func TestHeadings(t *testing.T) {
 	}
 	_ = model.FileNameRe
 }
+
+func TestSplitEdgeCases(t *testing.T) {
+	if _, _, err := Split("---"); err == nil {
+		t.Error("delimiter-only document must not panic or parse")
+	}
+	if _, _, err := Split("---\n"); err == nil {
+		t.Error("open delimiter only must fail")
+	}
+	if _, err := ParseFrontMatter("id: [unclosed"); err == nil {
+		t.Error("corrupt YAML must be reported")
+	}
+	if fm, err := ParseFrontMatter(""); err != nil || fm.ID != "" {
+		t.Errorf("empty front matter: %v", err)
+	}
+	if _, err := ParseFrontMatter("bogus: 1"); err == nil {
+		t.Error("unknown front matter field must be reported")
+	}
+}
+
+func TestFenceMatching(t *testing.T) {
+	content := "# Title\n\n````md\n```\n# inner one\n### 7.1: inner\n```\n~~~\n# inner two\n````\n\n## Phase 1: Real\n\n~~~\n# inner three\n``` \n~~~\n"
+	h1, _ := FirstH1(content)
+	if h1 != "Title" {
+		t.Errorf("h1 = %q", h1)
+	}
+	if got := SectionNumbers(content); strings.Join(got, ",") != "1" {
+		t.Errorf("sections = %v", got)
+	}
+	out := SetH1(content, "New")
+	if strings.Count(out, "# inner") != 3 || !strings.HasPrefix(out, "# New\n") {
+		t.Errorf("SetH1 touched fenced content:\n%s", out)
+	}
+	// A closing fence with an info string does not close the block.
+	content = "```\n# a\n``` not-a-close\n# b\n```\n# Outside\n"
+	if h1, _ := FirstH1(content); h1 != "Outside" {
+		t.Errorf("info-string fence should not close: %q", h1)
+	}
+	// Indented fences (up to three spaces) count.
+	if h1, ok := FirstH1("   ```\n# hidden\n   ```\n"); ok {
+		t.Errorf("indented fence not honoured: %q", h1)
+	}
+}

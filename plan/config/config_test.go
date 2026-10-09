@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -76,5 +77,39 @@ storage:
 	os.WriteFile(path, []byte("statuses:\n  - {name: done, label: Done}\n"), 0o644)
 	if _, err := Load(path); err == nil {
 		t.Error("expected error when pending is missing")
+	}
+}
+
+func TestStrictConfigAndNormalisationEdges(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "plan.config.yaml")
+	os.WriteFile(path, []byte("plansDirr: x\n"), 0o644)
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "plansDirr") {
+		t.Errorf("unknown YAML key not reported: %v", err)
+	}
+	jpath := filepath.Join(dir, "plan.config.json")
+	os.WriteFile(jpath, []byte(`{"typos": 1}`), 0o644)
+	if _, err := Load(jpath); err == nil {
+		t.Error("unknown JSON key not reported")
+	}
+	os.WriteFile(path, []byte("types:\n  - {name: 'a-b', label: X}\n"), 0o644)
+	if _, err := Load(path); err == nil {
+		t.Error("type with punctuation accepted")
+	}
+	os.WriteFile(path, []byte(""), 0o644)
+	if c, err := Load(path); err != nil || len(c.Types) != 3 {
+		t.Errorf("empty config file: %v", err)
+	}
+	c := Default()
+	for _, in := range []any{1.5, float32(2.5), "1.5", true, nil} {
+		if got, ok := c.NormalizePriority(in); ok {
+			t.Errorf("priority %v accepted as %q", in, got)
+		}
+		if got, ok := c.NormalizeEffort(in); ok {
+			t.Errorf("effort %v accepted as %q", in, got)
+		}
+	}
+	if got, ok := c.NormalizePriority(2.0); !ok || got != "2" {
+		t.Errorf("integral float rejected: %q %v", got, ok)
 	}
 }

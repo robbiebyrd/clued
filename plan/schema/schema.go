@@ -14,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 
 	"github.com/robbiebyrd/clued/plan/config"
 )
@@ -116,7 +118,9 @@ func toInstance(x any) any {
 	return inst
 }
 
-// problems flattens a validation error into "location: message" strings.
+// problems flattens a validation error into "location: message" strings by
+// walking the error tree: every leaf failure is reported with the JSON
+// pointer of the offending value.
 func problems(err error) []string {
 	if err == nil {
 		return nil
@@ -125,39 +129,32 @@ func problems(err error) []string {
 	if !errors.As(err, &ve) {
 		return []string{err.Error()}
 	}
-	out := ve.BasicOutput()
-	var list []string
 	seen := map[string]bool{}
-	var walk func(u *jsonschema.OutputUnit)
-	walk = func(u *jsonschema.OutputUnit) {
-		if u.Error != nil && u.Valid == false {
-			loc := u.InstanceLocation
-			if loc == "" {
-				loc = "/"
+	var list []string
+	var walk func(e *jsonschema.ValidationError)
+	walk = func(e *jsonschema.ValidationError) {
+		if len(e.Causes) == 0 {
+			loc := "/" + strings.Join(e.InstanceLocation, "/")
+			msg := loc + ": " + e.ErrorKind.LocalizedString(printer)
+			if !seen[msg] {
+				seen[msg] = true
+				list = append(list, msg)
 			}
-			msg := u.Error.String()
-			// Skip purely structural messages that only point at nested causes.
-			if !strings.HasPrefix(msg, "validation failed") && !strings.HasPrefix(msg, "allOf failed") &&
-				!strings.HasPrefix(msg, "oneOf failed") && !strings.HasPrefix(msg, "anyOf failed") &&
-				!strings.HasPrefix(msg, "if failed") && !strings.HasPrefix(msg, "then failed") {
-				s := loc + ": " + msg
-				if !seen[s] {
-					seen[s] = true
-					list = append(list, s)
-				}
-			}
+			return
 		}
-		for i := range u.Errors {
-			walk(&u.Errors[i])
+		for _, c := range e.Causes {
+			walk(c)
 		}
 	}
-	walk(out)
+	walk(ve)
 	if len(list) == 0 {
 		list = append(list, ve.Error())
 	}
 	sort.Strings(list)
 	return list
 }
+
+var printer = message.NewPrinter(language.English)
 
 func patchEnum(doc map[string]any, path []string, values []string) {
 	node := any(doc)

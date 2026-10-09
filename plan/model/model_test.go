@@ -106,3 +106,41 @@ func TestCompareSections(t *testing.T) {
 		}
 	}
 }
+
+func TestMalformedLinks(t *testing.T) {
+	for _, src := range []string{`["", "parent"]`, `["0001-abc", ""]`, `[null, "parent"]`, `["0001-abc"]`, `{"id": "0001-abc"}`, `[1, 2]`} {
+		var l Link
+		if err := json.Unmarshal([]byte(src), &l); err == nil {
+			t.Errorf("JSON %s accepted", src)
+		}
+	}
+	for _, src := range []string{`- ["", "parent"]`, `- ["0001-abc", ""]`, `- [[x], "parent"]`, `- {id: 0001-abc}`, `- 0001-abc`} {
+		var links []Link
+		if err := yaml.Unmarshal([]byte(src), &links); err == nil {
+			t.Errorf("YAML %s accepted", src)
+		}
+	}
+	var links []Link
+	if err := yaml.Unmarshal([]byte("- {id: 0001-abc, relation: parent}\n- [0002-def, blocks]\n"), &links); err != nil || len(links) != 2 {
+		t.Errorf("valid links rejected: %v", err)
+	}
+}
+
+func TestProgressDuplicateKeysAndJSONOrder(t *testing.T) {
+	var fm FrontMatter
+	err := yaml.Unmarshal([]byte("progress:\n  \"1.1\":\n    status: pending\n  1.1:\n    status: complete\n"), &fm)
+	if err == nil || !strings.Contains(err.Error(), "duplicate progress key") {
+		t.Errorf("duplicate key accepted: %v", err)
+	}
+	b, _ := json.Marshal(Progress{"10": {Status: "a"}, "2": {Status: "b"}, "1.10": {Status: "c"}, "1.2": {Status: "d"}})
+	if string(b) != `{"1.2":{"status":"d"},"1.10":{"status":"c"},"2":{"status":"b"},"10":{"status":"a"}}` {
+		t.Errorf("json order: %s", b)
+	}
+	var back Progress
+	if err := json.Unmarshal(b, &back); err != nil || len(back) != 4 {
+		t.Errorf("json round trip: %v", err)
+	}
+	if b, _ := json.Marshal(Progress{}); string(b) != "{}" {
+		t.Errorf("empty progress: %s", b)
+	}
+}

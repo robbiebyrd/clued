@@ -138,16 +138,23 @@ func (l *Link) UnmarshalJSON(b []byte) error {
 			ID       string `json:"id"`
 			Relation string `json:"relation"`
 		}
-		if err2 := json.Unmarshal(b, &obj); err2 != nil || obj.ID == "" {
+		if err2 := json.Unmarshal(b, &obj); err2 != nil {
 			return fmt.Errorf("link must be a [id, relation] pair: %w", err)
 		}
-		l.ID, l.Relation = obj.ID, obj.Relation
-		return nil
+		return l.set(obj.ID, obj.Relation)
 	}
 	if len(arr) != 2 {
 		return fmt.Errorf("link must be a [id, relation] pair, got %d items", len(arr))
 	}
-	l.ID, l.Relation = arr[0], arr[1]
+	return l.set(arr[0], arr[1])
+}
+
+// set assigns a link after checking both parts are present.
+func (l *Link) set(id, relation string) error {
+	if strings.TrimSpace(id) == "" || strings.TrimSpace(relation) == "" {
+		return fmt.Errorf("link must be a [id, relation] pair with both parts set, got [%q, %q]", id, relation)
+	}
+	l.ID, l.Relation = id, relation
 	return nil
 }
 
@@ -164,10 +171,12 @@ func (l Link) MarshalYAML() (any, error) {
 
 func (l *Link) UnmarshalYAML(n *yaml.Node) error {
 	if n.Kind == yaml.SequenceNode {
-		if len(n.Content) != 2 {
-			return fmt.Errorf("line %d: link must be a [id, relation] pair", n.Line)
+		if len(n.Content) != 2 || n.Content[0].Kind != yaml.ScalarNode || n.Content[1].Kind != yaml.ScalarNode {
+			return fmt.Errorf("line %d: link must be a [id, relation] pair of strings", n.Line)
 		}
-		l.ID, l.Relation = n.Content[0].Value, n.Content[1].Value
+		if err := l.set(n.Content[0].Value, n.Content[1].Value); err != nil {
+			return fmt.Errorf("line %d: %w", n.Line, err)
+		}
 		return nil
 	}
 	if n.Kind == yaml.MappingNode {
@@ -178,7 +187,9 @@ func (l *Link) UnmarshalYAML(n *yaml.Node) error {
 		if err := n.Decode(&obj); err != nil {
 			return err
 		}
-		l.ID, l.Relation = obj.ID, obj.Relation
+		if err := l.set(obj.ID, obj.Relation); err != nil {
+			return fmt.Errorf("line %d: %w", n.Line, err)
+		}
 		return nil
 	}
 	return fmt.Errorf("line %d: link must be a [id, relation] pair", n.Line)
@@ -271,10 +282,38 @@ func (p *Progress) UnmarshalYAML(n *yaml.Node) error {
 			return err
 		}
 		// Keys are read from the raw scalar so an unquoted 1.10 stays "1.10".
-		out[n.Content[i].Value] = e
+		key := n.Content[i].Value
+		if _, dup := out[key]; dup {
+			return fmt.Errorf("line %d: duplicate progress key %q", n.Content[i].Line, key)
+		}
+		out[key] = e
 	}
 	*p = out
 	return nil
+}
+
+// MarshalJSON emits the entries in numeric section order.
+func (p Progress) MarshalJSON() ([]byte, error) {
+	var b strings.Builder
+	b.WriteByte('{')
+	for i, k := range p.SortedKeys() {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		kb, err := json.Marshal(k)
+		if err != nil {
+			return nil, err
+		}
+		vb, err := json.Marshal(p[k])
+		if err != nil {
+			return nil, err
+		}
+		b.Write(kb)
+		b.WriteByte(':')
+		b.Write(vb)
+	}
+	b.WriteByte('}')
+	return []byte(b.String()), nil
 }
 
 // Template is a plan content template (a Go text/template over the plan body).
