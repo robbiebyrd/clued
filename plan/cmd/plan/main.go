@@ -8,7 +8,10 @@ import (
 
 	// Storage plugins register themselves on import.
 	_ "github.com/robbiebyrd/clued/plan/store/filestore"
+	_ "github.com/robbiebyrd/clued/plan/store/firestorestore"
 	_ "github.com/robbiebyrd/clued/plan/store/memstore"
+	_ "github.com/robbiebyrd/clued/plan/store/mongostore"
+	_ "github.com/robbiebyrd/clued/plan/store/sqlstore"
 )
 
 func main() {
