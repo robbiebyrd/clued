@@ -1,0 +1,213 @@
+# {{ .Title }}
+
+## Summary
+
+**Goal:** {{ .Body.Summary.Goal }}
+
+**Problem:** {{ .Body.Summary.Problem }}
+{{- if .Body.Summary.Approach }}
+
+**Approach:** {{ .Body.Summary.Approach }}
+{{- end }}
+{{- if .Body.Design }}
+
+---
+
+# Part 1 — Design
+{{- with .Body.Design }}
+{{- if .CurrentState }}
+
+## Current State
+
+{{ .CurrentState }}
+{{- end }}
+{{- if .Decisions }}
+
+## Decisions
+{{ range .Decisions }}
+- **{{ .Decision }}** — {{ .Rationale }}
+{{- end }}
+{{- end }}
+{{- if .RejectedAlternatives }}
+
+### Rejected alternatives
+{{ range .RejectedAlternatives }}
+- **{{ .Alternative }}** — {{ .Reason }}
+{{- end }}
+{{- end }}
+{{- if .Components }}
+
+## Design
+{{ range .Components }}
+### {{ .Name }}
+
+{{ .Content }}
+{{ end }}
+{{- end }}
+{{- if .ErrorHandling }}
+
+### Error Handling
+
+{{ .ErrorHandling }}
+{{- end }}
+{{- if .EdgeCases }}
+
+### Edge Cases
+
+{{ .EdgeCases }}
+{{- end }}
+{{- if .Considerations }}
+
+## Considerations
+{{ if .Considerations.Security }}
+- **Security:** {{ .Considerations.Security }}
+{{- end }}
+{{- if .Considerations.Performance }}
+- **Performance:** {{ .Considerations.Performance }}
+{{- end }}
+{{- end }}
+{{- if .Testing }}
+
+## Testing
+
+{{ .Testing }}
+{{- end }}
+{{- if .Scope }}
+
+## Scope
+{{ if .Scope.InScope }}
+**In scope:**
+{{ range .Scope.InScope }}
+- {{ . }}
+{{- end }}
+{{ end }}
+**Out of scope:**
+{{ range .Scope.OutOfScope }}
+- {{ .Item }}{{ if .Reason }} — {{ .Reason }}{{ end }}
+{{- end }}
+{{- end }}
+{{- if .OpenQuestions }}
+
+## Open Questions
+{{ range .OpenQuestions }}
+- [ ] {{ .Question }}{{ if .Owner }} — {{ .Owner }}{{ end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if .Body.Implementation }}
+
+---
+
+# Part 2 — Implementation
+{{- with .Body.Implementation }}
+{{- if .Architecture }}
+
+**Architecture:** {{ .Architecture }}
+{{- end }}
+{{- if .TechStack }}
+
+**Tech Stack:** {{ .TechStack }}
+{{- end }}
+{{- if .Constraints }}
+
+## Constraints
+{{ range .Constraints }}
+- {{ . }}
+{{- end }}
+{{- end }}
+{{- if .Files }}
+
+## Files
+
+| File | Change | Responsibility |
+|---|---|---|
+{{- range .Files }}
+| `{{ .Path }}` | {{ .Change }} | {{ .Responsibility }} |
+{{- end }}
+{{- end }}
+{{- range .Phases }}
+
+## Phase {{ .Number }}: {{ .Name }}
+{{- range .Sections }}
+
+### {{ .Number }}: {{ .Name }}
+{{- if .Files }}
+
+**Files:**
+{{- range .Files.Create }}
+- Create: `{{ . }}`
+{{- end }}
+{{- range .Files.Modify }}
+- Modify: `{{ . }}`
+{{- end }}
+{{- range .Files.Delete }}
+- Delete: `{{ . }}`
+{{- end }}
+{{- range .Files.Test }}
+- Test: `{{ . }}`
+{{- end }}
+{{- end }}
+
+**Depends on:** {{ if .DependsOn }}{{ join .DependsOn ", " }}{{ else }}none{{ end }}
+{{- if .Interfaces }}
+
+**Interfaces:**
+{{- if .Interfaces.Consumes }}
+- Consumes: {{ .Interfaces.Consumes }}
+{{- end }}
+{{- if .Interfaces.Produces }}
+- Produces: {{ .Interfaces.Produces }}
+{{- end }}
+{{- end }}
+{{ range $i, $s := .Steps }}
+- [ ] **Step {{ inc $i }}: {{ $s.Title }}**{{ if $s.Detail }} — {{ $s.Detail }}{{ end }}{{ if $s.Command }} — `{{ $s.Command }}`{{ end }}
+{{- end }}
+{{- if .Validation }}
+
+**Validation:** `{{ .Validation }}`
+{{- end }}
+{{- end }}
+{{- if .Checklist }}
+{{ range .Checklist }}
+- [ ] {{ . }}
+{{- end }}
+{{- end }}
+{{- if and .Validation (not .Sections) }}
+
+**Validation:** `{{ .Validation }}`
+{{- end }}
+{{- end }}
+
+## Acceptance Criteria
+{{ range .AcceptanceCriteria }}
+- [ ] {{ . }}
+{{- end }}
+{{- if .SelfReview }}
+
+## Self-Review
+{{- if .SelfReview.Coverage }}
+
+| Requirement | Delivered by |
+|---|---|
+{{- range .SelfReview.Coverage }}
+| {{ .Requirement }} | {{ .DeliveredBy }} |
+{{- end }}
+{{- end }}
+{{- if .SelfReview.PlaceholderScan }}
+
+**Placeholder scan:** {{ .SelfReview.PlaceholderScan }}
+{{- end }}
+{{- if .SelfReview.ResidualRisk }}
+**Residual risk:** {{ .SelfReview.ResidualRisk }}
+{{- end }}
+{{- end }}
+{{- if .NextSteps }}
+
+## Next Steps
+{{ range $i, $s := .NextSteps }}
+{{ inc $i }}. {{ $s }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
