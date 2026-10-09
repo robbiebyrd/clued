@@ -197,12 +197,19 @@ func (m *MultiStore) GetTemplate(ctx context.Context, id string) (*model.Templat
 
 // fanout runs fn on every store. The primary must succeed; failures on the
 // other copies are reported as a FanoutError after all stores were tried.
+// A primary ErrNotFound is returned as is so callers can detect it.
 func (m *MultiStore) fanout(op string, fn func(s Store) error) error {
 	failed := map[string]error{}
 	for i, s := range m.stores {
 		if err := fn(s); err != nil {
 			if i == 0 {
+				if errors.Is(err, ErrNotFound) {
+					return ErrNotFound
+				}
 				return fmt.Errorf("%s on primary store %q: %w", op, s.Name(), err)
+			}
+			if errors.Is(err, ErrNotFound) {
+				continue // already gone on this copy
 			}
 			failed[s.Name()] = err
 		}
@@ -218,13 +225,7 @@ func (m *MultiStore) PutPlan(ctx context.Context, p *model.Plan) error {
 }
 
 func (m *MultiStore) DeletePlan(ctx context.Context, id string) error {
-	return m.fanout("delete plan "+id, func(s Store) error {
-		err := s.DeletePlan(ctx, id)
-		if errors.Is(err, ErrNotFound) {
-			return nil // already gone on this copy
-		}
-		return err
-	})
+	return m.fanout("delete plan "+id, func(s Store) error { return s.DeletePlan(ctx, id) })
 }
 
 func (m *MultiStore) PutTemplate(ctx context.Context, t *model.Template) error {
@@ -235,13 +236,7 @@ func (m *MultiStore) PutTemplate(ctx context.Context, t *model.Template) error {
 }
 
 func (m *MultiStore) DeleteTemplate(ctx context.Context, id string) error {
-	return m.fanout("delete template "+id, func(s Store) error {
-		err := s.DeleteTemplate(ctx, id)
-		if errors.Is(err, ErrNotFound) {
-			return nil
-		}
-		return err
-	})
+	return m.fanout("delete template "+id, func(s Store) error { return s.DeleteTemplate(ctx, id) })
 }
 
 var _ Store = (*MultiStore)(nil)
