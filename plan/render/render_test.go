@@ -15,7 +15,7 @@ func TestRenderDefault(t *testing.T) {
 		}
 		var in struct {
 			FrontMatter struct{ Title, Type string } `json:"frontMatter"`
-			Body        Body                          `json:"body"`
+			Body        Body                         `json:"body"`
 		}
 		if err := json.Unmarshal(b, &in); err != nil {
 			t.Fatal(err)
