@@ -24,6 +24,15 @@
             "async": true
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-superpowers-plans"
+          }
+        ]
       }
     ],
     "PostToolUse": [

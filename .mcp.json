@@ -2,5 +2,9 @@
   "clued": {
     "command": "sh",
     "args": ["-c", "cd /tmp && npx -y @robbiebyrd/clued --stdio"]
+  },
+  "mind-palace": {
+    "command": "mind-palace",
+    "args": ["mcp"]
   }
 }

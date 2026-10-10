@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
+# Session-start health check: prints one systemMessage listing whatever is missing.
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
+INSTALL_CMD="go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest"
 
+problems=()
 if [[ ! -f "$CONFIG_FILE" ]]; then
-  printf '{"systemMessage":"clued: run /clued-setup to finish configuring this plugin"}\n'
+  problems+=("clued: run /clued-setup to finish configuring this plugin")
+fi
+if ! command -v mind-palace &>/dev/null; then
+  problems+=("clued: mind-palace is not on PATH, so the plan storage MCP server cannot start. Install it with: ${INSTALL_CMD}")
+fi
+
+if (( ${#problems[@]} > 0 )); then
+  # A hook may print a single JSON object, so every problem goes into one message.
+  # The messages are fixed strings without quotes or backslashes, so no escaping is needed.
+  joined=""
+  for p in "${problems[@]}"; do
+    joined+="${joined:+; }${p}"
+  done
+  printf '{"systemMessage":"%s"}\n' "$joined"
 fi

@@ -53,8 +53,8 @@ statuses:
 workflow:
   pending: [done]
 storage:
-  - {name: file, kind: file, enabled: false}
   - {name: db, kind: sqlite, options: {dsn: ":memory:"}}
+  - {name: file, kind: file}
 `), 0o644)
 	c, err := Load(path)
 	if err != nil {
@@ -63,16 +63,11 @@ storage:
 	if c.Plans.Dir != filepath.Join(dir, "plans") || len(c.Plans.Statuses) != 2 || len(c.Plans.Types) != 3 {
 		t.Errorf("overlay: %+v", c)
 	}
-	if got := c.EnabledStorage(); len(got) != 1 || got[0].Name != "db" {
+	if got := c.EnabledStorage(); len(got) != 2 || got[0].Name != "db" || got[1].Name != "file" {
 		t.Errorf("enabled storage: %+v", got)
 	}
 	if c.Source != path {
 		t.Errorf("source = %q", c.Source)
-	}
-	// Disabling every store is rejected.
-	os.WriteFile(path, []byte("storage:\n  - {name: file, kind: file, enabled: false}\n"), 0o644)
-	if _, err := Load(path); err == nil {
-		t.Error("expected error when no storage is enabled")
 	}
 	// Missing default status is rejected.
 	os.WriteFile(path, []byte("statuses:\n  - {name: done, label: Done}\n"), 0o644)
@@ -314,5 +309,31 @@ stories:
 	t.Setenv(LegacyEnvConfig, path)
 	if c, err := Load(""); err != nil || c.Source != path {
 		t.Errorf("legacy env: %v %q", err, c.Source)
+	}
+}
+
+func TestFileStoreCannotBeDisabled(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "plan.config.yaml")
+	for name, storage := range map[string]string{
+		"file disabled next to another store": `
+storage:
+  - {name: file, kind: file, enabled: false}
+  - {name: db, kind: sqlite, options: {dsn: ":memory:"}}
+`,
+		"file omitted": `
+storage:
+  - {name: db, kind: sqlite, options: {dsn: ":memory:"}}
+`,
+		"file disabled alone": `
+storage:
+  - {name: file, kind: file, enabled: false}
+`,
+	} {
+		os.WriteFile(path, []byte(storage), 0o644)
+		_, err := Load(path)
+		if err == nil || !strings.Contains(err.Error(), "file store") {
+			t.Errorf("%s: want file-store error, got %v", name, err)
+		}
 	}
 }

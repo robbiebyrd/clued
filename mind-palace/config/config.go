@@ -412,17 +412,17 @@ func (c *Config) Validate() error {
 	for _, k := range kind.All() {
 		errs = append(errs, c.Kind(k.Name).validate(k.Plural)...)
 	}
-	enabled := 0
+	fileEnabled := false
 	for _, s := range c.Storage {
 		if s.Name == "" || s.Kind == "" {
 			errs = append(errs, errors.New("every storage entry needs a name and a kind"))
 		}
-		if s.IsEnabled() {
-			enabled++
+		if s.Kind == "file" && s.IsEnabled() {
+			fileEnabled = true
 		}
 	}
-	if enabled == 0 {
-		errs = append(errs, errors.New("at least one storage plugin must be enabled"))
+	if !fileEnabled {
+		errs = append(errs, errors.New("the file store cannot be disabled: storage must include an enabled entry of kind file"))
 	}
 	return errors.Join(errs...)
 }
