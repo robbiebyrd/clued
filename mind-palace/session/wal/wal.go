@@ -16,7 +16,7 @@ import (
 // Append creates the parent directory and appends one JSON line to the file.
 func Append(path string, event session.Doc) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
@@ -25,7 +25,7 @@ func Append(path string, event session.Doc) error {
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("open: %w", err)
 	}
@@ -35,6 +35,11 @@ func Append(path string, event session.Doc) error {
 		return fmt.Errorf("write: %w", err)
 	}
 
+	// Ensure file is 0600 in case it was previously created with different mode
+	if err := os.Chmod(path, 0600); err != nil {
+		return fmt.Errorf("chmod: %w", err)
+	}
+
 	return nil
 }
 
@@ -42,6 +47,9 @@ func Append(path string, event session.Doc) error {
 // whose insert returned an error, drops malformed lines, and rewrites the file
 // (empty when nothing failed; failed lines each followed by a newline otherwise).
 // If the file does not exist, it is a no-op.
+//
+// Flush assumes a single writer: the daemon serialises its own Append and Flush
+// calls; the hook script appends only while the daemon is down.
 func Flush(ctx context.Context, path string, insert func(context.Context, session.Doc) error) error {
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
@@ -89,8 +97,20 @@ func Flush(ctx context.Context, path string, insert func(context.Context, sessio
 		content = strings.Join(failed, "\n") + "\n"
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	// Use OpenFile with O_TRUNC to ensure 0600 mode
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(content); err != nil {
 		return fmt.Errorf("write: %w", err)
+	}
+
+	// Ensure file is 0600 in case it existed with different mode
+	if err := os.Chmod(path, 0600); err != nil {
+		return fmt.Errorf("chmod: %w", err)
 	}
 
 	return nil

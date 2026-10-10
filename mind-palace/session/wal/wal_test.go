@@ -27,6 +27,11 @@ func TestAppendCreatesFileAndWritesAJsonLine(t *testing.T) {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
 
+	// Check file ends with newline
+	if !strings.HasSuffix(string(data), "\n") {
+		t.Errorf("expected file to end with newline, got %q", string(data))
+	}
+
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
 	if len(lines) != 1 {
 		t.Errorf("expected 1 line, got %d", len(lines))
@@ -42,6 +47,49 @@ func TestAppendCreatesFileAndWritesAJsonLine(t *testing.T) {
 	}
 	if parsed["session_id"] != "abc" {
 		t.Errorf("expected session_id=abc, got %v", parsed["session_id"])
+	}
+
+	// Check file permissions
+	info, err := os.Stat(f)
+	if err != nil {
+		t.Fatalf("Stat failed: %v", err)
+	}
+	if info.Mode()&0077 != 0 {
+		t.Errorf("expected file mode 0600, got %#o", info.Mode().Perm())
+	}
+}
+
+func TestAppendCreatesNestedDirectories(t *testing.T) {
+	tmpDir := t.TempDir()
+	f := filepath.Join(tmpDir, "deep", "nested", "dir", "test.jsonl")
+
+	doc := session.Doc{"type": "test"}
+	if err := wal.Append(f, doc); err != nil {
+		t.Fatalf("Append failed: %v", err)
+	}
+
+	data, err := os.ReadFile(f)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+
+	var parsed session.Doc
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(data))), &parsed); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v", err)
+	}
+
+	if parsed["type"] != "test" {
+		t.Errorf("expected type=test, got %v", parsed["type"])
+	}
+
+	// Check that created directory has 0700 permissions
+	dir := filepath.Dir(f)
+	dirInfo, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("Stat dir failed: %v", err)
+	}
+	if dirInfo.Mode()&0077 != 0 {
+		t.Errorf("expected dir mode 0700, got %#o", dirInfo.Mode().Perm())
 	}
 }
 
@@ -62,6 +110,14 @@ func TestAppendAppendsSucessiveEventsAsSeparateLines(t *testing.T) {
 	data, err := os.ReadFile(f)
 	if err != nil {
 		t.Fatalf("ReadFile failed: %v", err)
+	}
+
+	// Verify exact trailing newline
+	expected := `{"type":"a"}
+{"type":"b"}
+`
+	if string(data) != expected {
+		t.Errorf("expected exact bytes %q, got %q", expected, string(data))
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
@@ -116,8 +172,17 @@ func TestFlushCallsInsertForEveryEntryAndClearsTheFile(t *testing.T) {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
 
-	if strings.TrimSpace(string(remaining)) != "" {
+	if string(remaining) != "" {
 		t.Errorf("expected empty file, got %q", string(remaining))
+	}
+
+	// Check file permissions after flush
+	info, err := os.Stat(f)
+	if err != nil {
+		t.Fatalf("Stat failed: %v", err)
+	}
+	if info.Mode()&0077 != 0 {
+		t.Errorf("expected file mode 0600, got %#o", info.Mode().Perm())
 	}
 }
 
@@ -208,5 +273,14 @@ not-json
 
 	if len(inserted) != 2 {
 		t.Errorf("expected 2 inserts, got %d", len(inserted))
+	}
+
+	// Verify file is rewritten without the malformed line
+	remaining, err := os.ReadFile(f)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+	if string(remaining) != "" {
+		t.Errorf("expected empty file (all lines processed), got %q", string(remaining))
 	}
 }
