@@ -128,10 +128,36 @@ func TestCreateValidation(t *testing.T) {
 	if p.FrontMatter.Status != "pending" || p.FrontMatter.Type != "drft" || p.FrontMatter.Priority != "3" {
 		t.Errorf("draft defaults: %+v", p.FrontMatter)
 	}
-	// Linked plan must exist.
-	bad = `{"frontMatter":{"title":"x","type":"drft","priority":"1","plans":[["0099-zzz","parent"]]},"body":{"summary":{"goal":"g","problem":"p"},"design":{}}}`
+	// Linked plan must exist (links.plans and the legacy top-level plans form).
+	bad = `{"frontMatter":{"title":"x","type":"drft","priority":"1","links":{"plans":[["0099-zzz","parent"]]}},"body":{"summary":{"goal":"g","problem":"p"},"design":{}}}`
 	if _, err := s.Create(ctx, json.RawMessage(bad), ""); !IsKind(err, KindNotFound) {
 		t.Errorf("dangling link: %v", err)
+	}
+	bad = `{"frontMatter":{"title":"x","type":"drft","priority":"1","plans":[["0099-zzz","parent"]]},"body":{"summary":{"goal":"g","problem":"p"},"design":{}}}`
+	if _, err := s.Create(ctx, json.RawMessage(bad), ""); !IsKind(err, KindNotFound) {
+		t.Errorf("dangling legacy link: %v", err)
+	}
+	legacy := `{"frontMatter":{"title":"Child","type":"drft","priority":"1","plans":[["` + p.ID() + `","parent"]]},"body":{"summary":{"goal":"g","problem":"p"},"design":{}}}`
+	child, err := s.Create(ctx, json.RawMessage(legacy), "")
+	if err != nil {
+		t.Fatalf("legacy plans input: %v", err)
+	}
+	if got := child.FrontMatter.PlanLinks(); len(got) != 1 || got[0].ID != p.ID() || got[0].Relation != "parent" {
+		t.Errorf("legacy plans not moved under links: %+v", child.FrontMatter.Links)
+	}
+	// Both forms at once are merged, legacy first.
+	both := `{"frontMatter":{"title":"Both","type":"drft","priority":"1","plans":[["` + p.ID() + `","parent"]],"links":{"plans":[["` + child.ID() + `","blocks"]]}},"body":{"summary":{"goal":"g","problem":"p"},"design":{}}}`
+	merged, err := s.Create(ctx, json.RawMessage(both), "")
+	if err != nil {
+		t.Fatalf("merged plans input: %v", err)
+	}
+	if got := merged.FrontMatter.PlanLinks(); len(got) != 2 || got[0].ID != p.ID() || got[1].ID != child.ID() || got[1].Relation != "blocks" {
+		t.Errorf("legacy and current plans not merged: %+v", got)
+	}
+	// A malformed links value is still rejected by the schema when legacy plans are present.
+	bad = `{"frontMatter":{"title":"x","type":"drft","priority":"1","plans":[["` + p.ID() + `","parent"]],"links":"nope"},"body":{"summary":{"goal":"g","problem":"p"},"design":{}}}`
+	if _, err := s.Create(ctx, json.RawMessage(bad), ""); !IsKind(err, KindValidation) {
+		t.Errorf("non-object links with legacy plans: %v", err)
 	}
 	// Not JSON.
 	if _, err := s.Create(ctx, json.RawMessage("nope"), ""); !IsKind(err, KindValidation) {
@@ -272,6 +298,35 @@ func TestFieldSetters(t *testing.T) {
 	if p.FrontMatter.Priority != "4" || p.FrontMatter.Effort != "XL" || p.FrontMatter.Status != "validated" || p.FrontMatter.Title != "Patched" || p.FrontMatter.Links.Web["jira"] != "https://j/1" {
 		t.Errorf("patch: %+v", p.FrontMatter)
 	}
+	// A links patch merges per kind: omitted kinds (here plans) are kept, null clears.
+	other := create(t, s, "create-dsgn.json")
+	if _, err := s.AddPlanLink(ctx, id, other.ID(), "depends"); err != nil {
+		t.Fatal(err)
+	}
+	p, err = s.PatchFrontMatter(ctx, id, map[string]any{"links": map[string]any{"web": map[string]any{"docs": "https://d/1"}}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.FrontMatter.PlanLinks()) != 1 || p.FrontMatter.Links.Web["docs"] != "https://d/1" || p.FrontMatter.Links.Web["jira"] != "" {
+		t.Errorf("links patch should keep plans and replace web: %+v", p.FrontMatter.Links)
+	}
+	p, _ = s.PatchFrontMatter(ctx, id, map[string]any{"links": map[string]any{"plans": nil}}, false)
+	if len(p.FrontMatter.PlanLinks()) != 0 || p.FrontMatter.Links.Web["docs"] != "https://d/1" {
+		t.Errorf("null should clear only plans: %+v", p.FrontMatter.Links)
+	}
+	if _, err := s.PatchFrontMatter(ctx, id, map[string]any{"links": map[string]any{"wiki": "x"}}, false); !IsKind(err, KindBadRequest) {
+		t.Errorf("unknown link kind: %v", err)
+	}
+	if _, err := s.PatchFrontMatter(ctx, id, map[string]any{"links": "nope"}, false); !IsKind(err, KindBadRequest) {
+		t.Errorf("non-object links patch: %v", err)
+	}
+	// links.plans inside a links patch is checked like addPlanLink.
+	if _, err := s.PatchFrontMatter(ctx, id, map[string]any{"links": map[string]any{"plans": [][]string{{"0099-zzz", "blocks"}}}}, false); !IsKind(err, KindNotFound) {
+		t.Errorf("patch links.plans to missing plan: %v", err)
+	}
+	if _, err := s.PatchFrontMatter(ctx, id, map[string]any{"plans": [][]string{{id, "blocks"}}}, false); !IsKind(err, KindBadRequest) {
+		t.Errorf("patch plans self link: %v", err)
+	}
 	// Patch is validated as a whole: a bad URL fails and nothing is written.
 	before, _ := s.Get(ctx, id)
 	if _, err := s.PatchFrontMatter(ctx, id, map[string]any{"links": map[string]any{"web": map[string]any{"x": "ftp://nope"}}}, false); !IsKind(err, KindValidation) {
@@ -302,8 +357,8 @@ func TestLinks(t *testing.T) {
 	}
 	p, _ = s.AddPlanLink(ctx, a.ID(), b.ID(), "blocks") // duplicate ignored
 	p, _ = s.AddPlanLink(ctx, a.ID(), b.ID(), "depends")
-	if len(p.FrontMatter.Plans) != 2 {
-		t.Errorf("plans = %v", p.FrontMatter.Plans)
+	if len(p.FrontMatter.Links.Plans) != 2 {
+		t.Errorf("plans = %v", p.FrontMatter.Links.Plans)
 	}
 	list, _ := s.List(ctx, ListFilter{Plan: b.ID()})
 	if len(list) != 1 || list[0].FrontMatter.ID != a.ID() {
@@ -314,12 +369,12 @@ func TestLinks(t *testing.T) {
 		t.Errorf("delete linked: %v", err)
 	}
 	p, _ = s.RemovePlanLink(ctx, a.ID(), b.ID(), "depends")
-	if len(p.FrontMatter.Plans) != 1 {
+	if len(p.FrontMatter.Links.Plans) != 1 {
 		t.Error("remove one relation")
 	}
 	p, _ = s.RemovePlanLink(ctx, a.ID(), b.ID(), "")
-	if len(p.FrontMatter.Plans) != 0 {
-		t.Error("remove all relations")
+	if p.FrontMatter.Links != nil {
+		t.Errorf("links should be nil once the last plan link is removed: %+v", p.FrontMatter.Links)
 	}
 	if _, err := s.RemovePlanLink(ctx, a.ID(), b.ID(), ""); !IsKind(err, KindNotFound) {
 		t.Error("remove missing link")
@@ -328,11 +383,11 @@ func TestLinks(t *testing.T) {
 	if _, err := s.AddStoryLink(ctx, a.ID(), "abc", "included"); !IsKind(err, KindBadRequest) {
 		t.Error("bad story id")
 	}
-	if _, err := s.AddStoryLink(ctx, a.ID(), "001-abc", "parent"); !IsKind(err, KindBadRequest) {
+	if _, err := s.AddStoryLink(ctx, a.ID(), "0001-abc", "parent"); !IsKind(err, KindBadRequest) {
 		t.Error("parent is not a story relation")
 	}
-	p, _ = s.AddStoryLink(ctx, a.ID(), "001-abc", "included")
-	list, _ = s.List(ctx, ListFilter{Story: "001-abc"})
+	p, _ = s.AddStoryLink(ctx, a.ID(), "0001-abc", "included")
+	list, _ = s.List(ctx, ListFilter{Story: "0001-abc"})
 	if len(list) != 1 {
 		t.Error("list by story")
 	}
@@ -345,13 +400,13 @@ func TestLinks(t *testing.T) {
 	}
 	p, _ = s.SetRepo(ctx, a.ID(), "", "~/Projects/p")
 	l := p.FrontMatter.Links
-	if l.Web["jira"] != "https://jira/2" || l.Specs[0] != "./docs/x.md" || l.Repo.Remote != "git@github.com:org/p.git" || l.Repo.Local != "~/Projects/p" || l.Stories[0].ID != "001-abc" {
+	if l.Web["jira"] != "https://jira/2" || l.Specs[0] != "./docs/x.md" || l.Repo.Remote != "git@github.com:org/p.git" || l.Repo.Local != "~/Projects/p" || l.Stories[0].ID != "0001-abc" {
 		t.Errorf("links: %+v", l)
 	}
 	if _, err := s.SetWebLink(ctx, a.ID(), "bad", "not a url"); !IsKind(err, KindValidation) {
 		t.Errorf("bad url: %v", err)
 	}
-	p, _ = s.RemoveStoryLink(ctx, a.ID(), "001-abc", "")
+	p, _ = s.RemoveStoryLink(ctx, a.ID(), "0001-abc", "")
 	p, _ = s.RemoveSpec(ctx, a.ID(), "./docs/x.md")
 	p, _ = s.RemoveWebLink(ctx, a.ID(), "jira")
 	p, _ = s.ClearRepo(ctx, a.ID())
@@ -392,19 +447,19 @@ func TestProgress(t *testing.T) {
 	if p.FrontMatter.Progress["1.1"].Status != "complete" {
 		t.Error("progress synonym")
 	}
-	p, _ = s.AddProgressStory(ctx, id, "1.1", "001-abc")
-	p, _ = s.AddProgressStory(ctx, id, "1.1", "001-abc")
+	p, _ = s.AddProgressStory(ctx, id, "1.1", "0001-abc")
+	p, _ = s.AddProgressStory(ctx, id, "1.1", "0001-abc")
 	if len(p.FrontMatter.Progress["1.1"].Stories) != 1 {
 		t.Error("duplicate story")
 	}
-	list, _ := s.List(ctx, ListFilter{Story: "001-abc"})
+	list, _ := s.List(ctx, ListFilter{Story: "0001-abc"})
 	if len(list) != 1 {
 		t.Error("list by progress story")
 	}
-	if _, err := s.RemoveProgressStory(ctx, id, "1.1", "002-xyz"); !IsKind(err, KindNotFound) {
+	if _, err := s.RemoveProgressStory(ctx, id, "1.1", "0002-xyz"); !IsKind(err, KindNotFound) {
 		t.Error("remove missing story")
 	}
-	p, _ = s.RemoveProgressStory(ctx, id, "1.1", "001-abc")
+	p, _ = s.RemoveProgressStory(ctx, id, "1.1", "0001-abc")
 	if len(p.FrontMatter.Progress["1.1"].Stories) != 0 {
 		t.Error("remove story")
 	}

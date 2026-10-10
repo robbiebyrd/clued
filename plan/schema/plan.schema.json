@@ -64,7 +64,7 @@
     "storyId": {
       "type": "string",
       "pattern": "^[0-9]{3,4}-[a-z0-9]{3}$",
-      "examples": ["001-abc"]
+      "examples": ["0001-abc"]
     },
     "sectionNumber": {
       "description": "A phase number (\"2\") or a section within a phase (\"1.1\").",
@@ -113,16 +113,6 @@
           "description": "Empty until the plan is complete.",
           "anyOf": [{ "const": "" }, { "$ref": "#/$defs/timestamp" }],
           "default": ""
-        },
-        "plans": {
-          "description": "Related plans as [plan-id, relation] pairs.",
-          "type": "array",
-          "items": {
-            "type": "array",
-            "prefixItems": [{ "$ref": "#/$defs/planId" }, { "$ref": "#/$defs/planRelation" }],
-            "minItems": 2,
-            "items": false
-          }
         },
         "links": {
           "type": "object",
@@ -174,6 +164,16 @@
               "items": {
                 "type": "array",
                 "prefixItems": [{ "$ref": "#/$defs/storyId" }, { "$ref": "#/$defs/storyRelation" }],
+                "minItems": 2,
+                "items": false
+              }
+            },
+            "plans": {
+              "description": "Related plans as [plan-id, relation] pairs.",
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [{ "$ref": "#/$defs/planId" }, { "$ref": "#/$defs/planRelation" }],
                 "minItems": 2,
                 "items": false
               }

@@ -70,13 +70,45 @@ func Parse(doc string) (model.FrontMatter, string, error) {
 	return fm, content, nil
 }
 
-// ParseFrontMatter decodes YAML front matter.
+// ParseFrontMatter decodes YAML front matter. A top-level `plans` list (the
+// layout used before plan links moved under `links.plans`) is migrated into
+// links.plans so older files keep parsing; they are rewritten in the current
+// layout on their next write.
 func ParseFrontMatter(raw string) (model.FrontMatter, error) {
 	var fm model.FrontMatter
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(raw), &doc); err != nil {
+		return fm, fmt.Errorf("front matter: %w", err)
+	}
+	var legacy []model.Link
+	if len(doc.Content) > 0 && doc.Content[0].Kind == yaml.MappingNode {
+		m := doc.Content[0]
+		for i := 0; i+1 < len(m.Content); i += 2 {
+			if m.Content[i].Value == "plans" {
+				if err := m.Content[i+1].Decode(&legacy); err != nil {
+					return fm, fmt.Errorf("front matter: plans: %w", err)
+				}
+				m.Content = append(m.Content[:i], m.Content[i+2:]...)
+				break
+			}
+		}
+		if len(m.Content) > 0 {
+			out, err := yaml.Marshal(&doc)
+			if err != nil {
+				return fm, fmt.Errorf("front matter: %w", err)
+			}
+			raw = string(out)
+		} else {
+			raw = ""
+		}
+	}
 	dec := yaml.NewDecoder(strings.NewReader(raw))
 	dec.KnownFields(true)
 	if err := dec.Decode(&fm); err != nil && !errors.Is(err, io.EOF) {
 		return fm, fmt.Errorf("front matter: %w", err)
+	}
+	if len(legacy) > 0 {
+		fm.SetPlanLinks(append(legacy, fm.PlanLinks()...))
 	}
 	return fm, nil
 }

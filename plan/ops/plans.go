@@ -77,7 +77,7 @@ type SetEffortParams struct {
 
 type PatchParams struct {
 	Plan  string         `json:"plan" jsonschema:"Plan identifier"`
-	Patch map[string]any `json:"patch" jsonschema:"Fields to set: title, type, status, priority, effort (null clears), plans, links, progress. id/created/updated/completed are rejected."`
+	Patch map[string]any `json:"patch" jsonschema:"Fields to set: title, type, status, priority, effort (null clears), links (merged per kind: repo, specs, web, stories, plans; a kind set to null is cleared, kinds left out are kept), plans (shorthand for links.plans), progress. id/created/updated/completed are rejected."`
 	Force bool           `json:"force,omitempty" jsonschema:"Skip the workflow check for status"`
 }
 
@@ -89,7 +89,7 @@ type PlanLinkParams struct {
 
 type StoryLinkParams struct {
 	Plan     string `json:"plan" jsonschema:"Plan identifier"`
-	Story    string `json:"story" jsonschema:"Story id (001-abc)"`
+	Story    string `json:"story" jsonschema:"Story id (0001-abc)"`
 	Relation string `json:"relation,omitempty" jsonschema:"included, depends or blocks (optional on remove: every relation)"`
 }
 
@@ -219,7 +219,7 @@ func Default() *Registry {
 		})
 
 	// Front matter: links
-	Register(r, &Op{Name: "addPlanLink", Group: "links", Description: "Add [targetPlanId, relation] to plans. The target must exist; duplicates are ignored."},
+	Register(r, &Op{Name: "addPlanLink", Group: "links", Description: "Add [targetPlanId, relation] to links.plans. Relation: parent, included, depends or blocks. The target must exist; duplicates are ignored."},
 		func(ctx context.Context, svc *service.Service, p PlanLinkParams) (any, error) {
 			return svc.AddPlanLink(ctx, p.Plan, p.Target, p.Relation)
 		})

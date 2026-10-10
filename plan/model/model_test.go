@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -12,21 +13,21 @@ func TestLinkYAMLRoundTrip(t *testing.T) {
 	fm := FrontMatter{
 		ID: "0002-a3f", Title: "T", Type: "dsgn", Status: "ready", Priority: "1",
 		Created: "2026-09-09T14:07:05.352Z", Updated: "2026-09-09T14:35:37.046Z",
-		Plans: []Link{{"0031-34c", "blocks"}, {"0001-3sd", "depends"}},
 		Links: &Links{
 			Repo:    &Repo{Remote: "git@github.com:robbiebyrd/Project.git", Local: "~/Projects/project"},
 			Specs:   []string{"./docs/design/design-doc-overview.md"},
 			Web:     map[string]string{"jira": "https://jira.atlassian.net/browse/ACME-123"},
-			Stories: []Link{{"001-abc", "included"}},
+			Stories: []Link{{"0001-abc", "included"}},
+			Plans:   []Link{{"0031-34c", "blocks"}, {"0001-3sd", "depends"}},
 		},
-		Progress: Progress{"1.1": {Status: "completed", Stories: []string{"001-abc"}}, "10": {Status: "blocked"}, "2": {Status: "completed"}, "1.10": {Status: "pending"}},
+		Progress: Progress{"1.1": {Status: "completed", Stories: []string{"0001-abc"}}, "10": {Status: "blocked"}, "2": {Status: "completed"}, "1.10": {Status: "pending"}},
 	}
 	out, err := yaml.Marshal(fm)
 	if err != nil {
 		t.Fatal(err)
 	}
 	s := string(out)
-	for _, want := range []string{`- ["0031-34c", "blocks"]`, `priority: "1"`, `"1.1":`, `"1.10":`, `"10":`, `- ["001-abc", "included"]`} {
+	for _, want := range []string{`- ["0031-34c", "blocks"]`, `priority: "1"`, `"1.1":`, `"1.10":`, `"10":`, `- ["0001-abc", "included"]`, "  stories:\n", "  plans:\n"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("yaml missing %q:\n%s", want, s)
 		}
@@ -39,10 +40,16 @@ func TestLinkYAMLRoundTrip(t *testing.T) {
 	if err := yaml.Unmarshal(out, &back); err != nil {
 		t.Fatal(err)
 	}
-	if back.Plans[0] != fm.Plans[0] || back.Links.Stories[0] != fm.Links.Stories[0] {
-		t.Errorf("links did not round-trip: %+v", back)
+	if !reflect.DeepEqual(back.Links.Plans, fm.Links.Plans) || !reflect.DeepEqual(back.Links.Stories, fm.Links.Stories) {
+		t.Errorf("links did not round-trip: %+v", back.Links)
 	}
-	if back.Progress["1.10"].Status != "pending" || back.Progress["1.1"].Stories[0] != "001-abc" {
+	if !strings.Contains(s, `- ["0001-3sd", "depends"]`) {
+		t.Errorf("second plan link missing from yaml:\n%s", s)
+	}
+	if strings.Index(s, "stories:") > strings.Index(s, "plans:") {
+		t.Errorf("plans should follow stories under links:\n%s", s)
+	}
+	if back.Progress["1.10"].Status != "pending" || back.Progress["1.1"].Stories[0] != "0001-abc" {
 		t.Errorf("progress did not round-trip: %+v", back.Progress)
 	}
 }

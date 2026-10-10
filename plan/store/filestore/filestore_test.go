@@ -16,7 +16,7 @@ func newPlan(id, typ, slug string) *model.Plan {
 		Path: model.FileName(id, typ, slug),
 		FrontMatter: model.FrontMatter{ID: id, Title: "T " + id, Type: typ, Status: "pending", Priority: "1",
 			Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
-			Plans:    []model.Link{{ID: "0009-zzz", Relation: "blocks"}},
+			Links:    &model.Links{Plans: []model.Link{{ID: "0009-zzz", Relation: "blocks"}}},
 			Progress: model.Progress{"1.1": {Status: "pending"}}},
 		Content: "# T " + id + "\n\n## Phase 1: A\n\n### 1.1: B\n",
 	}

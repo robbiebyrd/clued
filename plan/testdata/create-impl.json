@@ -9,7 +9,7 @@
       "specs": ["./docs/design/plan-service.md"],
       "repo": {"remote": "git@github.com:robbiebyrd/clued.git", "local": "~/Projects/clued"},
       "web": {"jira": "https://jira.example.com/browse/ACME-1"},
-      "stories": [["001-abc", "included"]]
+      "stories": [["0001-abc", "included"]]
     }
   },
   "body": {

@@ -174,9 +174,9 @@ func (s *Service) invariants(ctx context.Context, p *model.Plan) []string {
 			problems = append(problems, fmt.Sprintf("/path: %q is inconsistent with status %q", p.Path, fm.Status))
 		}
 	}
-	for _, l := range fm.Plans {
+	for _, l := range fm.PlanLinks() {
 		if l.ID == fm.ID {
-			problems = append(problems, "/plans: a plan cannot link to itself")
+			problems = append(problems, "/links/plans: a plan cannot link to itself")
 		}
 	}
 	return problems
@@ -248,7 +248,7 @@ func (s *Service) Create(ctx context.Context, input json.RawMessage, templateID 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, l := range in.FrontMatter.Plans {
+	for _, l := range in.FrontMatter.PlanLinks() {
 		if _, err := s.store.GetPlan(ctx, l.ID); err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				return nil, newErr(KindNotFound, "create: linked plan %s not found", l.ID)
@@ -347,6 +347,28 @@ func (s *Service) normalizeCreateInput(input json.RawMessage) (map[string]any, [
 	// Managed fields are set by the service.
 	for _, k := range []string{"created", "updated", "completed"} {
 		delete(fm, k)
+	}
+	// A top-level plans list (pre-links.plans layout) is accepted and merged
+	// into links.plans, legacy entries first, as ParseFrontMatter does. A
+	// links value that is not an object is left alone so the schema rejects it.
+	if legacy, ok := fm["plans"]; ok {
+		links, isObject := fm["links"].(map[string]any)
+		if fm["links"] == nil || isObject {
+			delete(fm, "plans")
+			if links == nil {
+				links = map[string]any{}
+				fm["links"] = links
+			}
+			merged, _ := legacy.([]any)
+			if current, ok := links["plans"].([]any); ok {
+				merged = append(merged, current...)
+			}
+			if merged == nil && legacy != nil {
+				links["plans"] = legacy // not a list: let the schema report it
+			} else {
+				links["plans"] = merged
+			}
+		}
 	}
 	if prog, ok := fm["progress"].(map[string]any); ok {
 		for k, v := range prog {
@@ -495,7 +517,7 @@ func (s *Service) List(ctx context.Context, f ListFilter) ([]Summary, error) {
 }
 
 func hasPlanLink(fm model.FrontMatter, id string) bool {
-	for _, l := range fm.Plans {
+	for _, l := range fm.PlanLinks() {
 		if l.ID == id {
 			return true
 		}
@@ -609,9 +631,9 @@ func (s *Service) Validate(ctx context.Context, identifier string) (*ValidationR
 			problems = append(problems, fmt.Sprintf("/progress/%s: no numbered heading %q in the content", k, k))
 		}
 	}
-	for _, l := range p.FrontMatter.Plans {
+	for _, l := range p.FrontMatter.PlanLinks() {
 		if _, err := s.store.GetPlan(ctx, l.ID); errors.Is(err, store.ErrNotFound) {
-			problems = append(problems, fmt.Sprintf("/plans: linked plan %s does not exist", l.ID))
+			problems = append(problems, fmt.Sprintf("/links/plans: linked plan %s does not exist", l.ID))
 		}
 	}
 	sort.Strings(problems)
@@ -920,6 +942,7 @@ func (s *Service) PatchFrontMatter(ctx context.Context, identifier string, patch
 			}
 			p.FrontMatter.Effort = ev
 		case "plans":
+			// Shorthand for links.plans.
 			var links []model.Link
 			if err := reencode(v, &links); err != nil {
 				return nil, newErr(KindBadRequest, "plans: %v", err)
@@ -929,11 +952,62 @@ func (s *Service) PatchFrontMatter(ctx context.Context, identifier string, patch
 					return nil, err
 				}
 			}
-			p.FrontMatter.Plans = links
+			p.FrontMatter.SetPlanLinks(links)
 		case "links":
-			var links *model.Links
-			if err := reencode(v, &links); err != nil {
-				return nil, newErr(KindBadRequest, "links: %v", err)
+			// Merge per link kind: a kind present in the patch replaces that
+			// kind (null clears it); kinds left out are kept.
+			if v == nil {
+				p.FrontMatter.Links = nil
+				continue
+			}
+			patchLinks, ok := v.(map[string]any)
+			if !ok {
+				return nil, newErr(KindBadRequest, "links must be an object")
+			}
+			links := &model.Links{}
+			if p.FrontMatter.Links != nil {
+				l := *p.FrontMatter.Links
+				links = &l
+			}
+			for lk, lv := range patchLinks {
+				var err error
+				switch lk {
+				case "repo":
+					links.Repo = nil
+					if lv != nil {
+						err = reencode(lv, &links.Repo)
+					}
+				case "specs":
+					links.Specs = nil
+					if lv != nil {
+						err = reencode(lv, &links.Specs)
+					}
+				case "web":
+					links.Web = nil
+					if lv != nil {
+						err = reencode(lv, &links.Web)
+					}
+				case "stories":
+					links.Stories = nil
+					if lv != nil {
+						err = reencode(lv, &links.Stories)
+					}
+				case "plans":
+					links.Plans = nil
+					if lv != nil {
+						err = reencode(lv, &links.Plans)
+					}
+					for _, l := range links.Plans {
+						if err := s.checkPlanLink(ctx, p.ID(), l); err != nil {
+							return nil, err
+						}
+					}
+				default:
+					return nil, newErr(KindBadRequest, "unknown link kind %q (repo, specs, web, stories, plans)", lk)
+				}
+				if err != nil {
+					return nil, newErr(KindBadRequest, "links.%s: %v", lk, err)
+				}
 			}
 			if links.IsEmpty() {
 				links = nil
@@ -1001,7 +1075,7 @@ func contains(list []string, v string) bool {
 	return false
 }
 
-// AddPlanLink adds [targetPlanId, relation] to plans (duplicates ignored).
+// AddPlanLink adds [targetPlanId, relation] to links.plans (duplicates ignored).
 func (s *Service) AddPlanLink(ctx context.Context, identifier, target, relation string) (*model.Plan, error) {
 	p, err := s.Resolve(ctx, identifier)
 	if err != nil {
@@ -1011,12 +1085,12 @@ func (s *Service) AddPlanLink(ctx context.Context, identifier, target, relation 
 	if err := s.checkPlanLink(ctx, p.ID(), l); err != nil {
 		return nil, err
 	}
-	for _, x := range p.FrontMatter.Plans {
+	for _, x := range p.FrontMatter.PlanLinks() {
 		if x == l {
 			return p, nil
 		}
 	}
-	p.FrontMatter.Plans = append(p.FrontMatter.Plans, l)
+	p.FrontMatter.SetPlanLinks(append(p.FrontMatter.PlanLinks(), l))
 	return s.save(ctx, p, "addPlanLink", events.PlanUpdated)
 }
 
@@ -1026,11 +1100,11 @@ func (s *Service) RemovePlanLink(ctx context.Context, identifier, target, relati
 	if err != nil {
 		return nil, err
 	}
-	kept, removed := filterLinks(p.FrontMatter.Plans, target, relation)
+	kept, removed := filterLinks(p.FrontMatter.PlanLinks(), target, relation)
 	if removed == 0 {
 		return nil, newErr(KindNotFound, "plan %s has no link to %s%s", p.ID(), target, relationSuffix(relation))
 	}
-	p.FrontMatter.Plans = kept
+	p.FrontMatter.SetPlanLinks(kept)
 	return s.save(ctx, p, "removePlanLink", events.PlanUpdated)
 }
 

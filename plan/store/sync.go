@@ -135,9 +135,6 @@ func PlansEqual(a, b *model.Plan) bool {
 // normalizeFM makes nil and empty collections compare equal.
 func normalizeFM(f model.FrontMatter) model.FrontMatter {
 	c := f.Clone()
-	if len(c.Plans) == 0 {
-		c.Plans = nil
-	}
 	if len(c.Progress) == 0 {
 		c.Progress = nil
 	}
@@ -150,6 +147,9 @@ func normalizeFM(f model.FrontMatter) model.FrontMatter {
 		}
 		if len(c.Links.Stories) == 0 {
 			c.Links.Stories = nil
+		}
+		if len(c.Links.Plans) == 0 {
+			c.Links.Plans = nil
 		}
 		if c.Links.IsEmpty() {
 			c.Links = nil
