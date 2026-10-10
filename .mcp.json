@@ -5,6 +5,6 @@
   },
   "mind-palace": {
     "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued",
-    "args": ["mcp"]
+    "args": ["mcp", "--no-session-tools"]
   }
 }
