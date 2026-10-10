@@ -97,4 +97,4 @@ mind-palace's own behaviour beyond the file-store rule already landed.
 
 The implementation plan for this work is created in mind-palace with the CLI
 (`mind-palace plan create`), not written to `docs/superpowers/plans/`, and
-links this spec with `plan addSpec`.
+links this spec with `mind-palace plan add-spec`.
