@@ -117,6 +117,7 @@ func TestStrictConfigAndNormalisationEdges(t *testing.T) {
 func TestLoadFindsDefaultConfigInParentDir(t *testing.T) {
 	t.Setenv(EnvConfig, "")
 	root := t.TempDir()
+	t.Setenv("HOME", root)
 	os.WriteFile(filepath.Join(root, "plan.config.yaml"), []byte("plansDir: from-parent\n"), 0o644)
 	nested := filepath.Join(root, "a", "b")
 	os.MkdirAll(nested, 0o755)
@@ -136,6 +137,7 @@ func TestLoadFindsDefaultConfigInParentDir(t *testing.T) {
 func TestLoadPrefersNearestDefaultConfig(t *testing.T) {
 	t.Setenv(EnvConfig, "")
 	root := t.TempDir()
+	t.Setenv("HOME", root)
 	os.WriteFile(filepath.Join(root, "plan.config.yaml"), []byte("plansDir: from-parent\n"), 0o644)
 	nested := filepath.Join(root, "a")
 	os.MkdirAll(nested, 0o755)
@@ -147,5 +149,78 @@ func TestLoadPrefersNearestDefaultConfig(t *testing.T) {
 	}
 	if c.PlansDir != "from-cwd" {
 		t.Errorf("plansDir = %q, want the working directory's config to win over a parent's", c.PlansDir)
+	}
+}
+
+func TestLoadStopsSearchingAboveHomeDir(t *testing.T) {
+	t.Setenv(EnvConfig, "")
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	t.Setenv("HOME", home)
+	os.WriteFile(filepath.Join(root, "plan.config.yaml"), []byte("plansDir: above-home\n"), 0o644)
+	nested := filepath.Join(home, "a")
+	os.MkdirAll(nested, 0o755)
+	t.Chdir(nested)
+	c, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Source != "" || c.PlansDir != DefaultPlansDir {
+		t.Errorf("source = %q plansDir = %q, want a config above the home dir to be ignored", c.Source, c.PlansDir)
+	}
+}
+
+func TestLoadFindsDefaultConfigInHomeDir(t *testing.T) {
+	t.Setenv(EnvConfig, "")
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	os.WriteFile(filepath.Join(home, "plan.config.yaml"), []byte("plansDir: from-home\n"), 0o644)
+	nested := filepath.Join(home, "a")
+	os.MkdirAll(nested, 0o755)
+	t.Chdir(nested)
+	c, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.PlansDir != "from-home" {
+		t.Errorf("plansDir = %q, want the home dir itself to be searched", c.PlansDir)
+	}
+}
+
+func TestLoadOutsideHomeSearchesOnlyWorkingDir(t *testing.T) {
+	t.Setenv(EnvConfig, "")
+	root := t.TempDir()
+	t.Setenv("HOME", filepath.Join(root, "home"))
+	os.WriteFile(filepath.Join(root, "plan.config.yaml"), []byte("plansDir: outside-home\n"), 0o644)
+	nested := filepath.Join(root, "elsewhere", "a")
+	os.MkdirAll(nested, 0o755)
+	t.Chdir(nested)
+	c, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Source != "" {
+		t.Errorf("source = %q, want no parent search outside the home dir", c.Source)
+	}
+}
+
+func TestLoadSkipsUnreadableDefaultConfig(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can read any file")
+	}
+	t.Setenv(EnvConfig, "")
+	root := t.TempDir()
+	t.Setenv("HOME", root)
+	os.WriteFile(filepath.Join(root, "plan.config.yaml"), []byte("plansDir: from-parent\n"), 0o644)
+	nested := filepath.Join(root, "a")
+	os.MkdirAll(nested, 0o755)
+	os.WriteFile(filepath.Join(nested, "plan.config.yaml"), []byte("plansDir: unreadable\n"), 0o000)
+	t.Chdir(nested)
+	c, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.PlansDir != "from-parent" {
+		t.Errorf("plansDir = %q, want an unreadable config to be skipped", c.PlansDir)
 	}
 }

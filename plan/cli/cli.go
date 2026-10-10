@@ -236,7 +236,7 @@ Errors go to stderr as {"ok": false, "error": {...}} with exit codes:
 	root.SetOut(a.Stdout)
 	root.SetErr(a.Stderr)
 	pf := root.PersistentFlags()
-	pf.StringVar(&a.configPath, "config", "", "config file (default: $PLAN_CONFIG, then plan.config.yaml/json in the working directory or its parents)")
+	pf.StringVar(&a.configPath, "config", "", "config file (default: $PLAN_CONFIG, then plan.config.yaml/json in the working directory or its parents, up to your home directory)")
 	pf.StringVar(&a.dir, "dir", "", "plans directory for file storage (default: docs/plans)")
 	pf.StringVarP(&a.format, "format", "f", "json", "output format: json, yaml or text (text prints content/templates raw)")
 	pf.BoolVar(&a.compact, "compact", false, "single-line JSON output")

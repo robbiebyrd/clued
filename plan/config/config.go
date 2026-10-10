@@ -33,7 +33,7 @@ const (
 var typeNameRe = regexp.MustCompile(`^[a-z0-9]{2,8}$`)
 
 // DefaultConfigFiles are looked up in the working directory and then each
-// parent directory up to the filesystem root, in order.
+// parent directory up to the user's home directory, in order.
 var DefaultConfigFiles = []string{"plan.config.yaml", "plan.config.yml", "plan.config.json", ".plan.yaml", ".plan.json"}
 
 // TypeDef is a plan type.
@@ -161,7 +161,8 @@ type fileConfig struct {
 
 // Load reads a config file (YAML or JSON) and overlays it on the defaults.
 // An empty path means: use $PLAN_CONFIG, then the first DefaultConfigFiles
-// entry found in the working directory or its ancestors, then defaults alone.
+// entry found in the working directory or its ancestors (up to the home
+// directory), then defaults alone.
 func Load(path string) (*Config, error) {
 	cfg := Default()
 	if path == "" {
@@ -184,26 +185,55 @@ func Load(path string) (*Config, error) {
 	return cfg, cfg.Validate()
 }
 
-// findDefaultConfig returns the nearest DefaultConfigFiles entry, searching
-// the working directory and then each parent directory, or "" when none exists.
+// findDefaultConfig returns the nearest readable DefaultConfigFiles entry,
+// searching the working directory and then each parent directory, or ""
+// when none exists. The search never goes above the user's home directory,
+// so a config planted in a shared ancestor such as /tmp is not honoured;
+// outside the home directory only the working directory is searched.
 func findDefaultConfig() string {
 	dir, err := os.Getwd()
 	if err != nil {
 		return ""
 	}
+	dir = resolvePath(dir)
+	home := ""
+	if h, err := os.UserHomeDir(); err == nil {
+		home = resolvePath(h)
+	}
+	withinHome := home != "" && (dir == home || strings.HasPrefix(dir, home+string(filepath.Separator)))
 	for {
 		for _, name := range DefaultConfigFiles {
 			candidate := filepath.Join(dir, name)
-			if _, err := os.Stat(candidate); err == nil {
+			if isReadableFile(candidate) {
 				return candidate
 			}
 		}
 		parent := filepath.Dir(dir)
-		if parent == dir {
+		if !withinHome || dir == home || parent == dir {
 			return ""
 		}
 		dir = parent
 	}
+}
+
+// resolvePath follows symlinks so that paths compare equal regardless of how
+// they were spelled (e.g. /var vs /private/var on macOS).
+func resolvePath(p string) string {
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	return p
+}
+
+// isReadableFile reports whether path is a regular file the process can open.
+func isReadableFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	return err == nil && info.Mode().IsRegular()
 }
 
 // Overlay applies a YAML or JSON document on top of the receiver.
