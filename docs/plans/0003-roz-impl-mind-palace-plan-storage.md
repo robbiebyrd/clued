@@ -6,7 +6,7 @@ status: complete
 priority: "2"
 effort: S
 created: "2026-10-10T02:46:02.952Z"
-updated: "2026-10-10T02:56:15.606Z"
+updated: "2026-10-10T02:58:49.858Z"
 completed: "2026-10-10T02:55:53.567Z"
 links:
   repo:
@@ -49,6 +49,7 @@ progress:
 
 **Approach:** Add to the clued plugin a blocking PreToolUse hook, a thin skill that routes plan writing, spec linking and plan reading through the plan_* MCP tools, a .mcp.json entry that launches mind-palace mcp, and a check-setup warning when the binary is missing.
 
+---
 
 # Part 2 — Implementation
 
@@ -374,8 +375,10 @@ No `--config` or `--dir` flags: the server walks up from the working directory f
 
 - [ ] **Step 1: Create the skill** — Create `skills/plan-storage/SKILL.md`:
 ```markdown
+---
 name: plan-storage
 description: Use when writing, saving, linking or reading an implementation plan, when a brainstorm has produced a design doc that a plan should reference, or when a plan template is needed. Routes plan storage through the mind-palace MCP tools instead of files under docs/superpowers/plans.
+---
 
 # Plan storage via mind-palace
 
