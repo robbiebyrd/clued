@@ -2,11 +2,11 @@
 id: 0003-7lv
 title: 'Design: port the clued session capture from TypeScript to Go inside mind-palace'
 type: dsgn
-status: pending
+status: ready
 priority: "2"
 effort: XL
 created: "2026-10-10T02:48:36.221Z"
-updated: "2026-10-10T02:48:36.221Z"
+updated: "2026-10-10T02:56:46.597Z"
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
