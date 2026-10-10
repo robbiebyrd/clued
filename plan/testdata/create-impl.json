@@ -1,0 +1,56 @@
+{
+  "frontMatter": {
+    "title": "Add plan service",
+    "type": "impl",
+    "status": "approved",
+    "priority": "P2",
+    "effort": "Medium",
+    "links": {
+      "specs": ["./docs/design/plan-service.md"],
+      "repo": {"remote": "git@github.com:robbiebyrd/clued.git", "local": "~/Projects/clued"},
+      "web": {"jira": "https://jira.example.com/browse/ACME-1"},
+      "stories": [["001-abc", "included"]]
+    }
+  },
+  "body": {
+    "summary": {
+      "goal": "Agents can save and track plans.",
+      "problem": "Plans live in ad-hoc files with no lifecycle.",
+      "approach": "A Go service with pluggable storage."
+    },
+    "implementation": {
+      "architecture": "A service layer over a fan-out store.",
+      "techStack": "Go 1.26, cobra, yaml.v3",
+      "constraints": ["Every write is validated"],
+      "files": [{"path": "plan/service/service.go", "change": "create", "responsibility": "Business rules"}],
+      "phases": [
+        {
+          "number": "1",
+          "name": "Core",
+          "sections": [
+            {
+              "number": "1.1",
+              "name": "Model",
+              "files": {"create": ["plan/model/model.go"], "test": ["plan/model/model_test.go"]},
+              "steps": [
+                {"title": "Write the failing test", "detail": "round-trips YAML"},
+                {"title": "Run it and confirm it fails", "command": "go test ./model"},
+                {"title": "Implement"},
+                {"title": "Commit", "command": "git commit -m 'feat(model): add types'"}
+              ],
+              "validation": "go test ./model"
+            }
+          ]
+        },
+        {
+          "number": "2",
+          "name": "Wrap up",
+          "checklist": ["Full test suite passes"],
+          "validation": "go test ./..."
+        }
+      ],
+      "acceptanceCriteria": ["Plans round-trip through every store"],
+      "nextSteps": ["Add stories"]
+    }
+  }
+}

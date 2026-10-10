@@ -1,0 +1,17 @@
+{
+  "slug": "plan-service-design",
+  "frontMatter": {"title": "Plan service design", "type": "dsgn", "status": "pending", "priority": "1"},
+  "body": {
+    "summary": {"goal": "Decide the shape of the plan service.", "problem": "No shared plan format exists."},
+    "design": {
+      "currentState": "Plans are loose Markdown under docs/superpowers.",
+      "decisions": [{"decision": "Markdown files are the primary store", "rationale": "They diff well in git."}],
+      "rejectedAlternatives": [{"alternative": "SQLite only", "reason": "Not reviewable in PRs."}],
+      "components": [{"name": "Service", "content": "Validates every write."}, {"name": "Storage", "content": "Fan-out to plugins."}],
+      "considerations": {"security": "No new exposure."},
+      "testing": "Unit tests per package; integration tests through the CLI.",
+      "scope": {"inScope": ["Plans"], "outOfScope": [{"item": "Stories", "reason": "tracked separately"}]},
+      "openQuestions": [{"question": "Which DBs first?", "owner": "robbie"}]
+    }
+  }
+}

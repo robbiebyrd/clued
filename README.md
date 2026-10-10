@@ -133,3 +133,20 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
 ```
 
 The uninstall wizard detects what's present on your machine and asks before removing anything.
+
+---
+
+## Plan service (`plan/`)
+
+The repository also ships `plan`, a Go backend for saving, retrieving and
+monitoring Plans (design and implementation plans as Markdown with YAML front
+matter, stored under `docs/plans`). It exposes the same operations over a CLI,
+HTTP/REST, WebSockets and MCP, and can mirror plans into SQL, MongoDB or
+Firestore stores. See [`plan/README.md`](plan/README.md).
+
+```bash
+cd plan && go build -o plan ./cmd/plan
+./plan template get
+./plan create --input plan.json
+./plan serve
+```

@@ -1,0 +1,418 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clued.dev/schemas/plan.schema.json",
+  "title": "Plan",
+  "description": "Input for creating a new Plan from the plan template. `frontMatter` becomes the YAML front matter; `body` fills the template's Markdown sections. The file is written as `<frontMatter.id>-<frontMatter.type>-<slug>.md`, e.g. `0002-a3f-dsgn-description-of-plan.md`. Enumerated values (types, statuses, priorities, effort) are the defaults and can be replaced by configuration.",
+  "type": "object",
+  "required": ["frontMatter", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "slug": {
+      "description": "The description part of the filename. If omitted, derive it from `frontMatter.title`: lowercase, with runs of non-alphanumeric characters replaced by a single hyphen.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "examples": ["description-of-plan"]
+    },
+    "frontMatter": { "$ref": "#/$defs/frontMatter" },
+    "body": { "$ref": "#/$defs/body" }
+  },
+  "allOf": [
+    {
+      "description": "Design plans fill Part 1 (Design) and need its required sections.",
+      "if": {
+        "required": ["frontMatter"],
+        "properties": { "frontMatter": { "required": ["type"], "properties": { "type": { "const": "dsgn" } } } }
+      },
+      "then": {
+        "properties": {
+          "body": {
+            "required": ["design"],
+            "properties": { "design": { "required": ["decisions", "components", "testing", "scope"] } }
+          }
+        }
+      }
+    },
+    {
+      "description": "Drafts are partial designs: Part 1 is expected but nothing in it is required yet.",
+      "if": {
+        "required": ["frontMatter"],
+        "properties": { "frontMatter": { "required": ["type"], "properties": { "type": { "const": "drft" } } } }
+      },
+      "then": { "properties": { "body": { "required": ["design"] } } }
+    },
+    {
+      "description": "Implementation plans fill Part 2 and must link the design they execute.",
+      "if": {
+        "required": ["frontMatter"],
+        "properties": { "frontMatter": { "required": ["type"], "properties": { "type": { "const": "impl" } } } }
+      },
+      "then": {
+        "properties": {
+          "body": { "required": ["implementation"] },
+          "frontMatter": { "required": ["links"], "properties": { "links": { "required": ["specs"] } } }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "planId": {
+      "description": "AAAA-BBB: 4-digit sequence number and a 3-character random alphanumeric ID.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[a-z0-9]{3}$",
+      "examples": ["0002-a3f"]
+    },
+    "storyId": {
+      "type": "string",
+      "pattern": "^[0-9]{3,4}-[a-z0-9]{3}$",
+      "examples": ["001-abc"]
+    },
+    "sectionNumber": {
+      "description": "A phase number (\"2\") or a section within a phase (\"1.1\").",
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$"
+    },
+    "planType": {
+      "description": "drft = Draft, dsgn = Design, impl = Implementation.",
+      "enum": ["drft", "dsgn", "impl"]
+    },
+    "status": {
+      "description": "Primary status names. On input, synonyms map to these: pending (new, draft, todo); validated (validate, valid); ready (approve, approved); in_progress (start, started, active, working, progress, in-progress); complete (done, completed, finish, finished, close, closed); blocked (block, hold, on_hold); rejected (reject, skip, skipped, cancel, cancelled, wontdo, wontfix); archived (archive, shelve, shelved, park, parked). Normalize synonyms before validating.",
+      "enum": ["pending", "validated", "ready", "in_progress", "complete", "blocked", "rejected", "archived"]
+    },
+    "planRelation": {
+      "description": "parent: the referenced plan owns this one. included: this plan was split out of the referenced one. depends: the referenced plan must finish before this one can. blocks: the referenced plan can't finish until this one does.",
+      "enum": ["parent", "included", "depends", "blocks"]
+    },
+    "storyRelation": { "enum": ["included", "depends", "blocks"] },
+    "timestamp": {
+      "description": "ISO 8601 UTC timestamp, e.g. 2026-09-09T14:07:05.352Z.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "markdown": { "description": "Markdown text inserted as-is.", "type": "string", "minLength": 1 },
+    "markdownList": { "type": "array", "items": { "$ref": "#/$defs/markdown" } },
+    "frontMatter": {
+      "title": "Plan front matter",
+      "type": "object",
+      "required": ["title", "type", "status", "priority"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/planId" },
+        "title": { "type": "string", "minLength": 1, "description": "Also used as the document's H1 heading." },
+        "type": { "$ref": "#/$defs/planType" },
+        "status": { "$ref": "#/$defs/status", "default": "pending" },
+        "priority": {
+          "description": "0 Emergency · 1 Critical · 2 High · 3 Medium · 4 Low · 5 Informational. Written as a quoted string.",
+          "enum": ["0", "1", "2", "3", "4", "5"]
+        },
+        "effort": { "description": "Optional. XS (2) · S (3) · M (5) · L (8) · XL (13).", "enum": ["XS", "S", "M", "L", "XL"] },
+        "created": { "$ref": "#/$defs/timestamp" },
+        "updated": { "$ref": "#/$defs/timestamp" },
+        "completed": {
+          "description": "Empty until the plan is complete.",
+          "anyOf": [{ "const": "" }, { "$ref": "#/$defs/timestamp" }],
+          "default": ""
+        },
+        "plans": {
+          "description": "Related plans as [plan-id, relation] pairs.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [{ "$ref": "#/$defs/planId" }, { "$ref": "#/$defs/planRelation" }],
+            "minItems": 2,
+            "items": false
+          }
+        },
+        "links": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "specs": {
+              "description": "File paths of the designs/specs this plan builds on.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "anyOf": [
+                  { "type": "string", "pattern": "^\\.{0,2}/?[^\\s]+\\.[A-Za-z0-9]+$", "description": "Relative file path." },
+                  { "type": "string", "pattern": "^[A-Za-z0-9._~-]+@[A-Za-z0-9.-]+:[^\\s]+$", "description": "File URL." }
+                ]
+              }
+            },
+            "repo": {
+              "description": "The git repository this plan's work happens in.",
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 1,
+              "properties": {
+                "remote": {
+                  "description": "Git remote URL: scp-style (user@host:path, e.g. git@github.com:org/project.git) or a git://, ssh://, git+ssh://, http:// or https:// URL.",
+                  "type": "string",
+                  "anyOf": [
+                    { "pattern": "^[A-Za-z0-9._~-]+@[A-Za-z0-9.-]+:[^\\s]+$" },
+                    { "pattern": "^(git|ssh|git\\+ssh|https?)://[^\\s]+$" }
+                  ],
+                  "examples": ["git@github.com:org/project.git", "https://github.com/org/project.git"]
+                },
+                "local": {
+                  "description": "Local folder holding a checkout of the repository. May be absolute, relative, or start with ~ (expanded by the tool).",
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^\\S(.*\\S)?$",
+                  "examples": ["~/Projects/project"]
+                }
+              }
+            },
+            "web": {
+              "description": "Named web links, e.g. { \"jira\": \"https://…\" }.",
+              "type": "object",
+              "additionalProperties": { "type": "string", "format": "uri", "pattern": "^https?://" }
+            },
+            "stories": {
+              "description": "Related stories as [story-id, relation] pairs.",
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [{ "$ref": "#/$defs/storyId" }, { "$ref": "#/$defs/storyRelation" }],
+                "minItems": 2,
+                "items": false
+              }
+            }
+          }
+        },
+        "progress": {
+          "description": "Status of each numbered phase/section in Part 2. Keys must match `body.implementation` phase and section numbers, and must be written as quoted strings in YAML.",
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/sectionNumber" },
+          "additionalProperties": {
+            "type": "object",
+            "required": ["status"],
+            "additionalProperties": false,
+            "properties": {
+              "status": { "$ref": "#/$defs/status" },
+              "stories": { "type": "array", "items": { "$ref": "#/$defs/storyId" } }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "description": "A complete plan records when it completed.",
+          "if": { "properties": { "status": { "const": "complete" } }, "required": ["status"] },
+          "then": { "required": ["completed"], "properties": { "completed": { "$ref": "#/$defs/timestamp" } } }
+        }
+      ]
+    },
+    "storedFrontMatter": {
+      "description": "Front matter of a plan that has been written: the service-managed fields are present.",
+      "allOf": [
+        { "$ref": "#/$defs/frontMatter" },
+        { "required": ["id", "created", "updated", "completed"] }
+      ]
+    },
+    "body": {
+      "title": "Plan body",
+      "type": "object",
+      "required": ["summary"],
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "type": "object",
+          "required": ["goal", "problem"],
+          "additionalProperties": false,
+          "properties": {
+            "goal": { "$ref": "#/$defs/markdown", "description": "One sentence: the outcome when this ships." },
+            "problem": { "$ref": "#/$defs/markdown", "description": "What is wrong or missing today, and who it affects." },
+            "approach": { "$ref": "#/$defs/markdown", "description": "One or two sentences on the chosen solution." }
+          }
+        },
+        "design": { "$ref": "#/$defs/design" },
+        "implementation": { "$ref": "#/$defs/implementation" }
+      }
+    },
+    "design": {
+      "title": "Part 1 — Design",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "currentState": { "$ref": "#/$defs/markdown", "description": "What exists today (Research Findings, Root Cause, What Already Exists)." },
+        "decisions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["decision", "rationale"],
+            "additionalProperties": false,
+            "properties": { "decision": { "$ref": "#/$defs/markdown" }, "rationale": { "$ref": "#/$defs/markdown" } }
+          }
+        },
+        "rejectedAlternatives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["alternative", "reason"],
+            "additionalProperties": false,
+            "properties": { "alternative": { "$ref": "#/$defs/markdown" }, "reason": { "$ref": "#/$defs/markdown" } }
+          }
+        },
+        "components": {
+          "description": "One H3 per component or area under ## Design.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "content"],
+            "additionalProperties": false,
+            "properties": { "name": { "type": "string", "minLength": 1 }, "content": { "$ref": "#/$defs/markdown" } }
+          }
+        },
+        "errorHandling": { "$ref": "#/$defs/markdown" },
+        "edgeCases": { "$ref": "#/$defs/markdown" },
+        "considerations": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": { "security": { "$ref": "#/$defs/markdown" }, "performance": { "$ref": "#/$defs/markdown" } }
+        },
+        "testing": { "$ref": "#/$defs/markdown", "description": "What is tested at which level." },
+        "scope": {
+          "type": "object",
+          "required": ["outOfScope"],
+          "additionalProperties": false,
+          "properties": {
+            "inScope": { "$ref": "#/$defs/markdownList" },
+            "outOfScope": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["item"],
+                "additionalProperties": false,
+                "properties": { "item": { "$ref": "#/$defs/markdown" }, "reason": { "$ref": "#/$defs/markdown" } }
+              }
+            }
+          }
+        },
+        "openQuestions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["question"],
+            "additionalProperties": false,
+            "properties": { "question": { "$ref": "#/$defs/markdown" }, "owner": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "implementation": {
+      "title": "Part 2 — Implementation",
+      "type": "object",
+      "required": ["phases", "acceptanceCriteria"],
+      "additionalProperties": false,
+      "properties": {
+        "architecture": { "$ref": "#/$defs/markdown" },
+        "techStack": { "$ref": "#/$defs/markdown" },
+        "constraints": { "$ref": "#/$defs/markdownList" },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "change"],
+            "additionalProperties": false,
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "change": { "enum": ["create", "modify", "delete"] },
+              "responsibility": { "$ref": "#/$defs/markdown" }
+            }
+          }
+        },
+        "phases": {
+          "description": "Rendered as ## Phase N. A phase has either numbered sections or, if it is a single unit of work, its own checklist.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/phase" }
+        },
+        "acceptanceCriteria": { "$ref": "#/$defs/markdownList", "minItems": 1 },
+        "selfReview": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "coverage": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["requirement", "deliveredBy"],
+                "additionalProperties": false,
+                "properties": {
+                  "requirement": { "$ref": "#/$defs/markdown" },
+                  "deliveredBy": { "type": "string", "description": "Section number and step, e.g. \"1.1, Step 3\"." }
+                }
+              }
+            },
+            "placeholderScan": { "$ref": "#/$defs/markdown" },
+            "residualRisk": { "$ref": "#/$defs/markdown" }
+          }
+        },
+        "nextSteps": { "$ref": "#/$defs/markdownList" }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "required": ["number", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "number": { "type": "string", "pattern": "^[0-9]+$", "description": "Phase number; also its `progress` key." },
+        "name": { "type": "string", "minLength": 1 },
+        "sections": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/section" } },
+        "checklist": { "$ref": "#/$defs/markdownList", "minItems": 1 },
+        "validation": { "type": "string", "description": "Command that proves the phase is done." }
+      },
+      "oneOf": [
+        { "required": ["sections"], "not": { "required": ["checklist"] } },
+        { "required": ["checklist"], "not": { "required": ["sections"] } }
+      ]
+    },
+    "section": {
+      "description": "Rendered as ### N.M. Its number is also its `progress` key and should start with its phase number.",
+      "type": "object",
+      "required": ["number", "name", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "number": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "files": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "create": { "type": "array", "items": { "type": "string" } },
+            "modify": { "type": "array", "items": { "type": "string" } },
+            "delete": { "type": "array", "items": { "type": "string" } },
+            "test": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "dependsOn": { "description": "Section or phase numbers within this plan.", "type": "array", "items": { "$ref": "#/$defs/sectionNumber" } },
+        "interfaces": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "consumes": { "$ref": "#/$defs/markdown" }, "produces": { "$ref": "#/$defs/markdown" } }
+        },
+        "steps": {
+          "description": "Rendered as `- [ ] **Step N: <title>** — <detail>`. The usual sequence is: write the failing test, confirm it fails, implement, confirm it passes, commit.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["title"],
+            "additionalProperties": false,
+            "properties": {
+              "title": { "type": "string", "minLength": 1 },
+              "detail": { "$ref": "#/$defs/markdown" },
+              "command": { "type": "string", "description": "Shell command for this step, rendered in backticks." }
+            }
+          }
+        },
+        "validation": { "type": "string", "description": "Command that proves the section is done." }
+      }
+    }
+  }
+}
