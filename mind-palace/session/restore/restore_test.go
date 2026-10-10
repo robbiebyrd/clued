@@ -272,3 +272,84 @@ func TestRestoreIgnoresOtherAccountsData(t *testing.T) {
 		t.Fatalf("transcript has %d lines", len(lines))
 	}
 }
+
+// treeFiles lists every file under root, relative to it.
+func treeFiles(t *testing.T, root string) []string {
+	t.Helper()
+	var out []string
+	must(t, filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			rel, _ := filepath.Rel(root, p)
+			out = append(out, rel)
+		}
+		return err
+	}))
+	return out
+}
+
+func TestRestoreSkipsUnsafeBlobAndSubagentNames(t *testing.T) {
+	st := memsession.New()
+	seedSession(t, st, session.Session{ProjectPath: projPath})
+	for _, b := range []session.Blob{
+		{BlobType: "tool-result", Name: "../../../../escape.txt", Content: "x", Encoding: "utf8"},
+		{BlobType: "file-history", Name: "sub/dir", Content: "x", Encoding: "utf8"},
+		{BlobType: "subagent-meta", Name: "/abs.json", Content: "x", Encoding: "utf8"},
+		{BlobType: "tool-result", Name: "ok.txt", Content: "fine", Encoding: "utf8"},
+	} {
+		b.SessionID, b.AccountID = sid, account
+		must(t, st.UpsertBlob(ctx, b))
+	}
+	must(t, st.UpsertSubagentLine(ctx, session.SubagentLine{SessionID: sid, SubagentID: "../evil", Seq: 0, AccountID: account, Line: map[string]any{"a": 1}}))
+
+	outer := t.TempDir()
+	root := filepath.Join(outer, "root", "deep")
+	projects, history := filepath.Join(root, "projects"), filepath.Join(root, "history")
+	res, err := restore.Session(ctx, st, account, restore.Args{SessionID: sid, ProjectsDir: projects}, history)
+	must(t, err)
+
+	wantMissing := []string{
+		"transcript_lines",
+		"unsafe-name:subagent-lines/../evil",
+		"unsafe-name:file-history/sub/dir",
+		"unsafe-name:subagent-meta//abs.json",
+		"unsafe-name:tool-result/../../../../escape.txt",
+	}
+	if !reflect.DeepEqual(res.Missing, wantMissing) {
+		t.Fatalf("missing = %q, want %q", res.Missing, wantMissing)
+	}
+	if res.FilesWritten != 1 || res.BytesWritten != len("fine") {
+		t.Fatalf("result = %+v", res)
+	}
+	if got := treeFiles(t, outer); !reflect.DeepEqual(got, []string{filepath.Join("root", "deep", "projects", projDir, sid, "tool-results", "ok.txt")}) {
+		t.Fatalf("files under outer = %v", got)
+	}
+}
+
+func TestRestoreRejectsUnsafeSessionIDBeforeCreatingAnything(t *testing.T) {
+	st := memsession.New()
+	for _, id := range []string{"../escape", "a/b", "..", ""} {
+		must(t, st.UpsertSession(ctx, session.Session{SessionID: id, AccountID: account, ProjectPath: projPath, LastSeen: time.Now()}))
+		tmp := t.TempDir()
+		projects, history := filepath.Join(tmp, "projects"), filepath.Join(tmp, "history")
+		_, err := restore.Session(ctx, st, account, restore.Args{SessionID: id, ProjectsDir: projects}, history)
+		if err == nil || !strings.Contains(err.Error(), "unsafe session id") {
+			t.Fatalf("%q: err = %v", id, err)
+		}
+		if entries, _ := os.ReadDir(tmp); len(entries) != 0 {
+			t.Fatalf("%q: created %v", id, entries)
+		}
+	}
+}
+
+func TestRestoreRejectsUnsafeTranscriptDirectoryName(t *testing.T) {
+	st := memsession.New()
+	seedSession(t, st, session.Session{TranscriptPath: "/x/../s.jsonl"})
+	tmp := t.TempDir()
+	_, err := restore.Session(ctx, st, account, restore.Args{SessionID: sid, ProjectsDir: filepath.Join(tmp, "p")}, filepath.Join(tmp, "h"))
+	if err == nil || !strings.Contains(err.Error(), "unsafe project directory name") {
+		t.Fatalf("err = %v", err)
+	}
+	if entries, _ := os.ReadDir(tmp); len(entries) != 0 {
+		t.Fatalf("created %v", entries)
+	}
+}

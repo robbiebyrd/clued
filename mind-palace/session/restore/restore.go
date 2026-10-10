@@ -82,7 +82,15 @@ func (w *writer) write(path string, content []byte) error {
 
 // Session writes the session's files under args.ProjectsDir (transcript,
 // subagents, subagent meta and tool results) and fileHistoryDir (file history).
+//
+// Writes are confined to those two directories: a session id or derived project
+// directory name that is not a single local path element is an error before
+// anything is created, and a blob name or subagent id that is not one is
+// skipped and reported in Result.Missing as "unsafe-name:<type>/<name>".
 func Session(ctx context.Context, store session.Store, accountID string, args Args, fileHistoryDir string) (Result, error) {
+	if !isSafeName(args.SessionID) {
+		return Result{}, fmt.Errorf("unsafe session id %q", args.SessionID)
+	}
 	stored, err := store.GetSession(ctx, accountID, args.SessionID)
 	if err != nil {
 		return Result{}, fmt.Errorf("session %s: %w", args.SessionID, err)
@@ -92,6 +100,9 @@ func Session(ctx context.Context, store session.Store, accountID string, args Ar
 		return Result{}, err
 	}
 
+	if !isSafeName(projDirName) {
+		return Result{}, fmt.Errorf("unsafe project directory name %q for session %s", projDirName, args.SessionID)
+	}
 	projectDir := filepath.Join(args.ProjectsDir, projDirName)
 	sessionDir := filepath.Join(projectDir, args.SessionID)
 	dirs := map[string]string{
@@ -117,6 +128,14 @@ func Session(ctx context.Context, store session.Store, accountID string, args Ar
 	}
 	return w.result, nil
 }
+
+// isSafeName reports whether name is a single path element that stays inside
+// the directory it is joined onto.
+func isSafeName(name string) bool {
+	return filepath.IsLocal(name) && filepath.Base(name) == name
+}
+
+func unsafeName(kind, name string) string { return "unsafe-name:" + kind + "/" + name }
 
 // projectDirName picks the project directory name: the project_path override,
 // else the parent directory of the stored transcript path, else the stored
@@ -175,6 +194,10 @@ func restoreSubagents(ctx context.Context, store session.Store, accountID, sessi
 		return err
 	}
 	for _, id := range ids {
+		if !isSafeName(id) {
+			w.result.Missing = append(w.result.Missing, unsafeName("subagent-lines", id))
+			continue
+		}
 		lines, err := store.SubagentLines(ctx, accountID, sessionID, id)
 		if err != nil {
 			return err
@@ -208,6 +231,10 @@ func restoreBlobs(ctx context.Context, store session.Store, accountID, sessionID
 			continue
 		}
 		name, _ := b.String("name")
+		if !isSafeName(name) {
+			w.result.Missing = append(w.result.Missing, unsafeName(blobType, name))
+			continue
+		}
 		content, _ := b.String("content")
 		data := []byte(content)
 		if encoding, _ := b.String("encoding"); encoding == "base64" {
