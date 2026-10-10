@@ -6,7 +6,7 @@ status: in_progress
 priority: "2"
 effort: XL
 created: "2026-10-10T02:52:36.193Z"
-updated: "2026-10-10T03:02:16.649Z"
+updated: "2026-10-10T03:10:38.409Z"
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
@@ -17,11 +17,11 @@ links:
     - ["0003-7lv", "depends"]
 progress:
   "1":
-    status: pending
+    status: complete
   "1.1":
     status: complete
   "1.2":
-    status: pending
+    status: complete
   "1.3":
     status: complete
   "2":
