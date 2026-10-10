@@ -6,7 +6,7 @@ MongoDB session mirror for Claude Code. Captures every hook event and stores it 
 
 - [Claude Code](https://claude.ai/code) installed
 - A running or accessible MongoDB instance (local, Docker, or remote — setup guides you through this)
-- `mind-palace` on your PATH for plan storage: `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`
+- `mind-palace` on your PATH for plan storage: `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`, then make sure `$(go env GOPATH)/bin` is on the PATH that Claude Code inherits
 
 ---
 
