@@ -35,7 +35,7 @@ Wait for the user's answers before doing anything destructive.
 
 Stop the daemon:
 ```bash
-pkill -f "session daemon" 2>/dev/null; echo "daemon stopped"
+pkill -f 'mind-palace session daemon$' 2>/dev/null; echo "daemon stopped"
 ```
 
 

@@ -5,7 +5,9 @@ CLUED="${PLUGIN_ROOT}/bin/clued"
 # Keep hooks registered in settings.json pointing to this plugin installation.
 "${PLUGIN_ROOT}/hooks/register-hooks" &>/dev/null &
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
-BIN_DIR="${HOME}/.claude/plugins/data/clued/bin"
+DATA_DIR="${HOME}/.claude/plugins/data/clued"
+BIN_DIR="${DATA_DIR}/bin"
+DAEMON_LOG="${DATA_DIR}/daemon.log"
 DEFAULT_PORT=8085
 
 if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
@@ -27,20 +29,21 @@ if [[ -n "$DEV_REPO" ]]; then
   rm -f "${BIN_DIR}/.rebuilt"
   "$CLUED" --build-only &>/dev/null
   if [[ -f "${BIN_DIR}/.rebuilt" ]]; then
-    pkill -f "session daemon" 2>/dev/null || true
+    pkill -f 'mind-palace session daemon$' 2>/dev/null || true
     sleep 0.5
     echo "clued: binary rebuilt — daemon restarted. Relaunch Claude Code to reconnect MCP." >&2
   fi
 fi
 
 if ! daemon_ok; then
-  "$CLUED" session daemon &>/dev/null &
+  mkdir -p "$DATA_DIR"
+  "$CLUED" session daemon >"$DAEMON_LOG" 2>&1 &
   DAEMON_PID=$!
   disown
   for _ in $(seq 1 15); do
     sleep 0.2
     if ! kill -0 "$DAEMON_PID" 2>/dev/null; then
-      echo "clued: daemon exited on startup — check MongoDB connection (${CLUED_MONGO_URL:-see config.json})" >&2
+      echo "clued: daemon exited on startup: $(tail -n 1 "$DAEMON_LOG" 2>/dev/null)" >&2
       break
     fi
     if daemon_ok; then break; fi

@@ -182,3 +182,17 @@ func TestShimBuildOnlyBuildsWithoutRunning(t *testing.T) {
 		t.Errorf("binary not built: %v", err)
 	}
 }
+
+func TestShimDevBuildOutranksPathWhenDevRepoPathIsSet(t *testing.T) {
+	goBin, err := exec.LookPath("go")
+	if err != nil {
+		t.Skip("go not installed")
+	}
+	e := newShimEnv(t)
+	writeExecutable(t, e.pathDir, "mind-palace", strings.Replace(fakeBinary, "%s", "path", 1))
+	e.writeConfig(t, `{"devRepoPath":"`+fakeDevRepo(t, "dev")+`"}`)
+	r := e.run(t, filepath.Dir(goBin), "x")
+	if r.code != 0 || strings.TrimSpace(r.stdout) != "dev x" {
+		t.Errorf("got %+v, want the dev build to win over PATH", r)
+	}
+}

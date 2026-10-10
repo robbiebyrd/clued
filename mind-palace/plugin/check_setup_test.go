@@ -69,3 +69,16 @@ func TestCheckSetupReportsBothProblemsInOneJSONMessage(t *testing.T) {
 		t.Errorf("both problems expected in: %s", msg)
 	}
 }
+
+func TestCheckSetupSilentWhenDownloadedBinaryExists(t *testing.T) {
+	home := homeWithConfig(t)
+	bin := filepath.Join(home, ".claude/plugins/data/clued/bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeExecutable(t, bin, "mind-palace", "#!/bin/sh\n")
+	r := runCheckSetup(t, home, "/usr/bin:/bin")
+	if r.stdout != "" {
+		t.Errorf("stdout = %q, want empty", r.stdout)
+	}
+}

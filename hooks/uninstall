@@ -28,7 +28,7 @@ fi
 
 # --- Stop daemon ---
 if curl -sf --max-time 1 "http://127.0.0.1:${PORT}/health" &>/dev/null; then
-  pkill -f "session daemon" 2>/dev/null && echo "clued: daemon stopped" || true
+  pkill -f 'mind-palace session daemon$' 2>/dev/null && echo "clued: daemon stopped" || true
 fi
 
 # --- macOS launchd plist ---
