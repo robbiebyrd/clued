@@ -2,11 +2,12 @@
 id: 0003-roz
 title: Expose mind-palace plan storage through the clued plugin
 type: impl
-status: pending
+status: complete
 priority: "2"
 effort: S
 created: "2026-10-10T02:46:02.952Z"
-updated: "2026-10-10T02:46:22.332Z"
+updated: "2026-10-10T02:55:53.567Z"
+completed: "2026-10-10T02:55:53.567Z"
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
