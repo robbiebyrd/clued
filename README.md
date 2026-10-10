@@ -154,3 +154,20 @@ cd mind-palace && go build -o mind-palace ./cmd/mind-palace   # plus ./cmd/plan 
 ./mind-palace story create --input story.json
 ./mind-palace serve
 ```
+
+### Plan storage for superpowers
+
+With the plugin installed, implementation plans written by the superpowers
+`writing-plans` skill are stored in mind-palace rather than under
+`docs/superpowers/plans/`:
+
+- `hooks/guard-superpowers-plans` is a PreToolUse hook that blocks `Write` and
+  `Edit` under `docs/superpowers/plans/` and names the `plan_create` /
+  `plan_update` MCP tools to use instead. Design docs under
+  `docs/superpowers/specs/` are not affected.
+- `skills/plan-storage` tells Claude to fetch a template with
+  `plan_getTemplate`, save with `plan_create` or `plan_update`, link a design
+  doc with `plan_addSpec`, and read plans back with `plan_get`.
+- `.mcp.json` starts `mind-palace mcp` in the project directory, so it needs
+  the `mind-palace` binary on PATH (see Prerequisites). `check-setup` warns at
+  session start when it is missing.
