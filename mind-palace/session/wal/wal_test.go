@@ -284,3 +284,35 @@ not-json
 		t.Errorf("expected empty file (all lines processed), got %q", string(remaining))
 	}
 }
+
+func TestFlushUntilFailureStopsAtTheFirstFailureAndKeepsTheRest(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "test.jsonl")
+	content := "{\"type\":\"a\"}\n{\"type\":\"b\"}\n{\"type\":\"c\"}\n{\"type\":\"d\"}\n"
+	if err := os.WriteFile(f, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var attempted []any
+	insert := func(ctx context.Context, doc session.Doc) error {
+		attempted = append(attempted, doc["type"])
+		if doc["type"] == "b" {
+			return errors.New("mongo down")
+		}
+		return nil
+	}
+
+	if err := wal.FlushUntilFailure(context.Background(), f, insert); err != nil {
+		t.Fatalf("FlushUntilFailure failed: %v", err)
+	}
+
+	if len(attempted) != 2 || attempted[0] != "a" || attempted[1] != "b" {
+		t.Errorf("attempted = %v, want [a b]", attempted)
+	}
+	remaining, err := os.ReadFile(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "{\"type\":\"b\"}\n{\"type\":\"c\"}\n{\"type\":\"d\"}\n"
+	if string(remaining) != want {
+		t.Errorf("remaining = %q, want %q", remaining, want)
+	}
+}

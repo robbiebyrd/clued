@@ -317,6 +317,30 @@ func TestMCPServesSessionToolsWithoutConnectingTheStore(t *testing.T) {
 	}
 }
 
+func TestMCPNoSessionToolsFlagKeepsOnlyPalaceTools(t *testing.T) {
+	sessionEnv(t, nil)
+	dir := t.TempDir()
+	rc, cs, ctx := startStdioCommand(t, "--plans-dir", filepath.Join(dir, "plans"), "--stories-dir", filepath.Join(dir, "stories"), "mcp", "--no-session-tools")
+
+	names := toolNames(t, ctx, cs)
+	for _, want := range []string{"plan_create", "plan_get", "story_create", "story_getCriteria"} {
+		if !contains(names, want) {
+			t.Errorf("tool %s missing from %v", want, names)
+		}
+	}
+	for _, unwanted := range sessionToolNames {
+		if contains(names, unwanted) {
+			t.Errorf("session tool %s present despite --no-session-tools: %v", unwanted, names)
+		}
+	}
+	if strings.Contains(cs.InitializeResult().Instructions, "find_sessions") {
+		t.Errorf("instructions = %q, want no session tools described", cs.InitializeResult().Instructions)
+	}
+	if code := rc.stop(t); code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+}
+
 func TestServeExposesSessionToolsOverStreamableHTTP(t *testing.T) {
 	sessionEnv(t, seedSessions(t))
 	dir := t.TempDir()

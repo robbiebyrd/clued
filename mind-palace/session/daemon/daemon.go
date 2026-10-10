@@ -28,7 +28,7 @@ const (
 	defaultWALFlushInterval = 60 * time.Second
 	readHeaderTimeout       = 10 * time.Second
 	shutdownTimeout         = 5 * time.Second
-	storeTimeout            = 10 * time.Second
+	defaultStoreTimeout     = 10 * time.Second
 	maxBodyBytes            = 16 << 20
 )
 
@@ -37,7 +37,7 @@ const (
 var ErrAddrInUse = errors.New("address already in use")
 
 // Options configures a Daemon. Zero intervals select the defaults (enrichment
-// every 5 s, WAL flush every 60 s); Git may be nil to skip git lookups.
+// every 5 s, WAL flush every 60 s, store calls bounded to 10 s); Git may be nil to skip git lookups.
 type Options struct {
 	Config           session.Config
 	Store            session.Store
@@ -49,6 +49,7 @@ type Options struct {
 	Tail             tail.Options
 	EnrichInterval   time.Duration
 	WALFlushInterval time.Duration
+	StoreTimeout     time.Duration
 }
 
 // sessionState is what the daemon remembers about a session it has seen.
@@ -83,6 +84,9 @@ func New(opts Options) *Daemon {
 	}
 	if opts.WALFlushInterval <= 0 {
 		opts.WALFlushInterval = defaultWALFlushInterval
+	}
+	if opts.StoreTimeout <= 0 {
+		opts.StoreTimeout = defaultStoreTimeout
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Daemon{opts: opts, log: opts.Logger, ctx: ctx, cancel: cancel, tracked: map[string]*sessionState{}}
@@ -129,7 +133,7 @@ func (d *Daemon) handleEvent(w http.ResponseWriter, r *http.Request) {
 	cwd, _ := body.String("cwd")
 	// Store calls outlive the request: a client that hangs up must not turn a
 	// committed write into a WAL duplicate.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), storeTimeout)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), d.opts.StoreTimeout)
 	defer cancel()
 	if sessionID != "" {
 		d.trackSession(sessionID, transcriptPath, cwd)
@@ -154,7 +158,7 @@ func (d *Daemon) handleEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *Daemon) touchSession(sessionID string, at time.Time) {
-	ctx, cancel := context.WithTimeout(d.ctx, storeTimeout)
+	ctx, cancel := context.WithTimeout(d.ctx, d.opts.StoreTimeout)
 	defer cancel()
 	if err := d.opts.Store.TouchSession(ctx, d.opts.AccountID, sessionID, at); err != nil && d.ctx.Err() == nil {
 		d.log.Error("touch session failed", "session_id", sessionID, "err", err)
@@ -170,7 +174,9 @@ func (d *Daemon) appendWAL(ev session.Doc) error {
 func (d *Daemon) flushWAL(ctx context.Context) {
 	d.walMu.Lock()
 	defer d.walMu.Unlock()
-	err := wal.Flush(ctx, d.opts.Config.WalPath, func(ctx context.Context, ev session.Doc) error {
+	// A failed insert means the store is down: stop there rather than waiting
+	// out a timeout per line while events queue behind walMu.
+	err := wal.FlushUntilFailure(ctx, d.opts.Config.WalPath, func(ctx context.Context, ev session.Doc) error {
 		// Entries written by the fallback carry created_at as text.
 		if s, ok := ev["created_at"].(string); ok {
 			if at, err := time.Parse(time.RFC3339Nano, s); err == nil {
@@ -179,6 +185,8 @@ func (d *Daemon) flushWAL(ctx context.Context) {
 		} else if _, ok := ev["created_at"]; !ok {
 			ev["created_at"] = time.Now()
 		}
+		ctx, cancel := context.WithTimeout(ctx, d.opts.StoreTimeout)
+		defer cancel()
 		return d.opts.Store.InsertHookEvent(ctx, ev)
 	})
 	if err != nil {
@@ -288,7 +296,7 @@ func (d *Daemon) fillGitInfo(sessionID, cwd string, state *sessionState) {
 	if origin == "" {
 		return
 	}
-	ctx, cancel := context.WithTimeout(d.ctx, storeTimeout)
+	ctx, cancel := context.WithTimeout(d.ctx, d.opts.StoreTimeout)
 	defer cancel()
 	if err := d.opts.Store.SetGitInfoIfMissing(ctx, sessionID, origin, branch); err != nil && d.ctx.Err() == nil {
 		d.log.Error("set git info failed", "session_id", sessionID, "err", err)

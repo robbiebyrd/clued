@@ -2,10 +2,12 @@ package plugin_test
 
 import (
 	"bytes"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"testing"
 )
 
@@ -62,4 +64,19 @@ func writeExecutable(t *testing.T, dir, name, body string) string {
 		t.Fatal(err)
 	}
 	return p
+}
+
+// closedPort returns a loopback port nothing listens on, so a test never
+// reaches a real daemon on the default port.
+func closedPort(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	if err := ln.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return strconv.Itoa(port)
 }

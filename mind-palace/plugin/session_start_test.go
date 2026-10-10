@@ -9,7 +9,7 @@ import (
 
 func TestSessionStartSurfacesShimErrorFromDaemonLog(t *testing.T) {
 	home := t.TempDir()
-	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin"}
+	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "CLUED_PORT=" + closedPort(t)}
 	r := runScript(t, filepath.Join(repoRoot(t), "hooks/session-start"), "", env)
 	if r.code != 0 {
 		t.Fatalf("code = %d", r.code)
