@@ -100,7 +100,7 @@ Rules that apply to every write:
 - `create` seeds `progress` with `pending` for every phase and section the body declares (unless `progress` is given).
 - Moving to `complete` sets `completed` (and overwrites it if the plan reaches `complete` again); moving away from `complete` keeps it. `completed` is omitted from the front matter until it is first set. Moving to `archived` moves the file into `archive/`.
 - Timestamps are RFC 3339 UTC with millisecond precision (`2026-09-09T14:07:05.352Z`); other RFC 3339 forms are normalised to that on write.
-- Story ids are always the full `AAAA-BBB` form (`0001-abc`), never a bare sequence number.
+- Story ids are always the full `AAAA-BBB` form (`0001-abc`), never a bare sequence number. A short sequence part (`001-abc`) is zero-padded on input and when older files are next written.
 
 ## Entrypoints
 

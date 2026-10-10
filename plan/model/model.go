@@ -403,15 +403,51 @@ const TimestampLayout = "2006-01-02T15:04:05.000Z"
 // fractional precision) to the canonical layout. Unparsable input is
 // returned unchanged with an error so schema validation can report it.
 func NormalizeTimestamp(s string) (string, error) {
-	s = strings.TrimSpace(s)
 	if s == "" {
 		return "", nil
 	}
-	t, err := time.Parse(time.RFC3339Nano, s)
+	// RFC 3339 allows lowercase date/time and zone separators; Go does not.
+	in := s
+	if len(in) > 10 && in[10] == 't' {
+		in = in[:10] + "T" + in[11:]
+	}
+	if strings.HasSuffix(in, "z") {
+		in = in[:len(in)-1] + "Z"
+	}
+	t, err := time.Parse(time.RFC3339Nano, in)
 	if err != nil {
 		return s, err
 	}
 	return t.UTC().Format(TimestampLayout), nil
+}
+
+// shortStoryIDRe matches a story id whose sequence part was written with
+// fewer than four digits (the pre-four-digit form).
+var shortStoryIDRe = regexp.MustCompile(`^([0-9]{1,3})-([a-z0-9]{3})$`)
+
+// NormalizeStoryID zero-pads a story id's sequence number to four digits
+// ("001-abc" → "0001-abc"). Anything else is returned unchanged so validation
+// can report it.
+func NormalizeStoryID(id string) string {
+	if m := shortStoryIDRe.FindStringSubmatch(id); m != nil {
+		return fmt.Sprintf("%04s-%s", m[1], m[2])
+	}
+	return id
+}
+
+// NormalizeStoryIDs zero-pads every story id in links.stories and progress.
+func (f *FrontMatter) NormalizeStoryIDs() {
+	if f.Links != nil {
+		for i := range f.Links.Stories {
+			f.Links.Stories[i].ID = NormalizeStoryID(f.Links.Stories[i].ID)
+		}
+	}
+	for k, e := range f.Progress {
+		for i := range e.Stories {
+			e.Stories[i] = NormalizeStoryID(e.Stories[i])
+		}
+		f.Progress[k] = e
+	}
 }
 
 // NormalizeTimestamps rewrites created, updated and completed into the

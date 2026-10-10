@@ -158,14 +158,22 @@ func TestNormalizeTimestampAndStoryID(t *testing.T) {
 		"2026-09-09T14:07:05Z":           "2026-09-09T14:07:05.000Z",
 		"2026-09-09T16:07:05.3521+02:00": "2026-09-09T14:07:05.352Z",
 		"":                               "",
+		"2026-09-09t14:07:05z":           "2026-09-09T14:07:05.000Z",
 	}
 	for in, want := range cases {
 		if got, err := NormalizeTimestamp(in); err != nil || got != want {
 			t.Errorf("NormalizeTimestamp(%q) = %q, %v; want %q", in, got, err, want)
 		}
 	}
-	if got, err := NormalizeTimestamp("yesterday"); err == nil || got != "yesterday" {
-		t.Errorf("unparsable timestamp: %q %v", got, err)
+	for _, bad := range []string{"yesterday", "  ", " 2026-09-09T14:07:05Z"} {
+		if got, err := NormalizeTimestamp(bad); err == nil || got != bad {
+			t.Errorf("unparsable timestamp %q: %q %v", bad, got, err)
+		}
+	}
+	for in, want := range map[string]string{"1-abc": "0001-abc", "001-abc": "0001-abc", "0001-abc": "0001-abc", "abc": "abc", "00001-abc": "00001-abc", "1": "1"} {
+		if got := NormalizeStoryID(in); got != want {
+			t.Errorf("NormalizeStoryID(%q) = %q want %q", in, got, want)
+		}
 	}
 	for _, ok := range []string{"0001-abc", "9999-z9z"} {
 		if !StoryIDRe.MatchString(ok) {

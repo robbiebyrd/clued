@@ -392,10 +392,21 @@ func TestLinks(t *testing.T) {
 		t.Error("remove missing link")
 	}
 	// Stories, specs, web, repo.
-	for _, bad := range []string{"abc", "001-abc", "0001", "0001-ABC"} {
+	for _, bad := range []string{"abc", "0001", "0001-ABC", "00001-abc", "1"} {
 		if _, err := s.AddStoryLink(ctx, a.ID(), bad, "included"); !IsKind(err, KindBadRequest) {
 			t.Errorf("story id %q accepted", bad)
 		}
+	}
+	// A short sequence part is zero-padded on input and matched on removal.
+	p, err = s.AddStoryLink(ctx, a.ID(), "7-xyz", "depends")
+	if err != nil || p.FrontMatter.Links.Stories[0].ID != "0007-xyz" {
+		t.Errorf("short story id not padded: %+v %v", p.FrontMatter.Links, err)
+	}
+	if list, _ := s.List(ctx, ListFilter{Story: "07-xyz"}); len(list) != 1 {
+		t.Error("list by short story id")
+	}
+	if _, err := s.RemoveStoryLink(ctx, a.ID(), "007-xyz", ""); err != nil {
+		t.Errorf("remove by short story id: %v", err)
 	}
 	if _, err := s.AddStoryLink(ctx, a.ID(), "0001-abc", "parent"); !IsKind(err, KindBadRequest) {
 		t.Error("parent is not a story relation")
@@ -658,6 +669,29 @@ func TestTimestampsNormalisedOnWrite(t *testing.T) {
 	if strings.Contains(string(out), "completed:") || !strings.Contains(string(out), "created: \"2026-01-01T00:00:00.000Z\"") {
 		t.Errorf("file not rewritten canonically:\n%s", out)
 	}
+	// Lowercase RFC 3339 separators are accepted; whitespace-only completed is not absent.
+	doc2 := strings.Replace(doc, "created: 2026-01-01T00:00:00Z", "created: 2026-01-01t00:00:00z", 1)
+	os.WriteFile(fs.AbsPath(p.Path), []byte(doc2), 0o644)
+	if got, err := s.SetPriority(ctx, p.ID(), "P2"); err != nil || got.FrontMatter.Created != "2026-01-01T00:00:00.000Z" {
+		t.Errorf("lowercase separators: %v %+v", err, got)
+	}
+	doc3 := strings.Replace(doc, "completed: \"\"", "completed: \"   \"", 1)
+	os.WriteFile(fs.AbsPath(p.Path), []byte(doc3), 0o644)
+	if _, err := s.SetPriority(ctx, p.ID(), "P3"); !IsKind(err, KindValidation) {
+		t.Errorf("whitespace completed should be reported: %v", err)
+	}
+	// Legacy three-digit story ids in a stored plan are zero-padded on the next write.
+	doc4 := strings.Replace(doc, "completed: \"\"\n", "links:\n  stories:\n    - [\"001-abc\", \"included\"]\nprogress:\n  \"1\":\n    status: pending\n    stories: [\"02-def\"]\n", 1)
+	doc4 = strings.Replace(doc4, "# Plan service design\n", "# Plan service design\n\n## Phase 1: A\n", 1)
+	os.WriteFile(fs.AbsPath(p.Path), []byte(doc4), 0o644)
+	got, err = s.SetPriority(ctx, p.ID(), "P4")
+	if err != nil {
+		t.Fatalf("legacy story ids should not block edits: %v", err)
+	}
+	if got.FrontMatter.Links.Stories[0].ID != "0001-abc" || got.FrontMatter.Progress["1"].Stories[0] != "0002-def" {
+		t.Errorf("legacy story ids not padded: %+v %+v", got.FrontMatter.Links, got.FrontMatter.Progress)
+	}
+	os.WriteFile(fs.AbsPath(p.Path), []byte(doc), 0o644)
 	// Garbage timestamps are reported, not silently accepted.
 	doc = strings.Replace(doc, "created: 2026-01-01T00:00:00Z", "created: yesterday", 1)
 	os.WriteFile(fs.AbsPath(p.Path), []byte(doc), 0o644)
