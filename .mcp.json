@@ -1,10 +1,10 @@
 {
   "clued": {
-    "command": "sh",
-    "args": ["-c", "cd /tmp && npx -y @robbiebyrd/clued --stdio"]
+    "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued",
+    "args": ["session", "mcp"]
   },
   "mind-palace": {
-    "command": "mind-palace",
+    "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued",
     "args": ["mcp"]
   }
 }
