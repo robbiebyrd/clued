@@ -72,6 +72,7 @@ func newOptions(t *testing.T, store session.Store, logs *syncBuffer) (Options, s
 	return Options{
 		Config: session.Config{
 			WalPath:        filepath.Join(tmp, "wal", "events.wal"),
+			ProjectsDir:    filepath.Join(tmp, "projects"),
 			FileHistoryDir: filepath.Join(tmp, "file-history"),
 		},
 		Store:            store,
@@ -217,7 +218,7 @@ func TestMalformedJSONReturns400(t *testing.T) {
 
 func TestSessionCreatedAndTranscriptTailed(t *testing.T) {
 	f := newFixture(t)
-	transcript := filepath.Join(f.tmp, "proj", "sess-2.jsonl")
+	transcript := filepath.Join(f.tmp, "projects", "sess-2.jsonl")
 	if err := os.MkdirAll(filepath.Dir(transcript), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +256,7 @@ func TestSessionCreatedAndTranscriptTailed(t *testing.T) {
 
 func TestArtifactDirsAreWatched(t *testing.T) {
 	f := newFixture(t)
-	projDir := filepath.Join(f.tmp, "proj")
+	projDir := filepath.Join(f.tmp, "projects")
 	transcript := filepath.Join(projDir, "sess-art.jsonl")
 	resultDir := filepath.Join(projDir, "sess-art", "tool-results")
 	if err := os.MkdirAll(resultDir, 0o755); err != nil {
@@ -292,7 +293,7 @@ func TestNoGitOriginForNonGitCwd(t *testing.T) {
 
 func TestGitOriginFilledByLaterEvent(t *testing.T) {
 	f := newFixture(t)
-	f.post(t, `{"session_id":"git-late","transcript_path":"`+filepath.Join(f.tmp, "late.jsonl")+`"}`)
+	f.post(t, `{"session_id":"git-late","transcript_path":"`+filepath.Join(f.tmp, "projects", "late.jsonl")+`"}`)
 	eventually(t, "session doc", func() bool { return sessionDoc(f.store, "git-late") != nil })
 	if _, ok := sessionDoc(f.store, "git-late")["git_origin"]; ok {
 		t.Fatal("git_origin should not be set yet")
@@ -347,6 +348,9 @@ func TestInsertFailureFallsBackToWAL(t *testing.T) {
 	}
 	if strings.Count(line, "\n") != 1 {
 		t.Errorf("want one WAL line: %q", line)
+	}
+	if out := logs.String(); !strings.Contains(out, "level=WARN") || !strings.Contains(out, "hook event insert failed; appending to WAL") || !strings.Contains(out, "store down") {
+		t.Errorf("expected WAL fallback warning, got logs:\n%s", out)
 	}
 }
 
@@ -456,7 +460,7 @@ func TestRunStopsCleanlyOnCancel(t *testing.T) {
 	addr := freeAddr(t)
 	cancel, done := startRun(t, d, addr)
 	waitHealthy(t, addr)
-	transcript := filepath.Join(tmp, "run.jsonl")
+	transcript := filepath.Join(tmp, "projects", "run.jsonl")
 	body := fmt.Sprintf(`{"session_id":"run-1","transcript_path":%q}`, transcript)
 	res, err := http.Post("http://"+addr+"/event", "application/json", strings.NewReader(body))
 	if err != nil {
@@ -476,6 +480,9 @@ func TestRunStopsCleanlyOnCancel(t *testing.T) {
 		t.Fatal("server still listening")
 	}
 	// A tailer stopped by shutdown no longer delivers lines.
+	if err := os.MkdirAll(filepath.Dir(transcript), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(transcript, []byte(`{"a":1}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -486,4 +493,148 @@ func TestRunStopsCleanlyOnCancel(t *testing.T) {
 	if out := logs.String(); out != "" {
 		t.Fatalf("unexpected logs: %s", out)
 	}
+}
+
+func (f *fixture) expectWarn(t *testing.T, want string) {
+	t.Helper()
+	out := f.logs.String()
+	if !strings.Contains(out, "level=WARN") || !strings.Contains(out, want) {
+		t.Fatalf("expected warning containing %q, got:\n%s", want, out)
+	}
+	f.logs.mu.Lock()
+	f.logs.buf.Reset()
+	f.logs.mu.Unlock()
+}
+
+func (f *fixture) trackedCount() int {
+	f.d.mu.Lock()
+	defer f.d.mu.Unlock()
+	return len(f.d.tracked)
+}
+
+func TestUnsafeSessionIDIsStoredButNotTracked(t *testing.T) {
+	f := newFixture(t)
+	transcript := filepath.Join(f.tmp, "projects", "x.jsonl")
+	for _, id := range []string{"../evil", "a/b", "..", "/abs"} {
+		body := fmt.Sprintf(`{"session_id":%q,"transcript_path":%q}`, id, transcript)
+		if code, _ := f.post(t, body); code != 200 {
+			t.Fatalf("%q: status %d", id, code)
+		}
+		f.expectWarn(t, "session_id is not a single safe path element")
+	}
+	if n := len(hookEvents(t, f.store)); n != 4 {
+		t.Fatalf("want 4 stored events, got %d", n)
+	}
+	if n := f.trackedCount(); n != 0 || len(f.d.stops) != 0 {
+		t.Fatalf("unsafe sessions tracked: %d", n)
+	}
+}
+
+func TestTranscriptOutsideProjectsDirIsNotTailed(t *testing.T) {
+	f := newFixture(t)
+	outside := filepath.Join(f.tmp, "elsewhere", "s.jsonl")
+	if err := os.MkdirAll(filepath.Dir(outside), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(outside, []byte(`{"a":1}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{outside, "relative/s.jsonl", filepath.Join(f.tmp, "projects", "..", "elsewhere", "s.jsonl"), filepath.Join(f.tmp, "projects-evil", "s.jsonl")} {
+		if code, _ := f.post(t, fmt.Sprintf(`{"session_id":"out","transcript_path":%q}`, p)); code != 200 {
+			t.Fatalf("%q: status %d", p, code)
+		}
+		f.d.mu.Lock()
+		delete(f.d.tracked, "out")
+		f.d.mu.Unlock()
+		f.expectWarn(t, "transcript_path is outside the projects directory")
+	}
+	time.Sleep(100 * time.Millisecond)
+	if n, _ := f.store.CountTranscriptLines(context.Background(), testAccount, "out"); n != 0 {
+		t.Fatalf("outside transcript tailed: %d lines", n)
+	}
+	f.d.mu.Lock()
+	defer f.d.mu.Unlock()
+	if len(f.d.stops) != 0 {
+		t.Fatalf("tailers started: %d", len(f.d.stops))
+	}
+}
+
+func TestOriginHeaderIsRejected(t *testing.T) {
+	f := newFixture(t)
+	for _, tc := range []struct{ method, path string }{{"POST", "/event"}, {"GET", "/health"}} {
+		req, _ := http.NewRequest(tc.method, f.srv.URL+tc.path, strings.NewReader(`{"session_id":"o"}`))
+		req.Header.Set("Origin", "https://evil.example")
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != 403 {
+			t.Fatalf("%s %s: %d", tc.method, tc.path, res.StatusCode)
+		}
+	}
+	if n := len(hookEvents(t, f.store)); n != 0 {
+		t.Fatalf("cross-origin event stored: %d", n)
+	}
+}
+
+func TestOversizeBodyReturns413(t *testing.T) {
+	f := newFixture(t)
+	big := `{"x":"` + strings.Repeat("a", maxBodyBytes) + `"}`
+	code, _ := f.post(t, big)
+	if code != 413 {
+		t.Fatalf("got %d", code)
+	}
+	if n := len(hookEvents(t, f.store)); n != 0 {
+		t.Fatalf("oversize event stored: %d", n)
+	}
+}
+
+// slowStore blocks SetGitInfoIfMissing and TouchSession until released.
+type slowStore struct {
+	*memsession.Store
+	release chan struct{}
+}
+
+func (s slowStore) SetGitInfoIfMissing(ctx context.Context, id, o, b string) error {
+	<-s.release
+	return s.Store.SetGitInfoIfMissing(ctx, id, o, b)
+}
+
+func (s slowStore) TouchSession(ctx context.Context, a, id string, at time.Time) error {
+	<-s.release
+	return s.Store.TouchSession(ctx, a, id, at)
+}
+
+func TestSlowStoreDoesNotStallHooks(t *testing.T) {
+	logs := &syncBuffer{}
+	store := slowStore{memsession.New(), make(chan struct{})}
+	opts, tmp := newOptions(t, store, logs)
+	d := New(opts)
+	srv := httptest.NewServer(d.Handler())
+	defer srv.Close()
+	defer d.shutdown()
+	defer close(store.release)
+
+	post := func(body string) {
+		done := make(chan struct{})
+		go func() {
+			res, err := http.Post(srv.URL+"/event", "application/json", strings.NewReader(body))
+			if err == nil {
+				res.Body.Close()
+			}
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("hook stalled behind a slow store")
+		}
+	}
+	post(`{"session_id":"slow"}`)
+	eventually(t, "session doc", func() bool { return sessionDoc(store, "slow") != nil })
+	// Late git lookup parks in the store; further hooks must still be served.
+	post(fmt.Sprintf(`{"session_id":"slow","cwd":%q}`, filepath.Join(tmp, "repo")))
+	post(`{"session_id":"slow"}`)
+	post(`{"session_id":"other"}`)
 }

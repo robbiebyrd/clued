@@ -28,6 +28,8 @@ const (
 	defaultWALFlushInterval = 60 * time.Second
 	readHeaderTimeout       = 10 * time.Second
 	shutdownTimeout         = 5 * time.Second
+	storeTimeout            = 10 * time.Second
+	maxBodyBytes            = 16 << 20
 )
 
 // ErrAddrInUse is returned (wrapped) by Run when the listen address is taken,
@@ -89,6 +91,11 @@ func New(opts Options) *Daemon {
 // Handler serves GET /health and POST /event.
 func (d *Daemon) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Browsers always send Origin on cross-origin POSTs; the hook's curl never does.
+		if r.Header.Get("Origin") != "" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/health":
 			w.WriteHeader(http.StatusOK)
@@ -103,8 +110,14 @@ func (d *Daemon) Handler() http.Handler {
 
 func (d *Daemon) handleEvent(w http.ResponseWriter, r *http.Request) {
 	var body session.Doc
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		status := http.StatusBadRequest
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			status = http.StatusRequestEntityTooLarge
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 	if body == nil {
@@ -114,11 +127,13 @@ func (d *Daemon) handleEvent(w http.ResponseWriter, r *http.Request) {
 	sessionID, _ := body.String("session_id")
 	transcriptPath, _ := body.String("transcript_path")
 	cwd, _ := body.String("cwd")
+	// Store calls outlive the request: a client that hangs up must not turn a
+	// committed write into a WAL duplicate.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), storeTimeout)
+	defer cancel()
 	if sessionID != "" {
 		d.trackSession(sessionID, transcriptPath, cwd)
-		if err := d.opts.Store.TouchSession(r.Context(), d.opts.AccountID, sessionID, time.Now()); err != nil {
-			d.log.Error("touch session failed", "session_id", sessionID, "err", err)
-		}
+		d.background(func() { d.touchSession(sessionID, time.Now()) })
 	}
 	ev := make(session.Doc, len(body)+3)
 	for k, v := range body {
@@ -127,7 +142,7 @@ func (d *Daemon) handleEvent(w http.ResponseWriter, r *http.Request) {
 	ev["account_id"] = d.opts.AccountID
 	ev["host"] = d.opts.Host
 	ev["created_at"] = time.Now()
-	if err := d.opts.Store.InsertHookEvent(r.Context(), ev); err != nil {
+	if err := d.opts.Store.InsertHookEvent(ctx, ev); err != nil {
 		d.log.Warn("hook event insert failed; appending to WAL", "err", err)
 		ev["created_at"] = ev["created_at"].(time.Time).UTC().Format(time.RFC3339Nano)
 		if err := d.appendWAL(ev); err != nil {
@@ -136,6 +151,14 @@ func (d *Daemon) handleEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok"))
+}
+
+func (d *Daemon) touchSession(sessionID string, at time.Time) {
+	ctx, cancel := context.WithTimeout(d.ctx, storeTimeout)
+	defer cancel()
+	if err := d.opts.Store.TouchSession(ctx, d.opts.AccountID, sessionID, at); err != nil && d.ctx.Err() == nil {
+		d.log.Error("touch session failed", "session_id", sessionID, "err", err)
+	}
 }
 
 func (d *Daemon) appendWAL(ev session.Doc) error {
@@ -166,6 +189,10 @@ func (d *Daemon) flushWAL(ctx context.Context) {
 // trackSession starts capturing a session the first time it is seen, and on
 // later events fills in git info once a cwd is known.
 func (d *Daemon) trackSession(sessionID, transcriptPath, cwd string) {
+	if !safePathElement(sessionID) {
+		d.log.Warn("session_id is not a single safe path element; session not tracked", "session_id", sessionID)
+		return
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.closed {
@@ -185,10 +212,38 @@ func (d *Daemon) trackSession(sessionID, transcriptPath, cwd string) {
 	if transcriptPath == "" {
 		return
 	}
+	if !d.insideProjectsDir(transcriptPath) {
+		d.log.Warn("transcript_path is outside the projects directory; not tailed", "session_id", sessionID, "transcript_path", transcriptPath)
+		return
+	}
 	d.stops = append(d.stops, d.tailTranscript(sessionID, transcriptPath))
 	sessionDir := filepath.Join(filepath.Dir(transcriptPath), sessionID)
 	fileHistory := filepath.Join(d.opts.Config.FileHistoryDir, sessionID)
 	d.stops = append(d.stops, tail.WatchArtifacts(sessionID, sessionDir, fileHistory, d.opts.AccountID, &d.opts.Host, d.opts.Store, d.opts.Tail))
+}
+
+// safePathElement reports whether id can be joined onto a directory without escaping it.
+func safePathElement(id string) bool {
+	return filepath.IsLocal(id) && filepath.Base(id) == id
+}
+
+// insideProjectsDir reports whether path is an absolute path under Config.ProjectsDir.
+func (d *Daemon) insideProjectsDir(path string) bool {
+	root := d.opts.Config.ProjectsDir
+	if root == "" || !filepath.IsAbs(path) {
+		return false
+	}
+	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(path))
+	return err == nil && filepath.IsLocal(rel)
+}
+
+// background runs fn on a tracked goroutine unless the daemon is shutting down.
+func (d *Daemon) background(fn func()) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if !d.closed {
+		d.goBackground(fn)
+	}
 }
 
 // goBackground runs fn on a tracked goroutine. Callers hold d.mu.
@@ -227,13 +282,15 @@ func (d *Daemon) upsertSession(sessionID, transcriptPath, cwd string, state *ses
 func (d *Daemon) fillGitInfo(sessionID, cwd string, state *sessionState) {
 	origin, branch := d.lookupGit(cwd)
 	d.mu.Lock()
-	defer d.mu.Unlock()
 	state.gitLookup = false
+	state.gitOriginFound = state.gitOriginFound || origin != ""
+	d.mu.Unlock()
 	if origin == "" {
 		return
 	}
-	state.gitOriginFound = true
-	if err := d.opts.Store.SetGitInfoIfMissing(d.ctx, sessionID, origin, branch); err != nil && d.ctx.Err() == nil {
+	ctx, cancel := context.WithTimeout(d.ctx, storeTimeout)
+	defer cancel()
+	if err := d.opts.Store.SetGitInfoIfMissing(ctx, sessionID, origin, branch); err != nil && d.ctx.Err() == nil {
 		d.log.Error("set git info failed", "session_id", sessionID, "err", err)
 	}
 }
