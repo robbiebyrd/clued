@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -30,8 +31,10 @@ var StoryRelations = []string{RelationIncluded, RelationDepends, RelationBlocks}
 
 // Identifier patterns.
 var (
-	PlanIDRe        = regexp.MustCompile(`^[0-9]{4}-[a-z0-9]{3}$`)
-	StoryIDRe       = regexp.MustCompile(`^[0-9]{3,4}-[a-z0-9]{3}$`)
+	PlanIDRe = regexp.MustCompile(`^[0-9]{4}-[a-z0-9]{3}$`)
+	// StoryIDRe matches a full story id (four-digit sequence plus random part);
+	// a bare sequence number is never accepted.
+	StoryIDRe       = regexp.MustCompile(`^[0-9]{4}-[a-z0-9]{3}$`)
 	SectionNumberRe = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
 	SlugRe          = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 	// FileNameRe matches a plan file name: AAAA-BBB-CCCC-slug.md. The type part is
@@ -66,15 +69,17 @@ func (p *Plan) Clone() *Plan {
 
 // FrontMatter is the YAML header of a plan file.
 type FrontMatter struct {
-	ID        string   `yaml:"id" json:"id"`
-	Title     string   `yaml:"title" json:"title"`
-	Type      string   `yaml:"type" json:"type"`
-	Status    string   `yaml:"status" json:"status"`
-	Priority  string   `yaml:"priority" json:"priority"`
-	Effort    string   `yaml:"effort,omitempty" json:"effort,omitempty"`
-	Created   string   `yaml:"created" json:"created"`
-	Updated   string   `yaml:"updated" json:"updated"`
-	Completed string   `yaml:"completed" json:"completed"`
+	ID       string `yaml:"id" json:"id"`
+	Title    string `yaml:"title" json:"title"`
+	Type     string `yaml:"type" json:"type"`
+	Status   string `yaml:"status" json:"status"`
+	Priority string `yaml:"priority" json:"priority"`
+	Effort   string `yaml:"effort,omitempty" json:"effort,omitempty"`
+	Created  string `yaml:"created" json:"created"`
+	Updated  string `yaml:"updated" json:"updated"`
+	// Completed is omitted until the plan first reaches complete and is never
+	// written as an empty string.
+	Completed string   `yaml:"completed,omitempty" json:"completed,omitempty"`
 	Links     *Links   `yaml:"links,omitempty" json:"links,omitempty"`
 	Progress  Progress `yaml:"progress,omitempty" json:"progress,omitempty"`
 }
@@ -388,6 +393,35 @@ func Slugify(title string) string {
 		s = "plan"
 	}
 	return s
+}
+
+// TimestampLayout is the canonical front matter timestamp: RFC 3339, UTC,
+// millisecond precision.
+const TimestampLayout = "2006-01-02T15:04:05.000Z"
+
+// NormalizeTimestamp converts any RFC 3339 timestamp (any zone, any
+// fractional precision) to the canonical layout. Unparsable input is
+// returned unchanged with an error so schema validation can report it.
+func NormalizeTimestamp(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "", nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		return s, err
+	}
+	return t.UTC().Format(TimestampLayout), nil
+}
+
+// NormalizeTimestamps rewrites created, updated and completed into the
+// canonical layout where they parse, leaving unparsable values for validation.
+func (f *FrontMatter) NormalizeTimestamps() {
+	for _, p := range []*string{&f.Created, &f.Updated, &f.Completed} {
+		if n, err := NormalizeTimestamp(*p); err == nil {
+			*p = n
+		}
+	}
 }
 
 // SequenceOf returns the numeric sequence part of a plan ID.

@@ -151,3 +151,37 @@ func TestProgressDuplicateKeysAndJSONOrder(t *testing.T) {
 		t.Errorf("empty progress: %s", b)
 	}
 }
+
+func TestNormalizeTimestampAndStoryID(t *testing.T) {
+	cases := map[string]string{
+		"2026-09-09T14:07:05.352Z":       "2026-09-09T14:07:05.352Z",
+		"2026-09-09T14:07:05Z":           "2026-09-09T14:07:05.000Z",
+		"2026-09-09T16:07:05.3521+02:00": "2026-09-09T14:07:05.352Z",
+		"":                               "",
+	}
+	for in, want := range cases {
+		if got, err := NormalizeTimestamp(in); err != nil || got != want {
+			t.Errorf("NormalizeTimestamp(%q) = %q, %v; want %q", in, got, err, want)
+		}
+	}
+	if got, err := NormalizeTimestamp("yesterday"); err == nil || got != "yesterday" {
+		t.Errorf("unparsable timestamp: %q %v", got, err)
+	}
+	for _, ok := range []string{"0001-abc", "9999-z9z"} {
+		if !StoryIDRe.MatchString(ok) {
+			t.Errorf("%q should be a story id", ok)
+		}
+	}
+	for _, bad := range []string{"001-abc", "0001", "abc", "0001-ABC", "00001-abc"} {
+		if StoryIDRe.MatchString(bad) {
+			t.Errorf("%q should not be a story id", bad)
+		}
+	}
+	// completed is omitted from YAML and JSON until set.
+	fm := FrontMatter{ID: "0001-abc", Title: "t", Type: "dsgn", Status: "pending", Priority: "1", Created: "2026-01-01T00:00:00.000Z", Updated: "2026-01-01T00:00:00.000Z"}
+	y, _ := yaml.Marshal(fm)
+	j, _ := json.Marshal(fm)
+	if strings.Contains(string(y), "completed") || strings.Contains(string(j), "completed") {
+		t.Errorf("completed should be omitted when empty:\n%s\n%s", y, j)
+	}
+}

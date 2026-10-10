@@ -25,8 +25,8 @@ import (
 	"github.com/robbiebyrd/clued/plan/store"
 )
 
-// TimestampLayout is the ISO 8601 UTC form used in front matter.
-const TimestampLayout = "2006-01-02T15:04:05.000Z"
+// TimestampLayout is the canonical front matter timestamp (see model).
+const TimestampLayout = model.TimestampLayout
 
 // Service is the plan service.
 type Service struct {
@@ -139,7 +139,9 @@ func (s *Service) pathFor(p *model.Plan, slug string) string {
 }
 
 // check validates a plan before it is written and returns the problems.
+// Timestamps are normalised to the canonical layout before validating.
 func (s *Service) check(ctx context.Context, p *model.Plan) []string {
+	p.FrontMatter.NormalizeTimestamps()
 	problems := s.validator.ValidateStoredFrontMatter(p.FrontMatter)
 	problems = append(problems, s.invariants(ctx, p)...)
 	sort.Strings(problems)
@@ -268,6 +270,8 @@ func (s *Service) Create(ctx context.Context, input json.RawMessage, templateID 
 	if fm.Status == "complete" {
 		fm.Completed = now
 	}
+	// Completed is managed by the service and only ever set here or by a
+	// move to complete; it is omitted until then.
 	slug := in.Slug
 	if slug == "" {
 		slug = model.Slugify(fm.Title)
@@ -821,11 +825,10 @@ func (s *Service) applyStatus(p *model.Plan, status string, force bool) (bool, e
 		return false, newErr(KindInvalidTransition, "plan %s cannot move from %q to %q (allowed: %s); use force to override", p.ID(), from, to, strings.Join(s.cfg.Transitions(from), ", "))
 	}
 	p.FrontMatter.Status = to
-	switch {
-	case to == "complete":
+	// Reaching complete records (or overwrites) the completion time; moving
+	// away from complete leaves it in place.
+	if to == "complete" {
 		p.FrontMatter.Completed = s.timestamp()
-	case from == "complete":
-		p.FrontMatter.Completed = ""
 	}
 	return true, nil
 }
