@@ -56,8 +56,9 @@ test('register-hooks is idempotent — no duplicate entries', () => {
   run();
   const settings = run(); // second run
   const hooks = settings.hooks as Record<string, unknown[]>;
-  for (const ev of ['PreToolUse', 'PostToolUse', 'SessionStart']) {
-    assert.equal((hooks[ev] as unknown[]).length, 1, `${ev} has duplicate entries after second run`);
+  // PreToolUse carries two clued entries: the relay and the plan guard.
+  for (const [ev, count] of [['PreToolUse', 2], ['PostToolUse', 1], ['SessionStart', 1]] as const) {
+    assert.equal((hooks[ev] as unknown[]).length, count, `${ev} has duplicate entries after second run`);
   }
 });
 
@@ -70,7 +71,7 @@ test('register-hooks replaces stale clued entries with updated paths', () => {
   writeFileSync(SETTINGS_PATH, JSON.stringify(stale));
   const settings = run();
   const hooks = settings.hooks as Record<string, { hooks: { command: string }[] }[]>;
-  assert.equal(hooks['PreToolUse'].length, 1);
+  assert.equal(hooks['PreToolUse'].length, 2, 'relay and plan guard only');
   assert.equal(hooks['PreToolUse'][0].hooks[0].command, join(HOOKS_DIR, 'event-relay'));
 });
 
@@ -83,7 +84,7 @@ test('register-hooks preserves non-clued hooks in the same event type', () => {
   writeFileSync(SETTINGS_PATH, JSON.stringify(existing));
   const settings = run();
   const hooks = settings.hooks as Record<string, { hooks: { command: string }[] }[]>;
-  assert.equal(hooks['PreToolUse'].length, 2, 'non-clued entry should be preserved');
+  assert.equal(hooks['PreToolUse'].length, 3, 'non-clued entry should be preserved alongside relay and guard');
   const commands = hooks['PreToolUse'].map(e => e.hooks[0].command);
   assert.ok(commands.includes('/other/plugin/hook'), 'other plugin hook missing');
   assert.ok(commands.includes(join(HOOKS_DIR, 'event-relay')), 'clued relay missing');
@@ -100,4 +101,21 @@ test('register-hooks succeeds when settings.json does not exist', () => {
   rmSync(SETTINGS_PATH, { force: true });
   const settings = run();
   assert.ok(settings.hooks, 'hooks key missing when starting from scratch');
+});
+
+test('register-hooks adds the plan guard to PreToolUse with a Write|Edit matcher', () => {
+  writeFileSync(SETTINGS_PATH, '{}');
+  const hooks = run().hooks as Record<string, Array<{ matcher?: string; hooks: Array<{ command: string }> }>>;
+  const guard = hooks.PreToolUse.find(e => e.hooks.some(h => h.command.endsWith('guard-superpowers-plans')));
+  assert.ok(guard, 'guard missing from PreToolUse');
+  assert.equal(guard!.matcher, 'Write|Edit');
+  assert.equal(hooks.PreToolUse.filter(e => e.hooks.some(h => h.command.endsWith('event-relay'))).length, 1, 'relay must stay registered');
+});
+
+test('register-hooks keeps exactly one plan guard when run twice', () => {
+  writeFileSync(SETTINGS_PATH, '{}');
+  run();
+  const hooks = run().hooks as Record<string, Array<{ hooks: Array<{ command: string }> }>>;
+  const guards = hooks.PreToolUse.filter(e => e.hooks.some(h => h.command.endsWith('guard-superpowers-plans')));
+  assert.equal(guards.length, 1);
 });

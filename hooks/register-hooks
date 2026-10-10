@@ -6,6 +6,7 @@ HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RELAY="${HOOKS_DIR}/event-relay"
 CHECK_SETUP="${HOOKS_DIR}/check-setup"
 SESSION_START="${HOOKS_DIR}/session-start"
+GUARD="${HOOKS_DIR}/guard-superpowers-plans"
 SETTINGS="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
 
 if ! command -v jq &>/dev/null; then
@@ -23,29 +24,33 @@ jq \
   --arg relay         "$RELAY" \
   --arg check_setup   "$CHECK_SETUP" \
   --arg session_start "$SESSION_START" \
+  --arg guard         "$GUARD" \
   '
   def is_clued:
-    [.hooks[].command] | any(test("/hooks/(event-relay|session-start|check-setup)$"));
+    [.hooks[].command] | any(test("/hooks/(event-relay|session-start|check-setup|guard-superpowers-plans)$"));
 
   def relay_hook(cmd):
     {"hooks": [{"type": "command", "command": cmd, "async": true}]};
 
-  def replace(ev; entry):
-    .hooks[ev] = ((.hooks[ev] // []) | map(select(is_clued | not))) + [entry];
+  def replace(ev; entries):
+    .hooks[ev] = ((.hooks[ev] // []) | map(select(is_clued | not))) + entries;
 
   . |
-  replace("SessionStart";
+  replace("SessionStart"; [
     {"hooks": [
       {"type": "command", "command": $check_setup},
       {"type": "command", "command": $session_start, "async": true}
-    ]}) |
-  replace("PreToolUse";       relay_hook($relay)) |
-  replace("PostToolUse";      relay_hook($relay)) |
-  replace("UserPromptSubmit"; relay_hook($relay)) |
-  replace("Stop";             relay_hook($relay)) |
-  replace("SessionEnd";       relay_hook($relay)) |
-  replace("Notification";     relay_hook($relay)) |
-  replace("SubagentStop";     relay_hook($relay))
+    ]}]) |
+  replace("PreToolUse"; [
+    relay_hook($relay),
+    {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": $guard}]}
+  ]) |
+  replace("PostToolUse";      [relay_hook($relay)]) |
+  replace("UserPromptSubmit"; [relay_hook($relay)]) |
+  replace("Stop";             [relay_hook($relay)]) |
+  replace("SessionEnd";       [relay_hook($relay)]) |
+  replace("Notification";     [relay_hook($relay)]) |
+  replace("SubagentStop";     [relay_hook($relay)])
   ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
 
 echo "clued: registered hooks in $SETTINGS"
