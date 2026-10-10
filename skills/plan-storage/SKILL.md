@@ -17,9 +17,10 @@ so writing there will fail.
    one from `plan_listTemplates`. The template shows which sections a plan
    body has (summary, design, implementation phases, acceptance criteria).
 2. Run `superpowers:writing-plans` as usual to work out the tasks and steps.
-3. Save the result with `plan_create`, passing `frontMatter` (title, type,
-   status, priority) and a structured `body` that matches the creation schema
-   from `plan_getSchema`. Do not write the plan to `docs/superpowers/plans/`.
+3. Save the result with `plan_create`. Its single `input` object holds an
+   optional `slug`, the `frontMatter` (title, type, status, priority, links)
+   and a structured `body` that matches the creation schema from
+   `plan_getSchema`. Do not write the plan to `docs/superpowers/plans/`.
 4. To change the content of a plan that already exists, call `plan_update`
    with its id. Front matter fields change through their own setters
    (`plan_setStatus`, `plan_setTitle`, and so on), never through `plan_update`.
