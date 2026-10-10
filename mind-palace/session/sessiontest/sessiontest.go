@@ -1,6 +1,11 @@
 // Package sessiontest is the conformance suite every session.Store adapter
 // must pass. It is the Go form of test/integration/mongo.test.ts plus the
 // behaviours the use cases rely on, and it uses the session package API only.
+//
+// Adapters return session.Doc values whose nested objects are map[string]any
+// or session.Doc, whose nested lists are []any or []session.Doc, whose time
+// fields are time.Time and whose numbers may be int, int32, int64 or float64;
+// the suite normalises all of these before comparing.
 package sessiontest
 
 import (
@@ -51,7 +56,10 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"set enrichment writes enrichments.<name> on the matching document", setEnrichment},
 		{"set enrichment failure records message and time", setEnrichmentFailure},
 		{"hook event ids by tool use are scoped to the session", hookEventIDsByToolUse},
+		{"find sessions caps the limit at 500 and treats a limit of 0 or less as the cap", findSessionsLimitCap},
+		{"a limit of 0 or less means no limit on lines, bash events and unenriched", nonPositiveLimitIsUnlimited},
 		{"returned documents are copies", returnedDocsAreCopies},
+		{"stored inputs are copies", storedInputsAreCopies},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) { runCase(t, c.run, open(t)) })
@@ -132,12 +140,51 @@ func docList(t *testing.T, d session.Doc, key string) []session.Doc {
 	return nil
 }
 
+// num normalises any integer or float representation of a number.
+func num(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int32:
+		return int(n)
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	}
+	return -1
+}
+
 func ints(docs []session.Doc, key string) []int {
 	out := make([]int, len(docs))
 	for i, d := range docs {
-		out[i], _ = d[key].(int)
+		out[i] = num(d[key])
 	}
 	return out
+}
+
+// strList reads a list of strings whichever slice type the adapter produces.
+func strList(v any) []string {
+	switch list := v.(type) {
+	case []string:
+		return list
+	case []any:
+		out := make([]string, len(list))
+		for i, e := range list {
+			out[i], _ = e.(string)
+		}
+		return out
+	}
+	return nil
+}
+
+func sortedKeys(d session.Doc) []string {
+	var ks []string
+	for k := range d {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
 }
 
 func strs(docs []session.Doc, key string) []string {
@@ -285,14 +332,7 @@ func findSessionsOrdering(t *testing.T, s session.Store) {
 	got := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 2}))
 	eq(t, "newest first, limited", strs(got, "session_id"), []string{"b", "c"})
 
-	keys := func(d session.Doc) []string {
-		var ks []string
-		for k := range d {
-			ks = append(ks, k)
-		}
-		sort.Strings(ks)
-		return ks
-	}
+	keys := sortedKeys
 	eq(t, "projection of a full session", keys(got[0]), []string{"cwd", "git_origin", "last_seen", "project_path", "session_id", "started_at"})
 
 	all := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 10}))
@@ -326,9 +366,9 @@ func hookEventInsert(t *testing.T, s session.Store) {
 	if !hasKey(got, "_id") {
 		t.Errorf("stored hook event has no _id")
 	}
-	delete(got, "_id")
-	eq(t, "stored hook event (nothing stamped, input copied)", got,
-		session.Doc{"session_id": "s1", "type": "PreToolUse", "tool_input": session.Doc{"command": "ls"}})
+	eq(t, "stored fields (nothing stamped)", sortedKeys(got), []string{"_id", "session_id", "tool_input", "type"})
+	eq(t, "type (input copied)", got["type"], "PreToolUse")
+	eq(t, "tool_input.command (input copied)", got.ToolInput()["command"], "ls")
 }
 
 func tl(sid string, seq int, typ, acc string) session.TranscriptLine {
@@ -358,7 +398,7 @@ func transcriptUpsert(t *testing.T, s session.Store) {
 	h := ok(s.TranscriptLines(ctx, session.LineQuery{AccountID: "acc", SessionID: "s2"}))
 	eq(t, "host stored", h[0].Map("host")["hostname"], "h")
 	eq(t, "session_id stored", h[0]["session_id"], "s2")
-	eq(t, "seq stored", h[0]["seq"], 0)
+	eq(t, "seq stored", num(h[0]["seq"]), 0)
 	eq(t, "account_id stored", h[0]["account_id"], "acc")
 }
 
@@ -505,7 +545,12 @@ func bashEvents(t *testing.T, s session.Store) {
 	if len(got) != 1 {
 		t.Fatalf("got %d events, want 1", len(got))
 	}
-	eq(t, "projection", got[0], session.Doc{"session_id": "s1", "tool_input": session.Doc{"command": "ls -la"}, "created_at": t0.Add(time.Minute)})
+	eq(t, "projection fields", sortedKeys(got[0]), []string{"created_at", "session_id", "tool_input"})
+	eq(t, "session_id", got[0]["session_id"], "s1")
+	eq(t, "tool_input.command", got[0].ToolInput()["command"], "ls -la")
+	if !timeOf(t, got[0], "created_at").Equal(t0.Add(time.Minute)) {
+		t.Errorf("created_at = %v, want %v", got[0]["created_at"], t0.Add(time.Minute))
+	}
 }
 
 func bashEventsInvalidRegex(t *testing.T, s session.Store) {
@@ -607,7 +652,7 @@ func unenrichedSelection(t *testing.T, s session.Store) {
 	}
 	bySeq := map[int]any{}
 	for _, d := range pending {
-		bySeq[d["seq"].(int)] = d["_id"]
+		bySeq[num(d["seq"])] = d["_id"]
 	}
 
 	must(t, s.SetEnrichment(ctx, "transcript_lines", bySeq[0], "hook-linker", session.Doc{"ok": true}))
@@ -623,7 +668,7 @@ func unenrichedSelection(t *testing.T, s session.Store) {
 func setEnrichment(t *testing.T, s session.Store) {
 	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s1", 0, "a", "acc"), tl("s1", 1, "b", "acc")}))
 	pending := ok(s.Unenriched(ctx, "transcript_lines", "e", 10))
-	id0, seq0 := pending[0]["_id"], pending[0]["seq"]
+	id0, seq0 := pending[0]["_id"], num(pending[0]["seq"])
 
 	result := session.Doc{"tool_use_ids": []string{"t1"}}
 	must(t, s.SetEnrichment(ctx, "transcript_lines", id0, "e", result))
@@ -632,8 +677,8 @@ func setEnrichment(t *testing.T, s session.Store) {
 
 	lines := ok(s.TranscriptLines(ctx, session.LineQuery{AccountID: "acc", SessionID: "s1"}))
 	for _, l := range lines {
-		if l["seq"] == seq0 {
-			eq(t, "enrichments.e", l.Map("enrichments")["e"], session.Doc{"tool_use_ids": []string{"t1"}})
+		if num(l["seq"]) == seq0 {
+			eq(t, "enrichments.e.tool_use_ids", strList(l.Map("enrichments").Map("e")["tool_use_ids"]), []string{"t1"})
 		} else if hasKey(l, "enrichments") {
 			t.Errorf("enrichment leaked to another document: %#v", l)
 		}
@@ -686,6 +731,9 @@ func hookEventIDsByToolUse(t *testing.T, s session.Store) {
 func returnedDocsAreCopies(t *testing.T, s session.Store) {
 	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s1", AccountID: "acc", Cwd: "/a", LastSeen: t0}))
 	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s1", 0, "a", "acc")}))
+	must(t, s.UpsertSubagentLine(ctx, sub("s1", "ag", 0, "acc")))
+	must(t, s.UpsertBlob(ctx, blob("s1", "tool-result", "n", "c", "acc")))
+	must(t, s.InsertHookEvent(ctx, bash("s1", "acc", "git x", t0)))
 
 	got := ok(s.GetSession(ctx, "acc", "s1"))
 	got["cwd"] = "mutated"
@@ -698,5 +746,79 @@ func returnedDocsAreCopies(t *testing.T, s session.Store) {
 
 	full := ok(s.FullSession(ctx, "acc", "s1"))
 	docList(t, full, "transcript_lines")[0].Line()["type"] = "mutated"
-	eq(t, "full session is a copy", ok(s.TranscriptLines(ctx, session.LineQuery{AccountID: "acc", SessionID: "s1"}))[0].Line()["type"], "a")
+	docList(t, full, "subagent_lines")[0].Line()["type"] = "mutated"
+	docList(t, full, "blobs")[0]["name"] = "mutated"
+	docList(t, full, "hook_events")[0].ToolInput()["command"] = "mutated"
+	full["cwd"] = "mutated"
+	again2 := ok(s.FullSession(ctx, "acc", "s1"))
+	eq(t, "full session cwd", again2["cwd"], "/a")
+	eq(t, "full session transcript line", docList(t, again2, "transcript_lines")[0].Line()["type"], "a")
+	eq(t, "full session subagent line", docList(t, again2, "subagent_lines")[0].Line()["type"], "user")
+	eq(t, "full session blob name", docList(t, again2, "blobs")[0]["name"], "n")
+	eq(t, "full session hook event", docList(t, again2, "hook_events")[0].ToolInput()["command"], "git x")
+
+	ok(s.SubagentLines(ctx, "acc", "s1", "ag"))[0].Line()["type"] = "mutated"
+	eq(t, "subagent lines are copies", ok(s.SubagentLines(ctx, "acc", "s1", "ag"))[0].Line()["type"], "user")
+	ok(s.Blobs(ctx, "acc", "s1"))[0]["content"] = "mutated"
+	eq(t, "blobs are copies", ok(s.Blobs(ctx, "acc", "s1"))[0]["content"], "c")
+	ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "acc", PatternRe: "git", Limit: 5}))[0].ToolInput()["command"] = "mutated"
+	eq(t, "bash events are copies", ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "acc", PatternRe: "git", Limit: 5}))[0].ToolInput()["command"], "git x")
+	ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 5}))[0]["cwd"] = "mutated"
+	eq(t, "found sessions are copies", ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 5}))[0]["cwd"], "/a")
+	ok(s.Unenriched(ctx, "hook_events", "e", 5))[0].ToolInput()["command"] = "mutated"
+	eq(t, "unenriched documents are copies", ok(s.Unenriched(ctx, "hook_events", "e", 5))[0].ToolInput()["command"], "git x")
+}
+
+func findSessionsLimitCap(t *testing.T, s session.Store) {
+	for i := 0; i < 501; i++ {
+		must(t, s.UpsertSession(ctx, session.Session{SessionID: fmt.Sprint("s", i), AccountID: "acc", LastSeen: t0.Add(time.Duration(i) * time.Second)}))
+	}
+	for _, limit := range []int{0, -1, 600} {
+		got := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: limit}))
+		eq(t, fmt.Sprint("count with limit ", limit), len(got), 500)
+		eq(t, fmt.Sprint("newest first with limit ", limit), got[0]["session_id"], "s500")
+	}
+	eq(t, "limit below the cap", len(ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 3}))), 3)
+}
+
+func nonPositiveLimitIsUnlimited(t *testing.T, s session.Store) {
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s1", 0, "a", "acc"), tl("s1", 1, "b", "acc"), tl("s1", 2, "c", "acc")}))
+	for i := 0; i < 3; i++ {
+		must(t, s.InsertHookEvent(ctx, bash("s1", "acc", "git x", t0.Add(time.Duration(i)*time.Minute))))
+	}
+	for _, limit := range []int{0, -1} {
+		name := fmt.Sprint(" with limit ", limit)
+		eq(t, "transcript lines"+name, len(ok(s.TranscriptLines(ctx, session.LineQuery{AccountID: "acc", SessionID: "s1", Limit: limit}))), 3)
+		eq(t, "transcript lines after offset"+name, len(ok(s.TranscriptLines(ctx, session.LineQuery{AccountID: "acc", SessionID: "s1", Offset: 1, Limit: limit}))), 2)
+		eq(t, "bash events"+name, len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "acc", PatternRe: "git", Limit: limit}))), 3)
+		eq(t, "unenriched lines"+name, len(ok(s.Unenriched(ctx, "transcript_lines", "e", limit))), 3)
+		eq(t, "unenriched hook events"+name, len(ok(s.Unenriched(ctx, "hook_events", "e", limit))), 3)
+	}
+}
+
+// storedInputsAreCopies checks that mutating a value after handing it to the
+// store does not change what the store holds.
+func storedInputsAreCopies(t *testing.T, s session.Store) {
+	ip := "10.0.0.1"
+	host := &session.HostInfo{Hostname: "h", IP: &ip}
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s1", AccountID: "acc", LastSeen: t0, Host: host}))
+
+	line := map[string]any{"type": "a", "nested": map[string]any{"k": "v"}}
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{{SessionID: "s1", Seq: 0, Line: line, AccountID: "acc", Host: host}}))
+	subLine := map[string]any{"type": "a"}
+	must(t, s.UpsertSubagentLine(ctx, session.SubagentLine{SessionID: "s1", SubagentID: "ag", Seq: 0, Line: subLine, AccountID: "acc"}))
+	host.Hostname = "mutated"
+	ip = "mutated"
+	line["type"] = "mutated"
+	line["nested"].(map[string]any)["k"] = "mutated"
+	subLine["type"] = "mutated"
+
+	got := ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "session host.hostname", got.Map("host")["hostname"], "h")
+	eq(t, "session host.ip", got.Map("host")["ip"], "10.0.0.1")
+	stored := ok(s.TranscriptLines(ctx, session.LineQuery{AccountID: "acc", SessionID: "s1"}))[0]
+	eq(t, "transcript line type", stored.Line()["type"], "a")
+	eq(t, "transcript line nested", stored.Line().Map("nested")["k"], "v")
+	eq(t, "transcript host.hostname", stored.Map("host")["hostname"], "h")
+	eq(t, "subagent line type", ok(s.SubagentLines(ctx, "acc", "s1", "ag"))[0].Line()["type"], "a")
 }
