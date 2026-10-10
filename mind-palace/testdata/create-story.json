@@ -1,0 +1,32 @@
+{
+  "frontMatter": {
+    "title": "Fix empty payload crash",
+    "purpose": "Stop the handler crashing on empty bodies",
+    "type": "bug",
+    "status": "approved",
+    "priority": "P1",
+    "effort": "Small",
+    "links": {
+      "repo": {"remote": "git@github.com:robbiebyrd/clued.git", "files": ["src/handler.go"]},
+      "specs": ["./docs/reviews/review-2026-09-09.md"]
+    }
+  },
+  "body": {
+    "problemStatement": {
+      "statement": "The handler panics when the request body is empty.",
+      "issue": "src/handler.go:42 dereferences the decoded payload without checking for nil.",
+      "impact": "Every empty POST returns a 500 and a stack trace in the logs."
+    },
+    "steps": [
+      {"number": "1", "name": "Guard the handler", "description": "Return 400 when the body is empty before decoding.",
+       "steps": [{"number": "1.1", "name": "Regression test", "description": "Add a test that POSTs an empty body and expects 400."}]},
+      {"number": "2", "name": "Release", "description": "Ship the fix behind the next patch release."}
+    ],
+    "acceptanceCriteria": [
+      {"text": "go test ./...", "kind": "verify"},
+      {"text": "An empty POST returns 400 with a JSON error"}
+    ],
+    "files": [{"path": "src/handler.go", "change": "add the empty-body guard"}],
+    "proof": [{"dimension": "input-validation", "state": "open"}]
+  }
+}

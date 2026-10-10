@@ -1,0 +1,49 @@
+# {{ .Title }}
+
+## Problem Statement
+
+{{ .Body.ProblemStatement.Statement }}
+{{- if .Body.ProblemStatement.Issue }}
+
+**Issue:** {{ .Body.ProblemStatement.Issue }}
+{{- end }}
+{{- if .Body.ProblemStatement.Impact }}
+
+**Impact:** {{ .Body.ProblemStatement.Impact }}
+{{- end }}
+
+## Steps
+{{ range .Body.FlatSteps }}
+{{ heading .Depth }} {{ .Number }}: {{ .Name }}
+
+{{ .Description }}
+{{ end }}
+## Acceptance Criteria
+{{ range .Body.AcceptanceCriteria }}
+- {{ box .State }} {{ criterionPrefix .Kind }}{{ .Text }}
+{{- end }}
+{{- if .Body.Files }}
+
+## Files
+{{ range .Body.Files }}
+- `{{ .Path }}`{{ if .Change }} - {{ .Change }}{{ end }}
+{{- end }}
+{{- end }}
+{{- if .Body.Proof }}
+
+## Proof
+{{ range .Body.Proof }}
+- {{ proofBox .State }} [{{ .Dimension }}] {{ dimensionTitle .Dimension }}{{ if .Evidence }} ({{ .Evidence }}){{ end }}
+{{- end }}
+{{- end }}
+{{- if .Body.QA }}
+
+## QA
+
+{{ .Body.QA }}
+{{- end }}
+
+## Work Log
+{{ range .Body.WorkLog }}
+### {{ .Timestamp }} - {{ .Entry }}
+{{- end }}

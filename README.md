@@ -136,17 +136,20 @@ The uninstall wizard detects what's present on your machine and asks before remo
 
 ---
 
-## Plan service (`plan/`)
+## Mind palace (`mind-palace/`)
 
-The repository also ships `plan`, a Go backend for saving, retrieving and
-monitoring Plans (design and implementation plans as Markdown with YAML front
-matter, stored under `docs/plans`). It exposes the same operations over a CLI,
-HTTP/REST, WebSockets and MCP, and can mirror plans into SQL, MongoDB or
-Firestore stores. See [`plan/README.md`](plan/README.md).
+The repository also ships `mind-palace`, a Go backend for saving, retrieving
+and monitoring Plans (design and implementation plans, stored under
+`docs/plans`) and Stories (bugs, features, improvements, chores and tasks,
+stored under `docs/stories`) as Markdown with YAML front matter. The same
+operations are exposed for both kinds over a CLI, HTTP/REST, WebSockets and
+MCP, and every store plugin (files, SQL, MongoDB, Firestore) holds both. See
+[`mind-palace/README.md`](mind-palace/README.md).
 
 ```bash
-cd plan && go build -o plan ./cmd/plan
-./plan template get
-./plan create --input plan.json
-./plan serve
+cd mind-palace && go build -o mind-palace ./cmd/mind-palace   # plus ./cmd/plan and ./cmd/story
+./mind-palace plan template get
+./mind-palace plan create --input plan.json
+./mind-palace story create --input story.json
+./mind-palace serve
 ```

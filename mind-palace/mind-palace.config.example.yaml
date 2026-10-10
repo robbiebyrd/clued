@@ -1,0 +1,84 @@
+# Example mind-palace configuration. Copy to mind-palace.config.yaml (or
+# point --config / $MIND_PALACE_CONFIG at it). Plans and stories are
+# configured separately under `plans:` and `stories:`; every list replaces
+# the built-in default when present, and a key left out keeps the default.
+# The pre-mind-palace top-level keys (plansDir, types, statuses, workflow,
+# priorities, efforts) still apply to plans.
+
+plans:
+  dir: docs/plans            # archived plans go to docs/plans/archive
+  types:
+    - { name: drft, label: Draft }
+    - { name: dsgn, label: Design }
+    - { name: impl, label: Implementation }
+  statuses:
+    - { name: pending,     label: Pending,     synonyms: [new, draft, todo] }
+    - { name: validated,   label: Validated,   synonyms: [validate, valid] }
+    - { name: ready,       label: Ready,       synonyms: [approve, approved] }
+    - { name: in_progress, label: In Progress, synonyms: [start, started, active, working, progress, in-progress] }
+    - { name: complete,    label: Complete,    synonyms: [done, completed, finish, finished, close, closed] }
+    - { name: blocked,     label: Blocked,     synonyms: [block, hold, on_hold] }
+    - { name: rejected,    label: Rejected,    synonyms: [reject, skip, skipped, cancel, cancelled, wontdo, wontfix] }
+    - { name: archived,    label: Archived,    synonyms: [archive, shelve, shelved, park, parked] }
+  # Allowed status transitions (from: [to, …]). New documents start as pending.
+  workflow:
+    pending:     [blocked, rejected, validated]
+    validated:   [ready, pending, blocked, rejected, archived]
+    ready:       [in_progress, validated, blocked, rejected]
+    in_progress: [blocked, rejected, complete, ready]
+    blocked:     [pending, ready, rejected]
+    rejected:    [blocked, archived, pending, ready]
+    complete:    [archived, in_progress]
+    archived:    [pending, ready]
+  priorities:
+    - { value: "0", labels: [P0, Emergency] }
+    - { value: "1", labels: [P1, Critical, Block] }
+    - { value: "2", labels: [P2, Major, High] }
+    - { value: "3", labels: [P3, Moderate, Medium] }
+    - { value: "4", labels: [P4, Minor, Low] }
+    - { value: "5", labels: [P5, Feature Request, Informational] }
+  efforts:
+    - { name: XS, labels: [Extra Small], points: 2 }
+    - { name: S,  labels: [Small],       points: 3 }
+    - { name: M,  labels: [Medium],      points: 5 }
+    - { name: L,  labels: [Large],       points: 8 }
+    - { name: XL, labels: [Extra Large], points: 13 }
+
+stories:
+  dir: docs/stories          # archived stories go to docs/stories/archive
+  types:
+    - { name: bugs, label: Bug,         synonyms: [bug, fix] }
+    - { name: feat, label: Feature,     synonyms: [feature] }
+    - { name: impr, label: Improvement, synonyms: [improvement, refactor] }
+    - { name: chor, label: Chore,       synonyms: [chore] }
+    - { name: task, label: Task }
+  # statuses, workflow, priorities and efforts default to the same lists as
+  # plans; add them here (same shape as above) to give stories their own.
+
+# Writes fan out to every enabled store; the first one is read from. Every
+# plugin stores both plans and stories.
+storage:
+  - name: file
+    kind: file
+    # options: { plansDir: docs/plans, storiesDir: docs/stories }
+  # - name: sqlite
+  #   kind: sqlite
+  #   options: { dsn: docs/mind-palace.sqlite }
+  # - name: postgres
+  #   kind: postgres
+  #   options: { dsn: "postgres://user:pass@localhost:5432/mind_palace?sslmode=disable", tablePrefix: mp_ }
+  # - name: mysql
+  #   kind: mysql
+  #   options: { dsn: "user:pass@tcp(localhost:3306)/mind_palace?parseTime=true" }
+  # - name: clickhouse
+  #   kind: clickhouse
+  #   options: { dsn: "clickhouse://localhost:9000/default" }
+  # - name: mongo
+  #   kind: mongodb
+  #   options: { uri: "mongodb://localhost:27017", database: mind-palace, collection: mp_ }
+  # - name: firestore
+  #   kind: firestore
+  #   options: { project: my-gcp-project, database: "(default)", collection: mp_ }
+
+server:
+  addr: 127.0.0.1:8087
