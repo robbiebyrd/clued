@@ -1,0 +1,10 @@
+{
+  "clued": {
+    "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued",
+    "args": ["session", "mcp"]
+  },
+  "mind-palace": {
+    "command": "mind-palace",
+    "args": ["mcp"]
+  }
+}

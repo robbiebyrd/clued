@@ -8,7 +8,7 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
   problems+=("clued: run /clued-setup to finish configuring this plugin")
 fi
 if ! command -v mind-palace &>/dev/null; then
-  problems+=("clued: mind-palace is not on PATH, so the plan storage MCP server cannot start. Install it with: ${INSTALL_CMD}")
+  problems+=("clued: mind-palace is not on PATH, so the plan storage MCP server cannot start. Install it with: ${INSTALL_CMD} (or download a release binary from github.com/robbiebyrd/clued/releases)")
 fi
 
 if (( ${#problems[@]} > 0 )); then

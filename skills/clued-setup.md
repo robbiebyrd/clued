@@ -183,7 +183,7 @@ docker info 2>&1 | head -1
 If Docker is not running, ask the user to start Docker Desktop and confirm before
 continuing.
 
-Determine the plugin root (same logic as Step 7 — run this now if doing Docker setup):
+Determine the plugin root (same logic as Step 8 — run this now if doing Docker setup):
 
 ```bash
 CLUED_PLUGIN_ROOT=$(jq -r '
@@ -228,7 +228,32 @@ No installation or service steps needed — skip straight to Step 4.
 
 Accept defaults unless the user overrides. For remote, the URL is required.
 
-## Step 5 — Write config file
+## Step 5 — Install the mind-palace binary
+
+clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP server. Skip this step if `command -v mind-palace` already succeeds.
+
+If `go` is present (`command -v go`), install it:
+
+```bash
+go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest
+```
+
+Make sure `$(go env GOPATH)/bin` is on the PATH that Claude Code inherits.
+
+Otherwise download the release asset for this machine into the plugin data directory (`uname -s` gives `darwin` or `linux` once lowercased; `x86_64` maps to `amd64`, `aarch64` to `arm64`):
+
+```bash
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+case "$(uname -m)" in x86_64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; esac
+mkdir -p ~/.claude/plugins/data/clued/bin
+curl -fsSL "https://github.com/robbiebyrd/clued/releases/latest/download/mind-palace_${OS}_${ARCH}" \
+  -o ~/.claude/plugins/data/clued/bin/mind-palace
+chmod +x ~/.claude/plugins/data/clued/bin/mind-palace
+```
+
+`bin/clued` in the plugin finds the binary on PATH first, then in `~/.claude/plugins/data/clued/bin/`.
+
+## Step 6 — Write config file
 
 ```bash
 mkdir -p ~/.claude/plugins/data/clued
@@ -237,14 +262,13 @@ cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
   "mongoUrl": "<chosen URL>",
   "dbName": "<chosen DB name>",
   "port": 8085,
-  "mcpPort": 8086,
   "projectsDir": "~/.claude/projects",
   "disabledEnrichers": []
 }
 EOF
 ```
 
-**For plugin developers only** — if this machine is the clued development repo, also add `devRepoPath` so session-start always syncs and force-restarts servers from the latest build:
+**For plugin developers only** — if this machine is the clued development repo, also add `devRepoPath` so `bin/clued` builds `mind-palace` from that checkout and session-start restarts the daemon when the build changed:
 
 ```bash
 jq '.devRepoPath = "/path/to/clued"' \
@@ -254,12 +278,12 @@ jq '.devRepoPath = "/path/to/clued"' \
 
 Replace `/path/to/clued` with the actual repo path. Skip this for normal installations.
 
-## Step 6 — MCP server (no action needed)
+## Step 7 — MCP server (no action needed)
 
 The plugin ships a `.mcp.json` that tells Claude Code to run:
 
 ```
-npx -y @robbiebyrd/clued --stdio
+${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp
 ```
 
 Claude Code reads this at startup and spawns the MCP server as a stdio child
@@ -275,7 +299,7 @@ jq 'del(.mcpServers.clued) | if .mcpServers == {} then del(.mcpServers) else . e
   ~/.claude/settings.json > ~/.claude/settings.json.tmp && mv ~/.claude/settings.json.tmp ~/.claude/settings.json
 ```
 
-## Step 7 — Determine plugin root
+## Step 8 — Determine plugin root
 
 For a directory-sourced installation, read the plugin root from `~/.claude/settings.json`:
 
@@ -298,7 +322,7 @@ CLUED_PLUGIN_ROOT=$(ls -dt ~/.claude/plugins/cache/*/clued/*/ 2>/dev/null | head
 
 Confirm the path looks right before continuing.
 
-## Step 8 — Register hooks and start the daemon
+## Step 9 — Register hooks and start the daemon
 
 Register clued's hooks into `~/.claude/settings.json`:
 
@@ -306,38 +330,28 @@ Register clued's hooks into `~/.claude/settings.json`:
 bash "${CLUED_PLUGIN_ROOT}/hooks/register-hooks"
 ```
 
-Then start the daemon and MCP server:
+Then start the daemon:
 
 ```bash
 bash "${CLUED_PLUGIN_ROOT}/hooks/session-start"
 ```
 
-Wait 2 seconds, then verify both services:
+Wait 2 seconds, then verify:
 
 ```bash
 curl -sf http://127.0.0.1:8085/health && echo "daemon running"
-curl -sf http://127.0.0.1:8086/health && echo "mcp server running"
 ```
 
-If a health check fails, run the failing process briefly in the foreground to see
-the error:
+If the health check fails, run the daemon briefly in the foreground to see the error:
 
 ```bash
-# Daemon
-timeout 3 node "${CLUED_PLUGIN_ROOT}/dist/daemon.mjs" 2>&1 || true
-
-# MCP server (HTTP/SSE companion — Claude Code uses stdio, not this port)
-timeout 3 node "${CLUED_PLUGIN_ROOT}/dist/mcp.mjs" 2>&1 || true
-
-# Test the stdio MCP directly (what Claude Code actually spawns):
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | \
-  timeout 3 node "${CLUED_PLUGIN_ROOT}/dist/mcp.mjs" --stdio 2>&1
+timeout 3 "${CLUED_PLUGIN_ROOT}/bin/clued" session daemon 2>&1 || true
 ```
 
 Most common failure cause: MongoDB isn't reachable at the configured URL. Confirm
 the port is open with `nc -z <host> <port>` before retrying.
 
-## Step 9 — Confirm to user
+## Step 10 — Confirm to user
 
 Tell the user:
 
@@ -345,17 +359,8 @@ Tell the user:
 - Config written to `~/.claude/plugins/data/clued/config.json`
 - MCP server: provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns it automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
 - Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`
+- mind-palace binary location (PATH or `~/.claude/plugins/data/clued/bin/`)
 - Daemon status: running on port 8085 / failed (show error output)
-- HTTP/SSE companion status: running on port 8086 / failed (this is for backward-compat only; Claude Code uses stdio for tools)
 - On macOS tarball install: launchd plist written to `~/Library/LaunchAgents/org.mongodb.mongod.plist` — mongod restarts automatically at login with `KeepAlive: true`
 - Ask the user to run `/reload-plugins` then **start a new session** for all changes (hooks + MCP tools) to take effect
-- To add a custom enricher: create a `.ts` file in `<plugin-root>/enrichers/`, then rebuild and restart:
-  ```bash
-  # Install mise if not present: https://mise.jdx.dev
-  cd "${CLUED_PLUGIN_ROOT}"
-  mise install          # sets up Node.js + pnpm per mise.toml
-  pnpm install --frozen-lockfile
-  pnpm run lint && pnpm run build
-  bash "${CLUED_PLUGIN_ROOT}/hooks/session-start"
-  ```
 - To enable the privacy-redact enricher: remove `privacy-redact` from `disabledEnrichers` in `config.json`
