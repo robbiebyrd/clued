@@ -8,14 +8,14 @@ effort: L
 created: "2026-10-09T20:53:01.474Z"
 updated: "2026-10-09T20:53:01.695Z"
 completed: "2026-10-09T20:53:01.695Z"
-plans:
-  - ["0002-2ub", "blocks"]
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
     local: ~/Projects/clued
   web:
     pull-request: https://github.com/robbiebyrd/clued/pull/2
+  plans:
+    - ["0002-2ub", "blocks"]
 ---
 
 # Plan service

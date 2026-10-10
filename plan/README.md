@@ -10,6 +10,14 @@ Plans are Markdown files with YAML front matter, named
 `AAAA-BBB-CCCC-description-of-plan.md` (sequence, random id, type, slug).
 The file format is the canonical representation in every store.
 
+Front matter carries `id`, `title`, `type`, `status`, `priority`, optional
+`effort`, the managed `created`/`updated`/`completed` timestamps, `links`
+and `progress`. `links` holds the repository (`repo`), spec documents
+(`specs`), named web links (`web`), and `[id, relation]` tuples to stories
+(`stories`) and to other plans (`plans`); relations are `parent`, `included`,
+`depends` and `blocks`. Files written with the earlier top-level `plans` key
+still parse and are rewritten under `links.plans` on their next write.
+
 ## Build
 
 ```bash
@@ -86,6 +94,7 @@ Rules that apply to every write:
 - The result is validated against the Plan JSON Schema before saving; a write that fails is not saved.
 - `updated` is stamped on every write; `id` and `created` are set once by `create`; `updated` and `completed` have no setters.
 - Content (below the front matter) changes only through `update`; front matter only through the setters.
+- Plan→plan links live in `links.plans`; `addPlanLink` checks the target exists and `delete` refuses while other plans link to the plan (unless forced).
 - The content's H1 always matches `title`.
 - Synonyms and labels are accepted for status, priority and effort and stored as their primary value (`approved` → `ready`, `P1` → `1`, `Medium` → `M`).
 - `create` seeds `progress` with `pending` for every phase and section the body declares (unless `progress` is given).

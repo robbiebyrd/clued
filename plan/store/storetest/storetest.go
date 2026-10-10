@@ -24,14 +24,14 @@ func plan(id, typ, status string) *model.Plan {
 		FrontMatter: model.FrontMatter{
 			ID: id, Title: "Conformance " + id, Type: typ, Status: status, Priority: "2", Effort: "M",
 			Created: "2026-01-01T00:00:00.000Z", Updated: "2026-01-01T00:00:00.000Z",
-			Plans: []model.Link{{ID: "0009-zzz", Relation: "blocks"}},
 			Links: &model.Links{
 				Repo:    &model.Repo{Remote: "git@github.com:org/p.git", Local: "~/p"},
 				Specs:   []string{"./docs/x.md"},
 				Web:     map[string]string{"jira": "https://jira/1"},
-				Stories: []model.Link{{ID: "001-abc", Relation: "included"}},
+				Stories: []model.Link{{ID: "0001-abc", Relation: "included"}},
+				Plans:   []model.Link{{ID: "0009-zzz", Relation: "blocks"}},
 			},
-			Progress: model.Progress{"1": {Status: "pending"}, "1.1": {Status: "complete", Stories: []string{"001-abc"}}, "1.10": {Status: "blocked"}},
+			Progress: model.Progress{"1": {Status: "pending"}, "1.1": {Status: "complete", Stories: []string{"0001-abc"}}, "1.10": {Status: "blocked"}},
 		},
 		Content: fmt.Sprintf("# Conformance %s\n\n## Phase 1: A\n\n### 1.1: B\n\n### 1.10: C\n\nUnicode ✓ and `code`\n", id),
 	}
@@ -60,7 +60,7 @@ func Run(t *testing.T, newStore Factory) {
 		if !store.PlansEqual(got, p) {
 			t.Fatalf("round trip mismatch:\ngot  %+v\nwant %+v", got, p)
 		}
-		if got.FrontMatter.Progress["1.10"].Status != "blocked" || got.FrontMatter.Links.Web["jira"] != "https://jira/1" {
+		if got.FrontMatter.Progress["1.10"].Status != "blocked" || got.FrontMatter.Links.Web["jira"] != "https://jira/1" || got.FrontMatter.Links.Plans[0].ID != "0009-zzz" {
 			t.Errorf("nested data lost: %+v", got.FrontMatter)
 		}
 		// Replace, rename and archive.

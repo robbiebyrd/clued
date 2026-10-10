@@ -14,7 +14,7 @@ func TestParseAndRender(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fm.ID != "0002-a3f" || fm.Plans[0].Relation != "blocks" || fm.Progress["1.1"].Status != "completed" {
+	if fm.ID != "0002-a3f" || fm.PlanLinks()[0].Relation != "blocks" || fm.Progress["1.1"].Status != "completed" {
 		t.Errorf("front matter: %+v", fm)
 	}
 	if !strings.HasPrefix(content, "# Description of plan\n") {
@@ -33,6 +33,39 @@ func TestParseAndRender(t *testing.T) {
 	}
 	if !strings.HasPrefix(out, "---\nid: 0002-a3f\n") {
 		t.Errorf("unexpected header:\n%s", out)
+	}
+	// The legacy top-level plans list is written back under links.plans.
+	if strings.Contains(out, "\nplans:\n") || !strings.Contains(out, "links:\n  plans:\n") {
+		t.Errorf("legacy plans not migrated under links:\n%s", out)
+	}
+}
+
+func TestLegacyPlansMigration(t *testing.T) {
+	// Legacy and current layouts merge; the legacy list comes first.
+	fm, err := ParseFrontMatter("id: 0001-abc\nplans:\n  - [\"0002-bbb\", \"blocks\"]\nlinks:\n  plans:\n    - [\"0003-ccc\", \"depends\"]\n  web:\n    jira: https://j/1\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	links := fm.PlanLinks()
+	if len(links) != 2 || links[0].ID != "0002-bbb" || links[1].ID != "0003-ccc" || fm.Links.Web["jira"] != "https://j/1" {
+		t.Errorf("merged links: %+v", fm.Links)
+	}
+	// Only the legacy list, with no other links.
+	fm, err = ParseFrontMatter("id: 0001-abc\nplans:\n  - [\"0002-bbb\", \"parent\"]\n")
+	if err != nil || len(fm.PlanLinks()) != 1 || fm.Links.Repo != nil {
+		t.Errorf("legacy only: %+v %v", fm.Links, err)
+	}
+	// A document that is nothing but a legacy plans list still parses.
+	fm, err = ParseFrontMatter("plans:\n  - [\"0002-bbb\", \"parent\"]\n")
+	if err != nil || len(fm.PlanLinks()) != 1 {
+		t.Errorf("legacy without other keys: %+v %v", fm.Links, err)
+	}
+	// Malformed legacy entries are still rejected; unknown keys still fail.
+	if _, err := ParseFrontMatter("plans:\n  - [\"\", \"parent\"]\n"); err == nil {
+		t.Error("malformed legacy link accepted")
+	}
+	if _, err := ParseFrontMatter("id: 0001-abc\nplanz: []\n"); err == nil {
+		t.Error("unknown key accepted")
 	}
 }
 

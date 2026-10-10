@@ -8,8 +8,6 @@ effort: L
 created: "2026-10-09T20:53:01.506Z"
 updated: "2026-10-09T20:53:01.959Z"
 completed: "2026-10-09T20:53:01.717Z"
-plans:
-  - ["0001-v1i", "depends"]
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
@@ -18,6 +16,8 @@ links:
     - ./docs/plans/0001-v1i-dsgn-plan-service.md
   web:
     pull-request: https://github.com/robbiebyrd/clued/pull/2
+  plans:
+    - ["0001-v1i", "depends"]
 progress:
   "1":
     status: complete

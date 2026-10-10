@@ -113,8 +113,7 @@ func TestOpenAll(t *testing.T) {
 
 func TestPlansEqualNormalises(t *testing.T) {
 	a, b := plan("0001-aaa"), plan("0001-aaa")
-	a.FrontMatter.Links = &model.Links{Web: map[string]string{}}
-	a.FrontMatter.Plans = []model.Link{}
+	a.FrontMatter.Links = &model.Links{Web: map[string]string{}, Plans: []model.Link{}}
 	if !store.PlansEqual(a, b) {
 		t.Error("empty collections should compare equal to nil")
 	}

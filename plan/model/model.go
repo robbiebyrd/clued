@@ -75,7 +75,6 @@ type FrontMatter struct {
 	Created   string   `yaml:"created" json:"created"`
 	Updated   string   `yaml:"updated" json:"updated"`
 	Completed string   `yaml:"completed" json:"completed"`
-	Plans     []Link   `yaml:"plans,omitempty" json:"plans,omitempty"`
 	Links     *Links   `yaml:"links,omitempty" json:"links,omitempty"`
 	Progress  Progress `yaml:"progress,omitempty" json:"progress,omitempty"`
 }
@@ -83,9 +82,6 @@ type FrontMatter struct {
 // Clone returns a deep copy.
 func (f FrontMatter) Clone() FrontMatter {
 	c := f
-	if f.Plans != nil {
-		c.Plans = append([]Link(nil), f.Plans...)
-	}
 	if f.Links != nil {
 		l := *f.Links
 		if f.Links.Repo != nil {
@@ -103,6 +99,9 @@ func (f FrontMatter) Clone() FrontMatter {
 		}
 		if f.Links.Stories != nil {
 			l.Stories = append([]Link(nil), f.Links.Stories...)
+		}
+		if f.Links.Plans != nil {
+			l.Plans = append([]Link(nil), f.Links.Plans...)
 		}
 		c.Links = &l
 	}
@@ -195,17 +194,45 @@ func (l *Link) UnmarshalYAML(n *yaml.Node) error {
 	return fmt.Errorf("line %d: link must be a [id, relation] pair", n.Line)
 }
 
-// Links groups the outbound connections of a plan.
+// Links groups the outbound connections of a plan: the repository it lives
+// in, spec documents, named web links, and [id, relation] tuples to stories
+// and to other plans.
 type Links struct {
 	Repo    *Repo             `yaml:"repo,omitempty" json:"repo,omitempty"`
 	Specs   []string          `yaml:"specs,omitempty" json:"specs,omitempty"`
 	Web     map[string]string `yaml:"web,omitempty" json:"web,omitempty"`
 	Stories []Link            `yaml:"stories,omitempty" json:"stories,omitempty"`
+	Plans   []Link            `yaml:"plans,omitempty" json:"plans,omitempty"`
 }
 
 // IsEmpty reports whether no link of any kind is set.
 func (l *Links) IsEmpty() bool {
-	return l == nil || (l.Repo == nil && len(l.Specs) == 0 && len(l.Web) == 0 && len(l.Stories) == 0)
+	return l == nil || (l.Repo == nil && len(l.Specs) == 0 && len(l.Web) == 0 && len(l.Stories) == 0 && len(l.Plans) == 0)
+}
+
+// PlanLinks returns the plan→plan links (nil when there are none).
+func (f *FrontMatter) PlanLinks() []Link {
+	if f.Links == nil {
+		return nil
+	}
+	return f.Links.Plans
+}
+
+// SetPlanLinks replaces the plan→plan links, dropping an empty Links object.
+func (f *FrontMatter) SetPlanLinks(links []Link) {
+	if len(links) == 0 {
+		if f.Links != nil {
+			f.Links.Plans = nil
+			if f.Links.IsEmpty() {
+				f.Links = nil
+			}
+		}
+		return
+	}
+	if f.Links == nil {
+		f.Links = &Links{}
+	}
+	f.Links.Plans = links
 }
 
 // Repo points at the git repository the plan's work happens in.
