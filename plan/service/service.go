@@ -25,8 +25,8 @@ import (
 	"github.com/robbiebyrd/clued/plan/store"
 )
 
-// TimestampLayout is the ISO 8601 UTC form used in front matter.
-const TimestampLayout = "2006-01-02T15:04:05.000Z"
+// TimestampLayout is the canonical front matter timestamp (see model).
+const TimestampLayout = model.TimestampLayout
 
 // Service is the plan service.
 type Service struct {
@@ -139,7 +139,10 @@ func (s *Service) pathFor(p *model.Plan, slug string) string {
 }
 
 // check validates a plan before it is written and returns the problems.
+// Timestamps are normalised to the canonical layout before validating.
 func (s *Service) check(ctx context.Context, p *model.Plan) []string {
+	p.FrontMatter.NormalizeTimestamps()
+	p.FrontMatter.NormalizeStoryIDs()
 	problems := s.validator.ValidateStoredFrontMatter(p.FrontMatter)
 	problems = append(problems, s.invariants(ctx, p)...)
 	sort.Strings(problems)
@@ -268,6 +271,8 @@ func (s *Service) Create(ctx context.Context, input json.RawMessage, templateID 
 	if fm.Status == "complete" {
 		fm.Completed = now
 	}
+	// Completed is managed by the service and only ever set here or by a
+	// move to complete; it is omitted until then.
 	slug := in.Slug
 	if slug == "" {
 		slug = model.Slugify(fm.Title)
@@ -378,8 +383,26 @@ func (s *Service) normalizeCreateInput(input json.RawMessage) (map[string]any, [
 						e["status"] = n
 					}
 				}
+				if stories, ok := e["stories"].([]any); ok {
+					for i, sid := range stories {
+						if str, ok := sid.(string); ok {
+							stories[i] = model.NormalizeStoryID(str)
+						}
+					}
+				}
 			}
 			prog[k] = v
+		}
+	}
+	if links, ok := fm["links"].(map[string]any); ok {
+		if stories, ok := links["stories"].([]any); ok {
+			for _, item := range stories {
+				if tuple, ok := item.([]any); ok && len(tuple) > 0 {
+					if str, ok := tuple[0].(string); ok {
+						tuple[0] = model.NormalizeStoryID(str)
+					}
+				}
+			}
 		}
 	}
 	return raw, problems
@@ -484,6 +507,9 @@ func (s *Service) List(ctx context.Context, f ListFilter) ([]Summary, error) {
 			return nil, newErr(KindBadRequest, "unknown priority %q", f.Priority)
 		}
 		f.Priority = n
+	}
+	if f.Story != "" {
+		f.Story = model.NormalizeStoryID(f.Story)
 	}
 	plans, err := s.store.ListPlans(ctx)
 	if err != nil {
@@ -821,11 +847,10 @@ func (s *Service) applyStatus(p *model.Plan, status string, force bool) (bool, e
 		return false, newErr(KindInvalidTransition, "plan %s cannot move from %q to %q (allowed: %s); use force to override", p.ID(), from, to, strings.Join(s.cfg.Transitions(from), ", "))
 	}
 	p.FrontMatter.Status = to
-	switch {
-	case to == "complete":
+	// Reaching complete records (or overwrites) the completion time; moving
+	// away from complete leaves it in place.
+	if to == "complete" {
 		p.FrontMatter.Completed = s.timestamp()
-	case from == "complete":
-		p.FrontMatter.Completed = ""
 	}
 	return true, nil
 }
@@ -1147,8 +1172,9 @@ func (s *Service) AddStoryLink(ctx context.Context, identifier, storyID, relatio
 	if err != nil {
 		return nil, err
 	}
+	storyID = model.NormalizeStoryID(storyID)
 	if !model.StoryIDRe.MatchString(storyID) {
-		return nil, newErr(KindBadRequest, "%q is not a story id", storyID)
+		return nil, newErr(KindBadRequest, "%q is not a story id (expected AAAA-BBB, e.g. 0001-abc)", storyID)
 	}
 	if !contains(model.StoryRelations, relation) {
 		return nil, newErr(KindBadRequest, "unknown story relation %q (included, depends, blocks)", relation)
@@ -1170,6 +1196,7 @@ func (s *Service) RemoveStoryLink(ctx context.Context, identifier, storyID, rela
 	if err != nil {
 		return nil, err
 	}
+	storyID = model.NormalizeStoryID(storyID)
 	var kept []model.Link
 	removed := 0
 	if p.FrontMatter.Links != nil {
@@ -1363,8 +1390,9 @@ func (s *Service) AddProgressStory(ctx context.Context, identifier, section, sto
 	if err := s.requireSection(p, section); err != nil {
 		return nil, err
 	}
+	storyID = model.NormalizeStoryID(storyID)
 	if !model.StoryIDRe.MatchString(storyID) {
-		return nil, newErr(KindBadRequest, "%q is not a story id", storyID)
+		return nil, newErr(KindBadRequest, "%q is not a story id (expected AAAA-BBB, e.g. 0001-abc)", storyID)
 	}
 	if p.FrontMatter.Progress == nil {
 		p.FrontMatter.Progress = model.Progress{}
@@ -1387,6 +1415,7 @@ func (s *Service) RemoveProgressStory(ctx context.Context, identifier, section, 
 	if err != nil {
 		return nil, err
 	}
+	storyID = model.NormalizeStoryID(storyID)
 	e, ok := p.FrontMatter.Progress[section]
 	if !ok {
 		return nil, newErr(KindUnknownSection, "plan %s has no progress entry %q", p.ID(), section)

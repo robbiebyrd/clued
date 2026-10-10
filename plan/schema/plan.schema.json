@@ -62,8 +62,9 @@
       "examples": ["0002-a3f"]
     },
     "storyId": {
+      "description": "AAAA-BBB: 4-digit sequence number and a 3-character random alphanumeric ID. Always the full id, never the bare sequence number.",
       "type": "string",
-      "pattern": "^[0-9]{3,4}-[a-z0-9]{3}$",
+      "pattern": "^[0-9]{4}-[a-z0-9]{3}$",
       "examples": ["0001-abc"]
     },
     "sectionNumber": {
@@ -85,10 +86,10 @@
     },
     "storyRelation": { "enum": ["included", "depends", "blocks"] },
     "timestamp": {
-      "description": "ISO 8601 UTC timestamp, e.g. 2026-09-09T14:07:05.352Z.",
+      "description": "RFC 3339 UTC timestamp with millisecond precision, e.g. 2026-09-09T14:07:05.352Z. Other accepted input forms are normalized to this before validating.",
       "type": "string",
       "format": "date-time",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
     },
     "markdown": { "description": "Markdown text inserted as-is.", "type": "string", "minLength": 1 },
     "markdownList": { "type": "array", "items": { "$ref": "#/$defs/markdown" } },
@@ -110,9 +111,8 @@
         "created": { "$ref": "#/$defs/timestamp" },
         "updated": { "$ref": "#/$defs/timestamp" },
         "completed": {
-          "description": "Empty until the plan is complete.",
-          "anyOf": [{ "const": "" }, { "$ref": "#/$defs/timestamp" }],
-          "default": ""
+          "description": "Omitted until the plan is first complete; never an empty string.",
+          "$ref": "#/$defs/timestamp"
         },
         "links": {
           "type": "object",
@@ -207,7 +207,7 @@
       "description": "Front matter of a plan that has been written: the service-managed fields are present.",
       "allOf": [
         { "$ref": "#/$defs/frontMatter" },
-        { "required": ["id", "created", "updated", "completed"] }
+        { "required": ["id", "created", "updated"] }
       ]
     },
     "body": {

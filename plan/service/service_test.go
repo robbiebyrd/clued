@@ -66,6 +66,12 @@ func TestCreate(t *testing.T) {
 	if fm.Created != "2026-09-09T14:07:06.352Z" || fm.Updated != fm.Created || fm.Completed != "" {
 		t.Errorf("timestamps: %+v", fm)
 	}
+	if raw, _ := fs.GetPlan(ctx, fm.ID); raw.FrontMatter.Completed != "" {
+		t.Error("completed should be absent until set")
+	}
+	if doc, _ := os.ReadFile(fs.AbsPath(p.Path)); strings.Contains(string(doc), "completed:") {
+		t.Error("completed must be omitted from the file until set")
+	}
 	if p.Path != fm.ID+"-impl-add-plan-service.md" {
 		t.Errorf("path = %q", p.Path)
 	}
@@ -203,10 +209,16 @@ func TestStatusWorkflow(t *testing.T) {
 	if rep, _ := s.Validate(ctx, id); !rep.Valid {
 		t.Errorf("complete plan invalid: %v", rep.Problems)
 	}
+	firstCompleted := p.FrontMatter.Completed
 	p, _ = s.SetStatus(ctx, id, "in_progress", false)
-	if p.FrontMatter.Completed != "" {
-		t.Error("leaving complete should clear completed")
+	if p.FrontMatter.Completed != firstCompleted {
+		t.Error("leaving complete must keep completed")
 	}
+	p, _ = s.SetStatus(ctx, id, "complete", false)
+	if p.FrontMatter.Completed == "" || p.FrontMatter.Completed == firstCompleted {
+		t.Errorf("reaching complete again must overwrite completed: %q vs %q", p.FrontMatter.Completed, firstCompleted)
+	}
+	p, _ = s.SetStatus(ctx, id, "in_progress", false)
 	// Force skips the workflow.
 	p, err = s.SetStatus(ctx, id, "archived", true)
 	if err != nil {
@@ -380,8 +392,21 @@ func TestLinks(t *testing.T) {
 		t.Error("remove missing link")
 	}
 	// Stories, specs, web, repo.
-	if _, err := s.AddStoryLink(ctx, a.ID(), "abc", "included"); !IsKind(err, KindBadRequest) {
-		t.Error("bad story id")
+	for _, bad := range []string{"abc", "0001", "0001-ABC", "00001-abc", "1"} {
+		if _, err := s.AddStoryLink(ctx, a.ID(), bad, "included"); !IsKind(err, KindBadRequest) {
+			t.Errorf("story id %q accepted", bad)
+		}
+	}
+	// A short sequence part is zero-padded on input and matched on removal.
+	p, err = s.AddStoryLink(ctx, a.ID(), "7-xyz", "depends")
+	if err != nil || p.FrontMatter.Links.Stories[0].ID != "0007-xyz" {
+		t.Errorf("short story id not padded: %+v %v", p.FrontMatter.Links, err)
+	}
+	if list, _ := s.List(ctx, ListFilter{Story: "07-xyz"}); len(list) != 1 {
+		t.Error("list by short story id")
+	}
+	if _, err := s.RemoveStoryLink(ctx, a.ID(), "007-xyz", ""); err != nil {
+		t.Errorf("remove by short story id: %v", err)
 	}
 	if _, err := s.AddStoryLink(ctx, a.ID(), "0001-abc", "parent"); !IsKind(err, KindBadRequest) {
 		t.Error("parent is not a story relation")
@@ -615,5 +640,62 @@ func TestErrorMapping(t *testing.T) {
 	}
 	if AsError(nil) != nil {
 		t.Error("nil")
+	}
+}
+
+func TestTimestampsNormalisedOnWrite(t *testing.T) {
+	s, _, fs := newService(t)
+	p := create(t, s, "create-dsgn.json")
+	// Write a file by hand with non-canonical timestamps and legacy completed: "".
+	doc := "---\nid: " + p.ID() + "\ntitle: Plan service design\ntype: dsgn\nstatus: pending\npriority: \"1\"\ncreated: 2026-01-01T00:00:00Z\nupdated: \"2026-01-01T02:00:00.5+02:00\"\ncompleted: \"\"\n---\n\n# Plan service design\n"
+	if err := os.WriteFile(fs.AbsPath(p.Path), []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rep, err := s.Validate(ctx, p.ID())
+	if err != nil || !rep.Valid {
+		t.Fatalf("non-canonical timestamps should validate after normalisation: %+v %v", rep, err)
+	}
+	got, err := s.SetPriority(ctx, p.ID(), "P2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.FrontMatter.Created != "2026-01-01T00:00:00.000Z" {
+		t.Errorf("created not normalised: %q", got.FrontMatter.Created)
+	}
+	if got.FrontMatter.Completed != "" {
+		t.Errorf("empty completed should stay unset: %q", got.FrontMatter.Completed)
+	}
+	out, _ := os.ReadFile(fs.AbsPath(p.Path))
+	if strings.Contains(string(out), "completed:") || !strings.Contains(string(out), "created: \"2026-01-01T00:00:00.000Z\"") {
+		t.Errorf("file not rewritten canonically:\n%s", out)
+	}
+	// Lowercase RFC 3339 separators are accepted; whitespace-only completed is not absent.
+	doc2 := strings.Replace(doc, "created: 2026-01-01T00:00:00Z", "created: 2026-01-01t00:00:00z", 1)
+	os.WriteFile(fs.AbsPath(p.Path), []byte(doc2), 0o644)
+	if got, err := s.SetPriority(ctx, p.ID(), "P2"); err != nil || got.FrontMatter.Created != "2026-01-01T00:00:00.000Z" {
+		t.Errorf("lowercase separators: %v %+v", err, got)
+	}
+	doc3 := strings.Replace(doc, "completed: \"\"", "completed: \"   \"", 1)
+	os.WriteFile(fs.AbsPath(p.Path), []byte(doc3), 0o644)
+	if _, err := s.SetPriority(ctx, p.ID(), "P3"); !IsKind(err, KindValidation) {
+		t.Errorf("whitespace completed should be reported: %v", err)
+	}
+	// Legacy three-digit story ids in a stored plan are zero-padded on the next write.
+	doc4 := strings.Replace(doc, "completed: \"\"\n", "links:\n  stories:\n    - [\"001-abc\", \"included\"]\nprogress:\n  \"1\":\n    status: pending\n    stories: [\"02-def\"]\n", 1)
+	doc4 = strings.Replace(doc4, "# Plan service design\n", "# Plan service design\n\n## Phase 1: A\n", 1)
+	os.WriteFile(fs.AbsPath(p.Path), []byte(doc4), 0o644)
+	got, err = s.SetPriority(ctx, p.ID(), "P4")
+	if err != nil {
+		t.Fatalf("legacy story ids should not block edits: %v", err)
+	}
+	if got.FrontMatter.Links.Stories[0].ID != "0001-abc" || got.FrontMatter.Progress["1"].Stories[0] != "0002-def" {
+		t.Errorf("legacy story ids not padded: %+v %+v", got.FrontMatter.Links, got.FrontMatter.Progress)
+	}
+	os.WriteFile(fs.AbsPath(p.Path), []byte(doc), 0o644)
+	// Garbage timestamps are reported, not silently accepted.
+	doc = strings.Replace(doc, "created: 2026-01-01T00:00:00Z", "created: yesterday", 1)
+	os.WriteFile(fs.AbsPath(p.Path), []byte(doc), 0o644)
+	if _, err := s.SetPriority(ctx, p.ID(), "P3"); !IsKind(err, KindValidation) {
+		t.Errorf("bad timestamp: %v", err)
 	}
 }

@@ -193,7 +193,7 @@ func Default() *Registry {
 		func(ctx context.Context, svc *service.Service, p SetTypeParams) (any, error) {
 			return svc.SetType(ctx, p.Plan, p.Type)
 		})
-	Register(r, &Op{Name: "setStatus", Group: "fields", Description: "Move the Plan to a new status. Rejects moves the workflow doesn't allow unless forced. complete sets completed; leaving complete clears it; archived moves the file to archive/."},
+	Register(r, &Op{Name: "setStatus", Group: "fields", Description: "Move the Plan to a new status. Rejects moves the workflow doesn't allow unless forced. Reaching complete sets completed (and overwrites it on a later return); leaving complete keeps it; archived moves the file to archive/."},
 		func(ctx context.Context, svc *service.Service, p SetStatusParams) (any, error) {
 			return svc.SetStatus(ctx, p.Plan, p.Status, p.Force)
 		})

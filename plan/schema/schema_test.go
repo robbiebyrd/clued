@@ -74,10 +74,20 @@ func TestStoredFrontMatterRequiresManagedFields(t *testing.T) {
 	if p := v.ValidateStoredFrontMatter(fm); len(p) == 0 {
 		t.Error("stored front matter must require id/created/updated/completed")
 	}
-	fm["id"], fm["created"], fm["updated"], fm["completed"] = "0001-abc", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", ""
+	fm["id"], fm["created"], fm["updated"] = "0001-abc", "2026-01-01T00:00:00.000Z", "2026-01-01T00:00:00.000Z"
 	if p := v.ValidateStoredFrontMatter(fm); len(p) != 0 {
 		t.Errorf("complete stored front matter: %v", p)
 	}
+	fm["completed"] = ""
+	if p := v.ValidateStoredFrontMatter(fm); len(p) == 0 {
+		t.Error("completed must never be an empty string")
+	}
+	fm["created"] = "2026-01-01T00:00:00Z"
+	if p := v.ValidateStoredFrontMatter(fm); len(p) == 0 {
+		t.Error("timestamps must carry millisecond precision")
+	}
+	fm["created"] = "2026-01-01T00:00:00.000Z"
+	delete(fm, "completed")
 	fm["status"] = "complete"
 	if p := v.ValidateStoredFrontMatter(fm); len(p) == 0 {
 		t.Error("complete status without completed timestamp must fail")
@@ -89,6 +99,10 @@ func TestStoredFrontMatterRequiresManagedFields(t *testing.T) {
 	fm["progress"] = map[string]any{"1.1": map[string]any{"status": "pending"}, "x": map[string]any{"status": "pending"}}
 	if p := v.ValidateStoredFrontMatter(fm); len(p) == 0 {
 		t.Error("bad progress key must fail")
+	}
+	fm["progress"] = map[string]any{"1.1": map[string]any{"status": "pending", "stories": []any{"001-abc"}}}
+	if p := v.ValidateStoredFrontMatter(fm); len(p) == 0 {
+		t.Error("three-digit story id must fail")
 	}
 }
 
