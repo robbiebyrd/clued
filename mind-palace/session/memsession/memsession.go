@@ -340,7 +340,7 @@ func (s *Store) HookEventIDsByToolUse(_ context.Context, sessionID string, toolU
 	defer s.mu.Unlock()
 	ids := []string{}
 	for _, d := range s.filter(hookEvents, func(d session.Doc) bool {
-		return d["session_id"] == sessionID && wanted[strOf(d, "tool_use_id")]
+		return (sessionID == "" || d["session_id"] == sessionID) && wanted[strOf(d, "tool_use_id")]
 	}) {
 		ids = append(ids, d["_id"].(string))
 	}
