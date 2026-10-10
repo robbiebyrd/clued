@@ -221,8 +221,9 @@ efforts.
 ## Storage
 
 Writes fan out to every enabled store; reads come from the first one (the
-primary). File storage is the only plugin enabled by default and can only be
-disabled when another is enabled. Every plugin stores both kinds: documents
+primary). File storage is the only plugin enabled by default and can never be
+disabled: a `storage` list that omits the file entry or sets it `enabled:
+false` is rejected at load time. Every plugin stores both kinds: documents
 are keyed by kind and id, templates by kind and template id. If a secondary
 copy fails, the primary write stands, the command succeeds with a `warning`,
 and `mind-palace sync` reconciles.

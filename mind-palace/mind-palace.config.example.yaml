@@ -56,7 +56,8 @@ stories:
   # plans; add them here (same shape as above) to give stories their own.
 
 # Writes fan out to every enabled store; the first one is read from. Every
-# plugin stores both plans and stories.
+# plugin stores both plans and stories. The file store is always required:
+# a list that omits it or sets `enabled: false` on it is rejected.
 storage:
   - name: file
     kind: file
