@@ -84,7 +84,9 @@ type ServerConfig struct {
 
 // Config is the effective service configuration.
 type Config struct {
-	// PlansDir is the root for file-based storage and the base for relative paths.
+	// PlansDir is the root for file-based storage and the base for relative
+	// paths. A relative value from a config file is anchored to that file's
+	// directory; the default is relative to the working directory.
 	PlansDir   string              `yaml:"plansDir" json:"plansDir"`
 	Types      []TypeDef           `yaml:"types" json:"types"`
 	Statuses   []StatusDef         `yaml:"statuses" json:"statuses"`
@@ -182,7 +184,30 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config %s: %w", path, err)
 	}
 	cfg.Source = path
+	cfg.resolvePaths(filepath.Dir(path))
 	return cfg, cfg.Validate()
+}
+
+// resolvePaths anchors relative directories from a config file to that
+// file's directory, so storage lands in the same place no matter which
+// subdirectory the service was invoked from.
+func (c *Config) resolvePaths(baseDir string) {
+	c.PlansDir = resolveAgainst(baseDir, c.PlansDir)
+	for i := range c.Storage {
+		def := &c.Storage[i]
+		if def.Kind == "file" && def.Options["dir"] != "" {
+			def.Options["dir"] = resolveAgainst(baseDir, def.Options["dir"])
+		}
+	}
+}
+
+// resolveAgainst joins a relative path onto baseDir; absolute paths and
+// empty strings are returned unchanged.
+func resolveAgainst(baseDir, p string) string {
+	if p == "" || filepath.IsAbs(p) {
+		return p
+	}
+	return filepath.Join(baseDir, p)
 }
 
 // findDefaultConfig returns the nearest readable DefaultConfigFiles entry,

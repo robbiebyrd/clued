@@ -59,7 +59,7 @@ storage:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.PlansDir != "plans" || len(c.Statuses) != 2 || len(c.Types) != 3 {
+	if c.PlansDir != filepath.Join(dir, "plans") || len(c.Statuses) != 2 || len(c.Types) != 3 {
 		t.Errorf("overlay: %+v", c)
 	}
 	if got := c.EnabledStorage(); len(got) != 1 || got[0].Name != "db" {
@@ -126,7 +126,7 @@ func TestLoadFindsDefaultConfigInParentDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.PlansDir != "from-parent" {
+	if filepath.Base(c.PlansDir) != "from-parent" {
 		t.Errorf("plansDir = %q, want config from parent dir", c.PlansDir)
 	}
 	if filepath.Base(c.Source) != "plan.config.yaml" || !filepath.IsAbs(c.Source) {
@@ -147,7 +147,7 @@ func TestLoadPrefersNearestDefaultConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.PlansDir != "from-cwd" {
+	if filepath.Base(c.PlansDir) != "from-cwd" {
 		t.Errorf("plansDir = %q, want the working directory's config to win over a parent's", c.PlansDir)
 	}
 }
@@ -182,7 +182,7 @@ func TestLoadFindsDefaultConfigInHomeDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.PlansDir != "from-home" {
+	if filepath.Base(c.PlansDir) != "from-home" {
 		t.Errorf("plansDir = %q, want the home dir itself to be searched", c.PlansDir)
 	}
 }
@@ -220,7 +220,57 @@ func TestLoadSkipsUnreadableDefaultConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.PlansDir != "from-parent" {
+	if filepath.Base(c.PlansDir) != "from-parent" {
 		t.Errorf("plansDir = %q, want an unreadable config to be skipped", c.PlansDir)
+	}
+}
+
+func TestLoadResolvesRelativePathsAgainstConfigDir(t *testing.T) {
+	t.Setenv(EnvConfig, "")
+	root := t.TempDir()
+	t.Setenv("HOME", root)
+	os.WriteFile(filepath.Join(root, "plan.config.yaml"), []byte(`
+plansDir: plans
+storage:
+  - {name: file, kind: file, options: {dir: data/plans}}
+`), 0o644)
+	nested := filepath.Join(root, "a", "b")
+	os.MkdirAll(nested, 0o755)
+	t.Chdir(nested)
+	c, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	configDir := filepath.Dir(c.Source)
+	if c.PlansDir != filepath.Join(configDir, "plans") {
+		t.Errorf("plansDir = %q, want it resolved against %s", c.PlansDir, configDir)
+	}
+	if got := c.Storage[0].Options["dir"]; got != filepath.Join(configDir, "data", "plans") {
+		t.Errorf("file store dir = %q, want it resolved against %s", got, configDir)
+	}
+}
+
+func TestLoadLeavesAbsolutePathsAndDefaultsAlone(t *testing.T) {
+	t.Setenv(EnvConfig, "")
+	root := t.TempDir()
+	t.Setenv("HOME", root)
+	abs := filepath.Join(root, "elsewhere")
+	path := filepath.Join(root, "plan.config.yaml")
+	os.WriteFile(path, []byte("plansDir: "+abs+"\n"), 0o644)
+	t.Chdir(root)
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.PlansDir != abs {
+		t.Errorf("plansDir = %q, want absolute path kept as %s", c.PlansDir, abs)
+	}
+	os.Remove(path)
+	c, err = Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.PlansDir != DefaultPlansDir {
+		t.Errorf("plansDir = %q, want default %s relative to the working directory", c.PlansDir, DefaultPlansDir)
 	}
 }

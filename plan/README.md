@@ -146,6 +146,8 @@ Claude Code registration example (`.mcp.json`):
 (`.yml`, `.json`, `.plan.yaml`, `.plan.json`) in the working directory, then
 in each parent directory up to your home directory; the nearest readable
 file wins, and the search never goes above your home directory.
+Relative `plansDir` and file-store `dir` values are anchored to the config
+file's directory, so storage lands in the same place from any subdirectory.
 Every list replaces the default when given; see `plan.config.example.yaml`.
 
 ```yaml
