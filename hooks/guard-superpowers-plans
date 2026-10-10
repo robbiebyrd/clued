@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Superpowers plans are stored by mind-palace, not written to disk by Claude.
 # Blocks Write/Edit under docs/superpowers/plans/ and points at the MCP tools.
+if ! command -v jq >/dev/null 2>&1; then
+  # Exit 1 is a non-blocking error: the write proceeds, but the user sees that the guard did not run.
+  echo "guard-superpowers-plans: jq not found, plan guard inactive" >&2
+  exit 1
+fi
 input=$(cat)
 file_path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')
 

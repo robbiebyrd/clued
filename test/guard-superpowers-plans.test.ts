@@ -42,3 +42,14 @@ test('guard allows input without a file_path', () => {
   assert.equal(r.status, 0);
   assert.equal(r.stderr, '');
 });
+
+test('guard reports itself inactive instead of silently allowing when jq is missing', () => {
+  const r = spawnSync('/bin/bash', [GUARD], {
+    input: JSON.stringify(call('Write', '/repo/docs/superpowers/plans/x.md')),
+    encoding: 'utf8',
+    env: { ...process.env, PATH: '/var/empty' },
+  });
+  assert.equal(r.status, 1, 'non-blocking error so the tool still runs');
+  assert.match(r.stderr, /jq not found/);
+  assert.match(r.stderr, /plan guard inactive/);
+});
