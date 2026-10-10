@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -39,8 +40,11 @@ func TestLinkYAMLRoundTrip(t *testing.T) {
 	if err := yaml.Unmarshal(out, &back); err != nil {
 		t.Fatal(err)
 	}
-	if back.Links.Plans[0] != fm.Links.Plans[0] || back.Links.Stories[0] != fm.Links.Stories[0] {
-		t.Errorf("links did not round-trip: %+v", back)
+	if !reflect.DeepEqual(back.Links.Plans, fm.Links.Plans) || !reflect.DeepEqual(back.Links.Stories, fm.Links.Stories) {
+		t.Errorf("links did not round-trip: %+v", back.Links)
+	}
+	if !strings.Contains(s, `- ["0001-3sd", "depends"]`) {
+		t.Errorf("second plan link missing from yaml:\n%s", s)
 	}
 	if strings.Index(s, "stories:") > strings.Index(s, "plans:") {
 		t.Errorf("plans should follow stories under links:\n%s", s)

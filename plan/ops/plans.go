@@ -77,7 +77,7 @@ type SetEffortParams struct {
 
 type PatchParams struct {
 	Plan  string         `json:"plan" jsonschema:"Plan identifier"`
-	Patch map[string]any `json:"patch" jsonschema:"Fields to set: title, type, status, priority, effort (null clears), links (repo, specs, web, stories, plans), plans (shorthand for links.plans), progress. id/created/updated/completed are rejected."`
+	Patch map[string]any `json:"patch" jsonschema:"Fields to set: title, type, status, priority, effort (null clears), links (merged per kind: repo, specs, web, stories, plans; a kind set to null is cleared, kinds left out are kept), plans (shorthand for links.plans), progress. id/created/updated/completed are rejected."`
 	Force bool           `json:"force,omitempty" jsonschema:"Skip the workflow check for status"`
 }
 

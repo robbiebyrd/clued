@@ -348,16 +348,26 @@ func (s *Service) normalizeCreateInput(input json.RawMessage) (map[string]any, [
 	for _, k := range []string{"created", "updated", "completed"} {
 		delete(fm, k)
 	}
-	// A top-level plans list (pre-links.plans layout) is accepted and moved.
+	// A top-level plans list (pre-links.plans layout) is accepted and merged
+	// into links.plans, legacy entries first, as ParseFrontMatter does. A
+	// links value that is not an object is left alone so the schema rejects it.
 	if legacy, ok := fm["plans"]; ok {
-		delete(fm, "plans")
-		links, _ := fm["links"].(map[string]any)
-		if links == nil {
-			links = map[string]any{}
-			fm["links"] = links
-		}
-		if _, exists := links["plans"]; !exists {
-			links["plans"] = legacy
+		links, isObject := fm["links"].(map[string]any)
+		if fm["links"] == nil || isObject {
+			delete(fm, "plans")
+			if links == nil {
+				links = map[string]any{}
+				fm["links"] = links
+			}
+			merged, _ := legacy.([]any)
+			if current, ok := links["plans"].([]any); ok {
+				merged = append(merged, current...)
+			}
+			if merged == nil && legacy != nil {
+				links["plans"] = legacy // not a list: let the schema report it
+			} else {
+				links["plans"] = merged
+			}
 		}
 	}
 	if prog, ok := fm["progress"].(map[string]any); ok {
@@ -944,15 +954,59 @@ func (s *Service) PatchFrontMatter(ctx context.Context, identifier string, patch
 			}
 			p.FrontMatter.SetPlanLinks(links)
 		case "links":
-			var links *model.Links
-			if err := reencode(v, &links); err != nil {
-				return nil, newErr(KindBadRequest, "links: %v", err)
+			// Merge per link kind: a kind present in the patch replaces that
+			// kind (null clears it); kinds left out are kept.
+			if v == nil {
+				p.FrontMatter.Links = nil
+				continue
 			}
-			if links != nil {
-				for _, l := range links.Plans {
-					if err := s.checkPlanLink(ctx, p.ID(), l); err != nil {
-						return nil, err
+			patchLinks, ok := v.(map[string]any)
+			if !ok {
+				return nil, newErr(KindBadRequest, "links must be an object")
+			}
+			links := &model.Links{}
+			if p.FrontMatter.Links != nil {
+				l := *p.FrontMatter.Links
+				links = &l
+			}
+			for lk, lv := range patchLinks {
+				var err error
+				switch lk {
+				case "repo":
+					links.Repo = nil
+					if lv != nil {
+						err = reencode(lv, &links.Repo)
 					}
+				case "specs":
+					links.Specs = nil
+					if lv != nil {
+						err = reencode(lv, &links.Specs)
+					}
+				case "web":
+					links.Web = nil
+					if lv != nil {
+						err = reencode(lv, &links.Web)
+					}
+				case "stories":
+					links.Stories = nil
+					if lv != nil {
+						err = reencode(lv, &links.Stories)
+					}
+				case "plans":
+					links.Plans = nil
+					if lv != nil {
+						err = reencode(lv, &links.Plans)
+					}
+					for _, l := range links.Plans {
+						if err := s.checkPlanLink(ctx, p.ID(), l); err != nil {
+							return nil, err
+						}
+					}
+				default:
+					return nil, newErr(KindBadRequest, "unknown link kind %q (repo, specs, web, stories, plans)", lk)
+				}
+				if err != nil {
+					return nil, newErr(KindBadRequest, "links.%s: %v", lk, err)
 				}
 			}
 			if links.IsEmpty() {

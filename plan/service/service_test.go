@@ -145,6 +145,20 @@ func TestCreateValidation(t *testing.T) {
 	if got := child.FrontMatter.PlanLinks(); len(got) != 1 || got[0].ID != p.ID() || got[0].Relation != "parent" {
 		t.Errorf("legacy plans not moved under links: %+v", child.FrontMatter.Links)
 	}
+	// Both forms at once are merged, legacy first.
+	both := `{"frontMatter":{"title":"Both","type":"drft","priority":"1","plans":[["` + p.ID() + `","parent"]],"links":{"plans":[["` + child.ID() + `","blocks"]]}},"body":{"summary":{"goal":"g","problem":"p"},"design":{}}}`
+	merged, err := s.Create(ctx, json.RawMessage(both), "")
+	if err != nil {
+		t.Fatalf("merged plans input: %v", err)
+	}
+	if got := merged.FrontMatter.PlanLinks(); len(got) != 2 || got[0].ID != p.ID() || got[1].ID != child.ID() || got[1].Relation != "blocks" {
+		t.Errorf("legacy and current plans not merged: %+v", got)
+	}
+	// A malformed links value is still rejected by the schema when legacy plans are present.
+	bad = `{"frontMatter":{"title":"x","type":"drft","priority":"1","plans":[["` + p.ID() + `","parent"]],"links":"nope"},"body":{"summary":{"goal":"g","problem":"p"},"design":{}}}`
+	if _, err := s.Create(ctx, json.RawMessage(bad), ""); !IsKind(err, KindValidation) {
+		t.Errorf("non-object links with legacy plans: %v", err)
+	}
 	// Not JSON.
 	if _, err := s.Create(ctx, json.RawMessage("nope"), ""); !IsKind(err, KindValidation) {
 		t.Errorf("garbage: %v", err)
@@ -283,6 +297,28 @@ func TestFieldSetters(t *testing.T) {
 	}
 	if p.FrontMatter.Priority != "4" || p.FrontMatter.Effort != "XL" || p.FrontMatter.Status != "validated" || p.FrontMatter.Title != "Patched" || p.FrontMatter.Links.Web["jira"] != "https://j/1" {
 		t.Errorf("patch: %+v", p.FrontMatter)
+	}
+	// A links patch merges per kind: omitted kinds (here plans) are kept, null clears.
+	other := create(t, s, "create-dsgn.json")
+	if _, err := s.AddPlanLink(ctx, id, other.ID(), "depends"); err != nil {
+		t.Fatal(err)
+	}
+	p, err = s.PatchFrontMatter(ctx, id, map[string]any{"links": map[string]any{"web": map[string]any{"docs": "https://d/1"}}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.FrontMatter.PlanLinks()) != 1 || p.FrontMatter.Links.Web["docs"] != "https://d/1" || p.FrontMatter.Links.Web["jira"] != "" {
+		t.Errorf("links patch should keep plans and replace web: %+v", p.FrontMatter.Links)
+	}
+	p, _ = s.PatchFrontMatter(ctx, id, map[string]any{"links": map[string]any{"plans": nil}}, false)
+	if len(p.FrontMatter.PlanLinks()) != 0 || p.FrontMatter.Links.Web["docs"] != "https://d/1" {
+		t.Errorf("null should clear only plans: %+v", p.FrontMatter.Links)
+	}
+	if _, err := s.PatchFrontMatter(ctx, id, map[string]any{"links": map[string]any{"wiki": "x"}}, false); !IsKind(err, KindBadRequest) {
+		t.Errorf("unknown link kind: %v", err)
+	}
+	if _, err := s.PatchFrontMatter(ctx, id, map[string]any{"links": "nope"}, false); !IsKind(err, KindBadRequest) {
+		t.Errorf("non-object links patch: %v", err)
 	}
 	// links.plans inside a links patch is checked like addPlanLink.
 	if _, err := s.PatchFrontMatter(ctx, id, map[string]any{"links": map[string]any{"plans": [][]string{{"0099-zzz", "blocks"}}}}, false); !IsKind(err, KindNotFound) {

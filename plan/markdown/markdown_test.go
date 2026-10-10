@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -47,7 +48,8 @@ func TestLegacyPlansMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	links := fm.PlanLinks()
-	if len(links) != 2 || links[0].ID != "0002-bbb" || links[1].ID != "0003-ccc" || fm.Links.Web["jira"] != "https://j/1" {
+	want := []model.Link{{ID: "0002-bbb", Relation: "blocks"}, {ID: "0003-ccc", Relation: "depends"}}
+	if !reflect.DeepEqual(links, want) || fm.Links.Web["jira"] != "https://j/1" {
 		t.Errorf("merged links: %+v", fm.Links)
 	}
 	// Only the legacy list, with no other links.
