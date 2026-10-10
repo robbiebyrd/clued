@@ -13,8 +13,10 @@ import (
 
 // WatchDir calls onChange(name, fullPath) for every regular file in path that
 // is new or whose mtime changed since the previous poll. Subdirectories are
-// ignored and a missing directory is waited for.
-func WatchDir(path string, onChange func(name, fullPath string), opts Options) (stop func()) {
+// ignored and a missing directory is waited for. When onChange returns an
+// error the file is reported again on the next poll, so a transient failure
+// (a file caught mid-write) does not lose the change.
+func WatchDir(path string, onChange func(name, fullPath string) error, opts Options) (stop func()) {
 	opts = opts.withDefaults()
 	mtimes := map[string]int64{}
 	return poll(opts, func() bool {
@@ -30,10 +32,15 @@ func WatchDir(path string, onChange func(name, fullPath string), opts Options) (
 			if err != nil {
 				continue
 			}
-			if m := info.ModTime().UnixNano(); mtimes[e.Name()] != m {
-				mtimes[e.Name()] = m
-				onChange(e.Name(), filepath.Join(path, e.Name()))
+			m := info.ModTime().UnixNano()
+			if seen, ok := mtimes[e.Name()]; ok && seen == m {
+				continue
 			}
+			if err := onChange(e.Name(), filepath.Join(path, e.Name())); err != nil {
+				opts.Logger.Warn("watch dir change failed, will retry", "path", filepath.Join(path, e.Name()), "err", err)
+				continue
+			}
+			mtimes[e.Name()] = m
 		}
 		return true
 	})
@@ -52,26 +59,27 @@ func WatchArtifacts(sessionID, sessionDir, fileHistoryPath, accountID string, ho
 			opts.Logger.Error("store blob failed", "blob_type", blobType, "name", name, "err", err)
 		}
 	}
-	readBlob := func(blobType, encoding string, encode func([]byte) string) func(name, fullPath string) {
-		return func(name, fullPath string) {
+	readBlob := func(blobType, encoding string, encode func([]byte) string) func(name, fullPath string) error {
+		return func(name, fullPath string) error {
 			data, err := os.ReadFile(fullPath)
 			if err != nil {
-				return
+				return err
 			}
 			saveBlob(blobType, name, encode(data), encoding)
+			return nil
 		}
 	}
 	utf8 := func(b []byte) string { return string(b) }
 
 	var tailers []func()
 	started := map[string]bool{}
-	onSubagentFile := func(name, fullPath string) {
+	onSubagentFile := func(name, fullPath string) error {
 		switch {
 		case strings.HasSuffix(name, ".jsonl"):
 			id := strings.TrimSuffix(name, ".jsonl")
 			// A second tailer would restart seq at 0 and overwrite stored lines.
 			if started[id] {
-				return
+				return nil
 			}
 			started[id] = true
 			seq := 0
@@ -86,9 +94,11 @@ func WatchArtifacts(sessionID, sessionDir, fileHistoryPath, accountID string, ho
 				}
 				seq++
 			}, opts))
+			return nil
 		case strings.HasSuffix(name, ".meta.json"):
-			readBlob("subagent-meta", "utf8", utf8)(name, fullPath)
+			return readBlob("subagent-meta", "utf8", utf8)(name, fullPath)
 		}
+		return nil
 	}
 
 	stops := []func(){

@@ -1,11 +1,19 @@
 package tail
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/memsession"
@@ -158,8 +166,29 @@ func bumpMtime(t *testing.T, path string) {
 	}
 }
 
+// recordingStore wraps a real store and records every subagent line write, so
+// a second tailer re-reading the file shows up even though upserts converge.
+type recordingStore struct {
+	*memsession.Store
+	mu     sync.Mutex
+	writes []int
+}
+
+func (r *recordingStore) UpsertSubagentLine(ctx context.Context, l session.SubagentLine) error {
+	r.mu.Lock()
+	r.writes = append(r.writes, l.Seq)
+	r.mu.Unlock()
+	return r.Store.UpsertSubagentLine(ctx, l)
+}
+
+func (r *recordingStore) seqs() []int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]int(nil), r.writes...)
+}
+
 func TestWatchArtifactsDoesNotStartDuplicateTailerWhenMtimeChanges(t *testing.T) {
-	st := memsession.New()
+	st := &recordingStore{Store: memsession.New()}
 	root := t.TempDir()
 	sessionDir := filepath.Join(root, "s")
 	subDir := filepath.Join(sessionDir, "subagents")
@@ -170,16 +199,93 @@ func TestWatchArtifactsDoesNotStartDuplicateTailerWhenMtimeChanges(t *testing.T)
 	stop := WatchArtifacts("sess-nodup", sessionDir, filepath.Join(root, "fh"), account, host, st, fast)
 	defer stop()
 
-	eventually(t, "first line", func() bool { return len(subLines(t, st, "sess-nodup", agent)) == 1 })
+	eventually(t, "first line", func() bool { return len(st.seqs()) == 1 })
 	appendTo(t, f, "{\"type\":\"assistant\"}\n")
 	bumpMtime(t, f)
-	eventually(t, "second line", func() bool { return len(subLines(t, st, "sess-nodup", agent)) == 2 })
+	eventually(t, "second line", func() bool { return len(st.seqs()) >= 2 })
+	time.Sleep(10 * fast.Interval) // a duplicate tailer would have re-written by now
 
-	lines := subLines(t, st, "sess-nodup", agent)
-	if len(lines) != 2 || lines[0]["seq"] != 0 || lines[1]["seq"] != 1 {
+	if got := st.seqs(); !reflect.DeepEqual(got, []int{0, 1}) {
+		t.Fatalf("each line must be written exactly once with seq 0,1; got %v", got)
+	}
+	lines := subLines(t, st.Store, "sess-nodup", agent)
+	if len(lines) != 2 || lines[1]["line"].(map[string]any)["type"] != "assistant" {
 		t.Fatalf("unexpected lines: %v", lines)
 	}
-	if lines[1]["line"].(map[string]any)["type"] != "assistant" {
-		t.Fatalf("second line wrong: %v", lines[1])
+}
+
+func TestWatchDirRetriesWhenOnChangeFails(t *testing.T) {
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "a.txt"), "x")
+	var mu sync.Mutex
+	calls := 0
+	stop := WatchDir(dir, func(name, fullPath string) error {
+		mu.Lock()
+		defer mu.Unlock()
+		calls++
+		if calls < 3 {
+			return errors.New("transient")
+		}
+		return nil
+	}, Options{Interval: fast.Interval, WaitInterval: fast.WaitInterval, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	defer stop()
+	eventually(t, "third attempt", func() bool { mu.Lock(); defer mu.Unlock(); return calls >= 3 })
+	time.Sleep(10 * fast.Interval)
+	mu.Lock()
+	defer mu.Unlock()
+	if calls != 3 {
+		t.Fatalf("expected no calls after success, got %d", calls)
 	}
+}
+
+func TestWatchArtifactsRetriesUnreadableBlobWithoutMtimeChange(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("file permissions do not restrict root")
+	}
+	st := memsession.New()
+	root := t.TempDir()
+	sessionDir := filepath.Join(root, "s")
+	dir := filepath.Join(sessionDir, "tool-results")
+	mkdir(t, dir)
+	f := filepath.Join(dir, "locked.txt")
+	write(t, f, "late content")
+	if err := os.Chmod(f, 0); err != nil {
+		t.Fatal(err)
+	}
+	logs := &lockedBuffer{}
+	opts := fast
+	opts.Logger = slog.New(slog.NewTextHandler(logs, nil))
+	stop := WatchArtifacts("sess-lock", sessionDir, filepath.Join(root, "fh"), account, host, st, opts)
+	defer stop()
+
+	eventually(t, "read failure logged", func() bool { return strings.Contains(logs.String(), "will retry") })
+	if blobNamed(t, st, "sess-lock", "tool-result", "locked.txt") != nil {
+		t.Fatal("blob stored from an unreadable file")
+	}
+	if err := os.Chmod(f, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "blob after file became readable", func() bool {
+		d := blobNamed(t, st, "sess-lock", "tool-result", "locked.txt")
+		return d != nil && d["content"] == "late content"
+	})
+}
+
+// lockedBuffer serialises access so the test can read the log while the
+// watcher goroutine writes it.
+type lockedBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (l *lockedBuffer) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedBuffer) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
 }
