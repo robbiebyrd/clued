@@ -3,3 +3,9 @@ node_modules/
 .remember
 .orphaned_at
 .DS_Store
+mind-palace/mind-palace
+mind-palace/plan
+mind-palace/story
+mind-palace/cmd/mind-palace/mind-palace
+mind-palace/cmd/plan/plan
+mind-palace/cmd/story/story

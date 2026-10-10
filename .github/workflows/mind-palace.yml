@@ -1,0 +1,31 @@
+name: Mind palace
+
+on:
+  push:
+    paths:
+      - 'mind-palace/**'
+      - '.github/workflows/mind-palace.yml'
+  pull_request:
+    paths:
+      - 'mind-palace/**'
+      - '.github/workflows/mind-palace.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mind-palace
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: mind-palace/go.mod
+          cache-dependency-path: mind-palace/go.sum
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test ./...
