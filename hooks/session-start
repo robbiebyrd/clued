@@ -1,72 +1,55 @@
 #!/usr/bin/env bash
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CLUED="${PLUGIN_ROOT}/bin/clued"
 
 # Keep hooks registered in settings.json pointing to this plugin installation.
 "${PLUGIN_ROOT}/hooks/register-hooks" &>/dev/null &
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
+DATA_DIR="${HOME}/.claude/plugins/data/clued"
+BIN_DIR="${DATA_DIR}/bin"
+DAEMON_LOG="${DATA_DIR}/daemon.log"
 DEFAULT_PORT=8085
-DEFAULT_MCP_PORT=8086
 
 if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
   PORT=$(jq -r ".port // ${DEFAULT_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_PORT")
-  MCP_PORT=$(jq -r ".mcpPort // ${DEFAULT_MCP_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_MCP_PORT")
   DEV_REPO=$(jq -r '.devRepoPath // empty' "$CONFIG_FILE" 2>/dev/null)
 else
   PORT=$DEFAULT_PORT
-  MCP_PORT=$DEFAULT_MCP_PORT
 fi
 
 PORT="${CLUED_PORT:-$PORT}"
-MCP_PORT="${CLUED_MCP_PORT:-$MCP_PORT}"
 
 daemon_ok() {
   curl -sf --max-time 1 "http://127.0.0.1:${PORT}/health" &>/dev/null
 }
 
-mcp_ok() {
-  curl -sf --max-time 1 "http://127.0.0.1:${MCP_PORT}/health" &>/dev/null
-}
-
-# When devRepoPath is set, sync built binaries. Only restart servers if dist
-# files changed — restarting breaks Claude Code's MCP connection.
-if [[ -n "$DEV_REPO" && -d "$DEV_REPO/dist" ]]; then
-  CHANGED=$(rsync -ai "$DEV_REPO/dist/" "${PLUGIN_ROOT}/dist/" 2>/dev/null | grep -v '/$')
-  if [[ -n "$CHANGED" ]]; then
-    kill "$(lsof -ti :${PORT})"     2>/dev/null || true
-    kill "$(lsof -ti :${MCP_PORT})" 2>/dev/null || true
+# When devRepoPath is set, bin/clued rebuilds the binary if the sources changed.
+# A running daemon keeps the old build, so restart it when a rebuild happened.
+if [[ -n "$DEV_REPO" ]]; then
+  rm -f "${BIN_DIR}/.rebuilt"
+  "$CLUED" --build-only &>/dev/null
+  if [[ -f "${BIN_DIR}/.rebuilt" ]]; then
+    pkill -f 'mind-palace session daemon$' 2>/dev/null || true
     sleep 0.5
-    echo "clued: dist updated — servers restarted. Relaunch Claude Code to reconnect MCP." >&2
+    echo "clued: binary rebuilt — daemon restarted. Relaunch Claude Code to reconnect MCP." >&2
   fi
 fi
 
 if ! daemon_ok; then
-  node "${PLUGIN_ROOT}/dist/daemon.mjs" &>/dev/null &
+  mkdir -p "$DATA_DIR"
+  "$CLUED" session daemon >"$DAEMON_LOG" 2>&1 &
   DAEMON_PID=$!
   disown
   for _ in $(seq 1 15); do
     sleep 0.2
     if ! kill -0 "$DAEMON_PID" 2>/dev/null; then
-      echo "clued: daemon exited on startup — check MongoDB connection (${CLUED_MONGO_URL:-see config.json})" >&2
+      echo "clued: daemon exited on startup: $(tail -n 1 "$DAEMON_LOG" 2>/dev/null)" >&2
       break
     fi
     if daemon_ok; then break; fi
   done
 fi
 
-if ! mcp_ok; then
-  node "${PLUGIN_ROOT}/dist/mcp.mjs" &>/dev/null &
-  MCP_PID=$!
-  disown
-  for _ in $(seq 1 15); do
-    sleep 0.2
-    if ! kill -0 "$MCP_PID" 2>/dev/null; then
-      echo "clued: mcp server exited on startup — check MongoDB connection (${CLUED_MONGO_URL:-see config.json})" >&2
-      break
-    fi
-    if mcp_ok; then break; fi
-  done
-fi
-
-node "${PLUGIN_ROOT}/dist/backfill.mjs" &>/dev/null &
+"$CLUED" session backfill &>/dev/null &
 disown
 exit 0

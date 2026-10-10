@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Launches the mind-palace binary with the given arguments.
+# Resolution order: `mind-palace` on PATH, then the binary in $BIN_DIR (a downloaded
+# release, or, when devRepoPath is set in the config, a build of
+# $devRepoPath/mind-palace refreshed whenever a .go file there is newer than it).
+# With devRepoPath set the built binary wins over PATH.
+# `--build-only` performs the build step without running the binary.
+
+DATA_DIR="${HOME}/.claude/plugins/data/clued"
+CONFIG_FILE="${DATA_DIR}/config.json"
+BIN_DIR="${DATA_DIR}/bin"
+BIN="${BIN_DIR}/mind-palace"
+REBUILT_MARKER="${BIN_DIR}/.rebuilt"
+
+BUILD_ONLY=0
+if [[ "${1:-}" == "--build-only" ]]; then
+  BUILD_ONLY=1
+  shift
+fi
+
+dev_repo_path() {
+  [[ -f "$CONFIG_FILE" ]] || return 0
+  if command -v jq &>/dev/null; then
+    jq -r '.devRepoPath // empty' "$CONFIG_FILE" 2>/dev/null
+  else
+    sed -n 's/.*"devRepoPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$CONFIG_FILE" | head -1
+  fi
+}
+
+# Builds the dev checkout into $BIN when it is missing or any .go file is newer.
+build_from_dev_repo() {
+  local module="$1/mind-palace"
+  [[ -d "$module" ]] || return 1
+  if [[ -x "$BIN" ]] && [[ -z "$(find "$module" -name '*.go' -newer "$BIN" -print -quit)" ]]; then
+    return 0
+  fi
+  command -v go &>/dev/null || { echo "clued: devRepoPath is set but go is not installed" >&2; return 1; }
+  mkdir -p "$BIN_DIR"
+  (cd "$module" && go build -o "$BIN" ./cmd/mind-palace) >&2 || return 1
+  touch "$REBUILT_MARKER"
+}
+
+DEV_REPO="$(dev_repo_path)"
+if [[ -n "$DEV_REPO" ]]; then
+  build_from_dev_repo "$DEV_REPO" || echo "clued: building mind-palace from ${DEV_REPO}/mind-palace failed" >&2
+fi
+
+if [[ $BUILD_ONLY -eq 1 ]]; then
+  exit 0
+fi
+
+# A developer who set devRepoPath wants their own build, not an installed release.
+if [[ -z "$DEV_REPO" ]] && command -v mind-palace &>/dev/null; then
+  exec mind-palace "$@"
+fi
+if [[ -x "$BIN" ]]; then
+  exec "$BIN" "$@"
+fi
+
+cat >&2 <<MSG
+clued: mind-palace binary not found. Run /clued-setup, or install it with:
+  go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest
+or download mind-palace_<os>_<arch> from the latest release of robbiebyrd/clued into ${BIN}
+MSG
+exit 1

@@ -155,7 +155,32 @@ Ask the user for their full connection string (e.g. `mongodb+srv://...` for Atla
 | MongoDB URL | `mongodb://localhost:27017` | `mongodb://localhost:27018` | *(user-provided)* |
 | Database name | `claude_sessions` | `claude_sessions` | `claude_sessions` |
 
-## Step 5 — Write config file
+## Step 5 — Install the mind-palace binary
+
+clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP server. Skip this step if `command -v mind-palace` already succeeds.
+
+If `go` is present (`command -v go`), install it:
+
+```bash
+go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest
+```
+
+Make sure `$(go env GOPATH)/bin` is on the PATH that Claude Code inherits.
+
+Otherwise download the release asset for this machine into the plugin data directory (`uname -s` gives `darwin` or `linux` once lowercased; `x86_64` maps to `amd64`, `aarch64` to `arm64`):
+
+```bash
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+case "$(uname -m)" in x86_64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; esac
+mkdir -p ~/.claude/plugins/data/clued/bin
+curl -fsSL "https://github.com/robbiebyrd/clued/releases/latest/download/mind-palace_${OS}_${ARCH}" \
+  -o ~/.claude/plugins/data/clued/bin/mind-palace
+chmod +x ~/.claude/plugins/data/clued/bin/mind-palace
+```
+
+`bin/clued` in the plugin finds the binary on PATH first, then in `~/.claude/plugins/data/clued/bin/`.
+
+## Step 6 — Write config file
 
 ```bash
 mkdir -p ~/.claude/plugins/data/clued
@@ -164,17 +189,16 @@ cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
   "mongoUrl": "<chosen URL>",
   "dbName": "<chosen DB name>",
   "port": 8085,
-  "mcpPort": 8086,
   "projectsDir": "~/.claude/projects",
   "disabledEnrichers": []
 }
 EOF
 ```
 
-## Step 6 — MCP server (no action needed)
+## Step 7 — MCP server (no action needed)
 
 The plugin ships its own `.mcp.json`, so Claude Code launches the clued MCP server
-itself over stdio (`node ${CLAUDE_PLUGIN_ROOT}/dist/mcp.mjs --stdio`) — no settings
+itself over stdio (`${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp`) — no settings
 edit is required. Its tools appear after `/reload-plugins` or in the next session.
 
 Claude Code does not read `mcpServers` from `~/.claude/settings.json`. If an older
@@ -185,7 +209,7 @@ jq 'del(.mcpServers.clued) | if .mcpServers == {} then del(.mcpServers) else . e
   ~/.claude/settings.json > ~/.claude/settings.json.tmp && mv ~/.claude/settings.json.tmp ~/.claude/settings.json
 ```
 
-## Step 7 — Start the daemon
+## Step 8 — Start the daemon
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
@@ -195,28 +219,19 @@ Wait 2 seconds, then verify:
 
 ```bash
 curl -sf http://127.0.0.1:8085/health && echo "daemon running"
-curl -sf http://127.0.0.1:8086/health && echo "mcp server running"
 ```
 
-If a health check fails: `timeout 3 node "${CLAUDE_PLUGIN_ROOT}/dist/daemon.mjs" 2>&1 || true`
+If the health check fails: `timeout 3 "${CLAUDE_PLUGIN_ROOT}/bin/clued" session daemon 2>&1 || true`
 
 Most common failure: MongoDB not reachable. Confirm with `nc -z <host> <port>`.
 
-## Step 8 — Confirm to user
+## Step 9 — Confirm to user
 
 - MongoDB option and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
+- mind-palace binary location (PATH or `~/.claude/plugins/data/clued/bin/`)
 - MCP server provided by the plugin's `.mcp.json` (stdio) — run `/reload-plugins` to load its tools
-- Daemon on port 8085 / MCP server on port 8086 — running or failed with error
+- Daemon on port 8085 — running or failed with error
 - macOS tarball: launchd plist at `~/Library/LaunchAgents/org.mongodb.mongod.plist` auto-restarts mongod at login
 - Hooks registered automatically via `hooks.json` — no manual settings edit needed
-- To add a custom enricher: create a `.ts` file in `<plugin-root>/enrichers/`, then rebuild and restart:
-  ```bash
-  # Install mise if not present: https://mise.jdx.dev
-  cd <plugin-root>
-  mise install          # sets up Node.js + pnpm per mise.toml
-  pnpm install --frozen-lockfile
-  pnpm run lint && pnpm run build
-  bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
-  ```
 - To enable the privacy-redact enricher: remove `privacy-redact` from `disabledEnrichers` in `config.json`
