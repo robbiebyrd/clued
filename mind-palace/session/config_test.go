@@ -72,10 +72,27 @@ func TestLoadConfigFileOverridesDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadConfigWrongFieldTypeWarnsAndMeansDefaults(t *testing.T) {
+	cleanEnv(t)
+	logs := captureLog(t)
+	p := writeConfig(t, t.TempDir(), "config.json", `{"port": "9999", "dbName": "my_db"}`)
+	cfg := LoadConfig(p)
+	if cfg.Port != 8085 || cfg.DBName != "claude_sessions" {
+		t.Fatalf("port/db = %d/%s, want defaults", cfg.Port, cfg.DBName)
+	}
+	if got := logs.String(); !strings.Contains(got, p) || !strings.Contains(got, "port") {
+		t.Errorf("log = %q, want a warning naming %s and the bad field", got, p)
+	}
+}
+
 func TestLoadConfigUnparsableFileMeansDefaults(t *testing.T) {
 	cleanEnv(t)
+	logs := captureLog(t)
 	p := writeConfig(t, t.TempDir(), "config.json", `{"port": 9999, "dbName": not json`)
 	cfg := LoadConfig(p)
+	if !strings.Contains(logs.String(), p) {
+		t.Errorf("log = %q, want a warning naming %s", logs.String(), p)
+	}
 	if cfg.Port != 8085 || cfg.DBName != "claude_sessions" {
 		t.Fatalf("port/db = %d/%s, want defaults", cfg.Port, cfg.DBName)
 	}

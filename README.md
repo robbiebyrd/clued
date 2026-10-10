@@ -65,9 +65,9 @@ The setup wizard will:
 
 The plugin runs the Go binary through `bin/clued`, a shim that picks the first of:
 
-1. `mind-palace` on your PATH (from `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`)
-2. `~/.claude/plugins/data/clued/bin/mind-palace`, downloaded from the GitHub release assets `mind-palace_<os>_<arch>`
-3. a build from the source checkout named by `devRepoPath` in the config file
+1. a build from the source checkout named by `devRepoPath` in the config file (rebuilt when its `.go` files change); when `devRepoPath` is set it wins over everything below
+2. `mind-palace` on your PATH (from `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`)
+3. `~/.claude/plugins/data/clued/bin/mind-palace`, downloaded from the GitHub release assets `mind-palace_<os>_<arch>`
 
 On every session start `hooks/session-start` starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill`. The session MCP tools (`find_sessions`, `get_session_context`, `get_full_session`, `search_commands`, `read_transcript`, `restore_session`) are provided by the plugin's `.mcp.json`, which runs `${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp` over stdio — no settings edit needed.
 
@@ -79,7 +79,7 @@ After setup the daemon should be healthy and the CLI should reach MongoDB:
 
 ```bash
 curl -sf http://127.0.0.1:8085/health && echo "daemon running"
-"${CLAUDE_PLUGIN_ROOT}/bin/clued" session find --limit 3
+mind-palace session find --limit 3
 ```
 
 ---
@@ -112,19 +112,19 @@ For environments where `/clued-setup` isn't available or you prefer to configure
 | `fileHistoryDir` | `~/.claude/file-history` | `CLUED_FILE_HISTORY_DIR` | Claude Code's file-history backups |
 | `disabledEnrichers` | `[]` | | Enricher names to skip (e.g. `["privacy-redact"]`) |
 | `claudeAppConfigPath` | the Claude desktop app's `config.json` | `CLUED_CLAUDE_APP_CONFIG_PATH` | Claude desktop app config, used to identify the account |
-| `walPath` | `events.wal` next to the config file | `CLUED_WAL_PATH` | Write-ahead log for events received while MongoDB is unreachable |
-| `devRepoPath` | | | Source checkout `bin/clued` builds from when no binary is installed |
+| (env only) | `events.wal` next to the config file | `CLUED_WAL_PATH` | Write-ahead log for events received while MongoDB is unreachable; not read from the config file |
+| `devRepoPath` | | | Source checkout `bin/clued` builds and runs, taking precedence over an installed binary |
 
 **Docker MongoDB** uses port `27018` by default to avoid clashing with a local mongod on `27017`.
 
 ### MCP server registration
 
-The plugin's `.mcp.json` registers both servers; nothing goes in `~/.claude/settings.json`. The session tools run over stdio through the shim, and `mind-palace` serves the plan-storage tools the plan hook and skill expect (without it a blocked plan write has no `plan_create` tool to fall back on):
+The plugin's `.mcp.json` registers both servers; nothing goes in `~/.claude/settings.json`. The session tools run over stdio through the shim, and `mind-palace` serves the plan-storage tools (`--no-session-tools` keeps the session tools from being registered twice) the plan hook and skill expect (without it a blocked plan write has no `plan_create` tool to fall back on):
 
 ```json
 {
   "clued": { "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued", "args": ["session", "mcp"] },
-  "mind-palace": { "command": "mind-palace", "args": ["mcp"] }
+  "mind-palace": { "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued", "args": ["mcp", "--no-session-tools"] }
 }
 ```
 
@@ -163,7 +163,7 @@ Captured sessions live in MongoDB (collections and the `session_full` view are u
 | `session daemon [--addr host:port]` | Run the capture daemon |
 | `session mcp [--mcp-tool-prefix p]` | Serve only the session tools over stdio |
 
-Every command takes `--config` (default `~/.claude/plugins/data/clued/config.json`) and prints JSON.
+Every command takes `--config` (default `~/.claude/plugins/data/clued/config.json`) and, except `daemon` and `mcp`, prints JSON.
 
 ---
 

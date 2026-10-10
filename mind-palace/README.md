@@ -178,6 +178,9 @@ Claude Code registration example (`.mcp.json`):
 { "mind-palace": { "command": "mind-palace", "args": ["mcp"] } }
 ```
 
+`mcp` and `serve` also expose the session tools; pass `--no-session-tools` when
+another server (for example `session mcp`) already provides them.
+
 ## Configuration
 
 `mind-palace` looks for `--config`, then `$MIND_PALACE_CONFIG` (or the older
@@ -280,9 +283,10 @@ when `MIND_PALACE_TEST_MONGODB_URI` points at a MongoDB.
 `session --config`). Keys: `mongoUrl` (default `mongodb://localhost:27018`),
 `dbName` (`claude_sessions`), `port` (`8085`), `projectsDir`
 (`~/.claude/projects`), `fileHistoryDir` (`~/.claude/file-history`),
-`disabledEnrichers`, `claudeAppConfigPath`, `walPath` (default `events.wal`
-next to the config file) and `devRepoPath` (read by the plugin's `bin/clued`
-shim, not by the binary). Environment variables override the file:
+`disabledEnrichers`, `claudeAppConfigPath` and `devRepoPath` (read by the
+plugin's `bin/clued` shim, not by the binary). The write-ahead log defaults
+to `events.wal` next to the config file and is set only through
+`CLUED_WAL_PATH`, not a config key. Environment variables override the file:
 `CLUED_MONGO_URL`, `CLUED_DB_NAME`, `CLUED_PORT`, `CLUED_PROJECTS_DIR`,
 `CLUED_FILE_HISTORY_DIR`, `CLUED_CLAUDE_APP_CONFIG_PATH`, `CLUED_WAL_PATH`.
 

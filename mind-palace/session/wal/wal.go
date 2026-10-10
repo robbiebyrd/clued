@@ -51,6 +51,17 @@ func Append(path string, event session.Doc) error {
 // Flush assumes a single writer: the daemon serialises its own Append and Flush
 // calls; the hook script appends only while the daemon is down.
 func Flush(ctx context.Context, path string, insert func(context.Context, session.Doc) error) error {
+	return flush(ctx, path, insert, false)
+}
+
+// FlushUntilFailure is Flush that stops at the first failed insert: that line
+// and every line after it are kept unattempted. Use it when a failure means
+// the store is down, so the remaining inserts would only fail slowly.
+func FlushUntilFailure(ctx context.Context, path string, insert func(context.Context, session.Doc) error) error {
+	return flush(ctx, path, insert, true)
+}
+
+func flush(ctx context.Context, path string, insert func(context.Context, session.Doc) error, stopOnFailure bool) error {
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -78,7 +89,7 @@ func Flush(ctx context.Context, path string, insert func(context.Context, sessio
 	}
 
 	var failed []string
-	for _, line := range lines {
+	for i, line := range lines {
 		var doc session.Doc
 		if err := json.Unmarshal([]byte(line), &doc); err != nil {
 			// Skip malformed lines
@@ -88,6 +99,10 @@ func Flush(ctx context.Context, path string, insert func(context.Context, sessio
 		if err := insert(ctx, doc); err != nil {
 			// Keep lines that failed
 			failed = append(failed, line)
+			if stopOnFailure {
+				failed = append(failed, lines[i+1:]...)
+				break
+			}
 		}
 	}
 

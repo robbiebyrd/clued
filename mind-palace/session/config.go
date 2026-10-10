@@ -2,6 +2,7 @@ package session
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -53,13 +54,16 @@ func expandHome(val string) string {
 
 // LoadConfig builds the configuration from defaults, then the JSON file at
 // path, then the CLUED_* environment variables, and expands a leading ~/. It
-// never fails: an absent or unparsable file means defaults. WalPath defaults
+// never fails: an absent file means defaults, and an unparsable one means
+// defaults plus a warning on the log. WalPath defaults
 // to events.wal next to the config file unless CLUED_WAL_PATH is set.
 func LoadConfig(path string) Config {
 	cfg := defaultConfig()
 	if raw, err := os.ReadFile(path); err == nil {
 		fromFile := cfg
-		if json.Unmarshal(raw, &fromFile) == nil {
+		if err := json.Unmarshal(raw, &fromFile); err != nil {
+			log.Printf("clued: ignoring config file %s, using defaults: %v", path, err)
+		} else {
 			cfg = fromFile
 		}
 	}
