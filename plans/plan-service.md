@@ -6,14 +6,14 @@ Plans come in two flavors: Design Plan, which is a brainstorming plan that descr
 
 ## Plan Format
 
-Each Plan's contents and filename must adhere to a pre-defined pattern. 
+Each Plan's contents and filename must adhere to a pre-defined pattern.
 
 ### File Name
 
 File names should be formatted as the following:
     `AAAA-BBB-CCCC-DDDDD-DDD-DDDDDD.md`
 
-Examples: 
+Examples:
 * 0002-a3f-DSGN-description-of-plan.md
 * 0913-b33-IMPL-add-new-feature.md
 
@@ -40,11 +40,6 @@ status: "ready"
 priority: "1"
 created: "2026-09-09T14:07:05.352Z"
 updated: "2026-09-09T14:35:37.046Z"
-completed: ""
-plans: 
-  - ["0031-34c", "blocks"]
-  - ["0001-3sd", "depends"]
-  - ["0002-4ad", "parent"]
 links:
     repo:
         remote: "git@github.com:robbiebyrd/Project.git"
@@ -54,34 +49,38 @@ links:
     web:
         jira: "https://jira.atlassian.net/browse/ACME-123"
     stories:
-        - ["001-abc", "included"]
-        - ["002-def", "depends"]
-        - ["003-fed", "blocks"]
+        - ["0001-abc", "included"]
+        - ["0002-def", "depends"]
+        - ["0003-fed", "blocks"]
+    plans:
+      - ["0031-34c", "blocks"]
+      - ["0001-3sd", "depends"]
+      - ["0002-4ad", "parent"]
 progress:
-  1.1: 
+  1.1:
     status: completed
     stories:
-      - "001-abc"
+      - "0001-abc"
   1.2:
     status: completed
     stories:
-      - "002-def"
+      - "0002-def"
   1.3:
     status: completed
-  2: 
+  2:
     status: completed
-  3.1: 
+  3.1:
     status: completed
   3.2:
     status: completed
     stories:
-      - "003-fed"
+      - "0003-fed"
   3.3:
     status: in_progress
   4:
     status: blocked
     stories:
-      - "003-fed"
+      - "0003-fed"
   5:
     status: validated
 ---
@@ -107,9 +106,9 @@ While Web Links are text, A Plan's Stories linking objects are nested. Each item
 The Repo link allows the Plan to speecify the repo that the plan was crafted in. The local label should be the project's git root folder, and the remote label should be either a git@ or HTTP(S) URL to a git repository.
 
 
-##### Specs
+##### Plans
 
-If a plan is related to another document or specification, include it here. 
+If a plan is related to another document or specification, include it here.
 
 
 Valid values for linking are:
@@ -181,7 +180,7 @@ Default Plan Status Workflow:
 * Archived -> Ready
 
 The default status workflow should be as follows:
-Pending -> Validated -> Ready -> In Progress -> Complete -> Archived 
+Pending -> Validated -> Ready -> In Progress -> Complete -> Archived
 
 #### Plan Priorities
 
@@ -216,26 +215,26 @@ Example:
 
 ```yaml
 progress:
-  1.1: 
+  1.1:
     status: completed # The status of the plan section, not the stories within
-    stories: ["001-abc"] # A list of any stories that are related to this plan step
+    stories: ["0001-abc"] # A list of any stories that are related to this plan step
   1.2:
     status: completed
-    stories: ["002-def"]
+    stories: ["0002-def"]
   1.3:
     status: completed
-  2: 
+  2:
     status: completed
-  3.1: 
+  3.1:
     status: completed
   3.2:
     status: completed
-    stories: ["003-fed"]
+    stories: ["0003-fed"]
   3.3:
     status: in_progress
   4:
     status: blocked
-    stories: ["003-fed"]
+    stories: ["0003-fed"]
   5:
     status: validated
 ```
@@ -403,7 +402,7 @@ A Plan's Contents should appear below the Front Matter and should be formatted a
 
 #### Plan Content Templates
 
-The Service should allow for creating Plan Templates, and save them using the 
+The Service should allow for creating Plan Templates, and save them using the
 
 ### Creation
 
@@ -558,10 +557,11 @@ When creating a Plan, we should adhere to a JSON Schema. Creating a ticket shoul
       ]
     },
     "storyId": {
+      "description": "AAAA-BBB: 4-digit sequence number and a 3-character random alphanumeric ID. Always the full id, never the bare sequence number.",
       "type": "string",
-      "pattern": "^[0-9]{3,4}-[a-z0-9]{3}$",
+      "pattern": "^[0-9]{4}-[a-z0-9]{3}$",
       "examples": [
-        "001-abc"
+        "0001-abc"
       ]
     },
     "sectionNumber": {
@@ -607,10 +607,10 @@ When creating a Plan, we should adhere to a JSON Schema. Creating a ticket shoul
       ]
     },
     "timestamp": {
-      "description": "ISO 8601 UTC timestamp, e.g. 2026-09-09T14:07:05.352Z.",
+      "description": "RFC 3339 UTC timestamp with millisecond precision, e.g. 2026-09-09T14:07:05.352Z. Other accepted input forms are normalized to this before validating.",
       "type": "string",
       "format": "date-time",
-      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
     },
     "markdown": {
       "description": "Markdown text inserted as-is.",
@@ -677,16 +677,8 @@ When creating a Plan, we should adhere to a JSON Schema. Creating a ticket shoul
           "$ref": "#/$defs/timestamp"
         },
         "completed": {
-          "description": "Empty until the plan is complete.",
-          "anyOf": [
-            {
-              "const": ""
-            },
-            {
-              "$ref": "#/$defs/timestamp"
-            }
-          ],
-          "default": ""
+          "description": "Omitted until the plan is first complete; never an empty string.",
+          "$ref": "#/$defs/timestamp"
         },
         "plans": {
           "description": "Related plans as [plan-id, relation] pairs.",
@@ -1330,7 +1322,7 @@ Rules that apply to every operation:
 |---|---|---|---|
 | setTitle | :planIdentifier, :title, :renameFile? | Change `title` and the content's H1. The filename keeps its slug unless `renameFile` is set. | `plan set-title 0002-a3f "New title"` |
 | setType | :planIdentifier, :planType | Change `type` (e.g. `drft` → `dsgn`) and rename the file's type part. `id` is unchanged. | `plan set-type 0002-a3f dsgn` |
-| setStatus | :planIdentifier, :status, :force? | Move the Plan to a new status. Rejects moves the workflow doesn't allow unless forced. Moving to `complete` sets `completed`; moving away from `complete` clears it. | `plan set-status 0002-a3f approved` |
+| setStatus | :planIdentifier, :status, :force? | Move the Plan to a new status. Rejects moves the workflow doesn't allow unless forced. Moving to `complete` sets `completed`; moving away from `complete` does not clear it, and moving to `complete` again overwrites it. | `plan set-status 0002-a3f approved` |
 | getTransitions | :planIdentifier | List the statuses the Plan can move to from its current status. | `plan transitions 0002-a3f` |
 | setPriority | :planIdentifier, :priority | Set `priority` from a number (`0`–`5`) or label (`P1`, `Critical`). | `plan set-priority 0002-a3f P1` |
 | setEffort | :planIdentifier, :effort | Set `effort` from a size (`XS`–`XL`), label (`Medium`) or points (`5`). | `plan set-effort 0002-a3f M` |
@@ -1344,8 +1336,8 @@ Rules that apply to every operation:
 |---|---|---|---|
 | addPlanLink | :planIdentifier, :targetPlanId, :relation | Add `[targetPlanId, relation]` to `plans`. Relation: `parent`, `included`, `depends` or `blocks`. The target Plan must exist; duplicates are ignored. | `plan link 0002-a3f 0031-34c blocks` |
 | removePlanLink | :planIdentifier, :targetPlanId, :relation? | Remove a plan link. Without a relation, removes every link to that Plan. | `plan unlink 0002-a3f 0031-34c` |
-| addStoryLink | :planIdentifier, :storyId, :relation | Add `[storyId, relation]` to `links.stories`. Relation: `included`, `depends` or `blocks`. | `plan link-story 0002-a3f 001-abc included` |
-| removeStoryLink | :planIdentifier, :storyId, :relation? | Remove a story link. Without a relation, removes every link to that story. | `plan unlink-story 0002-a3f 001-abc` |
+| addStoryLink | :planIdentifier, :storyId, :relation | Add `[storyId, relation]` to `links.stories`. Relation: `included`, `depends` or `blocks`. | `plan link-story 0002-a3f 0001-abc included` |
+| removeStoryLink | :planIdentifier, :storyId, :relation? | Remove a story link. Without a relation, removes every link to that story. | `plan unlink-story 0002-a3f 0001-abc` |
 | addSpec | :planIdentifier, :spec | Add a spec path to `links.specs`. | `plan add-spec 0002-a3f ./docs/design/overview.md` |
 | removeSpec | :planIdentifier, :spec | Remove a spec from `links.specs`. | `plan remove-spec 0002-a3f ./docs/design/overview.md` |
 | setWebLink | :planIdentifier, :label, :url | Add a named link to `links.web`, replacing any existing link with that label. | `plan set-web 0002-a3f jira https://jira.atlassian.net/browse/ACME-123` |
@@ -1360,8 +1352,8 @@ Rules that apply to every operation:
 |---|---|---|---|
 | getProgress | :planIdentifier | Retrieve the status of every numbered phase and section. | `plan progress 0002-a3f` |
 | setProgress | :planIdentifier, :section, :status | Set the status of a phase or section (`"2"`, `"1.1"`). The section must exist as a numbered heading in the content. | `plan set-progress 0002-a3f 1.1 in_progress` |
-| addProgressStory | :planIdentifier, :section, :storyId | Link a story to a phase or section. | `plan progress-story 0002-a3f 1.1 001-abc` |
-| removeProgressStory | :planIdentifier, :section, :storyId | Unlink a story from a phase or section. | `plan progress-unstory 0002-a3f 1.1 001-abc` |
+| addProgressStory | :planIdentifier, :section, :storyId | Link a story to a phase or section. | `plan progress-story 0002-a3f 1.1 0001-abc` |
+| removeProgressStory | :planIdentifier, :section, :storyId | Unlink a story from a phase or section. | `plan progress-unstory 0002-a3f 1.1 0001-abc` |
 | removeProgress | :planIdentifier, :section | Remove a phase or section's progress entry. | `plan remove-progress 0002-a3f 1.1` |
 
 
