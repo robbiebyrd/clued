@@ -32,7 +32,8 @@ const (
 // typeNameRe is the shape a plan type must have to fit in a file name.
 var typeNameRe = regexp.MustCompile(`^[a-z0-9]{2,8}$`)
 
-// DefaultConfigFiles are looked up in the working directory, in order.
+// DefaultConfigFiles are looked up in the working directory and then each
+// parent directory up to the filesystem root, in order.
 var DefaultConfigFiles = []string{"plan.config.yaml", "plan.config.yml", "plan.config.json", ".plan.yaml", ".plan.json"}
 
 // TypeDef is a plan type.
@@ -160,19 +161,14 @@ type fileConfig struct {
 
 // Load reads a config file (YAML or JSON) and overlays it on the defaults.
 // An empty path means: use $PLAN_CONFIG, then the first DefaultConfigFiles
-// entry found in the working directory, then defaults alone.
+// entry found in the working directory or its ancestors, then defaults alone.
 func Load(path string) (*Config, error) {
 	cfg := Default()
 	if path == "" {
 		path = os.Getenv(EnvConfig)
 	}
 	if path == "" {
-		for _, name := range DefaultConfigFiles {
-			if _, err := os.Stat(name); err == nil {
-				path = name
-				break
-			}
-		}
+		path = findDefaultConfig()
 	}
 	if path == "" {
 		return cfg, cfg.Validate()
@@ -186,6 +182,28 @@ func Load(path string) (*Config, error) {
 	}
 	cfg.Source = path
 	return cfg, cfg.Validate()
+}
+
+// findDefaultConfig returns the nearest DefaultConfigFiles entry, searching
+// the working directory and then each parent directory, or "" when none exists.
+func findDefaultConfig() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		for _, name := range DefaultConfigFiles {
+			candidate := filepath.Join(dir, name)
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
 }
 
 // Overlay applies a YAML or JSON document on top of the receiver.

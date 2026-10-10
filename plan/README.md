@@ -143,7 +143,8 @@ Claude Code registration example (`.mcp.json`):
 ## Configuration
 
 `plan` looks for `--config`, then `$PLAN_CONFIG`, then `plan.config.yaml`
-(`.yml`, `.json`, `.plan.yaml`, `.plan.json`) in the working directory.
+(`.yml`, `.json`, `.plan.yaml`, `.plan.json`) in the working directory, then
+in each parent directory up to the filesystem root; the nearest file wins.
 Every list replaces the default when given; see `plan.config.example.yaml`.
 
 ```yaml

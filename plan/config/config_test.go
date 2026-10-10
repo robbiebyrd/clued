@@ -113,3 +113,39 @@ func TestStrictConfigAndNormalisationEdges(t *testing.T) {
 		t.Errorf("integral float rejected: %q %v", got, ok)
 	}
 }
+
+func TestLoadFindsDefaultConfigInParentDir(t *testing.T) {
+	t.Setenv(EnvConfig, "")
+	root := t.TempDir()
+	os.WriteFile(filepath.Join(root, "plan.config.yaml"), []byte("plansDir: from-parent\n"), 0o644)
+	nested := filepath.Join(root, "a", "b")
+	os.MkdirAll(nested, 0o755)
+	t.Chdir(nested)
+	c, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.PlansDir != "from-parent" {
+		t.Errorf("plansDir = %q, want config from parent dir", c.PlansDir)
+	}
+	if filepath.Base(c.Source) != "plan.config.yaml" || !filepath.IsAbs(c.Source) {
+		t.Errorf("source = %q, want absolute path to parent plan.config.yaml", c.Source)
+	}
+}
+
+func TestLoadPrefersNearestDefaultConfig(t *testing.T) {
+	t.Setenv(EnvConfig, "")
+	root := t.TempDir()
+	os.WriteFile(filepath.Join(root, "plan.config.yaml"), []byte("plansDir: from-parent\n"), 0o644)
+	nested := filepath.Join(root, "a")
+	os.MkdirAll(nested, 0o755)
+	os.WriteFile(filepath.Join(nested, ".plan.yaml"), []byte("plansDir: from-cwd\n"), 0o644)
+	t.Chdir(nested)
+	c, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.PlansDir != "from-cwd" {
+		t.Errorf("plansDir = %q, want the working directory's config to win over a parent's", c.PlansDir)
+	}
+}
