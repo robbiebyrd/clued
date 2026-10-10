@@ -192,11 +192,22 @@ func TestPassLogsQueryErrorAndContinuesWithNextEnricher(t *testing.T) {
 	}
 }
 
-// failingWrites wraps a real store and fails SetEnrichment.
-type failingWrites struct{ session.Store }
+// failingWrites wraps a real store and fails SetEnrichment, and
+// SetEnrichmentFailure too when failures is set.
+type failingWrites struct {
+	session.Store
+	failures bool
+}
 
 func (failingWrites) SetEnrichment(context.Context, string, any, string, any) error {
 	return errors.New("write exploded")
+}
+
+func (f failingWrites) SetEnrichmentFailure(ctx context.Context, collection string, id any, enricher, message string, at time.Time) error {
+	if f.failures {
+		return errors.New("failure write exploded")
+	}
+	return f.Store.SetEnrichmentFailure(ctx, collection, id, enricher, message, at)
 }
 
 func TestPassReturnsFirstStoreErrorAfterFinishingPass(t *testing.T) {
@@ -206,7 +217,7 @@ func TestPassReturnsFirstStoreErrorAfterFinishingPass(t *testing.T) {
 	next := echoEnricher("next", 0, matchAll)
 	next.Enrich = func(context.Context, session.Doc, session.Lookup) (any, error) { second.Add(1); return 1, nil }
 
-	err := Pass(context.Background(), failingWrites{inner}, []session.Enricher{echoEnricher("echo", 0, matchAll), next}, discardLogger())
+	err := Pass(context.Background(), failingWrites{Store: inner, failures: true}, []session.Enricher{echoEnricher("echo", 0, matchAll), next}, discardLogger())
 
 	if err == nil || !strings.Contains(err.Error(), "write exploded") {
 		t.Fatalf("err = %v", err)
@@ -254,5 +265,53 @@ func TestLoopEnrichesOnTicksAndStopsWhenContextEnds(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("Loop did not return after ctx was cancelled")
+	}
+}
+
+func TestPassRecordsFailureWhenResultWriteFails(t *testing.T) {
+	inner := memsession.New()
+	seedEvents(t, inner, "s1", "Bash")
+	var calls atomic.Int32
+	counted := echoEnricher("echo", 0, matchAll)
+	counted.Enrich = func(context.Context, session.Doc, session.Lookup) (any, error) { calls.Add(1); return 1, nil }
+	enrichers := []session.Enricher{counted}
+
+	if err := Pass(context.Background(), failingWrites{Store: inner}, enrichers, discardLogger()); err != nil {
+		t.Fatalf("recorded failure must not be returned: %v", err)
+	}
+	if err := Pass(context.Background(), failingWrites{Store: inner}, enrichers, discardLogger()); err != nil {
+		t.Fatal(err)
+	}
+
+	failure := storedEvents(t, inner, "s1")[0].Map("enrichments").Map("echo_failed")
+	if msg, _ := failure.String("message"); msg != "write exploded" {
+		t.Fatalf("failure = %v", failure)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("Enrich ran %d times, want 1", calls.Load())
+	}
+}
+
+func TestPassRecordsPanicsAsFailures(t *testing.T) {
+	cases := map[string]session.Enricher{
+		"enrich":  {Matches: matchAll, Enrich: func(context.Context, session.Doc, session.Lookup) (any, error) { panic("enrich blew up") }},
+		"matches": {Matches: func(session.Doc) bool { panic("matches blew up") }, Enrich: echoEnricher("x", 0, matchAll).Enrich},
+	}
+	for name, e := range cases {
+		t.Run(name, func(t *testing.T) {
+			store := memsession.New()
+			seedEvents(t, store, "s1", "Bash")
+			e.Name, e.Collection, e.Enabled = "p", hookEvents, true
+			var logs bytes.Buffer
+
+			if err := Pass(context.Background(), store, []session.Enricher{e}, slog.New(slog.NewTextHandler(&logs, nil))); err != nil {
+				t.Fatal(err)
+			}
+
+			failure := storedEvents(t, store, "s1")[0].Map("enrichments").Map("p_failed")
+			if msg, _ := failure.String("message"); !strings.Contains(msg, "blew up") {
+				t.Fatalf("failure = %v", failure)
+			}
+		})
 	}
 }

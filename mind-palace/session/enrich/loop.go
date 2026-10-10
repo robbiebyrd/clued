@@ -3,6 +3,7 @@ package enrich
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -60,9 +61,6 @@ func runEnricher(ctx context.Context, store session.Store, e session.Enricher, l
 	}
 	var first error
 	for _, doc := range docs {
-		if !e.Matches(doc) {
-			continue
-		}
 		if err := enrichDoc(ctx, store, e, doc, logger); err != nil && first == nil {
 			first = err
 		}
@@ -70,12 +68,36 @@ func runEnricher(ctx context.Context, store session.Store, e session.Enricher, l
 	return first
 }
 
+// enrichDoc stores the result for a matching doc. Anything that stops a result
+// being stored (an Enrich error or panic, a Matches panic, a failed result
+// write) is recorded as the doc's failure so it leaves the queue; only a
+// failure to record that is returned.
 func enrichDoc(ctx context.Context, store session.Store, e session.Enricher, doc session.Doc, logger *slog.Logger) error {
 	id := doc["_id"]
-	result, err := e.Enrich(ctx, doc, store)
-	if err != nil {
-		logger.Error("enricher failed", "enricher", e.Name, "id", id, "error", err)
-		return store.SetEnrichmentFailure(ctx, e.Collection, id, e.Name, err.Error(), time.Now())
+	matched, err := safely(func() (bool, error) { return e.Matches(doc), nil })
+	if err == nil && !matched {
+		return nil
 	}
-	return store.SetEnrichment(ctx, e.Collection, id, e.Name, result)
+	if err == nil {
+		var result any
+		result, err = safely(func() (any, error) { return e.Enrich(ctx, doc, store) })
+		if err == nil {
+			if err = store.SetEnrichment(ctx, e.Collection, id, e.Name, result); err == nil {
+				return nil
+			}
+		}
+	}
+	logger.Error("enricher failed", "enricher", e.Name, "id", id, "error", err)
+	return store.SetEnrichmentFailure(ctx, e.Collection, id, e.Name, err.Error(), time.Now())
+}
+
+// safely runs f, turning a panic into an error so one faulty enricher cannot
+// take down the process.
+func safely[T any](f func() (T, error)) (result T, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic: %v", r)
+		}
+	}()
+	return f()
 }
