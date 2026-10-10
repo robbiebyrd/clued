@@ -36,6 +36,16 @@ type Options struct {
 	// ToolPrefix is prepended to every tool name ("" keeps <kind>_<op>).
 	ToolPrefix string
 	Logger     *slog.Logger
+	// Tools are external tool providers registered after the kind tools.
+	Tools []ToolProvider
+	// ExtraInstructions is appended to the server instructions after a blank line.
+	ExtraInstructions string
+}
+
+// ToolProvider registers additional tools on the server. Implementations
+// apply prefix to every tool name they add.
+type ToolProvider interface {
+	AddTools(s *mcp.Server, prefix string)
 }
 
 // Server wraps an mcp.Server bound to a palace.
@@ -60,8 +70,12 @@ func New(palace *service.Palace, regs ops.Registries, opts *Options) *Server {
 		opts = &Options{}
 	}
 	s := &Server{palace: palace, regs: regs, opts: *opts, resources: map[string]bool{}}
+	serverInstructions := instructions
+	if opts.ExtraInstructions != "" {
+		serverInstructions += "\n\n" + opts.ExtraInstructions
+	}
 	s.MCP = mcp.NewServer(&mcp.Implementation{Name: "mind-palace", Title: "Mind Palace (plans and stories)", Version: Version}, &mcp.ServerOptions{
-		Instructions: instructions,
+		Instructions: serverInstructions,
 		Logger:       opts.Logger,
 		SubscribeHandler: func(ctx context.Context, req *mcp.SubscribeRequest) error {
 			_, _, err := s.documentFromURI(ctx, req.Params.URI)
@@ -70,6 +84,9 @@ func New(palace *service.Palace, regs ops.Registries, opts *Options) *Server {
 		UnsubscribeHandler: func(context.Context, *mcp.UnsubscribeRequest) error { return nil },
 	})
 	s.addTools()
+	for _, p := range opts.Tools {
+		p.AddTools(s.MCP, opts.ToolPrefix)
+	}
 	s.addResources()
 	ctx, cancel := context.WithCancel(context.Background())
 	s.stop = cancel
