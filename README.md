@@ -110,11 +110,14 @@ For environments where `/clued-setup` isn't available or you prefer to configure
 
 ### MCP server registration
 
-Add to `~/.claude/settings.json` under `mcpServers`:
+Add to `~/.claude/settings.json` under `mcpServers`. The `mind-palace` entry
+is what the plan-storage hook and skill expect; without it a blocked plan
+write has no `plan_create` tool to fall back on:
 
 ```json
 "mcpServers": {
-  "clued": { "type": "sse", "url": "http://127.0.0.1:8086/sse" }
+  "clued": { "type": "sse", "url": "http://127.0.0.1:8086/sse" },
+  "mind-palace": { "command": "mind-palace", "args": ["mcp"] }
 }
 ```
 
