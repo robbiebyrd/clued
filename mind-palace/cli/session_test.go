@@ -4,12 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/memsession"
@@ -305,8 +311,222 @@ func TestRootGainsOnlySessionGroup(t *testing.T) {
 	if !reflect.DeepEqual(groups["story"], wantStory) {
 		t.Errorf("story group = %v", groups["story"])
 	}
-	wantSession := []string{"backfill", "context", "find", "full", "restore", "search-commands", "transcript"}
+	wantSession := []string{"backfill", "context", "daemon", "find", "full", "mcp", "restore", "search-commands", "transcript"}
 	if !reflect.DeepEqual(groups["session"], wantSession) {
 		t.Errorf("session group = %v, want %v", groups["session"], wantSession)
 	}
+}
+
+// syncBuffer is a bytes.Buffer that commands running in a goroutine can write
+// while the test polls it.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// runningCommand is a command executing in a goroutine under a cancellable context.
+type runningCommand struct {
+	stderr *syncBuffer
+	cancel context.CancelFunc
+	done   chan struct{}
+	code   int // valid once done is closed
+}
+
+// startCommand runs args on a fresh App in the background.
+func startCommand(t *testing.T, args ...string) *runningCommand {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	rc := &runningCommand{stderr: &syncBuffer{}, cancel: cancel, done: make(chan struct{})}
+	app := New()
+	app.Stdout, app.Stderr, app.Stdin = &syncBuffer{}, rc.stderr, strings.NewReader("")
+	root := app.Root()
+	root.SetArgs(args)
+	go func() {
+		err := root.ExecuteContext(ctx)
+		app.close()
+		rc.code = ExitCode(err)
+		close(rc.done)
+	}()
+	t.Cleanup(func() { cancel(); <-rc.done })
+	return rc
+}
+
+// wait returns the command's exit code once it has exited on its own.
+func (rc *runningCommand) wait(t *testing.T) int {
+	t.Helper()
+	select {
+	case <-rc.done:
+		return rc.code
+	case <-time.After(10 * time.Second):
+		t.Fatal("command did not exit")
+		return -1
+	}
+}
+
+// stop cancels the command and returns its exit code.
+func (rc *runningCommand) stop(t *testing.T) int {
+	t.Helper()
+	rc.cancel()
+	return rc.wait(t)
+}
+
+// waitFor polls cond until it holds.
+func waitFor(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// freeAddr returns a loopback address nothing is listening on.
+func freeAddr(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	return ln.Addr().String()
+}
+
+func healthy(addr string) bool {
+	resp, err := http.Get("http://" + addr + "/health")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
+
+func TestSessionDaemonServesHealthAndStopsOnCancel(t *testing.T) {
+	sessionEnv(t, memsession.New())
+	addr := freeAddr(t)
+	rc := startCommand(t, "session", "--config", filepath.Join(t.TempDir(), "none.json"), "daemon", "--addr", addr)
+
+	waitFor(t, "daemon health", func() bool { return healthy(addr) })
+	if want := "clued daemon listening on http://" + addr; !strings.Contains(rc.stderr.String(), want) {
+		t.Errorf("stderr = %q, want it to contain %q", rc.stderr.String(), want)
+	}
+	if code := rc.stop(t); code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+	if healthy(addr) {
+		t.Error("daemon still answers after cancel")
+	}
+}
+
+func TestSessionDaemonExitsZeroWhenAddressInUse(t *testing.T) {
+	sessionEnv(t, memsession.New())
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	rc := startCommand(t, "session", "--config", filepath.Join(t.TempDir(), "none.json"), "daemon", "--addr", ln.Addr().String())
+
+	if code := rc.wait(t); code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+	if got := rc.stderr.String(); !strings.Contains(got, "already running on "+ln.Addr().String()+"\n") {
+		t.Errorf("stderr = %q, want an already-running note", got)
+	}
+}
+
+func TestSessionDaemonConnectFailureExitsOne(t *testing.T) {
+	sessionEnv(t, memsession.New())
+	openSessionStore = func(context.Context, session.Config) (session.Store, error) {
+		return nil, errors.New("mongo down")
+	}
+	rc := startCommand(t, "session", "--config", filepath.Join(t.TempDir(), "none.json"), "daemon", "--addr", freeAddr(t))
+
+	if code := rc.wait(t); code != 1 {
+		t.Errorf("exit code = %d, want 1", code)
+	}
+	if got := rc.stderr.String(); !strings.Contains(got, `"ok": false`) || !strings.Contains(got, "mongo down") {
+		t.Errorf("stderr = %q, want the error envelope", got)
+	}
+}
+
+// startStdioCommand runs args with the stdio transport replaced by an
+// in-memory pair and returns the command and a client connected to it.
+func startStdioCommand(t *testing.T, args ...string) (*runningCommand, *mcp.ClientSession, context.Context) {
+	t.Helper()
+	serverEnd, clientEnd := mcp.NewInMemoryTransports()
+	prev := stdioTransport
+	stdioTransport = func() mcp.Transport { return serverEnd }
+	t.Cleanup(func() { stdioTransport = prev })
+	rc := startCommand(t, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	t.Cleanup(cancel)
+	cs, err := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil).Connect(ctx, clientEnd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cs.Close() })
+	return rc, cs, ctx
+}
+
+func toolNames(t *testing.T, ctx context.Context, cs *mcp.ClientSession) []string {
+	t.Helper()
+	res, err := cs.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, tool := range res.Tools {
+		names = append(names, tool.Name)
+	}
+	return names
+}
+
+var sessionToolNames = []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "read_transcript", "restore_session"}
+
+func TestSessionMCPListsTheSixTools(t *testing.T) {
+	sessionEnv(t, seedSessions(t))
+	rc, cs, ctx := startStdioCommand(t, "session", "--config", filepath.Join(t.TempDir(), "none.json"), "mcp")
+
+	names := toolNames(t, ctx, cs)
+	if len(names) != len(sessionToolNames) {
+		t.Errorf("tools = %v, want exactly %v", names, sessionToolNames)
+	}
+	for _, want := range sessionToolNames {
+		if !contains(names, want) {
+			t.Errorf("tool %s missing from %v", want, names)
+		}
+	}
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{Name: "find_sessions", Arguments: map[string]any{}})
+	if err != nil || res.IsError {
+		t.Fatalf("find_sessions: %v %+v", err, res)
+	}
+	if text := res.Content[0].(*mcp.TextContent).Text; !strings.Contains(text, `"s1"`) {
+		t.Errorf("find_sessions = %s, want the seeded session", text)
+	}
+	if code := rc.stop(t); code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }

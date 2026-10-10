@@ -25,7 +25,10 @@ type Options struct {
 	WebSocket     bool
 	MCP           bool
 	MCPToolPrefix string
-	Logger        *slog.Logger
+	// MCPTools are extra tool providers on the MCP endpoint, described by MCPExtraInstructions.
+	MCPTools             []mcpserver.ToolProvider
+	MCPExtraInstructions string
+	Logger               *slog.Logger
 	// AllowAnyOrigin disables the same-host origin check on the WebSocket.
 	AllowAnyOrigin bool
 }
@@ -66,7 +69,7 @@ func New(palace *service.Palace, regs ops.Registries, opts Options) *Server {
 		mux.Handle(PathWS, ws.Handler(palace, regs, wsOpts))
 	}
 	if opts.MCP {
-		s.mcp = mcpserver.New(palace, regs, &mcpserver.Options{ToolPrefix: opts.MCPToolPrefix, Logger: opts.Logger})
+		s.mcp = mcpserver.New(palace, regs, &mcpserver.Options{ToolPrefix: opts.MCPToolPrefix, Logger: opts.Logger, Tools: opts.MCPTools, ExtraInstructions: opts.MCPExtraInstructions})
 		mux.Handle(PathMCP, s.mcp.Handler())
 		mux.Handle(PathMCP+"/", s.mcp.Handler())
 	}
