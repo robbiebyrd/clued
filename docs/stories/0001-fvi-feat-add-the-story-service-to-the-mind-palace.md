@@ -7,14 +7,12 @@ status: in_progress
 priority: "2"
 effort: L
 created: "2026-10-10T02:27:00.171Z"
-updated: "2026-10-10T02:27:00.374Z"
+updated: "2026-10-10T03:05:44.604Z"
 started: "2026-10-10T02:27:00.171Z"
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
     local: ~/Projects/clued
-  specs:
-    - ./plans/story-service.md
   plans:
     - ["0002-2ub", "included"]
 progress:
