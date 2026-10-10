@@ -5,17 +5,24 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"os/signal"
 	"regexp"
+	"syscall"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 
 	"github.com/robbiebyrd/clued/mind-palace/service"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
+	"github.com/robbiebyrd/clued/mind-palace/session/daemon"
 	"github.com/robbiebyrd/clued/mind-palace/session/gitinfo"
+	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/mongosession"
 	"github.com/robbiebyrd/clued/mind-palace/session/query"
 	"github.com/robbiebyrd/clued/mind-palace/session/restore"
+	"github.com/robbiebyrd/clued/mind-palace/session/sessionmcp"
 )
 
 // openSessionStore connects the session store; tests replace it with an
@@ -24,6 +31,10 @@ var openSessionStore = func(ctx context.Context, cfg session.Config) (session.St
 	s := mongosession.New(cfg)
 	return s, s.Connect(ctx)
 }
+
+// stdioTransport is the transport the MCP commands serve on; tests replace it
+// with an in-memory one.
+var stdioTransport = func() mcp.Transport { return &mcp.StdioTransport{} }
 
 // sessionState is what the session commands share within one process: the
 // --config path, the loaded config and the connected store.
@@ -54,6 +65,14 @@ func (a *App) sessionStore(ctx context.Context) (session.Store, error) {
 	return a.sess.store, nil
 }
 
+// sessionTools builds the session MCP tools; the store is connected on the
+// first tool call, so serving them never needs the database to be reachable.
+func (a *App) sessionTools() *sessionmcp.Tools {
+	cfg := a.sessionConfig()
+	connect := func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }
+	return sessionmcp.New(cfg, connect, session.ReadAccountID(cfg.ClaudeAppConfigPath))
+}
+
 // closeSessionStore disconnects the store if one was opened.
 func (a *App) closeSessionStore() {
 	if a.sess.store != nil {
@@ -79,6 +98,7 @@ func (a *App) sessionCmd() *cobra.Command {
 	c.AddCommand(
 		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
+		a.sessionDaemonCmd(), a.sessionMCPCmd(),
 	)
 	return c
 }
@@ -284,4 +304,75 @@ func (a *App) sessionBackfillCmd() *cobra.Command {
 			return map[string]int{"sessions": stats.Sessions, "lines": stats.Lines}, err
 		}),
 	}
+}
+
+// KindConnect is the error kind of a failed store connection; it has no
+// dedicated exit code, so the process exits 1.
+const kindConnect = "ConnectError"
+
+func (a *App) sessionDaemonCmd() *cobra.Command {
+	var addr string
+	c := &cobra.Command{
+		Use:   "daemon [--addr host:port]",
+		Short: "Run the capture daemon that receives hook events and tails session files",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			defer a.closeSessionStore()
+			cfg := a.sessionConfig()
+			if addr == "" {
+				addr = fmt.Sprintf("127.0.0.1:%d", cfg.Port)
+			}
+			store, err := a.sessionStore(cmd.Context())
+			if err != nil {
+				return a.fail(&service.Error{Kind: kindConnect, Message: err.Error()})
+			}
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			d := daemon.New(daemon.Options{
+				Config:    cfg,
+				Store:     store,
+				Enrichers: session.Active(cfg.DisabledEnrichers),
+				AccountID: session.ReadAccountID(cfg.ClaudeAppConfigPath),
+				Host:      hostinfo.Read(),
+				Git: func(ctx context.Context, dir string) (string, string) {
+					return gitinfo.Origin(ctx, dir), gitinfo.Branch(ctx, dir)
+				},
+				Logger: slog.New(slog.NewTextHandler(a.Stderr, nil)),
+			})
+			// daemon.Run does not report the address it bound, so the configured one is printed.
+			fmt.Fprintf(a.Stderr, "clued daemon listening on http://%s\n", addr)
+			err = d.Run(ctx, addr)
+			switch {
+			case errors.Is(err, daemon.ErrAddrInUse):
+				fmt.Fprintf(a.Stderr, "clued daemon already running on %s\n", addr)
+				return nil
+			case err != nil:
+				return a.sessionFail(err)
+			}
+			return nil
+		},
+	}
+	c.Flags().StringVar(&addr, "addr", "", "listen address (default 127.0.0.1:<port from the clued config>)")
+	return c
+}
+
+func (a *App) sessionMCPCmd() *cobra.Command {
+	var prefix string
+	c := &cobra.Command{
+		Use:   "mcp [--mcp-tool-prefix p]",
+		Short: "Serve only the session tools over stdio",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			srv := mcp.NewServer(&mcp.Implementation{Name: "clued", Version: sessionmcp.Version}, &mcp.ServerOptions{Instructions: sessionmcp.Instructions})
+			a.sessionTools().AddTools(srv, prefix)
+			if err := srv.Run(ctx, stdioTransport()); err != nil && !errors.Is(err, context.Canceled) {
+				return a.sessionFail(err)
+			}
+			return nil
+		},
+	}
+	c.Flags().StringVar(&prefix, "mcp-tool-prefix", "", "prefix for MCP tool names")
+	return c
 }

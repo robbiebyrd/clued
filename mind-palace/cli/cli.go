@@ -33,6 +33,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/server"
 	"github.com/robbiebyrd/clued/mind-palace/server/mcpserver"
 	"github.com/robbiebyrd/clued/mind-palace/service"
+	"github.com/robbiebyrd/clued/mind-palace/session/sessionmcp"
 	"github.com/robbiebyrd/clued/mind-palace/store"
 )
 
@@ -1017,7 +1018,8 @@ func (a *App) serveCmd() *cobra.Command {
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			logger := slog.New(slog.NewTextHandler(a.Stderr, nil))
-			srv := server.New(a.palace, a.regs, server.Options{HTTP: !noHTTP, WebSocket: !noWS, MCP: !noMCP, MCPToolPrefix: prefix, Logger: logger, AllowAnyOrigin: anyOrigin})
+			srv := server.New(a.palace, a.regs, server.Options{HTTP: !noHTTP, WebSocket: !noWS, MCP: !noMCP, MCPToolPrefix: prefix, Logger: logger, AllowAnyOrigin: anyOrigin,
+				MCPTools: []mcpserver.ToolProvider{a.sessionTools()}, MCPExtraInstructions: sessionmcp.Instructions})
 			ready := make(chan string, 1)
 			go func() {
 				bound := <-ready
@@ -1050,9 +1052,9 @@ func (a *App) mcpCmd() *cobra.Command {
 			}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			srv := mcpserver.New(a.palace, a.regs, &mcpserver.Options{ToolPrefix: prefix})
+			srv := mcpserver.New(a.palace, a.regs, &mcpserver.Options{ToolPrefix: prefix, Tools: []mcpserver.ToolProvider{a.sessionTools()}, ExtraInstructions: sessionmcp.Instructions})
 			defer srv.Close()
-			if err := srv.RunStdio(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			if err := srv.MCP.Run(ctx, stdioTransport()); err != nil && !errors.Is(err, context.Canceled) {
 				return a.fail(&service.Error{Kind: service.KindStorage, Message: err.Error()})
 			}
 			return nil
