@@ -136,3 +136,44 @@ func TestExistingNonUniqueIndexIsAWarningNotAnError(t *testing.T) {
 		t.Errorf("got %d warnings, want exactly 1: %s", n, out)
 	}
 }
+
+func TestCloseIsIdempotent(t *testing.T) {
+	uri, dbName, _ := testDB(t)
+	ctx := context.Background()
+	s := mongosession.New(session.Config{MongoURL: uri, DBName: dbName})
+	s.Logger = slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
+	if err := s.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	for i := 1; i <= 2; i++ {
+		if err := s.Close(ctx); err != nil {
+			t.Fatalf("Close #%d: %v", i, err)
+		}
+	}
+}
+
+func TestHookEventIDsWithNonObjectIDAndUTCDates(t *testing.T) {
+	uri, dbName, _ := testDB(t)
+	ctx := context.Background()
+	s := mongosession.New(session.Config{MongoURL: uri, DBName: dbName})
+	s.Logger = slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
+	t.Cleanup(func() { _ = s.Close(ctx) })
+	if err := s.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	at := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	if err := s.InsertHookEvent(ctx, session.Doc{"_id": "custom-id", "session_id": "s1", "tool_use_id": "tu1", "created_at": at}); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	ids, err := s.HookEventIDsByToolUse(ctx, "s1", []string{"tu1"})
+	if err != nil || len(ids) != 1 || ids[0] != "custom-id" {
+		t.Errorf("ids = %v, err = %v, want [custom-id]", ids, err)
+	}
+	docs, err := s.Unenriched(ctx, "hook_events", "probe", 1)
+	if err != nil || len(docs) != 1 {
+		t.Fatalf("Unenriched = %v, %v", docs, err)
+	}
+	if got := docs[0]["created_at"].(time.Time); got.Location() != time.UTC || !got.Equal(at) {
+		t.Errorf("created_at = %v (%v), want %v in UTC", got, got.Location(), at)
+	}
+}

@@ -56,6 +56,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"set enrichment writes enrichments.<name> on the matching document", setEnrichment},
 		{"set enrichment failure records message and time", setEnrichmentFailure},
 		{"hook event ids by tool use are scoped to the session", hookEventIDsByToolUse},
+		{"hook event ids by tool use with an empty session id match across sessions", hookEventIDsAcrossSessions},
 		{"find sessions caps the limit at 500 and treats a limit of 0 or less as the cap", findSessionsLimitCap},
 		{"a limit of 0 or less means no limit on lines, bash events and unenriched", nonPositiveLimitIsUnlimited},
 		{"returned documents are copies", returnedDocsAreCopies},
@@ -726,6 +727,29 @@ func hookEventIDsByToolUse(t *testing.T, s session.Store) {
 	eq(t, "ids of the session's matching events", gotSet, want)
 	eq(t, "no duplicates", len(got), len(want))
 	eq(t, "empty list", len(ok(s.HookEventIDsByToolUse(ctx, "s1", nil))), 0)
+}
+
+func hookEventIDsAcrossSessions(t *testing.T, s session.Store) {
+	for _, ev := range []session.Doc{
+		{"session_id": "s1", "tool_use_id": "tu1"},
+		{"session_id": "s2", "tool_use_id": "tu1"},
+		{"session_id": "s2", "tool_use_id": "tu9"},
+	} {
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	want := map[string]bool{}
+	for _, d := range ok(s.Unenriched(ctx, "hook_events", "probe", 10)) {
+		if d["tool_use_id"] == "tu1" {
+			want[idString(d["_id"])] = true
+		}
+	}
+	got := ok(s.HookEventIDsByToolUse(ctx, "", []string{"tu1"}))
+	gotSet := map[string]bool{}
+	for _, id := range got {
+		gotSet[id] = true
+	}
+	eq(t, "ids of matching events in every session", gotSet, want)
+	eq(t, "count", len(got), 2)
 }
 
 func returnedDocsAreCopies(t *testing.T, s session.Store) {

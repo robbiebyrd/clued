@@ -153,7 +153,9 @@ func (s *Store) Close(ctx context.Context) error {
 	if s.client == nil {
 		return nil
 	}
-	return s.client.Disconnect(ctx)
+	client := s.client
+	s.client, s.db = nil, nil
+	return client.Disconnect(ctx)
 }
 
 // --- shaping ---
@@ -173,7 +175,7 @@ func normalize(v any) any {
 	case []any:
 		return normalizeList(x)
 	case bson.DateTime:
-		return x.Time()
+		return x.Time().UTC()
 	}
 	return v
 }
@@ -367,13 +369,20 @@ func (s *Store) HookEventIDsByToolUse(ctx context.Context, sessionID string, too
 	if len(toolUseIDs) == 0 {
 		return ids, nil
 	}
-	filter := key("tool_use_id", key("$in", toolUseIDs), "session_id", sessionID)
+	filter := key("tool_use_id", key("$in", toolUseIDs))
+	if sessionID != "" {
+		filter = append(filter, bson.E{Key: "session_id", Value: sessionID})
+	}
 	docs, err := s.find(ctx, hookEvents, filter, key("_id", 1), nil, 0, 0)
 	if err != nil {
 		return nil, err
 	}
 	for _, d := range docs {
-		ids = append(ids, d["_id"].(bson.ObjectID).Hex())
+		if oid, ok := d["_id"].(bson.ObjectID); ok {
+			ids = append(ids, oid.Hex())
+		} else {
+			ids = append(ids, fmt.Sprint(d["_id"]))
+		}
 	}
 	return ids, nil
 }
