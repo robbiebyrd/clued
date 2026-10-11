@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "clued",
-      "description": "MongoDB session mirror — captures every hook event and stores it in MongoDB with an enricher pipeline",
+      "description": "Session capture for Claude Code — runs as a Go daemon that mirrors hook events into MongoDB with an enricher pipeline",
       "source": {
         "source": "github",
         "repo": "robbiebyrd/clued"
