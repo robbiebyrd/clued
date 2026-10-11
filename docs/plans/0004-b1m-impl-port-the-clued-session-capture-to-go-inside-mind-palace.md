@@ -2,11 +2,12 @@
 id: 0004-b1m
 title: Port the clued session capture to Go inside mind-palace
 type: impl
-status: in_progress
+status: complete
 priority: "2"
 effort: XL
 created: "2026-10-10T02:52:36.193Z"
-updated: "2026-10-11T17:25:01.118Z"
+updated: "2026-10-11T23:26:04.930Z"
+completed: "2026-10-11T23:26:04.930Z"
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
@@ -65,11 +66,11 @@ progress:
   "4.3":
     status: complete
   "5":
-    status: in_progress
+    status: complete
   "5.1":
-    status: in_progress
+    status: complete
   "5.2":
-    status: pending
+    status: complete
 ---
 
 # Port the clued session capture to Go inside mind-palace
