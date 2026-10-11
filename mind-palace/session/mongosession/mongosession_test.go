@@ -177,3 +177,71 @@ func TestHookEventIDsWithNonObjectIDAndUTCDates(t *testing.T) {
 		t.Errorf("created_at = %v (%v), want %v in UTC", got, got.Location(), at)
 	}
 }
+
+func TestFullSessionDoesNotDependOnTheView(t *testing.T) {
+	uri, dbName, client := testDB(t)
+	ctx := context.Background()
+	s := mongosession.New(session.Config{MongoURL: uri, DBName: dbName})
+	s.Logger = slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
+	t.Cleanup(func() { _ = s.Close(ctx) })
+	if err := s.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	host := &session.HostInfo{Hostname: "h"}
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(s.UpsertSession(ctx, session.Session{SessionID: "s1", AccountID: "acc", LastSeen: time.Now()}))
+	must(s.UpsertTranscriptLines(ctx, []session.TranscriptLine{
+		{SessionID: "s1", Seq: 1, Line: map[string]any{"type": "b"}, AccountID: "acc", Host: host},
+		{SessionID: "s1", Seq: 0, Line: map[string]any{"type": "a"}, AccountID: "acc", Host: host},
+	}))
+	must(s.UpsertSubagentLine(ctx, session.SubagentLine{SessionID: "s1", SubagentID: "z", Seq: 0, Line: map[string]any{}, AccountID: "acc", Host: host}))
+	must(s.UpsertSubagentLine(ctx, session.SubagentLine{SessionID: "s1", SubagentID: "a", Seq: 0, Line: map[string]any{}, AccountID: "acc", Host: host}))
+	must(s.UpsertBlob(ctx, session.Blob{SessionID: "s1", BlobType: "t", Name: "n", Content: "big", AccountID: "acc"}))
+	must(s.InsertHookEvent(ctx, session.Doc{"session_id": "s1", "account_id": "acc", "type": "x", "created_at": time.Now()}))
+	if err := client.Database(dbName).Collection("session_full").Drop(ctx); err != nil {
+		t.Fatalf("drop view: %v", err)
+	}
+
+	full, err := s.FullSession(ctx, "acc", "s1")
+	if err != nil {
+		t.Fatalf("FullSession without the view: %v", err)
+	}
+
+	lines, _ := full["transcript_lines"].([]any)
+	if len(lines) != 2 || lines[0].(map[string]any)["seq"] != int64(0) && lines[0].(map[string]any)["seq"] != int32(0) {
+		t.Fatalf("transcript_lines = %#v", full["transcript_lines"])
+	}
+	subs, _ := full["subagent_lines"].([]any)
+	if len(subs) != 2 || subs[0].(map[string]any)["subagent_id"] != "a" {
+		t.Fatalf("subagent_lines = %#v", full["subagent_lines"])
+	}
+	blobs, _ := full["blobs"].([]any)
+	events, _ := full["hook_events"].([]any)
+	if len(blobs) != 1 || len(events) != 1 {
+		t.Fatalf("blobs = %#v, hook_events = %#v", full["blobs"], full["hook_events"])
+	}
+	for name, list := range map[string][]any{"transcript_lines": lines, "subagent_lines": subs, "blobs": blobs, "hook_events": events} {
+		for _, e := range list {
+			d := e.(map[string]any)
+			for _, stripped := range []string{"_id", "session_id", "account_id"} {
+				if _, ok := d[stripped]; ok {
+					t.Errorf("%s keeps %s: %#v", name, stripped, d)
+				}
+			}
+		}
+	}
+	if _, ok := lines[0].(map[string]any)["host"]; ok {
+		t.Errorf("transcript line keeps host")
+	}
+	if _, ok := blobs[0].(map[string]any)["content"]; ok {
+		t.Errorf("blob keeps content")
+	}
+	if _, ok := full["_id"]; ok {
+		t.Errorf("session keeps _id")
+	}
+}

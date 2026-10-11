@@ -305,7 +305,9 @@ mind-palace session mcp                         # session tools only, over stdio
 ```
 
 The daemon only tails transcripts under `projectsDir`, rejects
-browser-originated requests and caps event body size.
+browser-originated requests and caps event body size. Documents an enricher
+does not apply to are marked skipped so they leave its queue. Restore produces
+equivalent JSON whose key order may differ from the original file.
 
 **MCP tools.** `find_sessions`, `get_session_context`, `get_full_session`,
 `search_commands`, `read_transcript` and `restore_session`. `session mcp`

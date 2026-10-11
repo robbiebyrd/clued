@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -285,9 +286,49 @@ not-json
 	}
 }
 
-func TestFlushUntilFailureStopsAtTheFirstFailureAndKeepsTheRest(t *testing.T) {
+func TestFlushStopsOnDeadlineOrCancellationAndKeepsTheRest(t *testing.T) {
+	for name, stopErr := range map[string]error{
+		"deadline":  context.DeadlineExceeded,
+		"cancelled": context.Canceled,
+		"wrapped":   fmt.Errorf("insert: %w", context.DeadlineExceeded),
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := filepath.Join(t.TempDir(), "test.jsonl")
+			content := "{\"type\":\"a\"}\n{\"type\":\"b\"}\n{\"type\":\"c\"}\n{\"type\":\"d\"}\n"
+			if err := os.WriteFile(f, []byte(content), 0600); err != nil {
+				t.Fatal(err)
+			}
+			var attempted []any
+			insert := func(ctx context.Context, doc session.Doc) error {
+				attempted = append(attempted, doc["type"])
+				if doc["type"] == "b" {
+					return stopErr
+				}
+				return nil
+			}
+
+			if err := wal.Flush(context.Background(), f, insert); err != nil {
+				t.Fatalf("Flush failed: %v", err)
+			}
+
+			if len(attempted) != 2 || attempted[0] != "a" || attempted[1] != "b" {
+				t.Errorf("attempted = %v, want [a b]", attempted)
+			}
+			remaining, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := "{\"type\":\"b\"}\n{\"type\":\"c\"}\n{\"type\":\"d\"}\n"
+			if string(remaining) != want {
+				t.Errorf("remaining = %q, want %q", remaining, want)
+			}
+		})
+	}
+}
+
+func TestFlushContinuesPastOtherErrorsAndKeepsOnlyTheFailedLines(t *testing.T) {
 	f := filepath.Join(t.TempDir(), "test.jsonl")
-	content := "{\"type\":\"a\"}\n{\"type\":\"b\"}\n{\"type\":\"c\"}\n{\"type\":\"d\"}\n"
+	content := "{\"type\":\"a\"}\n{\"type\":\"b\"}\nnot-json\n{\"type\":\"c\"}\n"
 	if err := os.WriteFile(f, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -295,24 +336,23 @@ func TestFlushUntilFailureStopsAtTheFirstFailureAndKeepsTheRest(t *testing.T) {
 	insert := func(ctx context.Context, doc session.Doc) error {
 		attempted = append(attempted, doc["type"])
 		if doc["type"] == "b" {
-			return errors.New("mongo down")
+			return errors.New("duplicate key")
 		}
 		return nil
 	}
 
-	if err := wal.FlushUntilFailure(context.Background(), f, insert); err != nil {
-		t.Fatalf("FlushUntilFailure failed: %v", err)
+	if err := wal.Flush(context.Background(), f, insert); err != nil {
+		t.Fatalf("Flush failed: %v", err)
 	}
 
-	if len(attempted) != 2 || attempted[0] != "a" || attempted[1] != "b" {
-		t.Errorf("attempted = %v, want [a b]", attempted)
+	if len(attempted) != 3 {
+		t.Errorf("attempted = %v, want a, b, c", attempted)
 	}
 	remaining, err := os.ReadFile(f)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "{\"type\":\"b\"}\n{\"type\":\"c\"}\n{\"type\":\"d\"}\n"
-	if string(remaining) != want {
+	if want := "{\"type\":\"b\"}\n"; string(remaining) != want {
 		t.Errorf("remaining = %q, want %q", remaining, want)
 	}
 }

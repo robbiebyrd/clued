@@ -5,6 +5,7 @@ package wal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -43,25 +44,17 @@ func Append(path string, event session.Doc) error {
 	return nil
 }
 
-// Flush re-inserts every entry in the file through insert, keeps the lines
-// whose insert returned an error, drops malformed lines, and rewrites the file
-// (empty when nothing failed; failed lines each followed by a newline otherwise).
-// If the file does not exist, it is a no-op.
+// Flush re-inserts every entry in the file through insert and rewrites the file
+// with the lines to keep (empty when none; each kept line followed by a newline).
+// An insert error that is context.DeadlineExceeded or context.Canceled means the
+// store is unreachable: Flush stops there and keeps the failed line and every
+// unattempted line, rather than waiting out a timeout per line. Any other insert
+// error keeps only the failed line and moves on to the next. Malformed lines are
+// dropped. If the file does not exist, it is a no-op.
 //
 // Flush assumes a single writer: the daemon serialises its own Append and Flush
 // calls; the hook script appends only while the daemon is down.
 func Flush(ctx context.Context, path string, insert func(context.Context, session.Doc) error) error {
-	return flush(ctx, path, insert, false)
-}
-
-// FlushUntilFailure is Flush that stops at the first failed insert: that line
-// and every line after it are kept unattempted. Use it when a failure means
-// the store is down, so the remaining inserts would only fail slowly.
-func FlushUntilFailure(ctx context.Context, path string, insert func(context.Context, session.Doc) error) error {
-	return flush(ctx, path, insert, true)
-}
-
-func flush(ctx context.Context, path string, insert func(context.Context, session.Doc) error, stopOnFailure bool) error {
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -99,7 +92,7 @@ func flush(ctx context.Context, path string, insert func(context.Context, sessio
 		if err := insert(ctx, doc); err != nil {
 			// Keep lines that failed
 			failed = append(failed, line)
-			if stopOnFailure {
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 				failed = append(failed, lines[i+1:]...)
 				break
 			}

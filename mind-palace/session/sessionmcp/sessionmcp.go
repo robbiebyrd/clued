@@ -208,7 +208,7 @@ func nonNil[T any](list []T) []T {
 }
 
 func success(v any) (*mcp.CallToolResult, error) {
-	b, err := json.Marshal(v)
+	b, err := json.Marshal(session.JSONTimes(v))
 	if err != nil {
 		return failure(err), nil
 	}

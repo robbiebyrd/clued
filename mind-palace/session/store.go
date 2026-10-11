@@ -72,10 +72,14 @@ type Store interface {
 	BashEvents(ctx context.Context, q CommandQuery) ([]Doc, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
-	// Unenriched returns documents (including _id) that have neither
-	// enrichments.<enricher> nor enrichments.<enricher>_failed.
+	// Unenriched returns documents (including _id) that have none of
+	// enrichments.<enricher>, enrichments.<enricher>_failed and
+	// enrichments.<enricher>_skipped.
 	Unenriched(ctx context.Context, collection, enricher string, limit int) ([]Doc, error)
 	SetEnrichment(ctx context.Context, collection string, id any, enricher string, result any) error
 	SetEnrichmentFailure(ctx context.Context, collection string, id any, enricher, message string, at time.Time) error
+	// SetEnrichmentSkipped marks a document the enricher does not apply to, so
+	// it leaves the queue.
+	SetEnrichmentSkipped(ctx context.Context, collection string, id any, enricher string) error
 	Close(ctx context.Context) error
 }

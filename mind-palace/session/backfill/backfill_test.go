@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
@@ -237,5 +238,29 @@ func TestRunReturnsContextErrorWhenCancelled(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected context error")
+	}
+}
+
+func TestRunStampsLastSeenAndStartedAtWithTheTranscriptModificationTime(t *testing.T) {
+	dir := t.TempDir()
+	path := writeSession(t, dir, "-Users-test-myproject", sessionID, `{"type":"human"}`+"\n")
+	mtime := time.Date(2024, 3, 5, 12, 30, 0, 0, time.UTC)
+	if err := os.Chtimes(path, mtime, mtime); err != nil {
+		t.Fatal(err)
+	}
+	store := memsession.New()
+
+	run(t, store, dir, "", nil)
+	run(t, store, dir, "", nil)
+
+	sess, err := store.GetSession(context.Background(), "", sessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"last_seen", "started_at"} {
+		got, ok := sess[field].(time.Time)
+		if !ok || !got.Equal(mtime) {
+			t.Errorf("%s = %v, want %v", field, sess[field], mtime)
+		}
 	}
 }

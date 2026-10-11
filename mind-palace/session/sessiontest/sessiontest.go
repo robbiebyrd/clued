@@ -55,6 +55,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"unenriched excludes documents that are enriched or failed", unenrichedSelection},
 		{"set enrichment writes enrichments.<name> on the matching document", setEnrichment},
 		{"set enrichment failure records message and time", setEnrichmentFailure},
+		{"set enrichment skipped marks the document and leaves the queue", setEnrichmentSkipped},
 		{"hook event ids by tool use are scoped to the session", hookEventIDsByToolUse},
 		{"hook event ids by tool use with an empty session id match across sessions", hookEventIDsAcrossSessions},
 		{"find sessions caps the limit at 500 and treats a limit of 0 or less as the cap", findSessionsLimitCap},
@@ -658,10 +659,14 @@ func unenrichedSelection(t *testing.T, s session.Store) {
 
 	must(t, s.SetEnrichment(ctx, "transcript_lines", bySeq[0], "hook-linker", session.Doc{"ok": true}))
 	must(t, s.SetEnrichmentFailure(ctx, "transcript_lines", bySeq[1], "hook-linker", "boom", t0))
+	must(t, s.SetEnrichmentSkipped(ctx, "transcript_lines", bySeq[2], "hook-linker"))
 
+	eq(t, "enriched, failed and skipped documents leave the queue", len(ok(s.Unenriched(ctx, "transcript_lines", "hook-linker", 10))), 0)
+
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s1", 3, "d", "acc")}))
 	left := ok(s.Unenriched(ctx, "transcript_lines", "hook-linker", 10))
-	eq(t, "only the untouched document is pending", ints(left, "seq"), []int{2})
-	eq(t, "a different enricher still sees all", len(ok(s.Unenriched(ctx, "transcript_lines", "other", 10))), 3)
+	eq(t, "only the untouched document is pending", ints(left, "seq"), []int{3})
+	eq(t, "a different enricher still sees all", len(ok(s.Unenriched(ctx, "transcript_lines", "other", 10))), 4)
 	eq(t, "limit", len(ok(s.Unenriched(ctx, "transcript_lines", "other", 2))), 2)
 	eq(t, "other collection is independent", len(ok(s.Unenriched(ctx, "hook_events", "hook-linker", 10))), 0)
 }
@@ -700,6 +705,31 @@ func setEnrichmentFailure(t *testing.T, s session.Store) {
 	if hasKey(l.Map("enrichments"), "e") {
 		t.Errorf("failure also wrote the result key")
 	}
+}
+
+func setEnrichmentSkipped(t *testing.T, s session.Store) {
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s1", 0, "a", "acc"), tl("s1", 1, "b", "acc")}))
+	pending := ok(s.Unenriched(ctx, "transcript_lines", "e", 10))
+	var skippedID any
+	for _, d := range pending {
+		if num(d["seq"]) == 0 {
+			skippedID = d["_id"]
+		}
+	}
+	must(t, s.SetEnrichmentSkipped(ctx, "transcript_lines", skippedID, "e"))
+
+	eq(t, "skipped document leaves the queue", ints(ok(s.Unenriched(ctx, "transcript_lines", "e", 10)), "seq"), []int{1})
+	eq(t, "a different enricher still sees both", len(ok(s.Unenriched(ctx, "transcript_lines", "other", 10))), 2)
+	for _, l := range ok(s.TranscriptLines(ctx, session.LineQuery{AccountID: "acc", SessionID: "s1"})) {
+		if num(l["seq"]) != 0 {
+			continue
+		}
+		eq(t, "enrichments.e_skipped", l.Map("enrichments")["e_skipped"], true)
+		if hasKey(l.Map("enrichments"), "e") {
+			t.Errorf("skip also wrote the result key")
+		}
+	}
+	must(t, s.SetEnrichmentSkipped(ctx, "transcript_lines", "no-such-id", "e"))
 }
 
 func hookEventIDsByToolUse(t *testing.T, s session.Store) {
