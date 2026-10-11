@@ -131,7 +131,7 @@ func (a *App) sessionAction(fn func(ctx context.Context, store session.Store, sv
 		if err != nil {
 			return a.sessionFail(err)
 		}
-		a.print(a.Stdout, map[string]any{"ok": true, "result": result})
+		a.print(a.Stdout, map[string]any{"ok": true, "result": session.JSONTimes(result)})
 		return nil
 	}
 }

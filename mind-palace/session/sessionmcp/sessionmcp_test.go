@@ -562,3 +562,22 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		}
 	})
 }
+
+func TestTimestampsHaveExactlyThreeFractionalDigits(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		st := seeded(t)
+		at := time.Date(2026, 10, 11, 17, 29, 21, 760_000_000, time.UTC)
+		must(t, st.UpsertSession(context.Background(), session.Session{SessionID: "sess-ms", AccountID: account, ProjectPath: "/home/user/ms", LastSeen: at}))
+		seedBash(t, st, account, "sess-ms", "date", at)
+		cs := client(t)
+
+		sessions := okJSON[[]obj](t, call(t, cs, "find_sessions", obj{"project_path": "/home/user/ms"}))
+		if len(sessions) != 1 || sessions[0]["last_seen"] != "2026-10-11T17:29:21.760Z" {
+			t.Errorf("find_sessions last_seen = %v", sessions)
+		}
+		hits := okJSON[[]obj](t, call(t, cs, "search_commands", obj{"pattern": "^date$"}))
+		if len(hits) != 1 || hits[0]["created_at"] != "2026-10-11T17:29:21.760Z" {
+			t.Errorf("search_commands created_at = %v", hits)
+		}
+	})
+}

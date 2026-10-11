@@ -530,3 +530,18 @@ func contains(list []string, s string) bool {
 	}
 	return false
 }
+
+func TestSessionOutputTimestampsHaveExactlyThreeFractionalDigits(t *testing.T) {
+	st := seedSessions(t)
+	at := time.Date(2026, 10, 11, 17, 29, 21, 760_000_000, time.UTC)
+	if err := st.UpsertSession(context.Background(), session.Session{SessionID: "s3", AccountID: testAccount, ProjectPath: "/work/ms", LastSeen: at}); err != nil {
+		t.Fatal(err)
+	}
+	sessionEnv(t, st)
+
+	r := runSession(t, "find", "--project-path", "/work/ms")
+
+	if r.code != 0 || !strings.Contains(r.stdout, `"2026-10-11T17:29:21.760Z"`) {
+		t.Fatalf("stdout = %q (code %d, stderr %q)", r.stdout, r.code, r.stderr)
+	}
+}

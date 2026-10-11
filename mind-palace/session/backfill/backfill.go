@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 )
@@ -91,12 +90,16 @@ func findTranscripts(projectsDir string) []transcript {
 }
 
 func processSession(ctx context.Context, store session.Store, t transcript, accountID string, git GitInfo) (int, error) {
+	info, err := os.Stat(t.filePath)
+	if err != nil {
+		return 0, err
+	}
 	s := session.Session{
 		SessionID:      t.sessionID,
 		ProjectPath:    t.projectPath,
 		TranscriptPath: t.filePath,
 		AccountID:      accountID,
-		LastSeen:       time.Now(),
+		LastSeen:       info.ModTime(),
 	}
 	if git != nil {
 		s.GitOrigin, s.GitBranch = git(ctx, t.projectPath)

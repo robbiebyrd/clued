@@ -174,9 +174,9 @@ func (d *Daemon) appendWAL(ev session.Doc) error {
 func (d *Daemon) flushWAL(ctx context.Context) {
 	d.walMu.Lock()
 	defer d.walMu.Unlock()
-	// A failed insert means the store is down: stop there rather than waiting
-	// out a timeout per line while events queue behind walMu.
-	err := wal.FlushUntilFailure(ctx, d.opts.Config.WalPath, func(ctx context.Context, ev session.Doc) error {
+	// A timed-out insert means the store is down: Flush stops there rather than
+	// waiting out a timeout per line while events queue behind walMu.
+	err := wal.Flush(ctx, d.opts.Config.WalPath, func(ctx context.Context, ev session.Doc) error {
 		// Entries written by the fallback carry created_at as text.
 		if s, ok := ev["created_at"].(string); ok {
 			if at, err := time.Parse(time.RFC3339Nano, s); err == nil {

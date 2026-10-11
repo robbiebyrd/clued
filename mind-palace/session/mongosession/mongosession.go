@@ -314,8 +314,39 @@ func (s *Store) GetSession(ctx context.Context, accountID, sessionID string) (se
 	return s.findOne(ctx, sessions, key("session_id", sessionID, "account_id", accountID))
 }
 
+// FullSession assembles the session_full document from one query per
+// collection. It does not read the session_full view, whose result is a single
+// document and so fails past the 16 MB document limit on long sessions.
 func (s *Store) FullSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
-	return s.findOne(ctx, sessionFull, key("session_id", sessionID, "account_id", accountID))
+	full, err := s.findOne(ctx, sessions, key("session_id", sessionID, "account_id", accountID))
+	if err != nil {
+		return nil, err
+	}
+	for _, part := range []struct {
+		collection string
+		sort       bson.D
+		stripped   []string
+	}{
+		{transcriptLines, key("seq", 1), []string{"host"}},
+		{subagentLines, key("subagent_id", 1, "seq", 1), []string{"host"}},
+		{blobs, key("blob_type", 1, "name", 1), []string{"content"}},
+		{hookEvents, key("created_at", 1), nil},
+	} {
+		projection := key("_id", 0, "session_id", 0, "account_id", 0)
+		for _, field := range part.stripped {
+			projection = append(projection, bson.E{Key: field, Value: 0})
+		}
+		docs, err := s.find(ctx, part.collection, key("session_id", sessionID), projection, part.sort, 0, 0)
+		if err != nil {
+			return nil, err
+		}
+		list := make([]any, len(docs))
+		for i, d := range docs {
+			list[i] = map[string]any(d)
+		}
+		full[part.collection] = list
+	}
+	return full, nil
 }
 
 func (s *Store) findOne(ctx context.Context, col string, filter bson.D) (session.Doc, error) {
@@ -472,12 +503,16 @@ func (s *Store) Blobs(ctx context.Context, accountID, sessionID string) ([]sessi
 // --- enrichment ---
 
 func (s *Store) Unenriched(ctx context.Context, collection, enricher string, limit int) ([]session.Doc, error) {
-	filter := key("enrichments."+enricher, key("$exists", false), "enrichments."+enricher+"_failed", key("$exists", false))
+	filter := key("enrichments."+enricher, key("$exists", false), "enrichments."+enricher+"_failed", key("$exists", false), "enrichments."+enricher+"_skipped", key("$exists", false))
 	return s.find(ctx, collection, filter, nil, nil, 0, limit)
 }
 
 func (s *Store) SetEnrichment(ctx context.Context, collection string, id any, enricher string, result any) error {
 	return s.update(ctx, collection, key("_id", objectID(id)), key("enrichments."+enricher, result))
+}
+
+func (s *Store) SetEnrichmentSkipped(ctx context.Context, collection string, id any, enricher string) error {
+	return s.update(ctx, collection, key("_id", objectID(id)), key("enrichments."+enricher+"_skipped", true))
 }
 
 func (s *Store) SetEnrichmentFailure(ctx context.Context, collection string, id any, enricher, message string, at time.Time) error {

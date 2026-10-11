@@ -534,7 +534,7 @@ func (s *Store) Unenriched(_ context.Context, collection, enricher string, limit
 	defer s.mu.Unlock()
 	pending := s.filter(collection, func(d session.Doc) bool {
 		e := d.Map("enrichments")
-		return e[enricher] == nil && e[enricher+"_failed"] == nil
+		return e[enricher] == nil && e[enricher+"_failed"] == nil && e[enricher+"_skipped"] == nil
 	})
 	return copies(page(pending, 0, limit)), nil
 }
@@ -545,6 +545,10 @@ func (s *Store) SetEnrichment(_ context.Context, collection string, id any, enri
 
 func (s *Store) SetEnrichmentFailure(_ context.Context, collection string, id any, enricher, message string, at time.Time) error {
 	return s.setEnrichmentField(collection, id, enricher+"_failed", session.Doc{"message": message, "at": at})
+}
+
+func (s *Store) SetEnrichmentSkipped(_ context.Context, collection string, id any, enricher string) error {
+	return s.setEnrichmentField(collection, id, enricher+"_skipped", true)
 }
 
 // setEnrichmentField writes enrichments.<field> on the document with _id id;
