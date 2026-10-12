@@ -3,12 +3,13 @@ id: 0014-5fn
 title: Project-scoped service API, WebSocket and MCP over HTTPS
 purpose: Serve the plan and story service, the WebSocket and the MCP endpoint on the clued server for a project chosen per request.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.232Z"
-updated: "2026-10-12T21:14:55.227Z"
+updated: "2026-10-12T21:36:26.861Z"
 started: "2026-10-12T21:14:55.227Z"
+completed: "2026-10-12T21:36:26.861Z"
 tags:
   - server
   - remote
@@ -65,10 +66,10 @@ progress:
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./server/... ./session/sessionmcp/
-- [ ] Two projects see different plans through `/api/v1/plans`, `/ws` and `/mcp` on one server
-- [ ] A project outside the token's list gets 403 on all three; a missing project gets 400
-- [ ] `tools/list` on the HTTPS `/mcp` endpoint contains no `restore_session` or `prime_context`; `mind-palace serve` still works locally
+- [x] VERIFY: cd mind-palace && go test -race ./server/... ./session/sessionmcp/
+- [x] Two projects see different plans through `/api/v1/plans`, `/ws` and `/mcp` on one server
+- [x] A project outside the token's list gets 403 on all three; a missing project gets 400
+- [x] `tools/list` on the HTTPS `/mcp` endpoint contains no `restore_session` or `prime_context`; `mind-palace serve` still works locally
 
 ## Files
 

@@ -3,11 +3,12 @@ id: 0015-mvd
 title: End-to-end test, Docker image published to GHCR, and server docs
 purpose: Prove the whole remote loop in one test and ship the server as a published image with documentation.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.261Z"
-updated: "2026-10-12T20:09:05.261Z"
+updated: "2026-10-12T21:36:17.235Z"
+started: "2026-10-12T21:36:17.235Z"
 tags:
   - server
   - remote
