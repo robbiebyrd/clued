@@ -495,9 +495,9 @@ func toolNames(t *testing.T, ctx context.Context, cs *mcp.ClientSession) []strin
 	return names
 }
 
-var sessionToolNames = []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "read_transcript", "restore_session"}
+var sessionToolNames = []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "read_transcript", "restore_session", "prime_context"}
 
-func TestSessionMCPListsTheSixTools(t *testing.T) {
+func TestSessionMCPListsTheSevenTools(t *testing.T) {
 	sessionEnv(t, seedSessions(t))
 	rc, cs, ctx := startStdioCommand(t, "session", "--config", filepath.Join(t.TempDir(), "none.json"), "mcp")
 
