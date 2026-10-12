@@ -1,8 +1,23 @@
 #!/usr/bin/env bash
 # Session-start health check: prints one systemMessage listing whatever is missing.
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CLUED="${PLUGIN_ROOT}/scripts/clued"
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 INSTALL_CMD="go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest"
+
+# Remote mode: config.json names a clued server (the environment wins).
+SERVER_URL=""
+if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
+  SERVER_URL=$(jq -r '.serverUrl // empty' "$CONFIG_FILE" 2>/dev/null)
+fi
+SERVER_URL="${CLUED_SERVER_URL:-$SERVER_URL}"
+
+# What the binary serves in this mode, for the missing-binary message.
+if [[ -n "$SERVER_URL" ]]; then
+  NEEDS_BINARY="the hook relay and the MCP servers"
+else
+  NEEDS_BINARY="the session daemon and the MCP servers"
+fi
 
 problems=()
 if [[ ! -f "$CONFIG_FILE" ]]; then
@@ -10,16 +25,104 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
 fi
 # scripts/clued --locate resolves the binary the same way every hook and MCP server
 # does: the bundled binary for this platform, then PATH, then a downloaded release.
-if ! "${PLUGIN_ROOT}/scripts/clued" --locate &>/dev/null; then
-  problems+=("clued: no mind-palace binary is bundled for $(uname -s)/$(uname -m) and none is on PATH or in ~/.claude/plugins/data/clued/bin, so the session daemon and the MCP servers cannot start. Install it with: ${INSTALL_CMD} (or download a release binary from github.com/robbiebyrd/clued/releases)")
+have_binary=1
+if ! "$CLUED" --locate &>/dev/null; then
+  have_binary=0
+  problems+=("clued: no mind-palace binary is bundled for $(uname -s)/$(uname -m) and none is on PATH or in ~/.claude/plugins/data/clued/bin, so ${NEEDS_BINARY} cannot start. Install it with: ${INSTALL_CMD} (or download a release binary from github.com/robbiebyrd/clued/releases)")
+fi
+
+# project_slug prints the project slug of the repository in the current
+# directory, derived from its git origin the way the server's projects.Slug
+# does: host and path lower-cased, user info, port, the leading "/" and a
+# trailing ".git" removed, "/" encoded as "__", other characters replaced by
+# "-". It prints nothing (and fails) when there is no origin.
+project_slug() {
+  local origin host path rest part parts slug
+  origin=$(git remote get-url origin 2>/dev/null) || return 1
+  origin=$(printf '%s' "$origin" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+  [[ -n "$origin" ]] || return 1
+  if [[ "$origin" == *://* ]]; then
+    rest="${origin#*://}"
+    host="${rest%%/*}"
+    path=""
+    [[ "$rest" == */* ]] && path="/${rest#*/}"
+  elif [[ "$origin" == *:* && "${origin%%:*}" != */* ]]; then
+    # scp-like: [user@]host:path
+    host="${origin%%:*}"
+    path="${origin#*:}"
+  else
+    host=""
+    path="$origin"
+  fi
+  host="${host##*@}"
+  [[ "$host" == *"]"* ]] || host="${host%:*}"
+  host="${host#[}"
+  host="${host%]}"
+  path="${path//\\//}"
+  path="${path#"${path%%[!/]*}"}"
+  path="${path%"${path##*[!/]}"}"
+  path="${path%.git}"
+  path="${path#"${path%%[!/]*}"}"
+  path="${path%"${path##*[!/]}"}"
+  parts=()
+  IFS='/' read -ra parts <<< "$path"
+  slug="$host"
+  for part in "${parts[@]}"; do
+    [[ -n "$part" && "$part" != "." && "$part" != ".." ]] && slug+="${slug:+__}${part}"
+  done
+  slug=$(printf '%s' "$slug" | sed -E 's/[^a-z0-9._-]+/-/g; s/^[._-]+//; s/[._-]+$//; :a; s/\.\./\./g; ta' | cut -c1-200 | sed -E 's/[._-]+$//')
+  [[ -n "$slug" ]] || return 1
+  printf '%s' "$slug"
+}
+
+# In remote mode the connectivity probe is `session whoami`: it fails with
+# exit 10 (StorageError) both when the server cannot be reached and when it
+# rejects the token, and its error envelope on stderr tells which.
+if [[ -n "$SERVER_URL" && "$have_binary" -eq 1 ]] && command -v jq &>/dev/null; then
+  WHOAMI_OUT=$(mktemp) && WHOAMI_ERR=$(mktemp)
+  trap 'rm -f "$WHOAMI_OUT" "$WHOAMI_ERR"' EXIT
+  "$CLUED" --compact session whoami >"$WHOAMI_OUT" 2>"$WHOAMI_ERR"
+  code=$?
+  if (( code != 0 )); then
+    err_msg=$(grep -m1 '^{' "$WHOAMI_ERR" | jq -r '.error.message // empty' 2>/dev/null)
+    detail="${err_msg:+ ($err_msg)}"
+    case "$code" in
+      10)
+        case "$err_msg" in
+          *unauthorized*)
+            problems+=("clued: the server ${SERVER_URL} rejected the token${detail}; run /clued-setup with a valid token. Until then every hook buffers its events in the WAL") ;;
+          *"dial tcp"*|*"connection refused"*|*"no such host"*|*"deadline exceeded"*|*"Client.Timeout"*|*"TLS"*|*"certificate"*)
+            problems+=("clued: the server ${SERVER_URL} is unreachable${detail}; events are buffered in the WAL until it answers") ;;
+          *)
+            problems+=("clued: the server ${SERVER_URL} is unreachable or rejected the token${detail}; events are buffered in the WAL until it answers") ;;
+        esac
+        ;;
+      *)
+        problems+=("clued: the connectivity probe of ${SERVER_URL} (mind-palace session whoami) failed with exit ${code}${detail}")
+        ;;
+    esac
+  elif slug=$(project_slug); then
+    # The session routes are scoped by account alone, but plans and stories
+    # live under the project, which the token must list ("*" covers all).
+    if ! jq -e --arg p "$slug" '(.result.projects // []) | any(. == "*" or . == $p)' "$WHOAMI_OUT" >/dev/null 2>&1; then
+      token_name=$(jq -r '.result.name // empty' "$WHOAMI_OUT" 2>/dev/null)
+      listed=$(jq -r '(.result.projects // []) | join(", ")' "$WHOAMI_OUT" 2>/dev/null)
+      problems+=("clued: the token${token_name:+ \"$token_name\"} for ${SERVER_URL} does not cover this project (${slug}); it covers: ${listed:-no project}. Plans and stories stay unavailable here until the server operator runs: mind-palace server token grant ${token_name:-<name>} --project ${slug}")
+    fi
+  fi
 fi
 
 if (( ${#problems[@]} > 0 )); then
   # A hook may print a single JSON object, so every problem goes into one message.
-  # The messages are fixed strings without quotes or backslashes, so no escaping is needed.
   joined=""
   for p in "${problems[@]}"; do
     joined+="${joined:+; }${p}"
   done
-  printf '{"systemMessage":"%s"}\n' "$joined"
+  if command -v jq &>/dev/null; then
+    jq -cn --arg m "$joined" '{systemMessage: $m}'
+  else
+    # Without jq only the fixed local-mode strings can be here; they hold no
+    # quotes or backslashes, so no escaping is needed.
+    printf '{"systemMessage":"%s"}\n' "$joined"
+  fi
 fi
