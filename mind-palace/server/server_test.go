@@ -265,7 +265,17 @@ func TestCluedWebSocketIsProjectScoped(t *testing.T) {
 		}
 	}
 	wsSend(t, ca, `{"id":2,"op":"create","params":{"input":`+planInput(t)+`}}`)
-	f := wsRecv(t, ca)
+	// The response and the plan.created event are written by different
+	// goroutines, so either may arrive first; read both before judging.
+	var f, ev frame
+	for i := 0; i < 2; i++ {
+		switch fr := wsRecv(t, ca); {
+		case fr.Event != "":
+			ev = fr
+		default:
+			f = fr
+		}
+	}
 	if f.OK == nil || !*f.OK {
 		t.Fatalf("create on a: %+v", f)
 	}
@@ -273,8 +283,8 @@ func TestCluedWebSocketIsProjectScoped(t *testing.T) {
 		FrontMatter struct{ ID string } `json:"frontMatter"`
 	}
 	json.Unmarshal(f.Result, &plan)
-	if f := wsRecv(t, ca); f.Event != "plan.created" || f.DocID != plan.FrontMatter.ID {
-		t.Errorf("a's event: %+v", f)
+	if ev.Event != "plan.created" || ev.DocID != plan.FrontMatter.ID {
+		t.Errorf("a's event: %+v", ev)
 	}
 	wsSend(t, cb, `{"id":3,"op":"list"}`)
 	if f := wsRecv(t, cb); f.Event != "" || string(f.ID) != "3" || string(f.Result) != "[]" {
