@@ -2,11 +2,11 @@
 id: 0006-tsw
 title: 'Clued server: remote HTTPS storage for sessions, plans and stories'
 type: dsgn
-status: pending
+status: ready
 priority: "2"
 effort: XL
 created: "2026-10-12T19:57:12.904Z"
-updated: "2026-10-12T19:57:12.904Z"
+updated: "2026-10-12T20:09:49.469Z"
 tags:
   - server
   - remote
@@ -28,44 +28,76 @@ progress:
     status: pending
   "1.1":
     status: pending
+    stories:
+      - 0002-ctl
   "1.2":
     status: pending
+    stories:
+      - 0003-sd3
   "1.3":
     status: pending
+    stories:
+      - 0004-n6z
   "1.4":
     status: pending
+    stories:
+      - 0005-owt
   "2":
     status: pending
   "2.1":
     status: pending
+    stories:
+      - 0006-cxf
   "2.2":
     status: pending
+    stories:
+      - 0007-frt
   "2.3":
     status: pending
+    stories:
+      - 0008-gep
   "2.4":
     status: pending
+    stories:
+      - 0009-pdw
   "3":
     status: pending
   "3.1":
     status: pending
+    stories:
+      - 0010-54u
   "3.2":
     status: pending
+    stories:
+      - 0011-zbb
   "3.3":
     status: pending
+    stories:
+      - 0012-gbx
   "4":
     status: pending
   "4.1":
     status: pending
+    stories:
+      - 0013-m3a
   "4.2":
     status: pending
+    stories:
+      - 0014-5fn
   "4.3":
     status: pending
+    stories:
+      - 0015-mvd
   "5":
     status: pending
   "5.1":
     status: pending
+    stories:
+      - 0016-pu9
   "5.2":
     status: pending
+    stories:
+      - 0017-k62
 ---
 
 # Clued server: remote HTTPS storage for sessions, plans and stories
