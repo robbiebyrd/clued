@@ -9,7 +9,7 @@ import (
 
 func TestSessionStartSurfacesShimErrorFromDaemonLog(t *testing.T) {
 	home := t.TempDir()
-	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "CLUED_PORT=" + closedPort(t), "CLUED_DIST_DIR=" + t.TempDir()}
+	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "CLUED_PORT=" + closedPort(t), "CLUED_RELEASE_URL=off"}
 	r := runScript(t, filepath.Join(repoRoot(t), "hooks/session-start"), "", env)
 	if r.code != 0 {
 		t.Fatalf("code = %d", r.code)
@@ -30,8 +30,8 @@ func TestSessionStartSurfacesShimErrorFromDaemonLog(t *testing.T) {
 
 func TestSessionStartRecordsTheBinaryTheDaemonWasStartedFrom(t *testing.T) {
 	home := t.TempDir()
-	dist := fakeDist(t, "bundled")
-	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "CLUED_PORT=" + closedPort(t), "CLUED_DIST_DIR=" + dist}
+	rel := pinnedRelease(t, "release")
+	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "CLUED_PORT=" + closedPort(t), "CLUED_RELEASE_URL=" + rel.url}
 	r := runScript(t, filepath.Join(repoRoot(t), "hooks/session-start"), "", env)
 	if r.code != 0 {
 		t.Fatalf("code = %d", r.code)

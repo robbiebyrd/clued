@@ -29,7 +29,7 @@ the server, bound to an account and a list of projects, and stored hashed.
 
 Any `mind-palace` binary (a release asset, `go install
 github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`, or the one
-bundled with the plugin) serves:
+the plugin downloaded) serves:
 
 ```bash
 mind-palace server token create --name laptop --project '*'          # prints the token once

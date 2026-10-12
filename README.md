@@ -31,12 +31,14 @@ for the plan and story service in depth.
   MongoDB; plans and stories do not need either.
 - `jq` (optional but recommended): the bash hooks use it to read the config
   file and to mirror the hook entries into `settings.json`.
-- Nothing else: the `mind-palace` binary ships with the plugin, pre-built for
-  macOS (Intel and Apple Silicon), Linux (amd64, arm64, 32-bit arm) and Windows
-  (amd64, arm64), so no Go toolchain is needed. On another platform install it
-  with `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`
-  (and put `$(go env GOPATH)/bin` on the PATH Claude Code inherits) or download
-  a release asset; `/clued-setup` covers both.
+- Nothing else: the `mind-palace` binary is downloaded on first use from the
+  GitHub release the plugin pins, pre-built for macOS (Intel and Apple
+  Silicon), Linux (amd64, arm64, 32-bit arm) and Windows (amd64, arm64), so
+  no Go toolchain is needed (`curl` or `wget` fetches it). On another platform,
+  or without access to github.com, install it with
+  `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`
+  (and put `$(go env GOPATH)/bin` on the PATH Claude Code inherits) or copy
+  a release asset into place; `/clued-setup` covers both.
 
 ## Install
 
@@ -108,21 +110,25 @@ Events relayed to the daemon: `PreToolUse`, `PostToolUse`,
    `<devRepoPath>/mind-palace`, rebuilt whenever a `.go` file there is newer
    than the binary. This wins over everything below, so plugin developers run
    their own checkout.
-2. The binary bundled with the plugin: `dist/mind-palace_<os>_<arch>[.exe].gz`
-   for the `uname -s` / `uname -m` of this machine, unpacked on first use into
-   `~/.claude/plugins/data/clued/bin/bundled/<sha256>/` and verified against
-   `dist/SHA256SUMS`. A plugin update brings new archives, so a new hash
-   triggers a fresh unpack and the old copy is removed. Needs `gzip` and
-   `sha256sum` or `shasum`.
+2. The release the plugin pins: the `version` in `.claude-plugin/plugin.json`
+   names the GitHub release `v<version>`, whose `mind-palace_<os>_<arch>[.exe]`
+   asset for the `uname -s` / `uname -m` of this machine is downloaded on
+   first use into `~/.claude/plugins/data/clued/bin/releases/v<version>/`
+   and verified against the release's `SHA256SUMS`. A plugin update that
+   bumps the version fetches the new release and removes the old copy. Needs
+   `curl` or `wget` and `sha256sum` or `shasum`; a failed download is retried
+   ten minutes later, not on every hook. `CLUED_RELEASE_URL` points the
+   download at a mirror (`off` disables it).
 3. `mind-palace` on the PATH.
-4. `~/.claude/plugins/data/clued/bin/mind-palace`, the release asset
-   `mind-palace_<os>_<arch>` downloaded by `/clued-setup`.
+4. `~/.claude/plugins/data/clued/bin/mind-palace`, a binary placed there by
+   hand (or by `/clued-setup` when the download is not possible).
 
 `scripts/clued --locate` prints the path that would run; `check-setup` uses it at
 session start and warns when nothing resolves. `session-start` records the
 path the daemon was started from and restarts the daemon when that path
-changes (a plugin update unpacks to a new hash directory) or a dev rebuild
-happened; relaunch Claude Code to reconnect the MCP servers to the new build.
+changes (a plugin update downloads into a new version directory) or a dev
+rebuild happened; relaunch Claude Code to reconnect the MCP servers to the new
+build.
 
 ## Session capture
 
@@ -499,24 +505,24 @@ starts.
 (`.github/workflows/mind-palace.yml`) runs all of this against a MongoDB
 service container.
 
-### Bundled binaries
+### Release binaries
 
-`scripts/build-binaries.sh` cross-compiles `mind-palace` for
-darwin/{amd64,arm64}, linux/{amd64,arm64,arm} and windows/{amd64,arm64}
-(Go has no windows/arm target and Claude Code does not run on 32-bit x86;
-linux/arm is built with `GOARM=6` so it runs on ARMv6 and ARMv7),
-gzips each one into `dist/` and writes `dist/SHA256SUMS` with the
-hashes of the uncompressed binaries. The builds are reproducible (CGO off,
-`-trimpath`, no VCS stamp, the toolchain pinned to `go.mod`), so CI's
-`binaries` job rebuilds them and fails when the committed hashes differ.
-After changing Go code, run the script and commit `dist/` with the change.
-Each rebuild adds about 100 MB of archives to the repository history, so
-rebuild per change set rather than per commit.
+No binary is committed. `scripts/build-binaries.sh [DIR]` cross-compiles
+`mind-palace` for darwin/{amd64,arm64}, linux/{amd64,arm64,arm} and
+windows/{amd64,arm64} (Go has no windows/arm target and Claude Code does not
+run on 32-bit x86; linux/arm is built with `GOARM=6` so it runs on ARMv6 and
+ARMv7) and writes `SHA256SUMS` next to them, into the git-ignored `dist/` by
+default. The builds are reproducible (CGO off, `-trimpath`, no VCS stamp, the
+toolchain pinned to `go.mod`). CI's `binaries` job runs it on every push to
+prove each target compiles and keeps the output as a workflow artifact for a
+week.
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`, which runs the same
-script with `--raw` and attaches the uncompressed `mind-palace_<os>_<arch>`
-binaries and `SHA256SUMS` to the GitHub release that `/clued-setup` falls
-back to on platforms without a bundled binary.
+Releasing is CI's job: bump `version` in `.claude-plugin/plugin.json`, merge,
+and push the matching `v<version>` tag. `.github/workflows/release.yml`
+refuses a tag that does not match the manifest, builds the binaries and
+attaches them with `SHA256SUMS` to the GitHub release. `scripts/clued` on
+every machine then downloads the asset of exactly that release, so the
+binary a plugin install runs always matches the hooks it shipped with.
 
 To run the plugin against your own checkout, add `"devRepoPath": "/path/to/clued"`
 to the config file: `scripts/clued` rebuilds the binary when sources change and

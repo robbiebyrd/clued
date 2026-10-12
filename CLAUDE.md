@@ -11,9 +11,9 @@ binary.
 | Path | What it is |
 |---|---|
 | `hooks.json`, `hooks/` | Hook registrations and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `install-remember-listener`, `uninstall`) |
-| `scripts/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the bundled binary, then PATH, then `~/.claude/plugins/data/clued/bin`); `--locate` prints the choice |
-| `dist/` | Pre-built `mind-palace_<os>_<arch>[.exe].gz` for 7 platforms plus `SHA256SUMS`; produced by `scripts/build-binaries.sh`, unpacked by the shim on first use |
-| `scripts/build-binaries.sh` | Reproducible cross-compile of the bundled binaries (`--check` verifies them, `--raw DIR` builds release assets) |
+| `scripts/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the release pinned by `.claude-plugin/plugin.json`'s `version`, downloaded once into `~/.claude/plugins/data/clued/bin/releases/v<version>/`, then PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`); `--locate` prints the choice |
+| `.claude-plugin/plugin.json` | The plugin manifest; its `version` names the GitHub release (`v<version>`) whose binaries the shim downloads |
+| `scripts/build-binaries.sh` | Reproducible cross-compile of `mind-palace` for 7 platforms plus `SHA256SUMS` into a directory (`dist/` by default, git-ignored); run by CI and by the release workflow, never committed |
 | `.mcp.json` | The two stdio MCP servers the plugin registers: `clued` (session tools) and `mind-palace` (plan and story tools) |
 | `commands/`, `skills/` | `/clued-setup`, `/clued-uninstall`, and the `plan-storage` skill |
 | `mind-palace/` | The Go module (`github.com/robbiebyrd/clued/mind-palace`); see its README for the package map |
@@ -68,12 +68,12 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   `CLUED_SERVER_ADDR`, `CLUED_SERVER_TLS_CERT`, `CLUED_SERVER_TLS_KEY`,
   `CLUED_SERVER_BEHIND_PROXY`, `CLUED_SERVER_TOKENS`; `--store memory` for
   tests) and `mind-palace server token create|list|revoke|grant`.
-- The binaries under `dist/` must match the Go source: after changing
-  anything the binary compiles in, run `scripts/build-binaries.sh` from the
-  repository root and commit `dist/` in the same change. CI's `binaries`
-  job runs `scripts/build-binaries.sh --check` and fails on a mismatch. Each
-  rebuild adds about 100 MB to the repository, so rebuild once per change
-  set, not per commit.
+- No binary is committed. CI's `binaries` job cross-compiles every target
+  on each push (and keeps them as a workflow artifact); the binaries users
+  run come from GitHub releases. A change the binary compiles in reaches
+  plugin installs only through a release: bump `version` in
+  `.claude-plugin/plugin.json` and, once merged, push the matching
+  `v<version>` tag.
 
 ## Conventions
 
@@ -117,7 +117,7 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   MCP tools (or `mind-palace plan create`), stories with `story_*`, and both
   change through the setters (`plan_setStatus`, `story_setCriterion`, …) or
   `plan_update` / `story_update` for the content.
-- Releases: push a `v*` tag; `.github/workflows/release.yml` runs
-  `scripts/build-binaries.sh --raw` and uploads the `mind-palace_<os>_<arch>`
-  assets and `SHA256SUMS` that `/clued-setup` falls back to on platforms
-  without a bundled binary.
+- Releases: push the `v<version>` tag that matches `.claude-plugin/plugin.json`;
+  `.github/workflows/release.yml` checks that, runs `scripts/build-binaries.sh`
+  and uploads the `mind-palace_<os>_<arch>` assets and `SHA256SUMS` that
+  `scripts/clued` downloads on first use.

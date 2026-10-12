@@ -30,7 +30,7 @@ Use AskUserQuestion to confirm scope before touching anything. Example options:
 
 - **Services** (only if the daemon is running; in clued server mode nothing runs on this machine): stop the daemon (port 8085); the MCP server is started by Claude Code and ends with the session
 - **launchd plist** (macOS, only if plist is present): unload and remove `~/Library/LaunchAgents/org.mongodb.mongod.plist`
-- **Config** (only if present): remove `~/.claude/plugins/data/clued/` (includes `bin/`, which holds the unpacked bundled binary and any downloaded one, and in server mode the token in `config.json`, the WAL of events the server has not received yet, the catch-up state and the relay log) and remove any legacy `mcpServers.clued` entry from `~/.claude/settings.json`
+- **Config** (only if present): remove `~/.claude/plugins/data/clued/` (includes `bin/`, which holds the downloaded release binary, and in server mode the token in `config.json`, the WAL of events the server has not received yet, the catch-up state and the relay log) and remove any legacy `mcpServers.clued` entry from `~/.claude/settings.json`
 - **Relay state** (clued server mode, when the user keeps the config): remove `~/.claude/plugins/data/clued/catchup/` (per-session transcript offsets and lock files) and `~/.claude/plugins/data/clued/relay.log`; the next hook resumes from the start of each transcript, which the server deduplicates
 - **MongoDB binaries** (only if `~/mongodb/` is present): remove the tarball install at `~/mongodb/`
   - Note: MongoDB data at `~/data/db/` contains session transcripts — offer to keep or remove separately
@@ -65,7 +65,7 @@ echo "launchd plist removed"
 
 The stdio MCP server is declared by the plugin's `.mcp.json` and goes away with the plugin. Older setups may have left a `"clued"` key under `mcpServers` in `~/.claude/settings.json`; if present, remove it with the Edit tool. If `mcpServers` becomes empty, remove it entirely.
 
-Then remove the config directory, which also holds `bin/` with the unpacked bundled binary and any downloaded one, and in server mode `catchup/` and `relay.log`. A `mind-palace` installed with `go install` lives in `$(go env GOPATH)/bin` and is not touched:
+Then remove the config directory, which also holds `bin/` with the downloaded release binary, and in server mode `catchup/` and `relay.log`. A `mind-palace` installed with `go install` lives in `$(go env GOPATH)/bin` and is not touched:
 ```bash
 rm -rf ~/.claude/plugins/data/clued
 echo "config and binary dirs removed"

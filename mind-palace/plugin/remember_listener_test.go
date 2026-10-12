@@ -96,7 +96,7 @@ func TestInstallRememberListenerFindsInstalledPluginsFile(t *testing.T) {
 
 func TestSessionStartInstallsTheRememberListener(t *testing.T) {
 	root := fakeRemember(t, "after_save", "after_consolidate")
-	env := []string{"HOME=" + t.TempDir(), "PATH=/usr/bin:/bin", "CLUED_PORT=" + closedPort(t), "CLUED_DIST_DIR=" + t.TempDir(), "CLUED_REMEMBER_ROOTS=" + root}
+	env := []string{"HOME=" + t.TempDir(), "PATH=/usr/bin:/bin", "CLUED_PORT=" + closedPort(t), "CLUED_RELEASE_URL=off", "CLUED_REMEMBER_ROOTS=" + root}
 	if r := runScript(t, filepath.Join(repoRoot(t), "hooks/session-start"), "", env); r.code != 0 {
 		t.Fatalf("session-start: %+v", r)
 	}

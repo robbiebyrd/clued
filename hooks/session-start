@@ -54,9 +54,9 @@ if [[ -n "$DEV_REPO" ]]; then
 fi
 
 # The daemon is detached and outlives plugin updates. The path scripts/clued
-# resolves changes when a new bundled binary is unpacked (it is keyed by the
-# binary's hash), so compare it with the path recorded at the last daemon
-# start and restart a daemon that is running an older build.
+# resolves changes when a plugin update pins a new release (it is keyed by
+# the release version), so compare it with the path recorded at the last
+# daemon start and restart a daemon that is running an older build.
 BINARY_MARKER="${DATA_DIR}/daemon.binary"
 RESOLVED="$("$CLUED" --locate 2>/dev/null)"
 if [[ -n "$RESOLVED" ]] && daemon_ok && [[ "$(cat "$BINARY_MARKER" 2>/dev/null)" != "$RESOLVED" ]]; then

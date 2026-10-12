@@ -6,11 +6,11 @@ on:
       - 'mind-palace/**'
       - 'hooks/**'
       - 'hooks.json'
-      - 'dist/**'
       - 'skills/**'
       - 'commands/**'
       - 'scripts/**'
       - '.mcp.json'
+      - '.claude-plugin/plugin.json'
       - 'Dockerfile.server'
       - '.dockerignore'
       - '.github/workflows/mind-palace.yml'
@@ -19,11 +19,11 @@ on:
       - 'mind-palace/**'
       - 'hooks/**'
       - 'hooks.json'
-      - 'dist/**'
       - 'skills/**'
       - 'commands/**'
       - 'scripts/**'
       - '.mcp.json'
+      - '.claude-plugin/plugin.json'
       - 'Dockerfile.server'
       - '.dockerignore'
       - '.github/workflows/mind-palace.yml'
@@ -61,7 +61,9 @@ jobs:
           MIND_PALACE_TEST_MONGODB_URI: mongodb://127.0.0.1:27017
 
   binaries:
-    # The archives under dist/ must be rebuilt from the current Go source.
+    # Every platform the plugin supports must still compile; the binaries
+    # are kept as a workflow artifact for a week (release.yml publishes the
+    # ones scripts/clued downloads, on v* tags) and never committed.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +71,14 @@ jobs:
         with:
           go-version-file: mind-palace/go.mod
           cache-dependency-path: mind-palace/go.sum
-      - run: scripts/build-binaries.sh --check
+      - name: The plugin manifest pins a release
+        run: jq -e '.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")' .claude-plugin/plugin.json
+      - run: scripts/build-binaries.sh "$RUNNER_TEMP/binaries"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mind-palace-binaries
+          path: ${{ runner.temp }}/binaries
+          retention-days: 7
 
   image:
     # Dockerfile.server must keep building from the current source; the

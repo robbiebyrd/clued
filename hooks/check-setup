@@ -24,11 +24,13 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
   problems+=("clued: run /clued-setup to finish configuring this plugin")
 fi
 # scripts/clued --locate resolves the binary the same way every hook and MCP server
-# does: the bundled binary for this platform, then PATH, then a downloaded release.
+# does: the release the plugin pins (downloaded on first use), then PATH, then
+# a manually installed binary. Its stderr says why a download failed.
 have_binary=1
-if ! "$CLUED" --locate &>/dev/null; then
+if ! locate_err=$("$CLUED" --locate 2>&1 >/dev/null); then
   have_binary=0
-  problems+=("clued: no mind-palace binary is bundled for $(uname -s)/$(uname -m) and none is on PATH or in ~/.claude/plugins/data/clued/bin, so ${NEEDS_BINARY} cannot start. Install it with: ${INSTALL_CMD} (or download a release binary from github.com/robbiebyrd/clued/releases)")
+  reason=$(printf '%s\n' "$locate_err" | grep -m1 '^clued: ' | sed 's/^clued: //')
+  problems+=("clued: no mind-palace binary for $(uname -s)/$(uname -m)${reason:+ ($reason)}: the pinned release could not be downloaded and none is on PATH or in ~/.claude/plugins/data/clued/bin, so ${NEEDS_BINARY} cannot start. Install it with: ${INSTALL_CMD} (or download a release binary from github.com/robbiebyrd/clued/releases)")
 fi
 
 # project_slug prints the project slug of the repository in the current

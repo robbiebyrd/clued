@@ -173,7 +173,7 @@ Ask the user for their full connection string (e.g. `mongodb+srv://...` for Atla
 
 ## Step 5 — Check the mind-palace binary
 
-clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP servers (in server mode: for the hook relay, backfill and MCP servers). The plugin ships it pre-built for macOS (Intel and Apple Silicon), Linux (amd64, arm64 and 32-bit arm) and Windows (amd64 and arm64) under `dist/`, so no Go toolchain is needed. The `scripts/clued` shim unpacks the archive for this machine on first use into `~/.claude/plugins/data/clued/bin/bundled/<sha256>/` and checks it against `dist/SHA256SUMS`.
+clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP servers (in server mode: for the hook relay, backfill and MCP servers). Every release publishes it pre-built for macOS (Intel and Apple Silicon), Linux (amd64, arm64 and 32-bit arm) and Windows (amd64 and arm64), so no Go toolchain is needed. The `scripts/clued` shim downloads the asset for this machine from the release the plugin pins (the `version` in `.claude-plugin/plugin.json`) on first use into `~/.claude/plugins/data/clued/bin/releases/v<version>/` and checks it against the release's `SHA256SUMS`; it needs `curl` or `wget` and `sha256sum` or `shasum`.
 
 Confirm the shim can find a binary (`${CLAUDE_PLUGIN_ROOT}` is the plugin root; see Step 8 if it is not set):
 
@@ -181,9 +181,9 @@ Confirm the shim can find a binary (`${CLAUDE_PLUGIN_ROOT}` is the plugin root; 
 "${CLAUDE_PLUGIN_ROOT}/scripts/clued" --locate
 ```
 
-It prints the path of the binary that will run and exits 0. Nothing more to do when it succeeds.
+It prints the path of the binary that will run and exits 0 (the first run downloads, so give it a moment). Nothing more to do when it succeeds.
 
-Only when it exits 1 (an unsupported platform, or `gzip`/`sha256sum`/`shasum` missing) install the binary another way. If `go` is present (`command -v go`):
+Only when it exits 1 (no network access to github.com, an unsupported platform, or `curl`/`wget`/`sha256sum`/`shasum` missing; its stderr says which) install the binary another way. If `go` is present (`command -v go`):
 
 ```bash
 go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest
@@ -191,18 +191,19 @@ go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest
 
 Make sure `$(go env GOPATH)/bin` is on the PATH that Claude Code inherits.
 
-Otherwise download the release asset for this machine into the plugin data directory (`uname -s` gives `darwin` or `linux` once lowercased; `x86_64` maps to `amd64`, `aarch64` to `arm64`, `armv7l` to `arm`):
+Otherwise copy the release asset for this machine (from another machine, or a browser) into the plugin data directory. The release is `v<version>` for the `version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`; `uname -s` gives `darwin` or `linux` once lowercased; `x86_64` maps to `amd64`, `aarch64` to `arm64`, `armv7l` to `arm`:
 
 ```bash
+VERSION=$(jq -r .version "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json")
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 case "$(uname -m)" in x86_64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; armv7l) ARCH=arm ;; esac
 mkdir -p ~/.claude/plugins/data/clued/bin
-curl -fsSL "https://github.com/robbiebyrd/clued/releases/latest/download/mind-palace_${OS}_${ARCH}" \
+curl -fsSL "https://github.com/robbiebyrd/clued/releases/download/v${VERSION}/mind-palace_${OS}_${ARCH}" \
   -o ~/.claude/plugins/data/clued/bin/mind-palace
 chmod +x ~/.claude/plugins/data/clued/bin/mind-palace
 ```
 
-`scripts/clued` resolves the binary in this order: a dev build when `devRepoPath` is set, the bundled binary, `mind-palace` on PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`.
+`scripts/clued` resolves the binary in this order: a dev build when `devRepoPath` is set, the pinned release, `mind-palace` on PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`.
 
 ## Step 6 — Write config file
 
@@ -334,7 +335,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/register-hooks"
 
 - Where the data goes: the MongoDB option and URL, or the clued server URL and the token name and projects `session whoami` reported
 - Config written to `~/.claude/plugins/data/clued/config.json` (mode `0600` in server mode, it holds the token)
-- mind-palace binary location as printed by `scripts/clued --locate` (bundled with the plugin, on PATH, or in `~/.claude/plugins/data/clued/bin/`)
+- mind-palace binary location as printed by `scripts/clued --locate` (the downloaded release under `~/.claude/plugins/data/clued/bin/releases/`, on PATH, or `~/.claude/plugins/data/clued/bin/mind-palace`)
 - MCP servers (`clued` session tools, `mind-palace` plan and story tools) provided by the plugin's `.mcp.json` over stdio — start a new session to load them
 - Local MongoDB: daemon on port 8085 — running or failed with error
 - clued server: nothing runs on this machine; each hook relays to the server, failures are logged to `~/.claude/plugins/data/clued/relay.log` and buffered in the WAL until the server answers; if the project was not covered, the `server token grant` command the operator must run

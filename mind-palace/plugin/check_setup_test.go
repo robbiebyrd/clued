@@ -10,15 +10,16 @@ import (
 
 const checkSetupInstallCmd = "go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest"
 
-// runCheckSetup runs hooks/check-setup with no bundled binaries unless dist is set.
+// runCheckSetup runs hooks/check-setup with the release download switched off.
 func runCheckSetup(t *testing.T, home, path string) result {
 	t.Helper()
-	return runCheckSetupWithDist(t, home, path, t.TempDir())
+	return runCheckSetupWithRelease(t, home, path, "off")
 }
 
-func runCheckSetupWithDist(t *testing.T, home, path, dist string) result {
+// runCheckSetupWithRelease runs hooks/check-setup downloading releases from releaseURL.
+func runCheckSetupWithRelease(t *testing.T, home, path, releaseURL string) result {
 	t.Helper()
-	return runScript(t, filepath.Join(repoRoot(t), "hooks/check-setup"), "", []string{"HOME=" + home, "PATH=" + path, "CLUED_DIST_DIR=" + dist})
+	return runScript(t, filepath.Join(repoRoot(t), "hooks/check-setup"), "", []string{"HOME=" + home, "PATH=" + path, "CLUED_RELEASE_URL=" + releaseURL})
 }
 
 func homeWithConfig(t *testing.T) string {
@@ -89,18 +90,22 @@ func TestCheckSetupSilentWhenDownloadedBinaryExists(t *testing.T) {
 	}
 }
 
-func TestCheckSetupSilentWhenBundledBinaryExists(t *testing.T) {
+func TestCheckSetupSilentWhenTheReleaseDownloads(t *testing.T) {
 	home := homeWithConfig(t)
-	r := runCheckSetupWithDist(t, home, "/usr/bin:/bin", fakeDist(t, "bundled"))
+	r := runCheckSetupWithRelease(t, home, "/usr/bin:/bin", pinnedRelease(t, "release").url)
 	if r.stdout != "" {
 		t.Errorf("stdout = %q, want empty", r.stdout)
 	}
 }
 
-func TestCheckSetupNamesPlatformWhenNoBundledBinaryFits(t *testing.T) {
-	r := runCheckSetup(t, homeWithConfig(t), "/usr/bin:/bin")
+func TestCheckSetupNamesPlatformAndReleaseWhenNothingResolves(t *testing.T) {
+	home := homeWithConfig(t)
+	r := runCheckSetupWithRelease(t, home, "/usr/bin:/bin", newReleaseServer(t).url)
 	msg := systemMessage(t, r)
-	if !strings.Contains(msg, "bundled") {
-		t.Errorf("message should say no binary is bundled for this platform: %s", msg)
+	if !strings.Contains(msg, "no mind-palace binary for") || !strings.Contains(msg, "pinned release") {
+		t.Errorf("message should say no binary resolved for this platform: %s", msg)
+	}
+	if !strings.Contains(msg, "v"+pluginVersion(t)) || !strings.Contains(msg, "SHA256SUMS") {
+		t.Errorf("message should carry the shim's reason (the release that could not be fetched): %s", msg)
 	}
 }

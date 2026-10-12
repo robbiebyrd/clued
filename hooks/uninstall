@@ -64,7 +64,7 @@ if [[ -f "${DATA_DIR}/relay.log" ]]; then
   echo "clued: removed relay log"
 fi
 
-# --- Config, data and the bin/ dir with the unpacked bundled binary (inside the data dir) ---
+# --- Config, data and the bin/ dir with the downloaded release binary (inside the data dir) ---
 if [[ $KEEP_CONFIG -eq 0 && -d "$DATA_DIR" ]]; then
   rm -rf "$DATA_DIR"
   echo "clued: removed config dir and binary dir"

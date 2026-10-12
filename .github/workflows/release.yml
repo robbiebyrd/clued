@@ -19,8 +19,18 @@ jobs:
         with:
           go-version-file: mind-palace/go.mod
           cache-dependency-path: mind-palace/go.sum
+      - name: The tag matches the version the plugin pins
+        # scripts/clued downloads release v<version> of .claude-plugin/plugin.json,
+        # so a tag that names another version would publish binaries no plugin
+        # install ever fetches.
+        run: |
+          version=$(jq -r '.version // empty' .claude-plugin/plugin.json)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match .claude-plugin/plugin.json version $version" >&2
+            exit 1
+          fi
       - name: Build every platform
-        run: scripts/build-binaries.sh --raw release-assets
+        run: scripts/build-binaries.sh release-assets
       - name: Attach to release
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
