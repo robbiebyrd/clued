@@ -3,11 +3,12 @@ id: 0003-sd3
 title: Bearer-token auth with project scopes and the whoami route
 purpose: Authenticate every clued-server request with a hashed, revocable token bound to an account and a list of projects.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:04.909Z"
-updated: "2026-10-12T20:09:04.909Z"
+updated: "2026-10-12T20:35:07.919Z"
+started: "2026-10-12T20:35:07.919Z"
 tags:
   - server
   - remote

@@ -3,11 +3,12 @@ id: 0007-frt
 title: Per-hook transcript and artifact catch-up
 purpose: Push the transcript lines, subagent lines and blobs written since the previous hook without a resident tailer.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.034Z"
-updated: "2026-10-12T20:09:05.034Z"
+updated: "2026-10-12T20:35:07.987Z"
+started: "2026-10-12T20:35:07.987Z"
 tags:
   - server
   - remote

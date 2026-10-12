@@ -3,11 +3,12 @@ id: 0002-ctl
 title: Remote HTTP client and server config fields
 purpose: Give every remote adapter one authenticated, TLS-aware HTTP client and the config.json keys that switch the plugin into remote mode.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: S
 created: "2026-10-12T20:09:04.868Z"
-updated: "2026-10-12T20:09:04.868Z"
+updated: "2026-10-12T20:35:07.894Z"
+started: "2026-10-12T20:35:07.894Z"
 tags:
   - server
   - remote

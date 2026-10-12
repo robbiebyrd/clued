@@ -3,11 +3,12 @@ id: 0010-54u
 title: Per-project plan and story stores over HTTP (storeapi, projects)
 purpose: Serve store.Store per project so plans and stories from many repositories live on one server without colliding ids.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.114Z"
-updated: "2026-10-12T20:09:05.114Z"
+updated: "2026-10-12T20:35:08.025Z"
+started: "2026-10-12T20:35:08.025Z"
 tags:
   - server
   - remote

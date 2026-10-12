@@ -3,11 +3,12 @@ id: 0006-cxf
 title: Extract hook-event ingest from the session daemon
 purpose: Share the daemon's event bookkeeping with the daemon-less relay so both modes stamp, track and buffer events identically.
 type: impr
-status: pending
+status: in_progress
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:05.003Z"
-updated: "2026-10-12T20:09:05.003Z"
+updated: "2026-10-12T20:35:07.967Z"
+started: "2026-10-12T20:35:07.967Z"
 tags:
   - server
   - remote

@@ -3,11 +3,12 @@ id: 0004-n6z
 title: Serve the session store over HTTP (sessionapi)
 purpose: Expose every session.Store method as an authenticated JSON route so a client needs no database connection.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:04.939Z"
-updated: "2026-10-12T20:09:04.939Z"
+updated: "2026-10-12T20:35:07.941Z"
+started: "2026-10-12T20:35:07.941Z"
 tags:
   - server
   - remote
