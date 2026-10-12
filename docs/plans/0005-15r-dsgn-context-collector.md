@@ -2,11 +2,12 @@
 id: 0005-15r
 title: 'Context collector: `clued context` probes and `prime` for skills'
 type: dsgn
-status: in_progress
+status: complete
 priority: "2"
 effort: L
 created: "2026-10-12T14:20:39.754Z"
-updated: "2026-10-12T14:25:33.831Z"
+updated: "2026-10-12T14:45:41.283Z"
+completed: "2026-10-12T14:45:41.283Z"
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
@@ -15,41 +16,41 @@ links:
     - ["0003-7lv", "depends"]
 progress:
   "1":
-    status: pending
+    status: complete
   "1.1":
-    status: pending
+    status: complete
   "1.2":
-    status: pending
+    status: complete
   "1.3":
-    status: pending
+    status: complete
   "1.4":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "2.1":
-    status: pending
+    status: complete
   "2.2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "3.1":
-    status: pending
+    status: complete
   "3.2":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "4.1":
-    status: pending
+    status: complete
   "4.2":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "5.1":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
   "6.1":
-    status: pending
+    status: complete
 ---
 
 # Context collector: `clued context` probes and `prime` for skills
@@ -60,7 +61,7 @@ progress:
 
 **Problem:** clued captures cwd, project path, git origin and branch, account id, host details and every hook event into MongoDB, but nothing hands that knowledge back to Claude when work starts. A skill that wants a fact about the working tree (does a file exist, how many tests are there, is the tree clean, which PR is open for this branch, what is the stack) has to improvise it in Bash each time, with `jq` and shell logic that is neither portable nor testable, and nothing ties those facts to the sessions, plans and stories mind-palace already holds.
 
-**Approach:** Add a `context` domain to mind-palace in the same hexagonal layout as `session`: probe adapters behind a command-runner port, a `prime` use case that composes them with the session store and the plan/story services, and entrypoints through the existing CLI (`mind-palace context`, reached as `bin/clued context`) and the clued MCP server. The probes follow one plain-text contract (one answer on stdout, fixed sentinels, exit 0), clued-native probes are added, and a `clued-context` skill plus a `/clued-prime` command teach Claude to use them.
+**Approach:** Add a `collect` domain to mind-palace in the same hexagonal layout as `session`: probe adapters behind a command-runner port, a `prime` use case that composes them with the session store and the plan/story services, and entrypoints through the existing CLI (`mind-palace context`, reached as `bin/clued context`) and the clued MCP server. The probes follow one plain-text contract (one answer on stdout, fixed sentinels, exit 0), clued-native probes are added, and a `clued-context` skill plus a `/clued-prime` command teach Claude to use them.
 
 ---
 
@@ -76,9 +77,9 @@ progress:
 
 ## Decisions
 
-- **The collector is a `context` domain inside the mind-palace module (`mind-palace/context/...`), exposed as `mind-palace context <probe>` and therefore as `bin/clued context <probe>`.** — The plugin ships one Go binary and the shim already resolves it, so a skill needs no new install step; the domain is neither a document kind nor session data, so it gets its own package tree like `session` did.
+- **The collector is a `collect` domain inside the mind-palace module (`mind-palace/collect/...`), exposed as `mind-palace context <probe>` and therefore as `bin/clued context <probe>`.** — The plugin ships one Go binary and the shim already resolves it, so a skill needs no new install step; the domain is neither a document kind nor session data, so it gets its own package tree like `session` did. The package is named `collect`, not `context`, so it never shadows the standard library's `context` in the probes that take a `context.Context`.
 - **Every probe follows one plain-text contract: `bin/clued context <probe> [args] [--limit n]` prints exactly one answer on stdout, uses the fixed sentinel vocabulary (`yes`/`no` for existence checks, `none` for empty lists and absent JSON values, `0` for empty counts, `unknown` for undetectable stacks and tag distances, `not configured`, `not detected`, `no build tool detected`, `not a git repo`, `no <basename>` for an unreadable head, `store unavailable`, `no plans dir`, and `[FALLBACK: <subcommand> <args>]` when a probe itself fails), takes its options as flags (`--limit`, `--lines`, `--name`, `--maxdepth`, `--count`) and exits 0 even on failure.** — The sentinel contract is what lets a skill paste the output into a prompt without error handling, and a fixed vocabulary keeps the skill text short. Plain text is a deliberate exception to the JSON envelope the other commands print.
-- **Probes are adapters behind a `context.Runner` port (`Run(ctx, dir, name string, args ...string) (string, error)` with a per-call timeout); `gitprobe` and `ghprobe` take a Runner, `fsprobe`, `jsonprobe` and `envprobe` take a root directory.** — Keeps the use case free of `os/exec`, lets `ghprobe` be tested with a scripted runner and `gitprobe` against real temporary repositories, and matches the no-mocks rule the session port followed.
+- **Probes are adapters behind a `collect.Runner` port (`Run(ctx, dir, name string, args ...string) (string, error)` with a per-call timeout); `gitprobe` and `ghprobe` take a Runner, `fsprobe`, `jsonprobe` and `envprobe` take a root directory.** — Keeps the use case free of `os/exec`, lets `ghprobe` be tested with a scripted runner and `gitprobe` against real temporary repositories, and matches the no-mocks rule the session port followed.
 - **`git` and `gh` passthrough accept only a read-only allowlist. git: `log`, `status`, `diff`, `show`, `rev-parse`, `branch`, `describe`, `remote`, `ls-files`, `tag`, `blame`, `shortlog`, `stash list`, `rev-list`, `symbolic-ref`, `config --get`. gh: `pr`, `issue`, `run`, `release`, `repo` with `list`, `view`, `status`, `checks` or `diff`, and `api` without `--method`/`-X` or `-f`/`-F`. Anything else prints `[FALLBACK: git …]` or `[FALLBACK: gh …]`.** — A collector that skills run without a permission prompt must not be a way to push, reset or write, and an allowlist is easier to audit than a denylist.
 - **The base branch is detected (`refs/remotes/origin/HEAD`, then a local `main`, then `master`) instead of hardcoded, and the prime sections are labelled with the detected name.** — A hardcoded `main` leaves the log and diff sections empty on every repository whose default branch has another name.
 - **`prime` includes what clued already captures: cwd and its encoded project path, git origin and branch via `session/gitinfo`, the account id via `session.ReadAccountID`, a host summary via `session/hostinfo` (hostname, username, platform, arch, os release; never ip or mac), daemon health on the configured port, and the most recent captured session for this cwd (session id, started, last seen, top commands) through `query.Service`.** — This is the clued-specific value of the tool: the session mirror finally feeds context back into a session. The store is opened lazily with a 2 s timeout and the section degrades to `store unavailable`, so prime stays useful on a machine without MongoDB.
@@ -99,35 +100,35 @@ progress:
 
 ## Design
 
-### `context` — domain (package `context`)
+### `collect` — domain (package `collect`)
 
 Pure package. `Runner` port and its default `ExecRunner{Timeout}` (argv only, never a shell; `Run` returns trimmed stdout, and on a non-zero exit returns stdout with the error so callers can keep partial output). Sentinel constants (`yes`/`no` for existence checks, `none` for empty lists and absent JSON values, `0` for empty counts, `unknown` for undetectable stacks and tag distances, `not configured`, `not detected`, `no build tool detected`, `not a git repo`, `no <basename>` for an unreadable head, `store unavailable`, `no plans dir`, and `[FALLBACK: <subcommand> <args>]` when a probe itself fails). `Report{Sections []Section}` with `Section{Name, Body string}` rendered as `=== NAME ===` blocks separated by a blank line. Helpers shared by the probes: `ExpandHome`, `Resolve(root, p)` (absolute or root-relative), `DisplayPath` (forward slashes), `Truncate(s string, limit int)` (line limit, `limit <= 0` means unlimited), `ParseLimit`. Option types for the CLI flags so the probes never read `os.Args`.
 
-### `context/fsprobe` — filesystem probes
+### `collect/fsprobe` — filesystem probes
 
 `Probe{Root string}` with `FileExists`, `DirExists`, `CountFiles(globs)`, `ListFiles(globs, limit)`, `FileHead(path, lines)` (bufio line reader, never the whole file), `CountLines(path)` (newline count, like `wc -l`), `FindFiles(dir, names []string, maxDepth, limit int, countOnly bool)` (depth starts at 1, hidden directories skipped, inaccessible directories ignored), `CountFilesWithContent(glob, pattern)` (Go `regexp`), `Pwd`. `Glob(root, pattern)` handles `*` (any run of characters within a name), `?` (one character) and `**` (any number of directories, hidden ones excluded); `MatchName(name, pattern)` is the per-segment matcher with a compiled-pattern cache. Outputs are root-relative, forward-slashed and sorted for stable tests.
 
-### `context/gitprobe` — git probes
+### `collect/gitprobe` — git probes
 
 `Probe{Root string; Runner context.Runner}`. `Git(args, limit)` applies the read-only allowlist then runs `git -C root <args>` and truncates; `IsClean` (`status --porcelain`); `CommitsSinceTag` (`describe --tags --abbrev=0` then `rev-list --count`); `Origin` and `Branch` delegate to `session/gitinfo`; `DefaultBranch` (origin/HEAD, `main`, `master`, else empty); `Log(ref, n)`; `DiffStat(base)` (`diff base...HEAD --stat`); `StatusSummary` (`clean` or `N changed files`). Every failure maps to a sentinel (`not a git repo`, `unknown`, `no`).
 
-### `context/ghprobe` — GitHub CLI probes
+### `collect/ghprobe` — GitHub CLI probes
 
 `Probe{Root string; Runner context.Runner}`. `GH(args, limit)` applies the allowlist, runs `gh`, returns stdout or `[FALLBACK: gh <args>]`; `PRForBranch(branch)` runs `gh pr list --head <branch> --state open --json number,title` and formats `#<number>: <title>` in Go (no `-q` jq expression), `none` when empty or when gh is absent or unauthenticated.
 
-### `context/jsonprobe` — JSON and config probes
+### `collect/jsonprobe` — JSON and config probes
 
 `Field(file, dotPath)` (objects re-encoded compactly), `Count`, `CountWhere(file, dotPath, key, value)`, `CountWithKey(file, key)` (recursive), and `MCPConfigured(keyword, cwd, home)` searching `<cwd>/.mcp.json`, `~/.claude/.mcp.json`, `~/.claude/settings.json` and every `*.mcp.json` under `~/.claude/plugins` by substring, reporting only `configured`/`not configured`. Dot paths accept a leading `.`.
 
-### `context/envprobe` — environment probes
+### `collect/envprobe` — environment probes
 
 `CommandExists` (`exec.LookPath`), `DetectStack` (go.mod → Go, package.json → TS, Cargo.toml → Rust, pom.xml/build.gradle → Java, *.csproj/*.sln → C#, requirements.txt/pyproject.toml → Python; space-joined, `unknown`), `DetectCoverage`, `DetectFrontend`, `DetectCSSFramework` (substring search of package.json for `tailwindcss`, `styled-components`, `@emotion/`, `sass`, `less`, first match wins), `DetectBuildTool` (first match wins; versions through the Runner, missing tools skipped), `DetectPort(ports)` (in-process `net.DialTimeout` to 127.0.0.1, 1 s, first open port or `not detected`).
 
-### `context/prime` — composite use case
+### `collect/prime` — composite use case
 
 `Collector{Root, Home string; FS *fsprobe.Probe; Git *gitprobe.Probe; GH *ghprobe.Probe; Env *envprobe.Probe; Sessions SessionSource; Docs DocSource; Host func() session.HostInfo; AccountID func() string; DaemonPort int; Budget time.Duration}` and `Collect(ctx) Report`. Ports: `SessionSource{Current(ctx, cwd) (*SessionSnapshot, error)}` and `DocSource{ActiveStories(ctx) ([]DocSummary, error); ActivePlans(ctx) ([]DocSummary, error); PlanContent(ctx, id) (string, error)}`; nil sources print their sentinel. Sections, in order: `ENV` (cwd, project_path, git_origin, git_branch, account_id, host line); `CLUED` (config path, daemon `healthy`/`not running` on the port, enrichers disabled); `FILES` (README.md 80, SPEC.md 120, CHANGELOG.md 30, AGENTS.md 60, CLAUDE.md 60 lines with `… (N more lines)`, else `<file>: no`; `docs/plans: N files`, `docs/stories: N files`); `BRANCH` (`<branch> (<status summary>)`, `detached HEAD`); `LOG:<default>` (15 commits) and `LOG:HEAD` (10); `DIFF-STAT` (against the default branch, `no diff (on <default>)`); `STORIES` (one line per active story: id, type, status, title); `PLANS` (one line per active plan, then the first 100 lines of the top one); `SESSION` (id, started, last seen, up to ten top commands, or `store unavailable`/`none`); `BUILD` (`DetectBuildTool`). Sections run in a bounded `errgroup`-free loop with per-section contexts so the budget holds.
 
-### `context/sources` — adapters for the palace and the session store
+### `collect/sources` — adapters for the palace and the session store
 
 `sessionsource.New(connect func(ctx) (session.Store, error), accountID string)` implements `SessionSource` over `query.Service`: `FindSessions` with `Query` set to `^` + `regexp.QuoteMeta(cwd)` + `$`, newest first, then `SessionContext` for the top commands. `docsource.New(palace *service.Palace)` implements `DocSource` with `List` filtered by status and `GetContent`; `docsource.Open(ctx, root)` returns nil (no palace) unless a config file or the plans directory exists, then loads the config and opens the stores the way `cli.App.init` does.
 
@@ -164,7 +165,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 
 **In scope:**
 
-- `mind-palace/context` domain, five probe packages, the `prime` use case and the two source adapters
+- `mind-palace/collect` domain, five probe packages, the `prime` use case and the two source adapters
 - `mind-palace context` CLI group with every probe in the design plus `git-origin`, `git-branch`, `git-default-branch`, `host`, `account`, `project-path`, `daemon-status`, `session` and `prime`
 - `prime_context` MCP tool on the clued server
 - `skills/clued-context/SKILL.md`, `commands/clued-prime.md`, README section, CI path filters, consistency and golden tests
@@ -187,7 +188,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 
 # Part 2 — Implementation
 
-**Architecture:** Hexagonal `context` domain in mind-palace: `context` (ports, sentinels, report), probe adapters in `context/{fsprobe,gitprobe,ghprobe,jsonprobe,envprobe}`, source adapters in `context/sources/{sessionsource,docsource}`, the `context/prime` use case, and entrypoints in `cli/context.go` and `session/sessionmcp`. Sections marked with the same wave letter are independent and can run as concurrent subagents in `.worktrees/<section>` on branches off `wip/context-collector`; the orchestrator merges a wave only when its sections pass their own validation, then runs the full gate (`cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go test ./...`). Waves: **A** = 1.1; **B** = 1.2 ∥ 1.3 ∥ 1.4 ∥ 2.1 ∥ 2.2 ∥ 3.1; **C** = 3.2; **D** = 4.1 ∥ 4.2; **E** = 5.1; **F** = 6.1.
+**Architecture:** Hexagonal `collect` domain in mind-palace: `collect` (ports, sentinels, report), probe adapters in `collect/{fsprobe,gitprobe,ghprobe,jsonprobe,envprobe}`, source adapters in `collect/sources/{sessionsource,docsource}`, the `collect/prime` use case, and entrypoints in `cli/context.go` and `session/sessionmcp`. Sections marked with the same wave letter are independent and can run as concurrent subagents in `.worktrees/<section>` on branches off `wip/context-collector`; the orchestrator merges a wave only when its sections pass their own validation, then runs the full gate (`cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go test ./...`). Waves: **A** = 1.1; **B** = 1.2 ∥ 1.3 ∥ 1.4 ∥ 2.1 ∥ 2.2 ∥ 3.1; **C** = 3.2; **D** = 4.1 ∥ 4.2; **E** = 5.1; **F** = 6.1.
 
 **Tech Stack:** Go 1.26 (module `github.com/robbiebyrd/clued/mind-palace`), standard library `os/exec`, `path/filepath`, `regexp`, `net`, `bufio`, `encoding/json`; existing dependencies `github.com/spf13/cobra` and `github.com/modelcontextprotocol/go-sdk`. No new dependencies. Plugin files are Markdown and YAML.
 
@@ -205,15 +206,15 @@ Unit tests per probe against real temporary directories and real `git init` repo
 
 | File | Change | Responsibility |
 |---|---|---|
-| `mind-palace/context/context.go` | create | `Runner`, `ExecRunner`, sentinels, `Report`/`Section`, path and limit helpers |
-| `mind-palace/context/fsprobe/fsprobe.go` | create | Filesystem probes and `**` glob walker |
-| `mind-palace/context/gitprobe/gitprobe.go` | create | Allowlisted git passthrough and git facts |
-| `mind-palace/context/ghprobe/ghprobe.go` | create | Allowlisted gh passthrough and PR lookup |
-| `mind-palace/context/jsonprobe/jsonprobe.go` | create | JSON dot-path, counts and `mcp-configured` |
-| `mind-palace/context/envprobe/envprobe.go` | create | Command, stack, coverage, frontend, CSS, build tool and port detection |
-| `mind-palace/context/sources/sessionsource/sessionsource.go` | create | `SessionSource` over `query.Service` |
-| `mind-palace/context/sources/docsource/docsource.go` | create | `DocSource` over `service.Palace`, guarded open |
-| `mind-palace/context/prime/prime.go` | create | `Collector`, section builders, budget |
+| `mind-palace/collect/context.go` | create | `Runner`, `ExecRunner`, sentinels, `Report`/`Section`, path and limit helpers |
+| `mind-palace/collect/fsprobe/fsprobe.go` | create | Filesystem probes and `**` glob walker |
+| `mind-palace/collect/gitprobe/gitprobe.go` | create | Allowlisted git passthrough and git facts |
+| `mind-palace/collect/ghprobe/ghprobe.go` | create | Allowlisted gh passthrough and PR lookup |
+| `mind-palace/collect/jsonprobe/jsonprobe.go` | create | JSON dot-path, counts and `mcp-configured` |
+| `mind-palace/collect/envprobe/envprobe.go` | create | Command, stack, coverage, frontend, CSS, build tool and port detection |
+| `mind-palace/collect/sources/sessionsource/sessionsource.go` | create | `SessionSource` over `query.Service` |
+| `mind-palace/collect/sources/docsource/docsource.go` | create | `DocSource` over `service.Palace`, guarded open |
+| `mind-palace/collect/prime/prime.go` | create | `Collector`, section builders, budget |
 | `mind-palace/cli/context.go` | create | `context` command group |
 | `mind-palace/cli/cli.go` | modify | Register `contextCmd` on the root |
 | `mind-palace/session/sessionmcp/sessionmcp.go` | modify | `prime_context` tool |
@@ -228,8 +229,8 @@ Unit tests per probe against real temporary directories and real `git init` repo
 ### 1.1: Domain package (wave A)
 
 **Files:**
-- Create: `mind-palace/context/context.go`
-- Test: `mind-palace/context/context_test.go`
+- Create: `mind-palace/collect/context.go`
+- Test: `mind-palace/collect/context_test.go`
 
 **Depends on:** none
 
@@ -238,145 +239,145 @@ Unit tests per probe against real temporary directories and real `git init` repo
 - Produces: `Runner`, `ExecRunner{Timeout}`, sentinel constants, `Report`, `Section`, `Report.String()`, `ExpandHome`, `Resolve`, `DisplayPath`, `Truncate`, `ParseLimit`, `Fallback(name string, args []string) string`
 
 - [ ] **Step 1: Write the failing tests** — `ExecRunner` returns trimmed stdout, keeps partial stdout with the error on non-zero exit, honours the timeout (a `sleep` child) and runs in the given dir; `Report.String()` renders `=== NAME ===` blocks joined by one blank line; `Truncate` keeps N lines and passes through on `limit <= 0`; `ParseLimit` maps a non-number to unlimited; `ExpandHome`, `Resolve`, `DisplayPath` on absolute, relative and `~/` inputs; `Fallback` formats `[FALLBACK: name a b]`.
-- [ ] **Step 2: Run them and confirm they fail** — `go test ./context`
+- [ ] **Step 2: Run them and confirm they fail** — `go test ./collect`
 - [ ] **Step 3: Implement** — `ExecRunner.Run` with `exec.CommandContext`, `cmd.Dir`, separate stdout/stderr buffers, `context.WithTimeout`; the helpers as pure functions.
-- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./context && go test ./context`
+- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./collect && go test ./collect`
 - [ ] **Step 5: Commit** — `git commit -m 'feat(context): runner port, sentinels and report rendering'`
 
-**Validation:** `go test ./context`
+**Validation:** `go test ./collect`
 
 ### 1.2: Filesystem probes (wave B)
 
 **Files:**
-- Create: `mind-palace/context/fsprobe/fsprobe.go`
-- Test: `mind-palace/context/fsprobe/fsprobe_test.go`
+- Create: `mind-palace/collect/fsprobe/fsprobe.go`
+- Test: `mind-palace/collect/fsprobe/fsprobe_test.go`
 
 **Depends on:** 1.1
 
 **Interfaces:**
-- Consumes: `context` helpers and sentinels
+- Consumes: `collect` helpers and sentinels
 - Produces: `Probe{Root}` with `FileExists`, `DirExists`, `CountFiles`, `ListFiles`, `FileHead`, `CountLines`, `FindFiles`, `CountFilesWithContent`, `Pwd`; `Glob`, `MatchName`
 
 - [ ] **Step 1: Write the failing tests** — Build a temp tree (nested dirs, a hidden dir, files with and without trailing newline, a CRLF file). Assert: existence checks print `yes`/`no` and `no` for a directory asked as a file; `Glob` with `*.md`, `docs/**/*.md`, `stories/*-pending-*.md`, `~`-prefixed patterns; `ListFiles` sorted, forward-slashed, `none` when empty, `--limit` honoured; `FileHead` N lines and `no <basename>` for a missing file; `CountLines` equals the newline count; `FindFiles` with multiple `--name`, `--maxdepth 1`, `--count`, hidden dirs skipped; `CountFilesWithContent` with a regex and an unreadable file skipped; `MatchName` table (`*.test.js`, `?.go`, `**`, literal dots).
-- [ ] **Step 2: Run them and confirm they fail** — `go test ./context/fsprobe`
+- [ ] **Step 2: Run them and confirm they fail** — `go test ./collect/fsprobe`
 - [ ] **Step 3: Implement** — Walker-based `Glob` splitting the pattern at the first segment containing a wildcard; `MatchName` compiles the segment to a regexp with a cache; `FileHead` through `bufio.Reader.ReadString` with a line cap; `FindFiles` recursive with depth counting from 1.
-- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./context/... && go test ./context/...`
+- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./collect/... && go test ./collect/...`
 - [ ] **Step 5: Commit** — `git commit -m 'feat(context): filesystem probes and glob walker'`
 
-**Validation:** `go test ./context/fsprobe`
+**Validation:** `go test ./collect/fsprobe`
 
 ### 1.3: JSON and config probes (wave B)
 
 **Files:**
-- Create: `mind-palace/context/jsonprobe/jsonprobe.go`
-- Test: `mind-palace/context/jsonprobe/jsonprobe_test.go`
+- Create: `mind-palace/collect/jsonprobe/jsonprobe.go`
+- Test: `mind-palace/collect/jsonprobe/jsonprobe_test.go`
 
 **Depends on:** 1.1
 
 **Interfaces:**
-- Consumes: `context` helpers
+- Consumes: `collect` helpers
 - Produces: `Field`, `Count`, `CountWhere`, `CountWithKey`, `MCPConfigured(keyword, cwd, home string)`
 
 - [ ] **Step 1: Write the failing tests** — Fixture JSON with nested objects and arrays: `Field` on scalar, object (compact JSON), missing (`none`), with and without a leading `.`; `Count` on array, object and scalar (`0`); `CountWhere` string-compares values (`true` matches `"true"`); `CountWithKey` counts nested occurrences; `MCPConfigured` finds a keyword in `.mcp.json`, in `~/.claude/settings.json`, in a plugin `*.mcp.json` three levels deep, and prints `not configured` when absent or on an empty keyword.
-- [ ] **Step 2: Run them and confirm they fail** — `go test ./context/jsonprobe`
+- [ ] **Step 2: Run them and confirm they fail** — `go test ./collect/jsonprobe`
 - [ ] **Step 3: Implement** — `encoding/json` into `any`; dot-path walk; recursive key count; `filepath.WalkDir` under the plugins dir for `*.mcp.json`.
-- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./context/... && go test ./context/...`
+- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./collect/... && go test ./collect/...`
 - [ ] **Step 5: Commit** — `git commit -m 'feat(context): JSON and MCP configuration probes'`
 
-**Validation:** `go test ./context/jsonprobe`
+**Validation:** `go test ./collect/jsonprobe`
 
 ### 1.4: Environment probes (wave B)
 
 **Files:**
-- Create: `mind-palace/context/envprobe/envprobe.go`
-- Test: `mind-palace/context/envprobe/envprobe_test.go`
+- Create: `mind-palace/collect/envprobe/envprobe.go`
+- Test: `mind-palace/collect/envprobe/envprobe_test.go`
 
 **Depends on:** 1.1
 
 **Interfaces:**
-- Consumes: `context.Runner` for version commands; the detection tables in the design
+- Consumes: `collect.Runner` for version commands; the detection tables in the design
 - Produces: `Probe{Root string; Runner context.Runner}` with `CommandExists`, `DetectStack`, `DetectCoverage`, `DetectFrontend`, `DetectCSSFramework`, `DetectBuildTool`, `DetectPort`
 
 - [ ] **Step 1: Write the failing tests** — Temp roots with marker files for every stack combination (`Go TS`, `C#` from a `.sln`, `Python` from `pyproject.toml`, `unknown`); coverage markers; frontend yes/no; CSS framework order (`tailwindcss` before `sass`); `DetectBuildTool` with a scripted Runner returning versions and with a Runner that fails (label only); `DetectPort` against a listener opened in the test and a closed port; `CommandExists` for `go` and a nonsense name.
-- [ ] **Step 2: Run them and confirm they fail** — `go test ./context/envprobe`
+- [ ] **Step 2: Run them and confirm they fail** — `go test ./collect/envprobe`
 - [ ] **Step 3: Implement** — Table-driven marker checks; `net.DialTimeout("tcp", "127.0.0.1:<port>", time.Second)`; first-match build tool with versions via the Runner.
-- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./context/... && go test ./context/...`
+- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./collect/... && go test ./collect/...`
 - [ ] **Step 5: Commit** — `git commit -m 'feat(context): environment and toolchain probes'`
 
-**Validation:** `go test ./context/envprobe`
+**Validation:** `go test ./collect/envprobe`
 
 ## Phase 2: Command-backed probes
 
 ### 2.1: Git probes (wave B)
 
 **Files:**
-- Create: `mind-palace/context/gitprobe/gitprobe.go`
-- Test: `mind-palace/context/gitprobe/gitprobe_test.go`
+- Create: `mind-palace/collect/gitprobe/gitprobe.go`
+- Test: `mind-palace/collect/gitprobe/gitprobe_test.go`
 
 **Depends on:** 1.1
 
 **Interfaces:**
-- Consumes: `context.Runner`, `session/gitinfo` for origin and branch
+- Consumes: `collect.Runner`, `session/gitinfo` for origin and branch
 - Produces: `Probe{Root; Runner}` with `Git(args, limit)`, `IsClean`, `CommitsSinceTag`, `Origin`, `Branch`, `DefaultBranch`, `Log(ref, n)`, `DiffStat(base)`, `StatusSummary`; `Allowed(args) bool`
 
 - [ ] **Step 1: Write the failing tests** — Helper that `git init`s a temp repo with two commits, a tag, a dirty file and a second branch (skip when `git` is missing). Assert: `Git(["log","--oneline"], 1)` returns one line; `Git(["push"])` and `Git(["reset","--hard"])` return the fallback without running; `IsClean` flips after committing; `CommitsSinceTag` is `1` and `unknown` without tags; `DefaultBranch` prefers `origin/HEAD` (set up with a bare clone), then `main`, then `master`, else empty; `DiffStat` across branches; `StatusSummary` counts porcelain lines; outside a repository everything maps to the sentinels.
-- [ ] **Step 2: Run them and confirm they fail** — `go test ./context/gitprobe`
+- [ ] **Step 2: Run them and confirm they fail** — `go test ./collect/gitprobe`
 - [ ] **Step 3: Implement** — Allowlist on the first argument (and the second for `stash` and `config`); every call through `Runner.Run(ctx, root, "git", args...)` with a 2 s timeout; keep partial stdout on error.
-- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./context/... && go test ./context/...`
+- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./collect/... && go test ./collect/...`
 - [ ] **Step 5: Commit** — `git commit -m 'feat(context): read-only git probes'`
 
-**Validation:** `go test ./context/gitprobe`
+**Validation:** `go test ./collect/gitprobe`
 
 ### 2.2: GitHub CLI probes (wave B)
 
 **Files:**
-- Create: `mind-palace/context/ghprobe/ghprobe.go`
-- Test: `mind-palace/context/ghprobe/ghprobe_test.go`
+- Create: `mind-palace/collect/ghprobe/ghprobe.go`
+- Test: `mind-palace/collect/ghprobe/ghprobe_test.go`
 
 **Depends on:** 1.1
 
 **Interfaces:**
-- Consumes: `context.Runner`
+- Consumes: `collect.Runner`
 - Produces: `Probe{Root; Runner}` with `GH(args, limit)`, `PRForBranch(branch)`; `Allowed(args) bool`
 
 - [ ] **Step 1: Write the failing tests** — Scripted Runner recording argv: `GH(["pr","list"])` passes through and truncates; `GH(["pr","merge","1"])`, `GH(["api","-X","DELETE",...])` and `GH(["repo","delete"])` return `[FALLBACK: gh …]` without a call; `PRForBranch` parses `[{"number":12,"title":"Add x"}]` into `#12: Add x`, prints `none` on `[]`, on a Runner error and on invalid JSON.
-- [ ] **Step 2: Run them and confirm they fail** — `go test ./context/ghprobe`
+- [ ] **Step 2: Run them and confirm they fail** — `go test ./collect/ghprobe`
 - [ ] **Step 3: Implement** — Allowlist table by noun and verb; JSON decode of the `--json number,title` output; 15 s timeout.
-- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./context/... && go test ./context/...`
+- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./collect/... && go test ./collect/...`
 - [ ] **Step 5: Commit** — `git commit -m 'feat(context): read-only gh probes'`
 
-**Validation:** `go test ./context/ghprobe`
+**Validation:** `go test ./collect/ghprobe`
 
 ## Phase 3: Sources and the prime use case
 
 ### 3.1: Session and document sources (wave B)
 
 **Files:**
-- Create: `mind-palace/context/sources/sessionsource/sessionsource.go`
-- Create: `mind-palace/context/sources/docsource/docsource.go`
-- Test: `mind-palace/context/sources/sessionsource/sessionsource_test.go`
-- Test: `mind-palace/context/sources/docsource/docsource_test.go`
+- Create: `mind-palace/collect/sources/sessionsource/sessionsource.go`
+- Create: `mind-palace/collect/sources/docsource/docsource.go`
+- Test: `mind-palace/collect/sources/sessionsource/sessionsource_test.go`
+- Test: `mind-palace/collect/sources/docsource/docsource_test.go`
 
 **Depends on:** 1.1
 
 **Interfaces:**
 - Consumes: `session.Store`, `query.Service`, `memsession` (tests); `service.Palace`, `config.Load`, `store.OpenAll`, `memstore` (tests)
-- Produces: `prime.SessionSource` and `prime.DocSource` implementations (the interfaces are declared in `context/prime` as types in a small `context/prime/ports.go` file created here so 3.1 and 3.2 can proceed in parallel), `docsource.Open(ctx, root) (*DocSource, error)`
+- Produces: `prime.SessionSource` and `prime.DocSource` implementations (the interfaces are declared in `collect/prime` as types in a small `context/prime/ports.go` file created here so 3.1 and 3.2 can proceed in parallel), `docsource.Open(ctx, root) (*DocSource, error)`
 
 - [ ] **Step 1: Write the failing tests** — `sessionsource`: seed `memsession` with three sessions (two cwds, one older) and Bash hook events; `Current(ctx, cwd)` returns the newest session for that exact cwd with its top commands, `nil` for an unknown cwd, and the error from a failing `connect`. `docsource`: with a `memstore`-backed palace holding stories in every status and plans in `pending`/`in_progress`, `ActiveStories` returns pending, ready and in_progress sorted by id, `ActivePlans` returns in_progress first; `Open` on an empty temp dir returns `nil` and creates nothing; `Open` on a dir with `docs/plans` returns a palace.
-- [ ] **Step 2: Run them and confirm they fail** — `go test ./context/sources/...`
+- [ ] **Step 2: Run them and confirm they fail** — `go test ./collect/sources/...`
 - [ ] **Step 3: Implement** — `sessionsource` uses `query.Service.FindSessions` with an anchored, quoted cwd regex and `SessionContext`; `docsource` uses `Service.List` with status filters and `GetContent`; `Open` checks for the config file and the plans dir before `config.Load` and `store.OpenAll`.
-- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./context/... && go test ./context/...`
+- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./collect/... && go test ./collect/...`
 - [ ] **Step 5: Commit** — `git commit -m 'feat(context): session and document sources for prime'`
 
-**Validation:** `go test ./context/sources/...`
+**Validation:** `go test ./collect/sources/...`
 
 ### 3.2: Prime collector (wave C)
 
 **Files:**
-- Create: `mind-palace/context/prime/prime.go`
-- Modify: `mind-palace/context/prime/ports.go`
-- Test: `mind-palace/context/prime/prime_test.go`
+- Create: `mind-palace/collect/prime/prime.go`
+- Modify: `mind-palace/collect/prime/ports.go`
+- Test: `mind-palace/collect/prime/prime_test.go`
 
 **Depends on:** 1.2, 1.4, 2.1, 2.2, 3.1
 
@@ -385,12 +386,12 @@ Unit tests per probe against real temporary directories and real `git init` repo
 - Produces: `Collector`, `Collect(ctx) context.Report`, `Options{NoStore, NoDocs bool}`
 
 - [ ] **Step 1: Write the failing tests** — A temp git repository with README.md (90 lines), AGENTS.md, a `docs/plans` dir, plus `memsession` and `memstore`-backed sources. Assert the eleven section names in order; README truncated at 80 with `… (10 more lines)`; `SPEC.md: no`; `LOG:main` labelled with the detected branch; `DIFF-STAT` prints `no diff (on main)` on the default branch; `STORIES` lists the active story line; `PLANS` shows the in-progress plan and its first 100 lines; `SESSION` prints the seeded session and commands, `store unavailable` with a failing connect, `none` with no match; `CLUED` prints `not running` for a closed port and `healthy` against a test listener serving `/health`; a nil `Docs` prints `no plans dir`; a section whose probe blocks past the budget prints `[FALLBACK: SESSION]` while the rest render; host line omits ip and mac.
-- [ ] **Step 2: Run them and confirm they fail** — `go test ./context/prime`
+- [ ] **Step 2: Run them and confirm they fail** — `go test ./collect/prime`
 - [ ] **Step 3: Implement** — One builder per section, each wrapped in `withBudget(ctx, name, fn)` that recovers panics and maps timeouts to the section fallback; health check via `net/http` with a 1 s client; the report assembled in fixed order.
-- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./context/... && go test ./context/...`
+- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./collect/... && go test ./collect/...`
 - [ ] **Step 5: Commit** — `git commit -m 'feat(context): prime collector'`
 
-**Validation:** `go test ./context/prime`
+**Validation:** `go test ./collect/prime`
 
 ## Phase 4: Entrypoints
 
@@ -466,7 +467,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 
 **Files:**
 - Create: `mind-palace/testdata/context-repo/README.md`
-- Create: `mind-palace/testdata/context-repo/expected/*.txt`
+- Create: `mind-palace/testdata/context-expected/*.txt`
 - Create: `mind-palace/cli/context_golden_test.go`
 
 **Depends on:** 5.1
@@ -475,7 +476,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 - Consumes: the `context` CLI group through `App`
 - Produces: A committed fixture tree, one expected output per probe case, and a Go test comparing them
 
-- [ ] **Step 1: Write the fixture and the expected outputs** — `testdata/context-repo` holds docs, stories, a package.json, a go.mod and a `.mcp.json`; each case is a probe invocation (`file-exists README.md`, `count-files '**/*.md'`, `find-files --name '*.go' --count`, `json-field package.json .name`, `detect-stack`, `mcp-configured clued`, and so on) with its expected stdout written from the contract under `expected/<case>.txt`. Git-dependent cases run against a repository the test creates so the fixture needs no `.git`.
+- [ ] **Step 1: Write the fixture and the expected outputs** — `testdata/context-repo` holds docs, stories, a package.json, a go.mod and a `.mcp.json`; each case is a probe invocation (`file-exists README.md`, `count-files '**/*.md'`, `find-files --name '*.go' --count`, `json-field package.json .name`, `detect-stack`, `mcp-configured clued`, and so on) with its expected stdout written from the contract under `testdata/context-expected/<case>.txt` (outside the fixture tree, so globs over the fixture never see them). Git-dependent cases run against a repository the test creates so the fixture needs no `.git`.
 - [ ] **Step 2: Write the golden test and confirm it fails** — `context_golden_test.go` runs every case through `App` with `--root testdata/context-repo` and diffs stdout against the expected file; `-update` rewrites the files. — `go test ./cli -run Golden`
 - [ ] **Step 3: Fix the deviations** — Adjust probes until every case matches the contract.
 - [ ] **Step 4: Run the full gate** — `test -z "$(gofmt -l .)" && go vet ./... && go test -race ./...`
