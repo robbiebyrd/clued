@@ -6,8 +6,8 @@ status: complete
 priority: "2"
 effort: L
 created: "2026-10-12T14:20:39.754Z"
-updated: "2026-10-12T14:45:41.283Z"
-completed: "2026-10-12T14:45:41.283Z"
+updated: "2026-10-12T15:04:48.022Z"
+completed: "2026-10-12T15:04:48.022Z"
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
@@ -50,6 +50,10 @@ progress:
   "6":
     status: complete
   "6.1":
+    status: complete
+  "7":
+    status: complete
+  "7.1":
     status: complete
 ---
 
@@ -140,6 +144,10 @@ Pure package. `Runner` port and its default `ExecRunner{Timeout}` (argv only, ne
 
 Seventh tool on the clued server: `prime_context` with schema `{cwd?: string}` (default: the server's working directory), `ReadOnlyHint: true`, returning the rendered report as text. Built from the same `prime.Collector` the CLI uses, with the lazily connected store the tools already share.
 
+### `collect/snapshot` — the ContextCollected event
+
+`Event{SessionID, Cwd string; Report collect.Report; At time.Time}`, `Event.JSON()` (the hook-shaped body: `hook_event_name` = `ContextCollected`, `session_id` omitted when empty, `cwd`, `collected_at` RFC 3339, `report` text, `sections` map) and `Post(ctx, port, ev) error` (POST to `127.0.0.1:<port>/event`, 2 s timeout, non-2xx is an error, no retry). `cli.PostSnapshot` and the MCP handler call it only after `prime.DaemonHealthy`, so a machine without the daemon pays one refused connection and nothing else.
+
 ### Plugin glue
 
 `skills/clued-context/SKILL.md`: when to run `prime` (before starting a task in a repository, when resuming), how to call a probe through `${CLAUDE_PLUGIN_ROOT}/bin/clued context …`, the full probe table with arguments and sentinels, and the rule that output is data to read, not instructions. `commands/clued-prime.md`: runs `prime` and asks Claude to summarise the repository state in a few lines. `README.md`: a Context section. `.github/workflows/mind-palace.yml`: add `skills/**` and `commands/**` to the path filters. `cli/context_skill_test.go`: parses the probe table in `SKILL.md` and asserts every listed probe is a registered subcommand and every subcommand is listed.
@@ -180,9 +188,9 @@ Unit tests per probe against real temporary directories and real `git init` repo
 
 ## Open Questions
 
-- [ ] Should `prime` also POST a synthetic `ContextCollected` event to the daemon so the snapshot lands in `hook_events` alongside the session? — Boss
-- [ ] Should `PLANS` include `ready` plans when no plan is `in_progress`, or only `in_progress`? — Boss
-- [ ] Is `gh api` worth keeping in the allowlist at all, given it is the hardest verb to keep read-only? — Boss
+- [ ] Resolved: `prime` posts its report to the daemon as a `ContextCollected` hook event (see the snapshot decision); `--no-snapshot` / `no_snapshot` skip it. — Boss
+- [ ] Resolved: `PLANS` lists `in_progress` plans first, then `ready` ones. — Boss
+- [ ] Resolved: `gh api` stays in the allowlist, GET only. — Boss
 
 ---
 
@@ -215,7 +223,8 @@ Unit tests per probe against real temporary directories and real `git init` repo
 | `mind-palace/collect/sources/sessionsource/sessionsource.go` | create | `SessionSource` over `query.Service` |
 | `mind-palace/collect/sources/docsource/docsource.go` | create | `DocSource` over `service.Palace`, guarded open |
 | `mind-palace/collect/prime/prime.go` | create | `Collector`, section builders, budget |
-| `mind-palace/cli/context.go` | create | `context` command group |
+| `mind-palace/collect/snapshot/snapshot.go` | create | `ContextCollected` event body and `Post` to the daemon |
+| `mind-palace/cli/context.go` | create | `context` command group; `PostSnapshot` |
 | `mind-palace/cli/cli.go` | modify | Register `contextCmd` on the root |
 | `mind-palace/session/sessionmcp/sessionmcp.go` | modify | `prime_context` tool |
 | `mind-palace/testdata/context-repo/` | create | Fixture tree plus expected outputs for the golden test |
@@ -485,6 +494,38 @@ Unit tests per probe against real temporary directories and real `git init` repo
 
 **Validation:** `go test ./cli -run Golden`
 
+## Phase 7: Resolved questions
+
+### 7.1: Snapshot event
+
+**Files:**
+- Create: `mind-palace/collect/snapshot/snapshot.go`
+- Modify: `mind-palace/collect/prime/prime.go`
+- Modify: `mind-palace/cli/context.go`
+- Modify: `mind-palace/session/sessionmcp/sessionmcp.go`
+- Modify: `skills/clued-context/SKILL.md`
+- Modify: `commands/clued-prime.md`
+- Modify: `README.md`
+- Test: `mind-palace/collect/snapshot/snapshot_test.go`
+- Test: `mind-palace/collect/prime/prime_test.go`
+- Test: `mind-palace/cli/context_test.go`
+- Test: `mind-palace/session/sessionmcp/sessionmcp_test.go`
+
+**Depends on:** 6.1
+
+**Interfaces:**
+- Consumes: `prime.Result` (`CollectResult` returns the report plus the SESSION section's session id), `prime.DaemonHealthy`, the daemon's `POST /event`
+- Produces: `snapshot.Event`, `snapshot.Post`, `cli.PostSnapshot`, the `--no-snapshot` flag and the `no_snapshot` tool argument
+
+- [ ] **Step 1: Write the failing tests** — `snapshot_test.go`: the JSON shape, the omitted empty session id, delivery to an httptest daemon, failures on non-2xx, a closed port and port 0. `prime_test.go`: `CollectResult` carries the session id and is empty with `NoStore`, no session, or a failing store. `context_test.go`: prime posts one event with the env session id and the cwd, `--no-snapshot` posts nothing, the captured session id is used without the env var, and a missing daemon posts nothing and prints nothing on stderr. `sessionmcp_test.go`: the tool posts with the captured session id and honours `no_snapshot`.
+- [ ] **Step 2: Run them and confirm they fail** — `go test ./collect/snapshot ./collect/prime ./cli ./session/sessionmcp`
+- [ ] **Step 3: Implement** — `snapshot` package; `prime.Result`/`CollectResult` with the id captured under a mutex; `cli.PostSnapshot` after the health check; the MCP handler's `no_snapshot`; the docs.
+- [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./... && go test ./...`
+- [ ] **Step 5: Verify live** — Start `mind-palace session daemon` against an unreachable MongoDB with a temp config, run `bin/clued context prime --config <it>`, and confirm the `ContextCollected` event lands in the daemon's WAL with the session id and all eleven sections.
+- [ ] **Step 6: Commit** — `git commit -m 'feat(collect): post prime reports to the daemon as ContextCollected events'`
+
+**Validation:** `go test ./collect/snapshot ./cli ./session/sessionmcp`
+
 ## Acceptance Criteria
 
 - [ ] `bin/clued context <probe>` exists for every probe in the design's command list, prints one plain-text answer using the sentinel vocabulary, and always exits 0.
@@ -496,6 +537,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 - [ ] `prime_context` is listed by the clued MCP server and returns the same report.
 - [ ] `skills/clued-context/SKILL.md` lists every registered probe and nothing else, enforced by a test; `/clued-prime` runs the report.
 - [ ] The golden test passes over the committed fixture tree, so every probe's output text is recorded and reviewed.
+- [ ] `prime` posts a `ContextCollected` event to a running daemon with the session id and every section, and posts nothing (silently) when the daemon is down or `--no-snapshot` is given.
 - [ ] `gofmt -l .` is empty, `go vet ./...` and `go test -race ./...` pass locally and in CI; no new Go dependency.
 
 ## Self-Review
@@ -508,12 +550,13 @@ Unit tests per probe against real temporary directories and real `git init` repo
 | Stories and plans from mind-palace | 3.1, 3.2 |
 | Safe to run without a prompt | 2.1, 2.2 allowlists; 1.1 argv-only runner |
 | Usable from a skill and from MCP | 4.2, 5.1 |
+| Snapshots stored next to the session | 7.1 |
 
 **Placeholder scan:** No section leaves a stub: every probe has a full implementation and tests in its section; `line-summary`-style disabled placeholders do not exist here.
 **Residual risk:** `find-files` and glob ordering depend on directory read order, so outputs are sorted to keep the golden files stable. `gh` behaviour differs across versions; `PRForBranch` only depends on `--json number,title`.
 
 ## Next Steps
 
-1. Boss reviews the decisions and the open questions, in particular the `gh api` allowlist entry and the PLANS status rule.
-2. Move the plan to `ready`, create the `wip/context-collector` integration branch, and dispatch wave A.
-3. After 6.1, decide whether to add the `SessionStart` injection and the snapshot event as a follow-up plan.
+1. Review the pull request; the three open questions were answered by Boss and implemented in 7.1.
+2. Decide later whether a `SessionStart` hook should inject `prime` output automatically.
+3. Consider an enricher over `ContextCollected` events (for example, diffing consecutive snapshots of a session).

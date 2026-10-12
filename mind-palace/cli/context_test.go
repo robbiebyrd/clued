@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	osexec "os/exec"
 	"path/filepath"
@@ -361,5 +364,81 @@ func TestContextPrime(t *testing.T) {
 	}
 	if !strings.Contains(report, "=== STORIES ===\nnone") {
 		t.Errorf("STORIES should be none:\n%s", report)
+	}
+}
+
+// fakeDaemon answers /health and records the bodies posted to /event.
+func fakeDaemon(t *testing.T) (port string, events func() []string) {
+	t.Helper()
+	var bodies []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/health":
+			w.WriteHeader(http.StatusOK)
+		case r.URL.Path == "/event" && r.Method == http.MethodPost:
+			b, _ := io.ReadAll(r.Body)
+			bodies = append(bodies, string(b))
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	_, port, _ = net.SplitHostPort(strings.TrimPrefix(srv.URL, "http://"))
+	return port, func() []string { return bodies }
+}
+
+func TestContextPrimePostsASnapshotToTheDaemon(t *testing.T) {
+	root := gitTree(t)
+	sessionEnv(t, memsession.New())
+	port, events := fakeDaemon(t)
+	t.Setenv("CLUED_PORT", port)
+	t.Setenv("CLAUDE_SESSION_ID", "live-session")
+
+	report := answerOf(t, runContext(t, root, "prime", "--no-docs"))
+	if !strings.Contains(report, fmt.Sprintf("daemon: healthy (port %s)", port)) {
+		t.Errorf("CLUED should see the fake daemon:\n%s", report)
+	}
+	got := events()
+	if len(got) != 1 {
+		t.Fatalf("daemon received %d events, want 1", len(got))
+	}
+	for _, want := range []string{`"hook_event_name":"ContextCollected"`, `"session_id":"live-session"`, `"cwd":"` + filepath.ToSlash(root) + `"`, `=== ENV ===`} {
+		if !strings.Contains(got[0], want) {
+			t.Errorf("event lacks %s:\n%s", want, got[0])
+		}
+	}
+
+	answerOf(t, runContext(t, root, "prime", "--no-docs", "--no-snapshot"))
+	if len(events()) != 1 {
+		t.Errorf("--no-snapshot must not post, got %d events", len(events()))
+	}
+}
+
+func TestContextPrimeSnapshotUsesTheCapturedSessionWithoutEnv(t *testing.T) {
+	root := gitTree(t)
+	st := memsession.New()
+	sessionEnv(t, st)
+	cwd := filepath.ToSlash(root)
+	if err := st.UpsertSession(context.Background(), session.Session{SessionID: "s-captured", AccountID: testAccount, Cwd: cwd, ProjectPath: cwd, LastSeen: sessionT0}); err != nil {
+		t.Fatal(err)
+	}
+	port, events := fakeDaemon(t)
+	t.Setenv("CLUED_PORT", port)
+	t.Setenv("CLAUDE_SESSION_ID", "")
+
+	answerOf(t, runContext(t, root, "prime", "--no-docs"))
+	if got := events(); len(got) != 1 || !strings.Contains(got[0], `"session_id":"s-captured"`) {
+		t.Errorf("events = %v", got)
+	}
+}
+
+func TestContextPrimeWithoutDaemonPostsNothingAndStaysQuiet(t *testing.T) {
+	root := gitTree(t)
+	sessionEnv(t, memsession.New())
+	t.Setenv("CLUED_PORT", "1")
+	r := runContext(t, root, "prime", "--no-docs")
+	if r.code != 0 || r.stderr != "" {
+		t.Errorf("exit %d stderr %q", r.code, r.stderr)
 	}
 }

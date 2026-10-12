@@ -382,6 +382,25 @@ func TestSessionSection(t *testing.T) {
 	}
 }
 
+func TestCollectResultCarriesTheSessionID(t *testing.T) {
+	root := repo(t)
+	c := collector(t, root)
+	if got := c.CollectResult(context.Background(), Options{}).SessionID; got != "sess-9" {
+		t.Errorf("SessionID = %q", got)
+	}
+	if got := c.CollectResult(context.Background(), Options{NoStore: true}).SessionID; got != "" {
+		t.Errorf("NoStore SessionID = %q", got)
+	}
+	c.Sessions = &fakeSessions{}
+	if got := c.CollectResult(context.Background(), Options{}).SessionID; got != "" {
+		t.Errorf("no session SessionID = %q", got)
+	}
+	c.Sessions = &fakeSessions{err: errors.New("down")}
+	if got := c.CollectResult(context.Background(), Options{}).SessionID; got != "" {
+		t.Errorf("failing store SessionID = %q", got)
+	}
+}
+
 func TestBuildSection(t *testing.T) {
 	root := repo(t)
 	if got := sectionMap(t, collector(t, root).Collect(context.Background(), Options{}))["BUILD"]; got != "=== Go Project ===\ngo v1" {

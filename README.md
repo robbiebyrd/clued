@@ -177,7 +177,7 @@ The composite report that primes a session:
 bin/clued context prime [--no-store] [--no-docs]
 ```
 
-`--no-store` skips the SESSION lookup in MongoDB, `--no-docs` skips the STORIES and PLANS sections.
+`--no-store` skips the SESSION lookup in MongoDB, `--no-docs` skips the STORIES and PLANS sections. When the daemon is running, the report is also posted to it as a `ContextCollected` hook event, so every snapshot is stored next to its session; `--no-snapshot` skips that.
 
 | Group | Probes |
 |---|---|

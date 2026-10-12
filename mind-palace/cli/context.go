@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/collect/gitprobe"
 	"github.com/robbiebyrd/clued/mind-palace/collect/jsonprobe"
 	"github.com/robbiebyrd/clued/mind-palace/collect/prime"
+	"github.com/robbiebyrd/clued/mind-palace/collect/snapshot"
 	"github.com/robbiebyrd/clued/mind-palace/collect/sources/docsource"
 	"github.com/robbiebyrd/clued/mind-palace/collect/sources/sessionsource"
 	"github.com/robbiebyrd/clued/mind-palace/session"
@@ -341,19 +343,43 @@ func (a *App) detectPortCmd() *cobra.Command {
 
 func (a *App) primeCmd() *cobra.Command {
 	var opts prime.Options
+	var noSnapshot bool
 	c := &cobra.Command{
 		Use:   "prime",
 		Short: "The composite report: ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, BUILD",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
-			collector, closeAll := a.primeCollector(ctx, a.contextRoot(), opts)
+			root := a.contextRoot()
+			collector, closeAll := a.primeCollector(ctx, root, opts)
 			defer closeAll()
-			a.answer(collector.Collect(ctx, opts).String())
+			result := collector.CollectResult(ctx, opts)
+			if !noSnapshot {
+				if err := PostSnapshot(ctx, a.sessionConfig().Port, root, result); err != nil {
+					fmt.Fprintf(a.Stderr, "clued: context snapshot not stored: %v\n", err)
+				}
+			}
+			a.answer(result.Report.String())
 			return nil
 		},
 	}
 	c.Flags().BoolVar(&opts.NoStore, "no-store", false, "skip the SESSION lookup in MongoDB")
 	c.Flags().BoolVar(&opts.NoDocs, "no-docs", false, "skip the STORIES and PLANS sections")
+	c.Flags().BoolVar(&noSnapshot, "no-snapshot", false, "do not post the report to the daemon as a ContextCollected event")
 	return c
+}
+
+// PostSnapshot stores a prime report through the daemon when one is
+// running; a daemon that is down is not an error. The event is attached to
+// the session named by CLAUDE_SESSION_ID, else to the one the SESSION
+// section found, else to none.
+func PostSnapshot(ctx context.Context, port int, root string, result prime.Result) error {
+	if !prime.DaemonHealthy(ctx, port) {
+		return nil
+	}
+	sessionID := os.Getenv("CLAUDE_SESSION_ID")
+	if sessionID == "" {
+		sessionID = result.SessionID
+	}
+	return snapshot.Post(ctx, port, snapshot.Event{SessionID: sessionID, Cwd: filepath.ToSlash(root), Report: result.Report})
 }

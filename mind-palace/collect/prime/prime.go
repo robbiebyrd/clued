@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/collect"
@@ -75,10 +76,23 @@ type Options struct {
 
 type sectionFn func(ctx context.Context) (name, body string)
 
+// Result is a collected report plus what the SESSION section found.
+type Result struct {
+	Report collect.Report
+	// SessionID is the captured session the SESSION section showed; empty
+	// when none was found, the store was skipped, or the lookup failed.
+	SessionID string
+}
+
 // Collect builds the report. Every section runs under the shared budget;
 // one that panics or outlives the budget prints its fallback while the
 // others still render.
 func (c *Collector) Collect(ctx context.Context, opts Options) collect.Report {
+	return c.CollectResult(ctx, opts).Report
+}
+
+// CollectResult is Collect with the session id the SESSION section found.
+func (c *Collector) CollectResult(ctx context.Context, opts Options) Result {
 	root := c.Root
 	if abs, err := filepath.Abs(root); err == nil {
 		root = abs
@@ -90,6 +104,10 @@ func (c *Collector) Collect(ctx context.Context, opts Options) collect.Report {
 	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 
+	var found struct {
+		sync.Mutex
+		id string
+	}
 	sections := []struct {
 		name string
 		fn   sectionFn
@@ -103,7 +121,13 @@ func (c *Collector) Collect(ctx context.Context, opts Options) collect.Report {
 		{"DIFF-STAT", func(ctx context.Context) (string, string) { return "DIFF-STAT", c.diffStat(ctx) }},
 		{"STORIES", func(ctx context.Context) (string, string) { return "STORIES", c.stories(ctx, opts) }},
 		{"PLANS", func(ctx context.Context) (string, string) { return "PLANS", c.plans(ctx, opts) }},
-		{"SESSION", func(ctx context.Context) (string, string) { return "SESSION", c.sessionSection(ctx, root, opts) }},
+		{"SESSION", func(ctx context.Context) (string, string) {
+			body, id := c.sessionSection(ctx, root, opts)
+			found.Lock()
+			found.id = id
+			found.Unlock()
+			return "SESSION", body
+		}},
 		{"BUILD", func(ctx context.Context) (string, string) { return "BUILD", c.build(ctx) }},
 	}
 	var report collect.Report
@@ -111,7 +135,9 @@ func (c *Collector) Collect(ctx context.Context, opts Options) collect.Report {
 		name, body := withBudget(ctx, s.name, s.fn)
 		report.Sections = append(report.Sections, collect.Section{Name: name, Body: body})
 	}
-	return report
+	found.Lock()
+	defer found.Unlock()
+	return Result{Report: report, SessionID: found.id}
 }
 
 type sectionResult struct{ name, body string }
@@ -341,17 +367,21 @@ func (c *Collector) plans(ctx context.Context, opts Options) string {
 	return strings.Join(lines, "\n")
 }
 
-func (c *Collector) sessionSection(ctx context.Context, root string, opts Options) string {
+// sessionSection returns the SESSION body and the session id it found.
+func (c *Collector) sessionSection(ctx context.Context, root string, opts Options) (string, string) {
 	if c.Sessions == nil || opts.NoStore {
-		return collect.StoreDisabled
+		return collect.StoreDisabled, ""
 	}
 	ctx, cancel := context.WithTimeout(ctx, StoreTimeout)
 	defer cancel()
 	snap, err := c.Sessions.Current(ctx, filepath.ToSlash(root))
 	if err != nil {
-		return collect.StoreUnavailable
+		return collect.StoreUnavailable, ""
 	}
-	return SessionBody(snap)
+	if snap == nil {
+		return collect.None, ""
+	}
+	return SessionBody(snap), snap.SessionID
 }
 
 // SessionBody renders a session snapshot as the SESSION section does; a nil

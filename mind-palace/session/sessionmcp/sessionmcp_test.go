@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -227,7 +231,8 @@ const toolSchemas = `{
     "inputSchema": {"type":"object","properties":{
       "cwd":{"type":"string","description":"Project directory (default: the server's working directory)"},
       "no_store":{"type":"boolean","description":"Skip the SESSION lookup in MongoDB"},
-      "no_docs":{"type":"boolean","description":"Skip the STORIES and PLANS sections"}}}}
+      "no_docs":{"type":"boolean","description":"Skip the STORIES and PLANS sections"},
+      "no_snapshot":{"type":"boolean","description":"Do not post the report to the daemon as a ContextCollected event"}}}}
 }`
 
 func TestToolListHasTheSevenToolsWithTheProtocolSchemas(t *testing.T) {
@@ -631,6 +636,41 @@ func TestPrimeContextReturnsTheReport(t *testing.T) {
 		// The session source borrows the shared store: it is still usable afterwards.
 		if n := len(okJSON[[]obj](t, call(t, cs, "find_sessions", obj{}))); n != 5 {
 			t.Errorf("find_sessions after prime_context returned %d sessions", n)
+		}
+	})
+}
+
+func TestPrimeContextPostsASnapshotWhenTheDaemonRuns(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		st := seeded(t)
+		root := t.TempDir()
+		seedSession(t, st, account, "sess-snap", filepath.ToSlash(root), "")
+		var bodies []string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/event" && r.Method == http.MethodPost {
+				b, _ := io.ReadAll(r.Body)
+				bodies = append(bodies, string(b))
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer srv.Close()
+		_, portStr, _ := net.SplitHostPort(strings.TrimPrefix(srv.URL, "http://"))
+		port := 0
+		for _, c := range portStr {
+			port = port*10 + int(c-'0')
+		}
+		cs := connectClient(t, newTools(st, session.Config{Port: port}).Server(), nil)
+
+		res := call(t, cs, "prime_context", obj{"cwd": root})
+		if res.IsError {
+			t.Fatalf("tool error: %s", text(t, res))
+		}
+		if len(bodies) != 1 || !strings.Contains(bodies[0], `"hook_event_name":"ContextCollected"`) || !strings.Contains(bodies[0], `"session_id":"sess-snap"`) {
+			t.Errorf("daemon received %v", bodies)
+		}
+		call(t, cs, "prime_context", obj{"cwd": root, "no_snapshot": true})
+		if len(bodies) != 1 {
+			t.Errorf("no_snapshot must not post, got %d events", len(bodies))
 		}
 	})
 }

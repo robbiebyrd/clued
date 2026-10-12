@@ -13,7 +13,7 @@ Run the composite report through Bash:
 "${CLAUDE_PLUGIN_ROOT}/bin/clued" context prime
 ```
 
-It always exits 0. Add `--no-store` if MongoDB is known to be down and `--no-docs` outside mind-palace projects.
+It always exits 0. Add `--no-store` if MongoDB is known to be down and `--no-docs` outside mind-palace projects. When the daemon is running the report is also stored in MongoDB as a `ContextCollected` event; `--no-snapshot` skips that.
 
 ## Step 2 — Summarise
 
