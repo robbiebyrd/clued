@@ -18,7 +18,7 @@ func (a *App) reviewCmd() *cobra.Command {
 			if err := a.init(ctx); err != nil {
 				return a.fail(err)
 			}
-			r, err := a.palace.Review(ctx)
+			r, err := a.palace.Review(ctx, a.reviewOptions()...)
 			if err != nil {
 				return a.fail(err)
 			}

@@ -10,6 +10,7 @@ package mcpserver
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -40,6 +41,10 @@ type Options struct {
 	Tools []ToolProvider
 	// ExtraInstructions is appended to the server instructions after a blank line.
 	ExtraInstructions string
+	// sessionPrefix, when set by Multi, starts every Streamable HTTP
+	// session id of this server so a session can be told apart from those
+	// of the other palaces.
+	sessionPrefix string
 }
 
 // ToolProvider registers additional tools on the server. Implementations
@@ -74,7 +79,7 @@ func New(palace *service.Palace, regs ops.Registries, opts *Options) *Server {
 	if opts.ExtraInstructions != "" {
 		serverInstructions += "\n\n" + opts.ExtraInstructions
 	}
-	s.MCP = mcp.NewServer(&mcp.Implementation{Name: "mind-palace", Title: "Mind Palace (plans and stories)", Version: Version}, &mcp.ServerOptions{
+	serverOpts := &mcp.ServerOptions{
 		Instructions: serverInstructions,
 		Logger:       opts.Logger,
 		SubscribeHandler: func(ctx context.Context, req *mcp.SubscribeRequest) error {
@@ -82,7 +87,12 @@ func New(palace *service.Palace, regs ops.Registries, opts *Options) *Server {
 			return err
 		},
 		UnsubscribeHandler: func(context.Context, *mcp.UnsubscribeRequest) error { return nil },
-	})
+	}
+	if opts.sessionPrefix != "" {
+		prefix := opts.sessionPrefix
+		serverOpts.GetSessionID = func() string { return prefix + rand.Text() }
+	}
+	s.MCP = mcp.NewServer(&mcp.Implementation{Name: "mind-palace", Title: "Mind Palace (plans and stories)", Version: Version}, serverOpts)
 	s.addTools()
 	for _, p := range opts.Tools {
 		p.AddTools(s.MCP, opts.ToolPrefix)

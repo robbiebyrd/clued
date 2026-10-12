@@ -228,7 +228,7 @@ func TestEventDocShape(t *testing.T) {
 func TestIngestPostsOnlyNewRecordsAndIsIdempotent(t *testing.T) {
 	store := fixtureStore(t)
 	stub := newDaemonStub(t)
-	opts := IngestOptions{Dirs: []string{store}, Cwd: "/home/alice/proj", StateDir: t.TempDir(), SessionID: "sess-1", Poster: Poster{Port: stub.port(t)}}
+	opts := IngestOptions{Dirs: []string{store}, Cwd: "/home/alice/proj", StateDir: t.TempDir(), SessionID: "sess-1", Poster: DaemonPoster{Port: stub.port(t)}}
 	res, err := Ingest(context.Background(), opts)
 	if err != nil {
 		t.Fatal(err)
@@ -262,7 +262,7 @@ func TestIngestFallsBackToTheWALAndKeepsStateHonest(t *testing.T) {
 	stub.refuse = true
 	walPath := filepath.Join(t.TempDir(), "events.wal")
 	stateDir := t.TempDir()
-	opts := IngestOptions{Dirs: []string{store}, Cwd: "/p", StateDir: stateDir, Poster: Poster{Port: stub.port(t), WalPath: walPath}}
+	opts := IngestOptions{Dirs: []string{store}, Cwd: "/p", StateDir: stateDir, Poster: DaemonPoster{Port: stub.port(t), WalPath: walPath}}
 	res, err := Ingest(context.Background(), opts)
 	if err != nil || res.Posted != 8 {
 		t.Fatalf("wal fallback: %+v %v", res, err)
@@ -272,7 +272,7 @@ func TestIngestFallsBackToTheWALAndKeepsStateHonest(t *testing.T) {
 		t.Errorf("wal = %q %v", data, err)
 	}
 	// Without a WAL a refusal is an error and nothing is marked as posted.
-	opts2 := IngestOptions{Dirs: []string{store}, Cwd: "/p", StateDir: t.TempDir(), Poster: Poster{Port: stub.port(t)}}
+	opts2 := IngestOptions{Dirs: []string{store}, Cwd: "/p", StateDir: t.TempDir(), Poster: DaemonPoster{Port: stub.port(t)}}
 	if res, err := Ingest(context.Background(), opts2); err == nil || res.Posted != 0 {
 		t.Errorf("refusal without wal: %+v %v", res, err)
 	}
@@ -300,7 +300,7 @@ func TestIngestLocatesStoresAndNewestSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	stub := newDaemonStub(t)
-	res, err := Ingest(context.Background(), IngestOptions{Cwd: cwd, Home: home, ProjectsDir: projects, StateDir: t.TempDir(), Poster: Poster{Port: stub.port(t)}})
+	res, err := Ingest(context.Background(), IngestOptions{Cwd: cwd, Home: home, ProjectsDir: projects, StateDir: t.TempDir(), Poster: DaemonPoster{Port: stub.port(t)}})
 	if err != nil || res.Posted != 1 || res.Session != "sess-9" || len(res.Dirs) != 1 {
 		t.Fatalf("got %+v %v", res, err)
 	}

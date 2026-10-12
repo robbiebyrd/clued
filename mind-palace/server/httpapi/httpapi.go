@@ -10,6 +10,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,9 +29,40 @@ const Prefix = "/api/v1"
 // MaxBody limits request bodies (documents are text; 8 MiB is generous).
 const MaxBody = 8 << 20
 
-// Handler returns the HTTP API handler.
+// Resolver picks the palace a request works on. The other transports (ws,
+// mcpserver) share the type. An error ends the request: a *StatusError is
+// written as it says, anything else through service.AsError (see
+// WriteResolveError).
+type Resolver func(r *http.Request) (*service.Palace, error)
+
+// Fixed is the Resolver that always returns palace.
+func Fixed(palace *service.Palace) Resolver {
+	return func(*http.Request) (*service.Palace, error) { return palace, nil }
+}
+
+// StatusError is a resolver failure with its HTTP status and envelope kind
+// decided (400 "invalid", 403 "forbidden", 502 "store", …).
+type StatusError struct {
+	Status  int
+	Kind    string
+	Message string
+}
+
+func (e *StatusError) Error() string { return e.Kind + ": " + e.Message }
+
+// WriteResolveError writes a Resolver failure: a *StatusError with its own
+// status and kind, anything else as a service error (service.AsError).
+func WriteResolveError(w http.ResponseWriter, err error) { writeError(w, err) }
+
+// Handler returns the HTTP API handler over one palace.
 func Handler(palace *service.Palace, regs ops.Registries) http.Handler {
-	a := &api{palace: palace, regs: regs}
+	return ResolvingHandler(Fixed(palace), regs)
+}
+
+// ResolvingHandler returns the HTTP API handler over the palace resolve
+// picks for each request.
+func ResolvingHandler(resolve Resolver, regs ops.Registries) http.Handler {
+	a := &api{resolve: resolve, regs: regs}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+Prefix+"/ops", a.listOps)
 	mux.HandleFunc("POST "+Prefix+"/ops/{op}", a.callOp)
@@ -70,8 +102,8 @@ func Handler(palace *service.Palace, regs ops.Registries) http.Handler {
 }
 
 type api struct {
-	palace *service.Palace
-	regs   ops.Registries
+	resolve Resolver
+	regs    ops.Registries
 }
 
 // withKind runs next with the kind path value set (for literal-kind routes).
@@ -93,7 +125,11 @@ func (a *api) target(r *http.Request) (*service.Service, *ops.Registry, error) {
 	if err != nil {
 		return nil, nil, &service.Error{Kind: service.KindNotFound, Message: fmt.Sprintf("unknown document kind %q (known: %s)", k, strings.Join(kind.Names(), ", "))}
 	}
-	svc, err := a.palace.Service(k)
+	palace, err := a.resolve(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	svc, err := palace.Service(k)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -221,8 +257,13 @@ func (a *api) run(w http.ResponseWriter, r *http.Request, name string, raw json.
 
 func (a *api) listOps(w http.ResponseWriter, r *http.Request) {
 	if r.PathValue("kind") == "" {
+		palace, err := a.resolve(r)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
 		var all []ops.Describe
-		for _, svc := range a.palace.Services() {
+		for _, svc := range palace.Services() {
 			all = append(all, a.regs[svc.Kind().Name].Describe(svc)...)
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "result": all})
@@ -436,7 +477,12 @@ func (a *api) events(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	sub := a.palace.Bus().Subscribe(filter, 64)
+	palace, err := a.resolve(r)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	sub := palace.Bus().Subscribe(filter, 64)
 	defer sub.Close()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -518,8 +564,31 @@ func writeResult(w http.ResponseWriter, status int, res *ops.Result) {
 }
 
 func writeError(w http.ResponseWriter, err error) {
+	var se *StatusError
+	if errors.As(err, &se) {
+		WriteError(w, se.Status, se.Kind, se.Message)
+		return
+	}
 	e := service.AsError(err)
 	writeJSON(w, e.HTTPStatus(), map[string]any{"ok": false, "error": e})
+}
+
+// WriteResult writes the success envelope {"ok": true, "result": v} with
+// the given status. Other server transports (sessionapi, storeapi) use it so
+// every endpoint answers in the same shape.
+func WriteResult(w http.ResponseWriter, status int, v any) {
+	writeJSON(w, status, map[string]any{"ok": true, "result": v})
+}
+
+// WriteError writes the error envelope {"ok": false, "error": {"kind",
+// "message", "problems"?}} with the given status. problems are rendered as
+// given (strings or structured values) and omitted when empty.
+func WriteError(w http.ResponseWriter, status int, kind, msg string, problems ...any) {
+	e := map[string]any{"kind": kind, "message": msg}
+	if len(problems) > 0 {
+		e["problems"] = problems
+	}
+	writeJSON(w, status, map[string]any{"ok": false, "error": e})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

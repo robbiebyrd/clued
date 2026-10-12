@@ -353,7 +353,22 @@ mind-palace session restore <session> [--project-path p] [--projects-dir d]
 mind-palace session backfill
 mind-palace session daemon [--addr host:port]   # POST /event, GET /health; default 127.0.0.1:8085
 mind-palace session mcp                         # session tools only, over stdio
+mind-palace session whoami                      # remote mode: the token's name, account and projects
+mind-palace hook relay                          # remote mode, run by the hooks: store one event, push the transcript delta
+mind-palace server run [--addr] [--tls-cert --tls-key | --behind-proxy]   # the clued server
+mind-palace server token create|list|revoke|grant                        # its bearer tokens
 ```
+
+**Remote mode.** With `serverUrl` and `serverToken` set (env
+`CLUED_SERVER_URL`, `CLUED_SERVER_TOKEN`; optional `serverCaFile`,
+`serverInsecure`), the client keeps no MongoDB and runs no daemon: the
+session store is `session/remotesession` over a clued server, each hook runs
+`hook relay` (`session/ingest` plus `session/catchup`, state under
+`<config dir>/catchup/`, failures in `relay.log`), and the plan and story
+services opened through `clientcfg` add the server as the `clued-server`
+store. `server run` serves `server/sessionapi`, `server/storeapi` and
+`/api/v1/whoami` behind `server/auth`. The repository README's "Remote mode"
+section and `docs/server.md` describe setting it up.
 
 The daemon stores each `POST /event` (store writes happen off the request
 path), and on the first event of a session starts tailing its transcript and
@@ -402,9 +417,19 @@ expose them next to the plan and story tools.
 | `service` | `Palace` (one `Service` per kind over a shared store), every operation and its rules; typed errors |
 | `ops` | Per-kind operation registries shared by all entrypoints |
 | `store`, `store/*` | Kind-aware store interface, fan-out, sync, plugins |
+| `store/remotestore` | The `clued` storage plugin: plans and stories on a clued server, one project per store instance, over `remote` against `server/storeapi` |
 | `events` | In-process event bus (filter by kind and id) |
-| `server/*` | HTTP, WebSocket and MCP entrypoints |
-| `session`, `session/*` | Claude Code session capture: config, MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
+| `server/*` | HTTP, WebSocket and MCP entrypoints, and the clued server (`server/clued.go`, `mind-palace server run`) |
+| `server/auth` | Bearer tokens for the clued server: hashed token file managed by `server token`, constant-time compare, mtime reload, 401/403 in the httpapi envelope |
+| `server/sessionapi` | The `session.Store` port over HTTP (`/api/v1/session/…`), every route scoped to the token's account |
+| `server/storeapi` | The `store.Store` port over HTTP (`/api/v1/projects/{project}/store/…`); the raw document transport behind `store/remotestore` |
+| `server/projects` | Project slugs derived from a git origin and one `store.Store` per project built from the server's storage definitions |
+| `remote` | The HTTP client the remote adapters share: base URL, bearer token, CA file, the plain-`http://`-off-loopback refusal, envelope decoding into typed errors |
+| `clientcfg` | Opens the plan and story services as the client does: the repository's config plus, in remote mode, the `clued-server` store as a secondary store; resolves the project slug (`remote.project`, git origin, directory name) |
+| `session`, `session/*` | Claude Code session capture: config (local and remote mode), MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
+| `session/ingest` | Hook-event bookkeeping shared by the daemon and `hook relay`: session tracking, stamping, store write, WAL fallback |
+| `session/catchup` | One-shot replacement for the tailers: pushes a session's transcript delta and changed artifact files, with state and lock files per session |
+| `session/remotesession` | `session.Store` over a clued server (one HTTP call per port method to `server/sessionapi`); the query service, restore, backfill and the MCP tools run unchanged on it |
 | `hookguard` | Rules behind the Claude Code hooks the binary serves (the Stop guard) |
-| `plugin` | Tests for the Claude Code plugin glue (`scripts/clued`, the bash hooks, `hooks.json`) |
+| `plugin` | Tests for the Claude Code plugin glue (`scripts/clued`, the bash hooks, `hooks.json`) in local and remote mode |
 | `cli`, `cmd/*` | Command line: `mind-palace`, plus the `plan` and `story` wrappers |

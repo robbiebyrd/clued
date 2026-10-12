@@ -13,11 +13,15 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/robbiebyrd/clued/mind-palace/remote"
+	"github.com/robbiebyrd/clued/mind-palace/server/auth"
+	"github.com/robbiebyrd/clued/mind-palace/server/sessionapi"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/memsession"
 )
@@ -306,7 +310,7 @@ func TestRootGainsOnlySessionGroup(t *testing.T) {
 			groups[c.Name()] = append(groups[c.Name()], sub.Name())
 		}
 	}
-	wantTop := []string{"call", "config", "context", "hook", "mcp", "ops", "plan", "review", "schema", "serve", "session", "stores", "story", "sync"}
+	wantTop := []string{"call", "config", "context", "hook", "mcp", "ops", "plan", "review", "schema", "serve", "server", "session", "stores", "story", "sync"}
 	if !reflect.DeepEqual(top, wantTop) {
 		t.Errorf("top-level commands = %v, want %v", top, wantTop)
 	}
@@ -318,7 +322,7 @@ func TestRootGainsOnlySessionGroup(t *testing.T) {
 	if !reflect.DeepEqual(groups["story"], wantStory) {
 		t.Errorf("story group = %v", groups["story"])
 	}
-	wantSession := []string{"backfill", "context", "daemon", "find", "full", "mcp", "memory-ingest", "restore", "search-commands", "search-memory", "transcript"}
+	wantSession := []string{"backfill", "context", "daemon", "find", "full", "mcp", "memory-ingest", "restore", "search-commands", "search-memory", "transcript", "whoami"}
 	if !reflect.DeepEqual(groups["session"], wantSession) {
 		t.Errorf("session group = %v, want %v", groups["session"], wantSession)
 	}
@@ -620,5 +624,108 @@ func TestSessionMemoryIngest(t *testing.T) {
 	stateDir := filepath.Join(filepath.Dir(os.Getenv("CLUED_WAL_PATH")), "remember")
 	if entries, err := os.ReadDir(stateDir); err != nil || len(entries) != 1 {
 		t.Errorf("state dir %s: %v %v", stateDir, entries, err)
+	}
+}
+
+// remoteEnv points the session config at a temp tree like sessionEnv, but
+// keeps the real openSessionStore: it configures a server instead, serving
+// store behind a bearer token, and makes the MongoDB constructor fail the
+// test if it is reached. It returns the number of requests the server saw.
+func remoteEnv(t *testing.T, store session.Store) (requests func() int32) {
+	t.Helper()
+	sessionEnv(t, nil)
+	openSessionStore = openSessionStoreReal
+	prev := openMongoSessionStore
+	openMongoSessionStore = func(context.Context, session.Config) (session.Store, error) {
+		t.Error("the MongoDB store was opened in remote mode")
+		return nil, errors.New("mongo must not be reached")
+	}
+	t.Cleanup(func() { openMongoSessionStore = prev })
+
+	const token = "remote-test-token"
+	source := stubTokenSource{token: token, account: testAccount}
+	h := auth.Middleware(source)(sessionapi.Handler(store, sessionapi.Options{Account: func(r *http.Request) (string, bool) {
+		p, ok := auth.FromContext(r.Context())
+		return p.AccountID, ok
+	}}))
+	var n atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n.Add(1)
+		h.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("CLUED_SERVER_URL", srv.URL)
+	t.Setenv("CLUED_SERVER_TOKEN", token)
+	return n.Load
+}
+
+// openSessionStoreReal is the production openSessionStore, captured before
+// any test replaces it.
+var openSessionStoreReal = openSessionStore
+
+type stubTokenSource struct{ token, account string }
+
+func (s stubTokenSource) Lookup(raw string) (auth.Principal, bool) {
+	if raw != s.token {
+		return auth.Principal{}, false
+	}
+	return auth.Principal{Name: "test", AccountID: s.account}, true
+}
+
+func TestSessionFindUsesTheRemoteStoreWhenAServerIsConfigured(t *testing.T) {
+	requests := remoteEnv(t, seedSessions(t))
+
+	res := sessionResult(t, runSession(t, "find"))
+	if got := sessionIDs(t, res); !reflect.DeepEqual(got, []string{"s1", "s2"}) {
+		t.Errorf("find ids = %v, want [s1 s2]", got)
+	}
+	if n := res.([]any)[0].(map[string]any)["event_count"]; n != float64(30) {
+		t.Errorf("event_count = %v, want 30", n)
+	}
+	if requests() == 0 {
+		t.Error("the server saw no requests")
+	}
+	full := sessionResult(t, runSession(t, "full", "s1")).(map[string]any)
+	if full["session_id"] != "s1" || len(full["transcript_lines"].([]any)) != 30 {
+		t.Errorf("full = session %v, %d transcript lines", full["session_id"], len(full["transcript_lines"].([]any)))
+	}
+	lines := sessionResult(t, runSession(t, "transcript", "s1", "--offset", "5", "--limit", "3")).([]any)
+	if len(lines) != 3 || lines[0].(map[string]any)["line"].(map[string]any)["n"] != float64(5) {
+		t.Errorf("transcript = %v, want n = 5 6 7", lines)
+	}
+	r := runSession(t, "context", "missing")
+	if r.code != 4 || !strings.Contains(r.stderr, "NotFound") {
+		t.Errorf("context missing: %+v, want NotFound", r)
+	}
+}
+
+func TestSessionRemoteRefusesPlainHTTPOffLoopback(t *testing.T) {
+	remoteEnv(t, memsession.New())
+	t.Setenv("CLUED_SERVER_URL", "http://clued.example.com:8080")
+
+	r := runSession(t, "find")
+	if r.code == 0 || r.stdout != "" || !strings.Contains(r.stderr, remote.ErrInsecureURL.Error()) {
+		t.Errorf("find = %+v, want a failure naming ErrInsecureURL", r)
+	}
+}
+
+func TestSessionMemoryIngestStoresOnTheServerInRemoteMode(t *testing.T) {
+	requests := remoteEnv(t, memsession.New())
+	t.Setenv("CLUED_PORT", "1") // no daemon listens here, and none must be needed
+
+	store := t.TempDir()
+	if err := os.WriteFile(filepath.Join(store, "now.md"), []byte("## 10:00 | main\nStored on the server.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res := sessionResult(t, runSession(t, "memory-ingest", "--dir", store, "--cwd", "/work/alpha", "--session", "s9")).(map[string]any)
+	if res["posted"] != float64(1) || requests() == 0 {
+		t.Fatalf("result = %v, requests %d", res, requests())
+	}
+	if data, err := os.ReadFile(os.Getenv("CLUED_WAL_PATH")); err == nil && len(data) != 0 {
+		t.Errorf("the event went to the WAL instead of the server: %s", data)
+	}
+	hits := sessionResult(t, runSession(t, "search-memory", "server")).([]any)
+	if len(hits) != 1 || hits[0].(map[string]any)["session_id"] != "s9" || hits[0].(map[string]any)["cwd"] != "/work/alpha" {
+		t.Errorf("search-memory over the server = %v", hits)
 	}
 }

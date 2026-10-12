@@ -15,22 +15,42 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 
+	"github.com/robbiebyrd/clued/mind-palace/collect/prime"
 	"github.com/robbiebyrd/clued/mind-palace/memory"
+	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
 	"github.com/robbiebyrd/clued/mind-palace/session/daemon"
 	"github.com/robbiebyrd/clued/mind-palace/session/gitinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
+	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 	"github.com/robbiebyrd/clued/mind-palace/session/mongosession"
 	"github.com/robbiebyrd/clued/mind-palace/session/query"
+	"github.com/robbiebyrd/clued/mind-palace/session/remotesession"
 	"github.com/robbiebyrd/clued/mind-palace/session/restore"
 	"github.com/robbiebyrd/clued/mind-palace/session/sessionmcp"
 )
 
-// openSessionStore connects the session store; tests replace it with an
-// in-memory store.
+// openSessionStore connects the session store: the remote adapter when the
+// config names a server (serverUrl / CLUED_SERVER_URL), the local MongoDB
+// otherwise. A server URL the remote client refuses, such as plain http://
+// off loopback without serverInsecure, is the error. Tests replace it with
+// an in-memory store.
 var openSessionStore = func(ctx context.Context, cfg session.Config) (session.Store, error) {
+	client, err := remote.FromConfigE(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if client != nil {
+		return remotesession.New(client), nil
+	}
+	return openMongoSessionStore(ctx, cfg)
+}
+
+// openMongoSessionStore connects the local MongoDB store; the remote-mode
+// test replaces it to prove it is never reached.
+var openMongoSessionStore = func(ctx context.Context, cfg session.Config) (session.Store, error) {
 	s := mongosession.New(cfg)
 	return s, s.Connect(ctx)
 }
@@ -103,7 +123,8 @@ func (a *App) sessionCmd() *cobra.Command {
 	c.AddCommand(
 		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
-		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionSearchMemoryCmd(), a.sessionMemoryIngestCmd(),
+		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
+		a.sessionSearchMemoryCmd(), a.sessionMemoryIngestCmd(),
 	)
 	return c
 }
@@ -149,8 +170,9 @@ func (a *App) sessionMemoryIngestCmd() *cobra.Command {
 .remember/ folder and ~/.remember/<slug>/, or the --dir folders given) and
 posts every record not posted before to the daemon as a MemorySaved event;
 when the daemon is unreachable the events go to the write-ahead log it
-replays. A state file under the clued data directory keeps the ingest
-idempotent. The claude-remember hooks.d listener and the clued session hooks
+replays. In remote mode the events are stored on the clued server instead,
+with the same write-ahead log as the fallback. A state file under the clued
+data directory keeps the ingest idempotent. The claude-remember hooks.d listener and the clued session hooks
 run this; it prints nothing with --quiet.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -165,7 +187,21 @@ run this; it prints nothing with --quiet.`,
 			opts.Home, _ = os.UserHomeDir()
 			opts.ProjectsDir = cfg.ProjectsDir
 			opts.StateDir = memoryStateDir(cfg)
-			opts.Poster = memory.Poster{Port: cfg.Port, WalPath: cfg.WalPath}
+			opts.Poster = memory.DaemonPoster{Port: cfg.Port, WalPath: cfg.WalPath}
+			if cfg.Remote() {
+				store, err := a.sessionStore(cmd.Context())
+				if err != nil {
+					return a.sessionFail(err)
+				}
+				defer a.closeSessionStore()
+				opts.Poster = storePoster{&ingest.Service{
+					Store:     store,
+					AccountID: session.ReadAccountID(cfg.ClaudeAppConfigPath),
+					Host:      hostinfo.Read(),
+					Logger:    slog.New(slog.NewTextHandler(a.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+					WALPath:   cfg.WalPath,
+				}}
+			}
 			res, err := memory.Ingest(cmd.Context(), opts)
 			if err != nil {
 				return a.sessionFail(err)
@@ -182,6 +218,22 @@ run this; it prints nothing with --quiet.`,
 	f.StringVar(&opts.SessionID, "session", "", "session id to attach (default: the project's newest transcript)")
 	f.BoolVar(&quiet, "quiet", false, "print nothing on success")
 	return c
+}
+
+// storePoster delivers memory events straight into a session store (remote
+// mode, where no daemon runs) through the same ingest service the hook relay
+// uses: the event is stamped, inserted, and buffered in the WAL when the
+// server is down. ErrBuffered counts as delivered, as it does for the relay.
+type storePoster struct {
+	svc *ingest.Service
+}
+
+func (p storePoster) Post(ctx context.Context, ev memory.Event) error {
+	_, err := p.svc.Handle(ctx, ev.Doc())
+	if err != nil && !errors.Is(err, ingest.ErrBuffered) {
+		return err
+	}
+	return nil
 }
 
 // memoryStateDir is where the ingest keeps its per-store state: next to the
@@ -394,6 +446,37 @@ func (a *App) sessionBackfillCmd() *cobra.Command {
 			stats, err := backfill.Run(ctx, store, a.sessionConfig().ProjectsDir, svc.AccountID, git, logger)
 			return map[string]int{"sessions": stats.Sessions, "lines": stats.Lines}, err
 		}),
+	}
+}
+
+func (a *App) sessionWhoamiCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "whoami",
+		Short: "Ask the configured clued server who the token is: name, account, projects, server version",
+		Long: `Calls GET /api/v1/whoami on the server named by serverUrl (CLUED_SERVER_URL)
+with the configured token and prints the principal it resolves to. The
+command fails when no server is configured (BadRequest), when the token is
+rejected or the server cannot be reached (StorageError), which is what
+check-setup and /clued-setup use as the connectivity probe.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := a.sessionConfig()
+			client, err := remote.FromConfigE(cfg)
+			if err != nil {
+				return a.sessionFail(err)
+			}
+			if client == nil {
+				return a.sessionBadRequest(fmt.Sprintf("no server configured: set serverUrl in %s (or CLUED_SERVER_URL)", a.sess.configPath))
+			}
+			p, err := prime.Whoami(cmd.Context(), client)
+			if err != nil {
+				return a.sessionFail(err)
+			}
+			a.print(a.Stdout, map[string]any{"ok": true, "result": map[string]any{
+				"name": p.Name, "account_id": p.AccountID, "projects": p.Projects, "version": p.Version, "server": client.BaseURL(),
+			}})
+			return nil
+		},
 	}
 }
 

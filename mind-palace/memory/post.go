@@ -60,9 +60,16 @@ func (ev Event) Doc() session.Doc {
 	return d
 }
 
-// Poster delivers events to the daemon, falling back to the write-ahead log
-// the daemon replays when it is not reachable (the same path the hooks use).
-type Poster struct {
+// A Sink accepts the events an ingest produces. DaemonPoster is the local
+// one; in remote mode the CLI stores the events on the clued server itself.
+type Sink interface {
+	Post(ctx context.Context, ev Event) error
+}
+
+// DaemonPoster delivers events to the daemon, falling back to the write-ahead
+// log the daemon replays when it is not reachable (the same path the hooks
+// use).
+type DaemonPoster struct {
 	Port    int
 	WalPath string
 	// Client overrides the HTTP client (tests).
@@ -71,7 +78,7 @@ type Poster struct {
 
 // Post delivers one event. It returns an error only when neither the daemon
 // nor the WAL accepted it.
-func (p Poster) Post(ctx context.Context, ev Event) error {
+func (p DaemonPoster) Post(ctx context.Context, ev Event) error {
 	doc := ev.Doc()
 	err := p.send(ctx, doc)
 	if err == nil {
@@ -86,7 +93,7 @@ func (p Poster) Post(ctx context.Context, ev Event) error {
 	return nil
 }
 
-func (p Poster) send(ctx context.Context, doc session.Doc) error {
+func (p DaemonPoster) send(ctx context.Context, doc session.Doc) error {
 	if p.Port <= 0 {
 		return fmt.Errorf("memory: no daemon port configured")
 	}
@@ -128,7 +135,8 @@ type IngestOptions struct {
 	// of the project under ProjectsDir, or none.
 	SessionID   string
 	ProjectsDir string
-	Poster      Poster
+	// Poster receives every new record; nil means nothing can be delivered.
+	Poster Sink
 }
 
 // IngestResult says what an ingest did.

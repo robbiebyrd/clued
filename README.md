@@ -8,7 +8,9 @@ Go binary, `mind-palace`:
   transcript line, subagent transcript, tool-result blob and file-history
   backup is mirrored into MongoDB in real time by a local daemon, enriched with
   structured metadata, and searchable from any machine that shares the
-  database. A session can be restored to disk elsewhere and resumed.
+  database. A session can be restored to disk elsewhere and resumed. In
+  [remote mode](#remote-mode) the same data goes to a clued server over
+  HTTPS instead, and the machine needs neither MongoDB nor a daemon.
 - **Plans and stories.** Design/implementation plans and issue-tracker
   stories are stored as Markdown with YAML front matter under `docs/plans`
   and `docs/stories`, validated against JSON Schemas, moved through a status
@@ -23,8 +25,10 @@ for the plan and story service in depth.
 ## Prerequisites
 
 - [Claude Code](https://claude.ai/code).
-- A MongoDB instance for session capture (local, Docker or remote). The setup
-  command walks you through installing one; plans and stories do not need it.
+- A MongoDB instance for session capture (local, Docker or remote), or a
+  clued server (`mind-palace server run`, see [Remote mode](#remote-mode))
+  and a token for it. The setup command walks you through installing a
+  MongoDB; plans and stories do not need either.
 - `jq` (optional but recommended): the bash hooks use it to read the config
   file and to mirror the hook entries into `settings.json`.
 - Nothing else: the `mind-palace` binary ships with the plugin, pre-built for
@@ -46,13 +50,18 @@ for the plan and story service in depth.
    | **Local** | Installs for you in this repo only (writes to `.claude/settings.local.json`) |
 
 3. Reload if prompted: `/reload-plugins`
-4. Configure: `/clued-setup`. The wizard detects your platform, asks how to
-   run MongoDB (local binary, Docker or remote), installs and starts it,
-   installs `mind-palace`, writes `~/.claude/plugins/data/clued/config.json`
-   and starts the daemon.
+4. Configure: `/clued-setup`. The wizard detects your platform and asks
+   where the data goes: a local MongoDB or a clued server. For a MongoDB it
+   asks how to run it (local binary, Docker or remote), installs and starts
+   it, installs `mind-palace`, writes
+   `~/.claude/plugins/data/clued/config.json` and starts the daemon. For a
+   server it asks for the URL and the token, writes the config at `0600`,
+   checks the token with `mind-palace session whoami`, registers the hooks
+   and starts nothing.
 5. Start a new Claude Code session so the MCP servers connect.
 
-Verify:
+Verify (local mode; in remote mode `scripts/clued session whoami` instead of
+the health check):
 
 ```bash
 curl -sf http://127.0.0.1:8085/health && echo "daemon running"
@@ -60,20 +69,21 @@ mind-palace session find --limit 3
 ```
 
 Remove it again with `/clued-uninstall`, which detects what is present and
-asks before stopping the daemon, removing the config and downloaded binary,
-and (optionally) the MongoDB binaries, the Docker container and volume, and
-the data.
+asks before stopping the daemon (local mode only), removing the config and
+downloaded binary, the relay's catch-up state and log, and (optionally) the
+MongoDB binaries, the Docker container and volume, and the data.
 
 ## What the plugin installs
 
 | Piece | Role |
 |---|---|
 | `hooks.json` | Registers the hooks below for every Claude Code hook event; no manual edit of `settings.json` is needed |
-| `hooks/check-setup` | SessionStart: prints one system message when the config file or the `mind-palace` binary is missing |
-| `hooks/session-start` | SessionStart (async): re-runs `register-hooks` and `install-remember-listener`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` and a `session memory-ingest` |
+| `hooks/check-setup` | SessionStart: prints one system message when the config file or the `mind-palace` binary is missing; in remote mode also when the server is unreachable, rejects the token, or the token does not cover this repository's project |
+| `hooks/session-start` | SessionStart (async): re-runs `register-hooks` and `install-remember-listener`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` and a `session memory-ingest`. In remote mode it starts no daemon: the SessionStart event goes through `scripts/clued hook relay` and the backfill runs against the server |
 | `hooks/install-remember-listener` | Run by `session-start`: writes clued's listener into the `hooks.d/after_save` and `hooks.d/after_consolidate` directories of every installed [claude-remember](https://github.com/Digital-Process-Tools/claude-remember) plugin (see [claude-remember summaries](#claude-remember-summaries)); a plugin update that removes it is healed on the next start |
-| `scripts/clued session memory-ingest` | SessionEnd (async), the claude-remember listener, and `session-start`: posts the summaries claude-remember wrote since the last run to the daemon as `MemorySaved` events |
-| `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later |
+| `scripts/clued session memory-ingest` | SessionEnd (async), the claude-remember listener, and `session-start`: posts the summaries claude-remember wrote since the last run to the daemon as `MemorySaved` events (in remote mode, to the server through the relay) |
+| `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later. In remote mode it runs `scripts/clued hook relay` instead |
+| `scripts/clued hook relay` | Remote mode, every event: stores the event on the server, pushes the transcript lines and artifact files written since the previous hook, replays the WAL; never fails the hook, logs failures to `relay.log` (see [Remote mode](#remote-mode)) |
 | `scripts/clued hook write-guard` | PreToolUse on `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Bash`, `EnterPlanMode` and `ExitPlanMode`: routes every change to a plan or story through mind-palace (see [Plans and stories are written by mind-palace](#plans-and-stories-are-written-by-mind-palace)) |
 | `scripts/clued hook stop-guard` | Stop: blocks the assistant from stopping when its last message dodges ownership of a failure, defers work to another session or asks whether to continue (see [Hooks served by the binary](#hooks-served-by-the-binary)) |
 | `scripts/clued hook status-review` | SessionStart, and UserPromptSubmit at most every 30 minutes: tells the assistant to ask you about plans whose stories are all complete and stories whose steps and acceptance criteria are all done but still open |
@@ -215,6 +225,7 @@ prints JSON.
 | `session backfill` | Load every transcript under `projectsDir` into the store (idempotent) |
 | `session daemon [--addr host:port]` | Run the capture daemon |
 | `session mcp [--mcp-tool-prefix p]` | Serve only the session tools over stdio |
+| `session whoami` | Remote mode: ask the server who the token is (name, account, projects, server version); exit 2 when no server is configured, 10 when it is unreachable or rejects the token |
 
 ### claude-remember summaries
 
@@ -271,11 +282,57 @@ sessions and other machines can search it:
 | `claudeAppConfigPath` | the Claude desktop app's `config.json` | `CLUED_CLAUDE_APP_CONFIG_PATH` | Where the account id is read from |
 | (env only) | `events.wal` next to the config file | `CLUED_WAL_PATH` | Write-ahead log; not read from the config file |
 | `devRepoPath` | | | Source checkout that `scripts/clued` builds and runs instead of an installed binary (plugin developers) |
+| `serverUrl` | | `CLUED_SERVER_URL` | Switches to [remote mode](#remote-mode): the clued server everything is sent to; `mongoUrl` is then ignored |
+| `serverToken` | | `CLUED_SERVER_TOKEN` | The bearer token the server minted; the file is written `0600` because of it |
+| `serverCaFile` | | `CLUED_SERVER_CA_FILE` | PEM bundle trusted in addition to the system roots (a private CA) |
+| `serverInsecure` | `false` | `CLUED_SERVER_INSECURE` | Allow a plain `http://` server URL off loopback; never set it outside a network you trust |
 
 A leading `~/` is expanded in every path. Unknown keys are ignored, so a
 config file from the earlier Node implementation keeps working; its
 `mcpPort` is no longer read (the session tools are served over stdio, not
 SSE on port 8086).
+
+## Remote mode
+
+Remote mode replaces the MongoDB and the daemon on each machine with one
+clued server that several machines (or one cloud container that can only
+make HTTPS requests) share: `mind-palace server run` serves the session
+transport, the per-project plan and story transport and `/api/v1/whoami`
+over HTTPS, every route behind bearer tokens that the operator mints with
+`mind-palace server token create --name <name> --project <slug>` and can
+revoke or extend (`token revoke`, `token grant`) without a restart. Sessions
+are stored under the token's account in the server's MongoDB; plans and
+stories are namespaced per project, a slug derived from the repository's git
+origin (`github.com__owner__repo`), and the token lists the projects it may
+use (`*` for all). Enrichment runs on the server. Running the server (from
+the binary or the Docker image), TLS and reverse-proxy setups, token
+management and the HTTPS `/mcp` endpoint are described in
+[`docs/server.md`](docs/server.md).
+
+A client is in remote mode as soon as `config.json` has `serverUrl` set (or
+`CLUED_SERVER_URL` is in the environment); `serverToken` carries the token,
+and `/clued-setup` writes the file with mode `0600` for that reason. The URL
+must be `https://`; a plain `http://` URL is accepted only for a loopback
+host, or with `serverInsecure`. `mongoUrl`, `dbName` and `port` stay in the
+file but are not used.
+
+What runs on the client:
+
+| | Local mode (`serverUrl` empty) | Remote mode (`serverUrl` set) |
+|---|---|---|
+| Storage | MongoDB at `mongoUrl` | The server, over `remotesession` (sessions) and the `clued-server` store (plans and stories) |
+| Resident process | `mind-palace session daemon` on `127.0.0.1:<port>`, started by `session-start` | None |
+| Per hook event | `event-relay` POSTs to the daemon, WAL on failure | `event-relay` runs `scripts/clued hook relay`: stores the event, pushes the transcript delta and changed artifact files (catch-up state under `~/.claude/plugins/data/clued/catchup/`), replays the WAL; failures go to `~/.claude/plugins/data/clued/relay.log`; 5 s budget, never fails the hook |
+| Session start | Starts or restarts the daemon, then `session backfill` | Relays the SessionStart event, then `session backfill` against the server |
+| `check-setup` | Config file and binary present | Also `session whoami`: warns once per session when the server is unreachable, the token is rejected, or the token does not cover this repository's project (with the `server token grant` command to run) |
+| Plans and stories | Files in the repository, plus the stores of `mind-palace.config.yaml` | Files stay primary; every write also goes to the server, and `mind-palace sync --from file --to clued-server` reconciles after an outage |
+| Enrichers | In the daemon, from `enabledEnrichers`/`disabledEnrichers` | On the server, from the server's config |
+
+The session MCP tools (`find_sessions`, `restore_session`, …) and `mind-palace
+session …` work the same in both modes. `mind-palace session whoami` is the
+connectivity probe: it prints the token's name, account and projects, exits
+2 when no server is configured and 10 when the server is unreachable or
+rejects the token.
 
 ### Running the daemon by hand
 
@@ -359,7 +416,8 @@ templates, error codes) is in [`mind-palace/README.md`](mind-palace/README.md).
 Three hooks run `scripts/clued hook …` directly; their rules live in the Go
 module (`mind-palace/hookguard` and `service.Palace.Review`), not in bash,
 and each reads the hook's JSON on stdin and prints exactly what Claude Code
-expects.
+expects. A fourth, `hook relay`, is the remote-mode event path described
+under [Remote mode](#remote-mode).
 
 - **`hook stop-guard`** (Stop, blocking). When the assistant's last message
   contains a phrase that dodges ownership of a failure ("pre-existing",

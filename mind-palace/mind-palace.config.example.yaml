@@ -88,3 +88,18 @@ storage:
 
 server:
   addr: 127.0.0.1:8087
+
+# Remote mode: when the clued plugin's config.json (or CLUED_SERVER_URL and
+# CLUED_SERVER_TOKEN) names a clued server, every command appends that
+# server as a store named `clued-server` after the entries above, so the
+# file store stays primary and writes fan out to the server; the url, token
+# and project options are filled in from there, not written here. The
+# server files this repository's plans and stories under a project slug
+# derived from the git origin (git@github.com:owner/repo.git becomes
+# github.com__owner__repo); a repository without an origin uses its
+# directory name. `project` overrides that slug (it is normalized the same
+# way, so "owner/repo" becomes owner__repo) and must be one of the projects
+# the server token allows. After an outage, `mind-palace sync --from file
+# --to clued-server` brings the server up to date.
+# remote:
+#   project: github.com__owner__repo

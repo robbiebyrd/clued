@@ -1,6 +1,6 @@
 ---
 name: clued-uninstall
-description: Stop the clued daemon, remove the MongoDB launchd plist, and clean up config
+description: Stop the clued daemon (local mode), remove the MongoDB launchd plist, and clean up config, catch-up state and logs
 ---
 
 You are helping the user uninstall or clean up the clued Claude Code plugin.
@@ -11,29 +11,39 @@ You are helping the user uninstall or clean up the clued Claude Code plugin.
 
 Run these checks to discover what exists on this machine:
 
+!`test -f ~/.claude/plugins/data/clued/config.json && jq -r 'if (.serverUrl // "") != "" then "mode: clued server (\(.serverUrl))" else "mode: local MongoDB" end' ~/.claude/plugins/data/clued/config.json 2>/dev/null || echo "mode: unknown (no config.json)"`
 !`test -f ~/Library/LaunchAgents/org.mongodb.mongod.plist && echo "plist: present" || echo "plist: absent"`
 !`curl -sf --max-time 1 http://127.0.0.1:8085/health 2>/dev/null && echo "daemon: running" || echo "daemon: stopped"`
 !`test -d ~/.claude/plugins/data/clued && echo "config dir: present" || echo "config dir: absent"`
 !`test -d ~/.claude/plugins/data/clued/bin && echo "binary dir: present" || echo "binary dir: absent"`
+!`test -d ~/.claude/plugins/data/clued/catchup && echo "catch-up state: present" || echo "catch-up state: absent"`
+!`test -f ~/.claude/plugins/data/clued/relay.log && echo "relay log: present" || echo "relay log: absent"`
 !`test -d ~/mongodb && echo "mongodb tarball: present at ~/mongodb" || echo "mongodb tarball: absent"`
 !`docker ps -a --filter name=transcripts-mongo --format '{{.Names}} {{.Status}}' 2>/dev/null | grep -q . && echo "docker mongodb: container present" || echo "docker mongodb: absent"`
+
+`CLUED_SERVER_URL` in the environment also puts the plugin in server mode, whatever `config.json` says.
 
 ## Step 2 — Ask the user what to remove
 
 Based on the detection results above, present only the items that are actually present.
 Use AskUserQuestion to confirm scope before touching anything. Example options:
 
-- **Services** (always offer): stop the daemon (port 8085); the MCP server is started by Claude Code and ends with the session
+- **Services** (only if the daemon is running; in clued server mode nothing runs on this machine): stop the daemon (port 8085); the MCP server is started by Claude Code and ends with the session
 - **launchd plist** (macOS, only if plist is present): unload and remove `~/Library/LaunchAgents/org.mongodb.mongod.plist`
-- **Config** (only if present): remove `~/.claude/plugins/data/clued/` (includes `bin/`, which holds the unpacked bundled binary and any downloaded one) and remove any legacy `mcpServers.clued` entry from `~/.claude/settings.json`
+- **Config** (only if present): remove `~/.claude/plugins/data/clued/` (includes `bin/`, which holds the unpacked bundled binary and any downloaded one, and in server mode the token in `config.json`, the WAL of events the server has not received yet, the catch-up state and the relay log) and remove any legacy `mcpServers.clued` entry from `~/.claude/settings.json`
+- **Relay state** (clued server mode, when the user keeps the config): remove `~/.claude/plugins/data/clued/catchup/` (per-session transcript offsets and lock files) and `~/.claude/plugins/data/clued/relay.log`; the next hook resumes from the start of each transcript, which the server deduplicates
 - **MongoDB binaries** (only if `~/mongodb/` is present): remove the tarball install at `~/mongodb/`
   - Note: MongoDB data at `~/data/db/` contains session transcripts — offer to keep or remove separately
 - **MongoDB data** (only if `~/data/db/` exists): remove `~/data/db/` — warn that this deletes all captured session transcripts
 - **Docker MongoDB** (only if the `transcripts-mongo` container is present): stop and remove the container; separately offer to remove its `transcripts_data` volume — warn that the volume holds all captured session transcripts
 
+In clued server mode the sessions, plans and stories on the server are not touched by anything here; revoking the token is the operator's `mind-palace server token revoke <name>`.
+
 Wait for the user's answers before doing anything destructive.
 
-## Step 3 — Stop services (if user confirmed)
+## Step 3 — Stop services (local MongoDB mode, if a daemon is running and the user confirmed)
+
+Skip this step in clued server mode or when the daemon check in Step 1 said `stopped`: there is nothing to stop and `pkill` would find nothing.
 
 Stop the daemon:
 ```bash
@@ -42,6 +52,8 @@ pkill -f 'mind-palace session daemon$' 2>/dev/null; echo "daemon stopped"
 
 
 ## Step 4 — Remove launchd plist (macOS, if present and confirmed)
+
+Skip this step when Step 1 said `plist: absent` (always the case for a setup that never installed a local MongoDB).
 
 ```bash
 launchctl unload ~/Library/LaunchAgents/org.mongodb.mongod.plist 2>/dev/null || true
@@ -53,11 +65,20 @@ echo "launchd plist removed"
 
 The stdio MCP server is declared by the plugin's `.mcp.json` and goes away with the plugin. Older setups may have left a `"clued"` key under `mcpServers` in `~/.claude/settings.json`; if present, remove it with the Edit tool. If `mcpServers` becomes empty, remove it entirely.
 
-Then remove the config directory, which also holds `bin/` with the unpacked bundled binary and any downloaded one. A `mind-palace` installed with `go install` lives in `$(go env GOPATH)/bin` and is not touched:
+Then remove the config directory, which also holds `bin/` with the unpacked bundled binary and any downloaded one, and in server mode `catchup/` and `relay.log`. A `mind-palace` installed with `go install` lives in `$(go env GOPATH)/bin` and is not touched:
 ```bash
 rm -rf ~/.claude/plugins/data/clued
 echo "config and binary dirs removed"
 ```
+
+If the user keeps the config but asked for the relay state to go:
+```bash
+rm -rf ~/.claude/plugins/data/clued/catchup
+rm -f ~/.claude/plugins/data/clued/relay.log
+echo "catch-up state and relay log removed"
+```
+
+The non-interactive `hooks/uninstall` does the same: it stops the daemon only in local mode and only when one answers, removes the plist only when present, always removes `catchup/` and `relay.log`, and removes the config directory unless `--keep-config` is given.
 
 ## Step 6 — Remove MongoDB binaries (if confirmed)
 
@@ -91,4 +112,4 @@ docker volume rm $(docker volume ls -q --filter name=transcripts_data) 2>/dev/nu
 
 ## Step 8 — Confirm to user
 
-Summarise what was removed and what was kept. Remind them to run `/plugin` and then uninstall clued from the plugin manager to complete the removal.
+Summarise what was removed and what was kept (in clued server mode: that the data on the server is untouched and the token is still valid until the operator revokes it). Remind them to run `/plugin` and then uninstall clued from the plugin manager to complete the removal.

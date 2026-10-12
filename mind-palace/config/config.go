@@ -93,6 +93,16 @@ type ServerConfig struct {
 	Addr string `yaml:"addr" json:"addr"`
 }
 
+// RemoteConfig holds the per-repository settings of remote mode, where the
+// client fans plans and stories out to a clued server (the server itself is
+// configured per machine in the plugin's config.json).
+type RemoteConfig struct {
+	// Project is the project slug the server files this repository's
+	// documents under. It overrides the slug derived from the git origin
+	// (github.com__owner__repo); the value is normalized the same way.
+	Project string `yaml:"project" json:"project,omitempty"`
+}
+
 // KindConfig is the configuration of one entity kind.
 type KindConfig struct {
 	// Dir is the root for file-based storage of this kind.
@@ -110,6 +120,7 @@ type Config struct {
 	Stories KindConfig   `yaml:"stories" json:"stories"`
 	Storage []StorageDef `yaml:"storage" json:"storage"`
 	Server  ServerConfig `yaml:"server" json:"server"`
+	Remote  RemoteConfig `yaml:"remote" json:"remote"`
 	// Source is the config file the values came from ("" for defaults).
 	Source string `yaml:"-" json:"source,omitempty"`
 }
@@ -241,6 +252,7 @@ type fileConfig struct {
 	Stories *fileKindConfig `yaml:"stories" json:"stories"`
 	Storage []StorageDef    `yaml:"storage" json:"storage"`
 	Server  *ServerConfig   `yaml:"server" json:"server"`
+	Remote  *RemoteConfig   `yaml:"remote" json:"remote"`
 
 	PlansDir   *string             `yaml:"plansDir" json:"plansDir"`
 	Types      []TypeDef           `yaml:"types" json:"types"`
@@ -387,6 +399,9 @@ func (c *Config) Overlay(data []byte, ext string) error {
 	if fc.Server != nil && fc.Server.Addr != "" {
 		c.Server.Addr = fc.Server.Addr
 	}
+	if fc.Remote != nil {
+		c.Remote.Project = strings.TrimSpace(fc.Remote.Project)
+	}
 	return nil
 }
 
@@ -406,8 +421,28 @@ func (c *Config) Dirs() map[string]string {
 	return map[string]string{kind.Plan: c.Plans.Dir, kind.Story: c.Stories.Dir}
 }
 
-// Validate checks internal consistency.
-func (c *Config) Validate() error {
+// ValidateOption relaxes one rule of Validate.
+type ValidateOption func(*validateOptions)
+
+type validateOptions struct {
+	allowNoFileStore bool
+}
+
+// AllowNoFileStore lets the configuration run without an enabled file
+// store, for a server that keeps plans and stories in a database alone.
+// The default (client) rule still requires one enabled entry of kind file.
+func AllowNoFileStore(o *validateOptions) { o.allowNoFileStore = true }
+
+// Validate checks internal consistency of cfg; see (*Config).Validate.
+func Validate(cfg *Config, opts ...ValidateOption) error { return cfg.Validate(opts...) }
+
+// Validate checks internal consistency. Without options an enabled file
+// store is required; AllowNoFileStore waives that rule.
+func (c *Config) Validate(opts ...ValidateOption) error {
+	var vo validateOptions
+	for _, opt := range opts {
+		opt(&vo)
+	}
 	var errs []error
 	for _, k := range kind.All() {
 		errs = append(errs, c.Kind(k.Name).validate(k.Plural)...)
@@ -421,7 +456,7 @@ func (c *Config) Validate() error {
 			fileEnabled = true
 		}
 	}
-	if !fileEnabled {
+	if !fileEnabled && !vo.allowNoFileStore {
 		errs = append(errs, errors.New("the file store cannot be disabled: storage must include an enabled entry of kind file"))
 	}
 	return errors.Join(errs...)

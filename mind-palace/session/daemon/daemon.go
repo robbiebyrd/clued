@@ -20,8 +20,8 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
 	"github.com/robbiebyrd/clued/mind-palace/session/enrich"
+	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 	"github.com/robbiebyrd/clued/mind-palace/session/tail"
-	"github.com/robbiebyrd/clued/mind-palace/session/wal"
 )
 
 const (
@@ -53,26 +53,22 @@ type Options struct {
 	StoreTimeout     time.Duration
 }
 
-// sessionState is what the daemon remembers about a session it has seen.
-type sessionState struct {
-	gitOriginFound bool
-	gitLookup      bool // a late lookup is in flight
-}
-
-// Daemon ingests hook events and session files into a session.Store.
+// Daemon ingests hook events and session files into a session.Store. The
+// event bookkeeping (session upsert, git fill, touch, stamping and the WAL)
+// is the ingest service's; the daemon adds the HTTP endpoint, the transcript
+// and artifact tailers and the periodic loops.
 type Daemon struct {
 	opts   Options
 	log    *slog.Logger
+	ingest *ingest.Service
 	ctx    context.Context // ends on shutdown; scopes background store writes and git lookups
 	cancel context.CancelFunc
-	bg     sync.WaitGroup // background goroutines (git lookups)
+	bg     sync.WaitGroup // background goroutines (session bookkeeping)
 
 	mu      sync.Mutex
-	tracked map[string]*sessionState
-	stops   []func() // tailers and watchers
+	tracked map[string]struct{} // sessions whose tailers were considered
+	stops   []func()            // tailers and watchers
 	closed  bool
-
-	walMu sync.Mutex // serialises WAL Append and Flush
 }
 
 // New builds a Daemon. Nothing runs until Run (or Handler) is used.
@@ -90,7 +86,21 @@ func New(opts Options) *Daemon {
 		opts.StoreTimeout = defaultStoreTimeout
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Daemon{opts: opts, log: opts.Logger, ctx: ctx, cancel: cancel, tracked: map[string]*sessionState{}}
+	d := &Daemon{opts: opts, log: opts.Logger, ctx: ctx, cancel: cancel, tracked: map[string]struct{}{}}
+	d.ingest = &ingest.Service{
+		Store:     opts.Store,
+		AccountID: opts.AccountID,
+		Host:      opts.Host,
+		Git:       opts.Git,
+		Logger:    opts.Logger,
+		WALPath:   opts.Config.WalPath,
+		Timeout:   opts.StoreTimeout,
+		// Session bookkeeping runs on tracked goroutines under the daemon's
+		// own context, so a slow store never stalls a hook and shutdown waits
+		// for the writes in flight.
+		Detach: func(run func(ctx context.Context)) { d.background(func() { run(d.ctx) }) },
+	}
+	return d
 }
 
 // Handler serves GET /health and POST /event.
@@ -129,81 +139,36 @@ func (d *Daemon) handleEvent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "event must be a JSON object", http.StatusBadRequest)
 		return
 	}
-	sessionID, _ := body.String("session_id")
-	transcriptPath, _ := body.String("transcript_path")
-	cwd, _ := body.String("cwd")
 	// Store calls outlive the request: a client that hangs up must not turn a
-	// committed write into a WAL duplicate.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), d.opts.StoreTimeout)
-	defer cancel()
-	if sessionID != "" {
-		d.trackSession(sessionID, transcriptPath, cwd)
-		d.background(func() { d.touchSession(sessionID, time.Now()) })
-	}
-	ev := make(session.Doc, len(body)+3)
-	for k, v := range body {
-		ev[k] = v
-	}
-	ev["account_id"] = d.opts.AccountID
-	ev["host"] = d.opts.Host
-	ev["created_at"] = time.Now()
-	if err := d.opts.Store.InsertHookEvent(ctx, ev); err != nil {
-		d.log.Warn("hook event insert failed; appending to WAL", "err", err)
-		ev["created_at"] = ev["created_at"].(time.Time).UTC().Format(time.RFC3339Nano)
-		if err := d.appendWAL(ev); err != nil {
-			d.log.Error("WAL append failed", "err", err)
-		}
+	// committed write into a WAL duplicate. A rejected insert is in the WAL
+	// (and logged) by the time Handle returns, so the hook is answered ok.
+	tr, _ := d.ingest.Handle(context.WithoutCancel(r.Context()), body)
+	if tr.SessionID != "" {
+		d.trackSession(tr.SessionID, tr.TranscriptPath)
 	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok"))
 }
 
-func (d *Daemon) touchSession(sessionID string, at time.Time) {
-	ctx, cancel := context.WithTimeout(d.ctx, d.opts.StoreTimeout)
-	defer cancel()
-	if err := d.opts.Store.TouchSession(ctx, d.opts.AccountID, sessionID, at); err != nil && d.ctx.Err() == nil {
-		d.log.Error("touch session failed", "session_id", sessionID, "err", err)
-	}
-}
-
 func (d *Daemon) appendWAL(ev session.Doc) error {
-	d.walMu.Lock()
-	defer d.walMu.Unlock()
-	return wal.Append(d.opts.Config.WalPath, ev)
+	return d.ingest.AppendWAL(ev)
 }
 
 func (d *Daemon) flushWAL(ctx context.Context) {
-	d.walMu.Lock()
-	defer d.walMu.Unlock()
-	// A timed-out insert means the store is down: Flush stops there rather than
-	// waiting out a timeout per line while events queue behind walMu.
-	err := wal.Flush(ctx, d.opts.Config.WalPath, func(ctx context.Context, ev session.Doc) error {
-		// Entries written by the fallback carry created_at as text.
-		if s, ok := ev["created_at"].(string); ok {
-			if at, err := time.Parse(time.RFC3339Nano, s); err == nil {
-				ev["created_at"] = at
-			}
-		} else if _, ok := ev["created_at"]; !ok {
-			ev["created_at"] = time.Now()
-		}
-		ctx, cancel := context.WithTimeout(ctx, d.opts.StoreTimeout)
-		defer cancel()
-		return d.opts.Store.InsertHookEvent(ctx, ev)
-	})
-	if err != nil {
+	if err := d.ingest.FlushWAL(ctx); err != nil {
 		d.log.Warn("WAL flush failed", "err", err)
 	}
 }
 
-// trackSession starts capturing a session the first time it is seen, and on
-// later events fills in git info once a cwd is known.
-func (d *Daemon) trackSession(sessionID, transcriptPath, cwd string) {
+// trackSession starts capturing a session's transcript and artifacts the
+// first time the daemon sees it.
+func (d *Daemon) trackSession(sessionID, transcriptPath string) {
 	// Both checks are spelled out here (rather than behind helpers) so the
 	// values that reach the file system are visibly validated at the point of
 	// use: a session id must be a single local path element, and a transcript
-	// must be an absolute path under the projects directory.
+	// must be an absolute path under the projects directory. The ingest
+	// service has already warned about an unsafe session id.
 	if !filepath.IsLocal(sessionID) || filepath.Base(sessionID) != sessionID {
-		d.log.Warn("session_id is not a single safe path element; session not tracked", "session_id", sessionID)
 		return
 	}
 	d.mu.Lock()
@@ -211,17 +176,10 @@ func (d *Daemon) trackSession(sessionID, transcriptPath, cwd string) {
 	if d.closed {
 		return
 	}
-	if state, seen := d.tracked[sessionID]; seen {
-		if !state.gitOriginFound && !state.gitLookup && cwd != "" && d.opts.Git != nil {
-			state.gitLookup = true
-			d.goBackground(func() { d.fillGitInfo(sessionID, cwd, state) })
-		}
+	if _, seen := d.tracked[sessionID]; seen {
 		return
 	}
-	d.tracked[sessionID] = &sessionState{}
-	state := d.tracked[sessionID]
-
-	d.goBackground(func() { d.upsertSession(sessionID, transcriptPath, cwd, state) })
+	d.tracked[sessionID] = struct{}{}
 	if transcriptPath == "" {
 		return
 	}
@@ -256,58 +214,14 @@ func projectsPrefix(root string) string {
 func (d *Daemon) background(fn func()) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if !d.closed {
-		d.goBackground(fn)
+	if d.closed {
+		return
 	}
-}
-
-// goBackground runs fn on a tracked goroutine. Callers hold d.mu.
-func (d *Daemon) goBackground(fn func()) {
 	d.bg.Add(1)
 	go func() {
 		defer d.bg.Done()
 		fn()
 	}()
-}
-
-func (d *Daemon) lookupGit(cwd string) (origin, branch string) {
-	if cwd == "" || d.opts.Git == nil {
-		return "", ""
-	}
-	return d.opts.Git(d.ctx, cwd)
-}
-
-func (d *Daemon) upsertSession(sessionID, transcriptPath, cwd string, state *sessionState) {
-	origin, branch := d.lookupGit(cwd)
-	if origin != "" {
-		d.mu.Lock()
-		state.gitOriginFound = true
-		d.mu.Unlock()
-	}
-	err := d.opts.Store.UpsertSession(d.ctx, session.Session{
-		SessionID: sessionID, TranscriptPath: transcriptPath, Cwd: cwd,
-		GitOrigin: origin, GitBranch: branch,
-		AccountID: d.opts.AccountID, Host: &d.opts.Host, LastSeen: time.Now(),
-	})
-	if err != nil && d.ctx.Err() == nil {
-		d.log.Error("upsert session failed", "session_id", sessionID, "err", err)
-	}
-}
-
-func (d *Daemon) fillGitInfo(sessionID, cwd string, state *sessionState) {
-	origin, branch := d.lookupGit(cwd)
-	d.mu.Lock()
-	state.gitLookup = false
-	state.gitOriginFound = state.gitOriginFound || origin != ""
-	d.mu.Unlock()
-	if origin == "" {
-		return
-	}
-	ctx, cancel := context.WithTimeout(d.ctx, d.opts.StoreTimeout)
-	defer cancel()
-	if err := d.opts.Store.SetGitInfoIfMissing(ctx, sessionID, origin, branch); err != nil && d.ctx.Err() == nil {
-		d.log.Error("set git info failed", "session_id", sessionID, "err", err)
-	}
 }
 
 // tailTranscript stores each transcript line under {session_id, seq}, so a

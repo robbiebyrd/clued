@@ -15,11 +15,27 @@ DEFAULT_PORT=8085
 if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
   PORT=$(jq -r ".port // ${DEFAULT_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_PORT")
   DEV_REPO=$(jq -r '.devRepoPath // empty' "$CONFIG_FILE" 2>/dev/null)
+  SERVER_URL=$(jq -r '.serverUrl // empty' "$CONFIG_FILE" 2>/dev/null)
 else
   PORT=$DEFAULT_PORT
 fi
 
 PORT="${CLUED_PORT:-$PORT}"
+SERVER_URL="${CLUED_SERVER_URL:-$SERVER_URL}"
+
+# Remote mode: the client runs no daemon. Each hook relays its own event to
+# the server, so the SessionStart payload goes through the relay as well
+# (detached, like the daemon launch): that tracks the starting session on
+# the server and catches up its transcript. The backfill loads the older
+# transcripts the same way it does in local mode.
+if [[ -n "$SERVER_URL" ]]; then
+  BODY=$(cat)
+  printf '%s' "$BODY" | "$CLUED" hook relay &>/dev/null &
+  disown
+  "$CLUED" session backfill &>/dev/null &
+  disown
+  exit 0
+fi
 
 daemon_ok() {
   curl -sf --max-time 1 "http://127.0.0.1:${PORT}/health" &>/dev/null

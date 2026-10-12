@@ -37,6 +37,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/events"
 	"github.com/robbiebyrd/clued/mind-palace/kind"
 	"github.com/robbiebyrd/clued/mind-palace/ops"
+	"github.com/robbiebyrd/clued/mind-palace/server/httpapi"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 )
 
@@ -75,8 +76,18 @@ type Options struct {
 	WriteTimeout time.Duration
 }
 
-// Handler returns the WebSocket handler.
+// Handler returns the WebSocket handler over one palace.
 func Handler(palace *service.Palace, regs ops.Registries, opts *Options) http.Handler {
+	return ResolvingHandler(httpapi.Fixed(palace), regs, opts)
+}
+
+// ResolvingHandler returns the WebSocket handler over the palace resolve
+// picks for each connection. The palace is resolved before the upgrade, so
+// a failure answers the handshake with the httpapi envelope (see
+// httpapi.WriteResolveError) and opens no socket; operations and
+// subscriptions then stay on that palace (and its event bus) for the life
+// of the connection.
+func ResolvingHandler(resolve httpapi.Resolver, regs ops.Registries, opts *Options) http.Handler {
 	if opts == nil {
 		opts = &Options{}
 	}
@@ -88,6 +99,11 @@ func Handler(palace *service.Palace, regs ops.Registries, opts *Options) http.Ha
 		up.CheckOrigin = sameHost
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		palace, err := resolve(r)
+		if err != nil {
+			httpapi.WriteResolveError(w, err)
+			return
+		}
 		c, err := up.Upgrade(w, r, nil)
 		if err != nil {
 			return
