@@ -3,11 +3,12 @@ id: 0012-gbx
 title: Client fan-out of plans and stories to the server
 purpose: Make every Palace the client opens write to the file store first and the clued server second when remote mode is on.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:05.174Z"
-updated: "2026-10-12T20:09:05.174Z"
+updated: "2026-10-12T20:51:37.749Z"
+started: "2026-10-12T20:51:37.749Z"
 tags:
   - server
   - remote

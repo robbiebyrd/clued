@@ -3,12 +3,13 @@ id: 0011-zbb
 title: The clued remote store driver and conformance
 purpose: Register a store.Store driver that writes plans and stories to the server through storeapi.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: S
 created: "2026-10-12T20:09:05.148Z"
-updated: "2026-10-12T20:46:48.311Z"
+updated: "2026-10-12T20:51:45.441Z"
 started: "2026-10-12T20:46:48.311Z"
+completed: "2026-10-12T20:51:45.441Z"
 tags:
   - server
   - remote
@@ -62,9 +63,9 @@ Blank-import the driver in the three `cmd/*` mains next to the existing store pl
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./store/...
-- [ ] `mind-palace stores` lists `clued` among the drivers
-- [ ] `storetest.Run` passes with no environment variables set
+- [x] VERIFY: cd mind-palace && go test -race ./store/...
+- [x] `mind-palace stores` lists `clued` among the drivers
+- [x] `storetest.Run` passes with no environment variables set
 
 ## Files
 
