@@ -10,9 +10,15 @@ import (
 
 const checkSetupInstallCmd = "go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest"
 
+// runCheckSetup runs hooks/check-setup with no bundled binaries unless dist is set.
 func runCheckSetup(t *testing.T, home, path string) result {
 	t.Helper()
-	return runScript(t, filepath.Join(repoRoot(t), "hooks/check-setup"), "", []string{"HOME=" + home, "PATH=" + path})
+	return runCheckSetupWithDist(t, home, path, t.TempDir())
+}
+
+func runCheckSetupWithDist(t *testing.T, home, path, dist string) result {
+	t.Helper()
+	return runScript(t, filepath.Join(repoRoot(t), "hooks/check-setup"), "", []string{"HOME=" + home, "PATH=" + path, "CLUED_DIST_DIR=" + dist})
 }
 
 func homeWithConfig(t *testing.T) string {
@@ -80,5 +86,21 @@ func TestCheckSetupSilentWhenDownloadedBinaryExists(t *testing.T) {
 	r := runCheckSetup(t, home, "/usr/bin:/bin")
 	if r.stdout != "" {
 		t.Errorf("stdout = %q, want empty", r.stdout)
+	}
+}
+
+func TestCheckSetupSilentWhenBundledBinaryExists(t *testing.T) {
+	home := homeWithConfig(t)
+	r := runCheckSetupWithDist(t, home, "/usr/bin:/bin", fakeDist(t, "bundled"))
+	if r.stdout != "" {
+		t.Errorf("stdout = %q, want empty", r.stdout)
+	}
+}
+
+func TestCheckSetupNamesPlatformWhenNoBundledBinaryFits(t *testing.T) {
+	r := runCheckSetup(t, homeWithConfig(t), "/usr/bin:/bin")
+	msg := systemMessage(t, r)
+	if !strings.Contains(msg, "bundled") {
+		t.Errorf("message should say no binary is bundled for this platform: %s", msg)
 	}
 }

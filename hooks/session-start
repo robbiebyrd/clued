@@ -35,8 +35,21 @@ if [[ -n "$DEV_REPO" ]]; then
   fi
 fi
 
+# The daemon is detached and outlives plugin updates. The path bin/clued
+# resolves changes when a new bundled binary is unpacked (it is keyed by the
+# binary's hash), so compare it with the path recorded at the last daemon
+# start and restart a daemon that is running an older build.
+BINARY_MARKER="${DATA_DIR}/daemon.binary"
+RESOLVED="$("$CLUED" --locate 2>/dev/null)"
+if [[ -n "$RESOLVED" ]] && daemon_ok && [[ "$(cat "$BINARY_MARKER" 2>/dev/null)" != "$RESOLVED" ]]; then
+  pkill -f 'mind-palace session daemon$' 2>/dev/null || true
+  sleep 0.5
+  echo "clued: mind-palace binary changed — daemon restarted. Relaunch Claude Code to reconnect MCP." >&2
+fi
+
 if ! daemon_ok; then
   mkdir -p "$DATA_DIR"
+  printf '%s\n' "$RESOLVED" > "$BINARY_MARKER"
   "$CLUED" session daemon >"$DAEMON_LOG" 2>&1 &
   DAEMON_PID=$!
   disown

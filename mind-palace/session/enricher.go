@@ -34,18 +34,24 @@ func Register(e Enricher) {
 	registry[e.Name] = e
 }
 
-// Active returns a new slice of the enabled enrichers whose names are not in
-// disabled, sorted by name.
-func Active(disabled []string) []Enricher {
+// Active returns a new slice of the enrichers that will run, sorted by name:
+// those enabled by default plus the names in enabled (which switches on
+// enrichers that ship disabled, such as privacy-redact), minus the names in
+// disabled. A name in both lists stays off.
+func Active(disabled, enabled []string) []Enricher {
 	skip := make(map[string]bool, len(disabled))
 	for _, name := range disabled {
 		skip[name] = true
+	}
+	on := make(map[string]bool, len(enabled))
+	for _, name := range enabled {
+		on[name] = true
 	}
 	registryMu.Lock()
 	defer registryMu.Unlock()
 	active := []Enricher{}
 	for _, e := range registry {
-		if e.Enabled && !skip[e.Name] {
+		if (e.Enabled || on[e.Name]) && !skip[e.Name] {
 			active = append(active, e)
 		}
 	}

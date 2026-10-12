@@ -1,22 +1,29 @@
 #!/usr/bin/env bash
 # Launches the mind-palace binary with the given arguments.
-# Resolution order: `mind-palace` on PATH, then the binary in $BIN_DIR (a downloaded
-# release, or, when devRepoPath is set in the config, a build of
-# $devRepoPath/mind-palace refreshed whenever a .go file there is newer than it).
-# With devRepoPath set the built binary wins over PATH.
-# `--build-only` performs the build step without running the binary.
+# Resolution order:
+#   1. When devRepoPath is set in the config, a build of $devRepoPath/mind-palace,
+#      refreshed whenever a .go file there is newer than the binary.
+#   2. The binary bundled with the plugin for this OS and CPU (bin/dist/*.gz),
+#      decompressed once into $BIN_DIR/bundled/<sha256>/ and verified against
+#      bin/dist/SHA256SUMS.
+#   3. `mind-palace` on PATH.
+#   4. A downloaded release binary at $BIN_DIR/mind-palace.
+# `--build-only` performs the dev build step without running the binary.
+# `--locate` prints the path of the binary that would run (or exits 1).
 
 DATA_DIR="${HOME}/.claude/plugins/data/clued"
 CONFIG_FILE="${DATA_DIR}/config.json"
 BIN_DIR="${DATA_DIR}/bin"
 BIN="${BIN_DIR}/mind-palace"
 REBUILT_MARKER="${BIN_DIR}/.rebuilt"
+PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DIST_DIR="${CLUED_DIST_DIR:-${PLUGIN_ROOT}/bin/dist}"
 
-BUILD_ONLY=0
-if [[ "${1:-}" == "--build-only" ]]; then
-  BUILD_ONLY=1
-  shift
-fi
+MODE=run
+case "${1:-}" in
+  --build-only) MODE=build-only; shift ;;
+  --locate) MODE=locate; shift ;;
+esac
 
 dev_repo_path() {
   [[ -f "$CONFIG_FILE" ]] || return 0
@@ -40,25 +47,119 @@ build_from_dev_repo() {
   touch "$REBUILT_MARKER"
 }
 
+# Prints the name of the bundled asset for this machine (mind-palace_<os>_<arch>[.exe]).
+bundled_asset_name() {
+  local os arch
+  case "$(uname -s)" in
+    Darwin) os=darwin ;;
+    Linux) os=linux ;;
+    MINGW*|MSYS*|CYGWIN*|Windows_NT) os=windows ;;
+    *) return 1 ;;
+  esac
+  case "$(uname -m)" in
+    x86_64|amd64) arch=amd64 ;;
+    aarch64|arm64) arch=arm64 ;;
+    armv6l|armv7l|armv8l) arch=arm ;;
+    *) return 1 ;;
+  esac
+  [[ "$os" == windows ]] && echo "mind-palace_${os}_${arch}.exe" || echo "mind-palace_${os}_${arch}"
+}
+
+sha256_of() {
+  if command -v sha256sum &>/dev/null; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum &>/dev/null; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    return 1
+  fi
+}
+
+# Decompresses the bundled binary into a directory named by its expected
+# hash, verifies it, and prints its path. Already-extracted copies are reused;
+# copies from earlier plugin versions are removed.
+bundled_binary() {
+  local name sum gz dir exe tmp exename
+  name="$(bundled_asset_name)" || return 1
+  gz="${DIST_DIR}/${name}.gz"
+  [[ -f "${DIST_DIR}/SHA256SUMS" ]] || return 1
+  sum="$(awk -v n="$name" '$2 == n {print $1; exit}' "${DIST_DIR}/SHA256SUMS")"
+  [[ -n "$sum" ]] || return 1
+  exename=mind-palace
+  [[ "$name" == *.exe ]] && exename=mind-palace.exe
+  dir="${BIN_DIR}/bundled/${sum}"
+  exe="${dir}/${exename}"
+  if [[ -x "$exe" ]]; then
+    echo "$exe"
+    return 0
+  fi
+  [[ -f "$gz" ]] || return 1
+  command -v gzip &>/dev/null || { echo "clued: gzip is needed to unpack the bundled mind-palace binary" >&2; return 1; }
+  mkdir -p "$dir" || return 1
+  tmp="${dir}/.${exename}.$$"
+  if ! gzip -dc "$gz" > "$tmp"; then
+    rm -f "$tmp"
+    echo "clued: could not unpack ${gz}" >&2
+    return 1
+  fi
+  local actual
+  actual="$(sha256_of "$tmp")" || { rm -f "$tmp"; echo "clued: sha256sum or shasum is needed to verify the bundled binary" >&2; return 1; }
+  if [[ "$actual" != "$sum" ]]; then
+    rm -f "$tmp"
+    echo "clued: bundled ${name} does not match bin/dist/SHA256SUMS (got ${actual}); not using it" >&2
+    return 1
+  fi
+  chmod +x "$tmp" && mv -f "$tmp" "$exe" || { rm -f "$tmp"; return 1; }
+  # Drop extracted copies of other plugin versions (a running daemon keeps its
+  # own copy open; on Windows the removal of an in-use file fails harmlessly).
+  for old in "${BIN_DIR}"/bundled/*/; do
+    [[ "${old%/}" == "$dir" ]] || rm -rf "$old" 2>/dev/null
+  done
+  echo "$exe"
+}
+
 DEV_REPO="$(dev_repo_path)"
 if [[ -n "$DEV_REPO" ]]; then
   build_from_dev_repo "$DEV_REPO" || echo "clued: building mind-palace from ${DEV_REPO}/mind-palace failed" >&2
 fi
 
-if [[ $BUILD_ONLY -eq 1 ]]; then
+if [[ "$MODE" == build-only ]]; then
   exit 0
 fi
 
-# A developer who set devRepoPath wants their own build, not an installed release.
-if [[ -z "$DEV_REPO" ]] && command -v mind-palace &>/dev/null; then
-  exec mind-palace "$@"
-fi
-if [[ -x "$BIN" ]]; then
-  exec "$BIN" "$@"
+resolve() {
+  # A developer who set devRepoPath wants their own build, not a bundled or installed release.
+  if [[ -n "$DEV_REPO" ]] && [[ -x "$BIN" ]]; then
+    echo "$BIN"
+    return 0
+  fi
+  local bundled
+  if bundled="$(bundled_binary)"; then
+    echo "$bundled"
+    return 0
+  fi
+  if command -v mind-palace &>/dev/null; then
+    command -v mind-palace
+    return 0
+  fi
+  if [[ -x "$BIN" ]]; then
+    echo "$BIN"
+    return 0
+  fi
+  return 1
+}
+
+if TARGET="$(resolve)"; then
+  if [[ "$MODE" == locate ]]; then
+    echo "$TARGET"
+    exit 0
+  fi
+  exec "$TARGET" "$@"
 fi
 
 cat >&2 <<MSG
-clued: mind-palace binary not found. Run /clued-setup, or install it with:
+clued: mind-palace binary not found. The plugin ships no binary for $(uname -s)/$(uname -m).
+Run /clued-setup, or install it with:
   go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest
 or download mind-palace_<os>_<arch> from the latest release of robbiebyrd/clued into ${BIN}
 MSG

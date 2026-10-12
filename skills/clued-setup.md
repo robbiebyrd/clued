@@ -198,10 +198,12 @@ CLUED_PLUGIN_ROOT="${CLUED_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/*/clued
 Start MongoDB using the included compose file:
 
 ```bash
-docker compose -f "${CLUED_PLUGIN_ROOT}/docker-compose.transcripts.yml" up -d mongodb
+docker compose -f "${CLUED_PLUGIN_ROOT}/docker-compose.transcripts.yml" up -d
 ```
 
 **Docker default port: `27018`** (avoids clashing with a local mongod on 27017).
+
+The compose file publishes that port on every interface with no authentication. If this machine is reachable from an untrusted network, tell the user to change the mapping in `docker-compose.transcripts.yml` to `127.0.0.1:27018:27017` (or enable authentication) before continuing.
 
 Verify: `docker compose -f "${CLUED_PLUGIN_ROOT}/docker-compose.transcripts.yml" ps`
 
@@ -228,11 +230,19 @@ No installation or service steps needed — skip straight to Step 4.
 
 Accept defaults unless the user overrides. For remote, the URL is required.
 
-## Step 5 — Install the mind-palace binary
+## Step 5 — Check the mind-palace binary
 
-clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP server. Skip this step if `command -v mind-palace` already succeeds.
+clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP servers. The plugin ships it pre-built for macOS (Intel and Apple Silicon), Linux (amd64, arm64 and 32-bit arm) and Windows (amd64 and arm64) under `bin/dist/`, so no Go toolchain is needed. The `bin/clued` shim unpacks the archive for this machine on first use into `~/.claude/plugins/data/clued/bin/bundled/<sha256>/` and checks it against `bin/dist/SHA256SUMS`.
 
-If `go` is present (`command -v go`), install it:
+Confirm the shim can find a binary (`${CLAUDE_PLUGIN_ROOT}` is the plugin root; see Step 8 if it is not set):
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/bin/clued" --locate
+```
+
+It prints the path of the binary that will run and exits 0. Nothing more to do when it succeeds.
+
+Only when it exits 1 (an unsupported platform, or `gzip`/`sha256sum`/`shasum` missing) install the binary another way. If `go` is present (`command -v go`):
 
 ```bash
 go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest
@@ -240,18 +250,18 @@ go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest
 
 Make sure `$(go env GOPATH)/bin` is on the PATH that Claude Code inherits.
 
-Otherwise download the release asset for this machine into the plugin data directory (`uname -s` gives `darwin` or `linux` once lowercased; `x86_64` maps to `amd64`, `aarch64` to `arm64`):
+Otherwise download the release asset for this machine into the plugin data directory (`uname -s` gives `darwin` or `linux` once lowercased; `x86_64` maps to `amd64`, `aarch64` to `arm64`, `armv7l` to `arm`):
 
 ```bash
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-case "$(uname -m)" in x86_64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; esac
+case "$(uname -m)" in x86_64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; armv7l) ARCH=arm ;; esac
 mkdir -p ~/.claude/plugins/data/clued/bin
 curl -fsSL "https://github.com/robbiebyrd/clued/releases/latest/download/mind-palace_${OS}_${ARCH}" \
   -o ~/.claude/plugins/data/clued/bin/mind-palace
 chmod +x ~/.claude/plugins/data/clued/bin/mind-palace
 ```
 
-`bin/clued` in the plugin finds the binary on PATH first, then in `~/.claude/plugins/data/clued/bin/`.
+`bin/clued` resolves the binary in this order: a dev build when `devRepoPath` is set, the bundled binary, `mind-palace` on PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`.
 
 ## Step 6 — Write config file
 
@@ -263,7 +273,8 @@ cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
   "dbName": "<chosen DB name>",
   "port": 8085,
   "projectsDir": "~/.claude/projects",
-  "disabledEnrichers": []
+  "disabledEnrichers": [],
+  "enabledEnrichers": []
 }
 EOF
 ```
@@ -278,16 +289,17 @@ jq '.devRepoPath = "/path/to/clued"' \
 
 Replace `/path/to/clued` with the actual repo path. Skip this for normal installations.
 
-## Step 7 — MCP server (no action needed)
+## Step 7 — MCP servers (no action needed)
 
-The plugin ships a `.mcp.json` that tells Claude Code to run:
+The plugin ships a `.mcp.json` that tells Claude Code to run two stdio servers:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp
+${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp              # clued: the session tools
+${CLAUDE_PLUGIN_ROOT}/bin/clued mcp --no-session-tools   # mind-palace: the plan and story tools
 ```
 
-Claude Code reads this at startup and spawns the MCP server as a stdio child
-process — no settings edit is required. **MCP tools appear in the next fresh
+Claude Code reads this at startup and spawns both as stdio child processes —
+no settings edit is required. **MCP tools appear in the next fresh
 session** (a new Claude Code window or `exit` + reopen); `/reload-plugins` alone
 is not sufficient.
 
@@ -357,10 +369,10 @@ Tell the user:
 
 - MongoDB option chosen and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
-- MCP server: provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns it automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
+- MCP servers: `clued` (session tools) and `mind-palace` (plan and story tools), provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns them automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
 - Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`
-- mind-palace binary location (PATH or `~/.claude/plugins/data/clued/bin/`)
+- mind-palace binary location as printed by `bin/clued --locate` (bundled with the plugin, on PATH, or in `~/.claude/plugins/data/clued/bin/`)
 - Daemon status: running on port 8085 / failed (show error output)
 - On macOS tarball install: launchd plist written to `~/Library/LaunchAgents/org.mongodb.mongod.plist` — mongod restarts automatically at login with `KeepAlive: true`
 - Ask the user to run `/reload-plugins` then **start a new session** for all changes (hooks + MCP tools) to take effect
-- To enable the privacy-redact enricher: remove `privacy-redact` from `disabledEnrichers` in `config.json`
+- To enable the privacy-redact enricher (off by default): add `"privacy-redact"` to `enabledEnrichers` in `config.json` and restart the daemon. It stores a masked copy of each transcript line (`sk-` API keys, e-mail addresses, AWS access key ids, JWTs) under `enrichments.privacy-redact`; the raw line is still stored. `disabledEnrichers` only switches enrichers off.

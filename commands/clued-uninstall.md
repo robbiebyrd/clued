@@ -16,6 +16,7 @@ Run these checks to discover what exists on this machine:
 !`test -d ~/.claude/plugins/data/clued && echo "config dir: present" || echo "config dir: absent"`
 !`test -d ~/.claude/plugins/data/clued/bin && echo "binary dir: present" || echo "binary dir: absent"`
 !`test -d ~/mongodb && echo "mongodb tarball: present at ~/mongodb" || echo "mongodb tarball: absent"`
+!`docker ps -a --filter name=transcripts-mongo --format '{{.Names}} {{.Status}}' 2>/dev/null | grep -q . && echo "docker mongodb: container present" || echo "docker mongodb: absent"`
 
 ## Step 2 — Ask the user what to remove
 
@@ -24,10 +25,11 @@ Use AskUserQuestion to confirm scope before touching anything. Example options:
 
 - **Services** (always offer): stop the daemon (port 8085); the MCP server is started by Claude Code and ends with the session
 - **launchd plist** (macOS, only if plist is present): unload and remove `~/Library/LaunchAgents/org.mongodb.mongod.plist`
-- **Config** (only if present): remove `~/.claude/plugins/data/clued/` (includes the downloaded binary directory `bin/`) and remove any legacy `mcpServers.clued` entry from `~/.claude/settings.json`
+- **Config** (only if present): remove `~/.claude/plugins/data/clued/` (includes `bin/`, which holds the unpacked bundled binary and any downloaded one) and remove any legacy `mcpServers.clued` entry from `~/.claude/settings.json`
 - **MongoDB binaries** (only if `~/mongodb/` is present): remove the tarball install at `~/mongodb/`
   - Note: MongoDB data at `~/data/db/` contains session transcripts — offer to keep or remove separately
 - **MongoDB data** (only if `~/data/db/` exists): remove `~/data/db/` — warn that this deletes all captured session transcripts
+- **Docker MongoDB** (only if the `transcripts-mongo` container is present): stop and remove the container; separately offer to remove its `transcripts_data` volume — warn that the volume holds all captured session transcripts
 
 Wait for the user's answers before doing anything destructive.
 
@@ -51,7 +53,7 @@ echo "launchd plist removed"
 
 The stdio MCP server is declared by the plugin's `.mcp.json` and goes away with the plugin. Older setups may have left a `"clued"` key under `mcpServers` in `~/.claude/settings.json`; if present, remove it with the Edit tool. If `mcpServers` becomes empty, remove it entirely.
 
-Then remove the config directory, which also holds the downloaded binary directory `bin/`. A `mind-palace` installed with `go install` lives in `$(go env GOPATH)/bin` and is not touched:
+Then remove the config directory, which also holds `bin/` with the unpacked bundled binary and any downloaded one. A `mind-palace` installed with `go install` lives in `$(go env GOPATH)/bin` and is not touched:
 ```bash
 rm -rf ~/.claude/plugins/data/clued
 echo "config and binary dirs removed"
@@ -71,6 +73,20 @@ Before running this, re-confirm: "This will permanently delete all captured sess
 ```bash
 rm -rf ~/data/db
 echo "~/data/db removed"
+```
+
+## Step 7b — Remove the Docker MongoDB (if confirmed)
+
+Stop and remove the container started by the setup wizard:
+
+```bash
+docker rm -f transcripts-mongo 2>/dev/null && echo "container removed"
+```
+
+Only if the user confirmed deleting the data too (re-confirm first: "This will permanently delete all captured session transcripts in the Docker volume. Are you sure?"):
+
+```bash
+docker volume rm $(docker volume ls -q --filter name=transcripts_data) 2>/dev/null && echo "volume removed"
 ```
 
 ## Step 8 — Confirm to user

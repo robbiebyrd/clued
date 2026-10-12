@@ -18,6 +18,7 @@ type Config struct {
 	ProjectsDir         string   `json:"projectsDir"`
 	FileHistoryDir      string   `json:"fileHistoryDir"`
 	DisabledEnrichers   []string `json:"disabledEnrichers"`
+	EnabledEnrichers    []string `json:"enabledEnrichers"`
 	ClaudeAppConfigPath string   `json:"claudeAppConfigPath"`
 	WalPath             string   `json:"walPath"`
 }
@@ -41,6 +42,7 @@ func defaultConfig() Config {
 		ProjectsDir:         filepath.Join(h, ".claude", "projects"),
 		FileHistoryDir:      filepath.Join(h, ".claude", "file-history"),
 		DisabledEnrichers:   []string{},
+		EnabledEnrichers:    []string{},
 		ClaudeAppConfigPath: filepath.Join(h, "Library", "Application Support", "Claude", "config.json"),
 	}
 }
@@ -69,6 +71,9 @@ func LoadConfig(path string) Config {
 	}
 	if cfg.DisabledEnrichers == nil {
 		cfg.DisabledEnrichers = []string{}
+	}
+	if cfg.EnabledEnrichers == nil {
+		cfg.EnabledEnrichers = []string{}
 	}
 
 	setFromEnv(&cfg.MongoURL, "CLUED_MONGO_URL")

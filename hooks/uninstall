@@ -39,7 +39,7 @@ if [[ "$(uname -s)" == "Darwin" && -f "$PLIST" ]]; then
   echo "clued: removed launchd plist"
 fi
 
-# --- Config, data and downloaded binary dir (bin/ lives inside the data dir) ---
+# --- Config, data and the bin/ dir with the unpacked bundled binary (inside the data dir) ---
 if [[ $KEEP_CONFIG -eq 0 && -d "${HOME}/.claude/plugins/data/clued" ]]; then
   rm -rf "${HOME}/.claude/plugins/data/clued"
   echo "clued: removed config dir and binary dir"

@@ -38,3 +38,13 @@ When executing, reviewing or resuming a plan, it lives in mind-palace's
 plans directory (`docs/plans` by default), not `docs/superpowers/plans/`.
 Fetch it with `plan_get` (front matter and content) or `plan_getContent`
 (markdown only), or read the file at the path `plan_get` returns.
+
+## Stories
+
+The same server manages stories (bugs, features, improvements, chores,
+tasks) under `docs/stories` with `story_*` tools of the same shape:
+`story_getTemplate`, `story_create`, `story_update`, `story_setStatus`,
+`story_addPlanLink` (optionally naming the plan sections the story
+implements), `story_setCriterion` and `story_appendWorkLog`. Use a story for
+a unit of tracked work; use a plan for the design and phased implementation
+it belongs to.
