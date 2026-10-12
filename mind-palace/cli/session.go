@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 
+	"github.com/robbiebyrd/clued/mind-palace/collect/prime"
 	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 	"github.com/robbiebyrd/clued/mind-palace/session"
@@ -118,7 +119,7 @@ func (a *App) sessionCmd() *cobra.Command {
 	c.AddCommand(
 		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
-		a.sessionDaemonCmd(), a.sessionMCPCmd(),
+		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
 	)
 	return c
 }
@@ -323,6 +324,37 @@ func (a *App) sessionBackfillCmd() *cobra.Command {
 			stats, err := backfill.Run(ctx, store, a.sessionConfig().ProjectsDir, svc.AccountID, git, logger)
 			return map[string]int{"sessions": stats.Sessions, "lines": stats.Lines}, err
 		}),
+	}
+}
+
+func (a *App) sessionWhoamiCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "whoami",
+		Short: "Ask the configured clued server who the token is: name, account, projects, server version",
+		Long: `Calls GET /api/v1/whoami on the server named by serverUrl (CLUED_SERVER_URL)
+with the configured token and prints the principal it resolves to. The
+command fails when no server is configured (BadRequest), when the token is
+rejected or the server cannot be reached (StorageError), which is what
+check-setup and /clued-setup use as the connectivity probe.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := a.sessionConfig()
+			client, err := remote.FromConfigE(cfg)
+			if err != nil {
+				return a.sessionFail(err)
+			}
+			if client == nil {
+				return a.sessionBadRequest(fmt.Sprintf("no server configured: set serverUrl in %s (or CLUED_SERVER_URL)", a.sess.configPath))
+			}
+			p, err := prime.Whoami(cmd.Context(), client)
+			if err != nil {
+				return a.sessionFail(err)
+			}
+			a.print(a.Stdout, map[string]any{"ok": true, "result": map[string]any{
+				"name": p.Name, "account_id": p.AccountID, "projects": p.Projects, "version": p.Version, "server": client.BaseURL(),
+			}})
+			return nil
+		},
 	}
 }
 

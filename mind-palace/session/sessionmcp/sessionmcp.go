@@ -23,8 +23,10 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/collect/snapshot"
 	"github.com/robbiebyrd/clued/mind-palace/collect/sources/docsource"
 	"github.com/robbiebyrd/clued/mind-palace/collect/sources/sessionsource"
+	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
+	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 	"github.com/robbiebyrd/clued/mind-palace/session/query"
 	"github.com/robbiebyrd/clued/mind-palace/session/restore"
 )
@@ -178,12 +180,34 @@ func (t *Tools) primeHandler() mcp.ToolHandler {
 		collector, closeAll := t.collector(ctx, root, opts)
 		defer closeAll()
 		result := collector.CollectResult(ctx, opts)
-		if !args.NoSnapshot && prime.DaemonHealthy(ctx, t.cfg.Port) {
-			// A snapshot that cannot be stored does not spoil the report.
-			_ = snapshot.Post(ctx, t.cfg.Port, snapshot.Event{SessionID: result.SessionID, Cwd: filepath.ToSlash(root), Report: result.Report})
+		if !args.NoSnapshot {
+			t.snapshot(ctx, root, result)
 		}
 		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: result.Report.String()}}}, nil
 	}
+}
+
+// snapshot stores the report as a ContextCollected event: through the
+// remote store when a server is configured and accepts the token, through
+// the daemon when one runs otherwise. A snapshot that cannot be stored does
+// not spoil the report.
+func (t *Tools) snapshot(ctx context.Context, root string, result prime.Result) {
+	ev := snapshot.Event{SessionID: result.SessionID, Cwd: filepath.ToSlash(root), Report: result.Report}
+	if !t.cfg.Remote() {
+		if prime.DaemonHealthy(ctx, t.cfg.Port) {
+			_ = snapshot.Post(ctx, t.cfg.Port, ev)
+		}
+		return
+	}
+	client, err := remote.FromConfigE(t.cfg)
+	if err != nil || !prime.ServerHealthy(ctx, client) {
+		return
+	}
+	store, err := t.getStore(ctx)
+	if err != nil {
+		return
+	}
+	_ = snapshot.Insert(ctx, &ingest.Service{Store: store, AccountID: t.accountID, Host: hostinfo.Read(), WALPath: t.cfg.WalPath}, ev)
 }
 
 // collector wires the prime collector for root over the tools' shared store.
@@ -202,6 +226,9 @@ func (t *Tools) collector(ctx context.Context, root string, opts prime.Options) 
 		DaemonPort:        t.cfg.Port,
 		DisabledEnrichers: t.cfg.DisabledEnrichers,
 		EnabledEnrichers:  t.cfg.EnabledEnrichers,
+	}
+	if client, ok := remote.FromConfig(t.cfg); ok {
+		c.Server = client
 	}
 	if !opts.NoStore {
 		c.Sessions = sessionsource.New(t.getStore, t.accountID)
