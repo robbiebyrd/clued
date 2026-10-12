@@ -19,7 +19,7 @@ const fakeBinary = "#!/bin/sh\necho \"%s $*\"\n"
 
 type shimEnv struct {
 	home, pathDir string
-	// dist stands in for the plugin's bin/dist; it starts empty so the
+	// dist stands in for the plugin's dist; it starts empty so the
 	// archives committed in the repository never leak into a test.
 	dist string
 }
@@ -29,7 +29,7 @@ func newShimEnv(t *testing.T) shimEnv {
 	return shimEnv{home: t.TempDir(), pathDir: t.TempDir(), dist: t.TempDir()}
 }
 
-// bundledAssetName is the archive name bin/clued looks for on this machine.
+// bundledAssetName is the archive name scripts/clued looks for on this machine.
 func bundledAssetName(t *testing.T) string {
 	t.Helper()
 	switch runtime.GOOS {
@@ -109,7 +109,7 @@ func (e shimEnv) writeDownloaded(t *testing.T, label string) {
 	writeExecutable(t, filepath.Dir(e.downloadedBinary()), "mind-palace", strings.Replace(fakeBinary, "%s", label, 1))
 }
 
-// run executes bin/clued with PATH limited to the fake dir plus system dirs (and go when needed).
+// run executes scripts/clued with PATH limited to the fake dir plus system dirs (and go when needed).
 func (e shimEnv) run(t *testing.T, extraPath string, args ...string) result {
 	t.Helper()
 	path := e.pathDir + ":/usr/bin:/bin"
@@ -117,7 +117,7 @@ func (e shimEnv) run(t *testing.T, extraPath string, args ...string) result {
 		path += ":" + extraPath
 	}
 	env := []string{"HOME=" + e.home, "PATH=" + path, "GOCACHE=" + goCache(t), "GOFLAGS=-mod=mod", "GOTOOLCHAIN=local", "TMPDIR=" + os.TempDir(), "CLUED_DIST_DIR=" + e.dist}
-	return runScript(t, filepath.Join(repoRoot(t), "bin/clued"), "", env, args...)
+	return runScript(t, filepath.Join(repoRoot(t), "scripts/clued"), "", env, args...)
 }
 
 func goCache(t *testing.T) string {
@@ -352,11 +352,41 @@ func TestShimDevBuildOutranksBundledBinary(t *testing.T) {
 	}
 }
 
-// TestDistShipsEveryTarget checks the committed bin/dist against the target
+// TestShimDefaultsToTheCommittedDist runs the shim without CLUED_DIST_DIR, so
+// it must find the archives where the plugin ships them (dist/ next to
+// scripts/) and unpack the one for this machine.
+func TestShimDefaultsToTheCommittedDist(t *testing.T) {
+	name := bundledAssetName(t)
+	sums, err := os.ReadFile(filepath.Join(repoRoot(t), "dist", "SHA256SUMS"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sum string
+	for _, line := range strings.Split(string(sums), "\n") {
+		if fields := strings.Fields(line); len(fields) == 2 && fields[1] == name {
+			sum = fields[0]
+		}
+	}
+	if sum == "" {
+		t.Fatalf("%s missing from dist/SHA256SUMS", name)
+	}
+	home := t.TempDir()
+	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "TMPDIR=" + os.TempDir()}
+	r := runScript(t, filepath.Join(repoRoot(t), "scripts/clued"), "", env, "--locate")
+	want := filepath.Join(home, ".claude/plugins/data/clued/bin/bundled", sum, "mind-palace")
+	if r.code != 0 || strings.TrimSpace(r.stdout) != want {
+		t.Fatalf("got %+v, want the bundled %s unpacked to %s", r, name, want)
+	}
+	if info, err := os.Stat(want); err != nil || info.Mode()&0o111 == 0 {
+		t.Errorf("unpacked binary: err = %v, mode = %v, want an executable", err, info)
+	}
+}
+
+// TestDistShipsEveryTarget checks the committed dist against the target
 // list in scripts/build-binaries.sh; the hashes themselves are verified by
 // `scripts/build-binaries.sh --check` in CI.
 func TestDistShipsEveryTarget(t *testing.T) {
-	dist := filepath.Join(repoRoot(t), "bin", "dist")
+	dist := filepath.Join(repoRoot(t), "dist")
 	sums, err := os.ReadFile(filepath.Join(dist, "SHA256SUMS"))
 	if err != nil {
 		t.Fatal(err)

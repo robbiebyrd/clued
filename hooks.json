@@ -14,7 +14,7 @@
           },
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued hook status-review"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook status-review"
           }
         ]
       }
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued hook write-guard"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook write-guard"
           }
         ]
       }
@@ -97,7 +97,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued hook status-review --every 30m"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook status-review --every 30m"
           }
         ]
       }
@@ -138,7 +138,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued hook stop-guard"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook stop-guard"
           }
         ]
       }

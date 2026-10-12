@@ -3,7 +3,7 @@
 `clued` is a Claude Code plugin (bash hooks, a shim and two slash commands at
 the repository root) plus one Go module, `mind-palace/`, that holds all the
 logic: the session-capture daemon, the session MCP tools, and the plan and
-story service. There is no Node code left; `bin/clued` runs the `mind-palace`
+story service. There is no Node code left; `scripts/clued` runs the `mind-palace`
 binary.
 
 ## Layout
@@ -11,8 +11,8 @@ binary.
 | Path | What it is |
 |---|---|
 | `hooks.json`, `hooks/` | Hook registrations and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `uninstall`) |
-| `bin/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the bundled binary, then PATH, then `~/.claude/plugins/data/clued/bin`); `--locate` prints the choice |
-| `bin/dist/` | Pre-built `mind-palace_<os>_<arch>[.exe].gz` for 7 platforms plus `SHA256SUMS`; produced by `scripts/build-binaries.sh`, unpacked by the shim on first use |
+| `scripts/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the bundled binary, then PATH, then `~/.claude/plugins/data/clued/bin`); `--locate` prints the choice |
+| `dist/` | Pre-built `mind-palace_<os>_<arch>[.exe].gz` for 7 platforms plus `SHA256SUMS`; produced by `scripts/build-binaries.sh`, unpacked by the shim on first use |
 | `scripts/build-binaries.sh` | Reproducible cross-compile of the bundled binaries (`--check` verifies them, `--raw DIR` builds release assets) |
 | `.mcp.json` | The two stdio MCP servers the plugin registers: `clued` (session tools) and `mind-palace` (plan and story tools) |
 | `commands/`, `skills/` | `/clued-setup`, `/clued-uninstall`, and the `plan-storage` skill |
@@ -48,9 +48,9 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   their conformance suite only when their `MIND_PALACE_TEST_*` DSN is set.
 - Build the binary with `go build -o mind-palace ./cmd/mind-palace`; `cmd/plan`
   and `cmd/story` are thin wrappers around the same CLI.
-- The binaries under `bin/dist/` must match the Go source: after changing
+- The binaries under `dist/` must match the Go source: after changing
   anything the binary compiles in, run `scripts/build-binaries.sh` from the
-  repository root and commit `bin/dist/` in the same change. CI's `binaries`
+  repository root and commit `dist/` in the same change. CI's `binaries`
   job runs `scripts/build-binaries.sh --check` and fails on a mismatch. Each
   rebuild adds about 100 MB to the repository, so rebuild once per change
   set, not per commit.
@@ -62,7 +62,7 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   (capture) and `hookguard/` (hook decisions); entrypoints (`cli/`,
   `server/`, `sessionmcp`) only translate. Hooks the binary serves are
   `mind-palace hook …` subcommands registered in `hooks.json` and
-  `hooks/register-hooks` as `${CLAUDE_PLUGIN_ROOT}/bin/clued hook …`; they
+  `hooks/register-hooks` as `${CLAUDE_PLUGIN_ROOT}/scripts/clued hook …`; they
   print bare hook JSON, not the `{"ok": …}` envelope.
   Store plugins persist what they are given and must pass `store/storetest`.
 - Document kinds (plan, story) are described in `kind/`; a behaviour that

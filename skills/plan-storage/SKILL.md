@@ -8,7 +8,7 @@ description: Use when writing, saving, linking or reading an implementation plan
 Plans are documents managed by the `mind-palace` MCP server, not loose
 markdown files. The superpowers skills still decide *how* a plan is written;
 this skill only changes where the layout comes from and where the result goes.
-A PreToolUse hook (`bin/clued hook write-guard`) denies `Write` and `Edit`
+A PreToolUse hook (`scripts/clued hook write-guard`) denies `Write` and `Edit`
 under `docs/superpowers/plans/`, and in the plans and stories directories
 (`docs/plans` and `docs/stories` by default) it denies creating a file,
 overwriting one, editing front matter, the H1, acceptance criteria or the

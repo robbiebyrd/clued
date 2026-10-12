@@ -145,7 +145,7 @@ func TestRegisterHooksAddsWriteGuardWithItsMatcher(t *testing.T) {
 	h := registerHooks(t, t.TempDir(), "{}", 1).hooks(t)
 	var guards, relays int
 	for _, g := range h["PreToolUse"] {
-		if hasSuffixCommand(g, "/bin/clued hook write-guard") {
+		if hasSuffixCommand(g, "/scripts/clued hook write-guard") {
 			guards++
 			if g.Matcher != writeGuardMatcher {
 				t.Errorf("matcher = %q", g.Matcher)
@@ -164,7 +164,7 @@ func TestRegisterHooksKeepsOneGuardWhenRunTwice(t *testing.T) {
 	h := registerHooks(t, t.TempDir(), "{}", 2).hooks(t)
 	n := 0
 	for _, g := range h["PreToolUse"] {
-		if hasSuffixCommand(g, "/bin/clued hook write-guard") {
+		if hasSuffixCommand(g, "/scripts/clued hook write-guard") {
 			n++
 		}
 	}
@@ -188,7 +188,7 @@ func TestRegisterHooksRetiresTheBashPlanGuard(t *testing.T) {
 
 func TestRegisterHooksMirrorsTheBinaryHooks(t *testing.T) {
 	h := registerHooks(t, t.TempDir(), "{}", 2).hooks(t)
-	clued := filepath.Join(repoRoot(t), "bin", "clued")
+	clued := filepath.Join(repoRoot(t), "scripts", "clued")
 	want := map[string]string{
 		"Stop":             clued + " hook stop-guard",
 		"PreToolUse":       clued + " hook write-guard",
@@ -214,7 +214,7 @@ func TestRegisterHooksMirrorsTheBinaryHooks(t *testing.T) {
 }
 
 func TestRegisterHooksReplacesStaleBinaryHooks(t *testing.T) {
-	seed := `{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/old/path/bin/clued hook stop-guard"}]}]}}`
+	seed := `{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/old/path/scripts/clued hook stop-guard"}]}]}}`
 	h := registerHooks(t, t.TempDir(), seed, 1).hooks(t)
 	for _, g := range h["Stop"] {
 		for _, hk := range g.Hooks {

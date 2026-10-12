@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLUED="${PLUGIN_ROOT}/bin/clued"
+CLUED="${PLUGIN_ROOT}/scripts/clued"
 
 # Keep hooks registered in settings.json pointing to this plugin installation.
 "${PLUGIN_ROOT}/hooks/register-hooks" &>/dev/null &
@@ -23,7 +23,7 @@ daemon_ok() {
   curl -sf --max-time 1 "http://127.0.0.1:${PORT}/health" &>/dev/null
 }
 
-# When devRepoPath is set, bin/clued rebuilds the binary if the sources changed.
+# When devRepoPath is set, scripts/clued rebuilds the binary if the sources changed.
 # A running daemon keeps the old build, so restart it when a rebuild happened.
 if [[ -n "$DEV_REPO" ]]; then
   rm -f "${BIN_DIR}/.rebuilt"
@@ -35,7 +35,7 @@ if [[ -n "$DEV_REPO" ]]; then
   fi
 fi
 
-# The daemon is detached and outlives plugin updates. The path bin/clued
+# The daemon is detached and outlives plugin updates. The path scripts/clued
 # resolves changes when a new bundled binary is unpacked (it is keyed by the
 # binary's hash), so compare it with the path recorded at the last daemon
 # start and restart a daemon that is running an older build.

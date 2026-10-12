@@ -232,12 +232,12 @@ Accept defaults unless the user overrides. For remote, the URL is required.
 
 ## Step 5 — Check the mind-palace binary
 
-clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP servers. The plugin ships it pre-built for macOS (Intel and Apple Silicon), Linux (amd64, arm64 and 32-bit arm) and Windows (amd64 and arm64) under `bin/dist/`, so no Go toolchain is needed. The `bin/clued` shim unpacks the archive for this machine on first use into `~/.claude/plugins/data/clued/bin/bundled/<sha256>/` and checks it against `bin/dist/SHA256SUMS`.
+clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP servers. The plugin ships it pre-built for macOS (Intel and Apple Silicon), Linux (amd64, arm64 and 32-bit arm) and Windows (amd64 and arm64) under `dist/`, so no Go toolchain is needed. The `scripts/clued` shim unpacks the archive for this machine on first use into `~/.claude/plugins/data/clued/bin/bundled/<sha256>/` and checks it against `dist/SHA256SUMS`.
 
 Confirm the shim can find a binary (`${CLAUDE_PLUGIN_ROOT}` is the plugin root; see Step 8 if it is not set):
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/clued" --locate
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" --locate
 ```
 
 It prints the path of the binary that will run and exits 0. Nothing more to do when it succeeds.
@@ -261,7 +261,7 @@ curl -fsSL "https://github.com/robbiebyrd/clued/releases/latest/download/mind-pa
 chmod +x ~/.claude/plugins/data/clued/bin/mind-palace
 ```
 
-`bin/clued` resolves the binary in this order: a dev build when `devRepoPath` is set, the bundled binary, `mind-palace` on PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`.
+`scripts/clued` resolves the binary in this order: a dev build when `devRepoPath` is set, the bundled binary, `mind-palace` on PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`.
 
 ## Step 6 — Write config file
 
@@ -279,7 +279,7 @@ cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
 EOF
 ```
 
-**For plugin developers only** — if this machine is the clued development repo, also add `devRepoPath` so `bin/clued` builds `mind-palace` from that checkout and session-start restarts the daemon when the build changed:
+**For plugin developers only** — if this machine is the clued development repo, also add `devRepoPath` so `scripts/clued` builds `mind-palace` from that checkout and session-start restarts the daemon when the build changed:
 
 ```bash
 jq '.devRepoPath = "/path/to/clued"' \
@@ -294,8 +294,8 @@ Replace `/path/to/clued` with the actual repo path. Skip this for normal install
 The plugin ships a `.mcp.json` that tells Claude Code to run two stdio servers:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp              # clued: the session tools
-${CLAUDE_PLUGIN_ROOT}/bin/clued mcp --no-session-tools   # mind-palace: the plan and story tools
+${CLAUDE_PLUGIN_ROOT}/scripts/clued session mcp              # clued: the session tools
+${CLAUDE_PLUGIN_ROOT}/scripts/clued mcp --no-session-tools   # mind-palace: the plan and story tools
 ```
 
 Claude Code reads this at startup and spawns both as stdio child processes —
@@ -357,7 +357,7 @@ curl -sf http://127.0.0.1:8085/health && echo "daemon running"
 If the health check fails, run the daemon briefly in the foreground to see the error:
 
 ```bash
-timeout 3 "${CLUED_PLUGIN_ROOT}/bin/clued" session daemon 2>&1 || true
+timeout 3 "${CLUED_PLUGIN_ROOT}/scripts/clued" session daemon 2>&1 || true
 ```
 
 Most common failure cause: MongoDB isn't reachable at the configured URL. Confirm
@@ -370,8 +370,8 @@ Tell the user:
 - MongoDB option chosen and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
 - MCP servers: `clued` (session tools) and `mind-palace` (plan and story tools), provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns them automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
-- Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`. Two of them run the binary directly: `bin/clued hook stop-guard` on Stop and `bin/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit
-- mind-palace binary location as printed by `bin/clued --locate` (bundled with the plugin, on PATH, or in `~/.claude/plugins/data/clued/bin/`)
+- Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`. Two of them run the binary directly: `scripts/clued hook stop-guard` on Stop and `scripts/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit
+- mind-palace binary location as printed by `scripts/clued --locate` (bundled with the plugin, on PATH, or in `~/.claude/plugins/data/clued/bin/`)
 - Daemon status: running on port 8085 / failed (show error output)
 - On macOS tarball install: launchd plist written to `~/Library/LaunchAgents/org.mongodb.mongod.plist` — mongod restarts automatically at login with `KeepAlive: true`
 - Ask the user to run `/reload-plugins` then **start a new session** for all changes (hooks + MCP tools) to take effect

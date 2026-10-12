@@ -1,2 +1,2 @@
-bin/dist/*.gz binary
-bin/dist/SHA256SUMS text eol=lf
+dist/*.gz binary
+dist/SHA256SUMS text eol=lf
