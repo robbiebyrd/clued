@@ -3,11 +3,12 @@ id: 0016-pu9
 title: Setup and uninstall commands and repository docs for remote mode
 purpose: Let a user choose the clued server in /clued-setup and keep the repository's own docs accurate.
 type: chor
-status: pending
+status: in_progress
 priority: "2"
 effort: S
 created: "2026-10-12T20:09:05.289Z"
-updated: "2026-10-12T20:09:05.289Z"
+updated: "2026-10-12T21:31:05.747Z"
+started: "2026-10-12T21:31:05.747Z"
 tags:
   - server
   - remote

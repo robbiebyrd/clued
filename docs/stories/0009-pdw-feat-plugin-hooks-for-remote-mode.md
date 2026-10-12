@@ -3,12 +3,13 @@ id: 0009-pdw
 title: Plugin hooks for remote mode
 purpose: Route the bash hooks to the server when config.json names one, and start no daemon.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:05.085Z"
-updated: "2026-10-12T21:17:29.616Z"
+updated: "2026-10-12T21:31:13.528Z"
 started: "2026-10-12T21:17:29.616Z"
+completed: "2026-10-12T21:31:13.528Z"
 tags:
   - server
   - remote
@@ -70,9 +71,9 @@ Go tests in `plugin/` start an `httptest` server over `sessionapi`, set `CLUED_S
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./plugin/
-- [ ] With `serverUrl` set, `event-relay` never contacts loopback and `session-start` starts no daemon
-- [ ] Without `serverUrl`, all three hooks behave exactly as before
+- [x] VERIFY: cd mind-palace && go test -race ./plugin/
+- [x] With `serverUrl` set, `event-relay` never contacts loopback and `session-start` starts no daemon
+- [x] Without `serverUrl`, all three hooks behave exactly as before
 
 ## Files
 
