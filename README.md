@@ -3,9 +3,10 @@
 A Claude Code plugin that gives Claude a memory of its own work, backed by one
 Go binary, `mind-palace`:
 
-- **Session capture.** Every hook event Claude Code emits, every transcript
-  line, subagent transcript, tool-result blob and file-history backup is
-  mirrored into MongoDB in real time by a local daemon, enriched with
+- **Session capture.** Every hook event Claude Code emits (all but
+  `SessionStart`, which starts the daemon instead of being relayed), every
+  transcript line, subagent transcript, tool-result blob and file-history
+  backup is mirrored into MongoDB in real time by a local daemon, enriched with
   structured metadata, and searchable from any machine that shares the
   database. A session can be restored to disk elsewhere and resumed.
 - **Plans and stories.** Design/implementation plans and issue-tracker
@@ -58,18 +59,19 @@ mind-palace session find --limit 3
 
 Remove it again with `/clued-uninstall`, which detects what is present and
 asks before stopping the daemon, removing the config and downloaded binary,
-and (optionally) the MongoDB binaries and data.
+and (optionally) the MongoDB binaries, the Docker container and volume, and
+the data.
 
 ## What the plugin installs
 
 | Piece | Role |
 |---|---|
-| `hooks.json` | Registers the hooks below for every Claude Code hook event, so nothing is edited in `settings.json` |
+| `hooks.json` | Registers the hooks below for every Claude Code hook event; no manual edit of `settings.json` is needed |
 | `hooks/check-setup` | SessionStart: prints one system message when the config file or the `mind-palace` binary is missing |
 | `hooks/session-start` | SessionStart (async): re-runs `register-hooks`, rebuilds a dev checkout when `devRepoPath` is set, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` |
 | `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later |
 | `hooks/guard-superpowers-plans` | PreToolUse on `Write`/`Edit`: blocks writes under `docs/superpowers/plans/` and points at the plan MCP tools (see [Plan storage](#plan-storage-for-superpowers)) |
-| `hooks/register-hooks` | Writes the same hook entries into `~/.claude/settings.json` for setups that do not load `hooks.json`; idempotent |
+| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
 | `hooks/uninstall` | Non-interactive cleanup used by `/clued-uninstall` |
 | `bin/clued` | Shim that finds and runs `mind-palace` (resolution order below) |
 | `.mcp.json` | Two stdio MCP servers: `clued` (`bin/clued session mcp`, the session tools) and `mind-palace` (`bin/clued mcp --no-session-tools`, the plan and story tools) |
@@ -117,9 +119,13 @@ down or MongoDB unreachable) are replayed on start and every 60 seconds; the
 log and its directory are private (`0600`/`0700`).
 
 Each session document records the Claude account (`lastKnownAccountUuid`
-from the Claude desktop app's config, or `unknown`), the host (hostname, user, platform,
+from the Claude desktop app's config), the host (hostname, user, platform,
 primary IP and MAC) and the git origin and branch of the working directory.
-Every query and restore is scoped to the current account.
+Every query and restore is scoped to the current account. When the account id
+cannot be read the daemon logs a warning and stamps `unknown`; every machine
+in that state shares that id, so on a database shared between people make
+sure `claudeAppConfigPath` is readable on each of them (or give them
+separate databases).
 
 ### Data model
 
@@ -157,7 +163,7 @@ any of them with `disabledEnrichers` in the config.
 | `skill-detector` | `transcript_lines` | Skill tool invocations of an assistant line |
 | `thinking-stats` | `transcript_lines` | Size of the thinking and text of an assistant line |
 | `tool-use-summary` | `transcript_lines` | The tools an assistant line calls and whether it thinks |
-| `privacy-redact` | `transcript_lines` | Masks secrets and e-mail addresses in the raw line; **disabled by default** |
+| `privacy-redact` | `transcript_lines` | A copy of the raw line with secrets and e-mail addresses masked, stored as an enrichment; the stored line itself is not changed. **Disabled by default** |
 
 ### MCP tools (`clued` server)
 
@@ -223,9 +229,17 @@ SSE on port 8086).
 
 ### Running the daemon by hand
 
+Either let the hook do what every session start does:
+
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"      # what every session start does
-"${CLAUDE_PLUGIN_ROOT}/bin/clued" session daemon      # or in the foreground, to see errors
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
+```
+
+or, when no daemon is running on the port (a second one fails to bind), run
+it in the foreground to see its output:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/bin/clued" session daemon
 ```
 
 The most common failure is MongoDB not being reachable at `mongoUrl`; check
@@ -292,6 +306,10 @@ go test -race ./...                                          # in-memory stores
 MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./...   # plus the MongoDB suites
 ```
 
+The URI points at whatever MongoDB you have: `27017` for a local `mongod` or
+the CI service container, `27018` for the one `docker-compose.transcripts.yml`
+starts.
+
 `mind-palace/plugin` holds Go tests that execute the bash hooks and the
 `bin/clued` shim, so plugin changes are covered by `go test` too. CI
 (`.github/workflows/mind-palace.yml`) runs all of this against a MongoDB
@@ -304,5 +322,9 @@ to the config file: `bin/clued` rebuilds the binary when sources change and
 `session-start` restarts the daemon.
 
 `docker-compose.transcripts.yml` starts a MongoDB on port 27018 for the
-Docker setup option; `docker-compose.webhook.yml` starts a local
-webhook.site for inspecting hook payloads while developing.
+Docker setup option. It publishes the port on every interface without
+authentication, which suits a single-user machine or a deliberately shared
+LAN database; on a machine reachable from an untrusted network change the
+mapping to `127.0.0.1:27018:27017` or enable authentication.
+`docker-compose.webhook.yml` starts a local webhook.site for inspecting hook
+payloads while developing.

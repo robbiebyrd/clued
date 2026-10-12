@@ -33,6 +33,9 @@ go test -race ./...
 MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./...   # also the MongoDB suites
 ```
 
+Use port `27017` for a local `mongod` (what CI's service container uses) or
+`27018` for the MongoDB that `docker-compose.transcripts.yml` starts.
+
 - CI runs exactly those commands with a MongoDB service container, so run
   them before pushing. Without the env var the Mongo-backed tests skip and
   everything runs against the in-memory stores.
