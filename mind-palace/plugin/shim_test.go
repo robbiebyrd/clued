@@ -352,6 +352,36 @@ func TestShimDevBuildOutranksBundledBinary(t *testing.T) {
 	}
 }
 
+// TestShimDefaultsToTheCommittedDist runs the shim without CLUED_DIST_DIR, so
+// it must find the archives where the plugin ships them (dist/ next to
+// scripts/) and unpack the one for this machine.
+func TestShimDefaultsToTheCommittedDist(t *testing.T) {
+	name := bundledAssetName(t)
+	sums, err := os.ReadFile(filepath.Join(repoRoot(t), "dist", "SHA256SUMS"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sum string
+	for _, line := range strings.Split(string(sums), "\n") {
+		if fields := strings.Fields(line); len(fields) == 2 && fields[1] == name {
+			sum = fields[0]
+		}
+	}
+	if sum == "" {
+		t.Fatalf("%s missing from dist/SHA256SUMS", name)
+	}
+	home := t.TempDir()
+	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "TMPDIR=" + os.TempDir()}
+	r := runScript(t, filepath.Join(repoRoot(t), "scripts/clued"), "", env, "--locate")
+	want := filepath.Join(home, ".claude/plugins/data/clued/bin/bundled", sum, "mind-palace")
+	if r.code != 0 || strings.TrimSpace(r.stdout) != want {
+		t.Fatalf("got %+v, want the bundled %s unpacked to %s", r, name, want)
+	}
+	if info, err := os.Stat(want); err != nil || info.Mode()&0o111 == 0 {
+		t.Errorf("unpacked binary: err = %v, mode = %v, want an executable", err, info)
+	}
+}
+
 // TestDistShipsEveryTarget checks the committed dist against the target
 // list in scripts/build-binaries.sh; the hashes themselves are verified by
 // `scripts/build-binaries.sh --check` in CI.
