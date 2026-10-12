@@ -2,11 +2,18 @@
 # Non-interactive cleanup for clued services and optional artefacts.
 # Usage: uninstall [--keep-config] [--keep-mongo-binary]
 #
-# Always:  stops daemon
+# Local mode (no serverUrl): stops the daemon when one answers on its port.
+# Remote mode (serverUrl set, or CLUED_SERVER_URL): there is no daemon, so
+#          nothing is probed or stopped.
+# Always:  removes the hook relay's catch-up state (<data dir>/catchup/) and
+#          its log (<data dir>/relay.log), even with --keep-config
 # macOS:   unloads and removes ~/Library/LaunchAgents/org.mongodb.mongod.plist
+#          when it is present (a local MongoDB install)
 # Flags:
 #   --keep-config          skip removing ~/.claude/plugins/data/clued/
 #   --keep-mongo-binary    skip removing ~/mongodb/ (tarball install only)
+#
+# Every step is skipped silently when the thing it removes is absent.
 
 KEEP_CONFIG=0
 KEEP_MONGO_BINARY=0
@@ -17,17 +24,23 @@ for arg in "$@"; do
   esac
 done
 
-CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
+DATA_DIR="${HOME}/.claude/plugins/data/clued"
+CONFIG_FILE="${DATA_DIR}/config.json"
 DEFAULT_PORT=8085
 
+SERVER_URL=""
 if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
   PORT=$(jq -r ".port // ${DEFAULT_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_PORT")
+  SERVER_URL=$(jq -r '.serverUrl // empty' "$CONFIG_FILE" 2>/dev/null)
 else
   PORT=$DEFAULT_PORT
 fi
+PORT="${CLUED_PORT:-$PORT}"
+SERVER_URL="${CLUED_SERVER_URL:-$SERVER_URL}"
 
-# --- Stop daemon ---
-if curl -sf --max-time 1 "http://127.0.0.1:${PORT}/health" &>/dev/null; then
+# --- Stop daemon (local mode only; remote mode never started one) ---
+if [[ -z "$SERVER_URL" ]] && command -v curl &>/dev/null \
+  && curl -sf --max-time 1 "http://127.0.0.1:${PORT}/health" &>/dev/null; then
   pkill -f 'mind-palace session daemon$' 2>/dev/null && echo "clued: daemon stopped" || true
 fi
 
@@ -39,16 +52,28 @@ if [[ "$(uname -s)" == "Darwin" && -f "$PLIST" ]]; then
   echo "clued: removed launchd plist"
 fi
 
+# --- Hook relay state: catch-up offsets and lock files, and the failure log ---
+# Both are runtime state, not configuration, so they go even with --keep-config;
+# the next relay starts its catch-up from offset 0, which is idempotent.
+if [[ -d "${DATA_DIR}/catchup" ]]; then
+  rm -rf "${DATA_DIR}/catchup"
+  echo "clued: removed catch-up state"
+fi
+if [[ -f "${DATA_DIR}/relay.log" ]]; then
+  rm -f "${DATA_DIR}/relay.log"
+  echo "clued: removed relay log"
+fi
+
 # --- Config, data and the bin/ dir with the unpacked bundled binary (inside the data dir) ---
-if [[ $KEEP_CONFIG -eq 0 && -d "${HOME}/.claude/plugins/data/clued" ]]; then
-  rm -rf "${HOME}/.claude/plugins/data/clued"
+if [[ $KEEP_CONFIG -eq 0 && -d "$DATA_DIR" ]]; then
+  rm -rf "$DATA_DIR"
   echo "clued: removed config dir and binary dir"
 fi
 
 # --- MongoDB tarball binaries ---
 if [[ $KEEP_MONGO_BINARY -eq 0 && -d "${HOME}/mongodb" ]]; then
   rm -rf "${HOME}/mongodb"
-  echo "clued: removed mongodb binaries (~~/mongodb)"
+  echo "clued: removed mongodb binaries (~/mongodb)"
 fi
 
 echo "clued: uninstall complete"
