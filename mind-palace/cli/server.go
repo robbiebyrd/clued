@@ -14,8 +14,8 @@ import (
 // subcommands read it through serverTokensPath.
 const tokensFlag = "tokens"
 
-// serverCmd groups the clued-server commands. It holds `token` today;
-// `server run` is added to the same group by its own file.
+// serverCmd groups the clued-server commands: `run` (server_run.go) and
+// `token`.
 func (a *App) serverCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "server",
@@ -25,7 +25,7 @@ extends the bearer tokens clients authenticate with; they live hashed in a
 0600 JSON file the server re-reads whenever it changes.`,
 	}
 	cmd.PersistentFlags().String(tokensFlag, "", "token file (default: $CLUED_SERVER_TOKENS, then ~/.clued-server/tokens.json)")
-	cmd.AddCommand(a.serverTokenCmd())
+	cmd.AddCommand(a.serverRunCmd(), a.serverTokenCmd())
 	return cmd
 }
 
