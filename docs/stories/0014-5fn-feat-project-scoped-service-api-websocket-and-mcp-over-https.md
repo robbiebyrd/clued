@@ -3,11 +3,12 @@ id: 0014-5fn
 title: Project-scoped service API, WebSocket and MCP over HTTPS
 purpose: Serve the plan and story service, the WebSocket and the MCP endpoint on the clued server for a project chosen per request.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.232Z"
-updated: "2026-10-12T20:09:05.232Z"
+updated: "2026-10-12T21:14:55.227Z"
+started: "2026-10-12T21:14:55.227Z"
 tags:
   - server
   - remote

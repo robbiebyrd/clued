@@ -3,12 +3,13 @@ id: 0013-m3a
 title: mind-palace server run and server token commands
 purpose: Compose the clued server as a mode of the mind-palace binary with TLS, auth, graceful shutdown and server-side enrichment.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.204Z"
-updated: "2026-10-12T20:49:47.651Z"
+updated: "2026-10-12T21:15:03.787Z"
 started: "2026-10-12T20:49:47.651Z"
+completed: "2026-10-12T21:15:03.787Z"
 tags:
   - server
   - remote
@@ -61,10 +62,10 @@ One `http.ServeMux`: `/health` unauthenticated with `version` and `auth: "bearer
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./cli/ ./server/...
-- [ ] `server run --addr 0.0.0.0:8443` without certificates or `--behind-proxy` exits non-zero with an error naming both options
-- [ ] The TLS listener answers `/health` without a token and 401 on `/api/v1/whoami` without one
-- [ ] Env values are overridden by flags, and SIGTERM lets an in-flight request finish
+- [x] VERIFY: cd mind-palace && go test -race ./cli/ ./server/...
+- [x] `server run --addr 0.0.0.0:8443` without certificates or `--behind-proxy` exits non-zero with an error naming both options
+- [x] The TLS listener answers `/health` without a token and 401 on `/api/v1/whoami` without one
+- [x] Env values are overridden by flags, and SIGTERM lets an in-flight request finish
 
 ## Files
 
