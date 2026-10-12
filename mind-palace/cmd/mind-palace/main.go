@@ -13,6 +13,7 @@ import (
 	_ "github.com/robbiebyrd/clued/mind-palace/store/firestorestore"
 	_ "github.com/robbiebyrd/clued/mind-palace/store/memstore"
 	_ "github.com/robbiebyrd/clued/mind-palace/store/mongostore"
+	_ "github.com/robbiebyrd/clued/mind-palace/store/remotestore"
 	_ "github.com/robbiebyrd/clued/mind-palace/store/sqlstore"
 )
 
