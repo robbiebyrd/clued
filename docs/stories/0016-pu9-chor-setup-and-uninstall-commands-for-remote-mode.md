@@ -3,12 +3,13 @@ id: 0016-pu9
 title: Setup and uninstall commands and repository docs for remote mode
 purpose: Let a user choose the clued server in /clued-setup and keep the repository's own docs accurate.
 type: chor
-status: in_progress
+status: complete
 priority: "2"
 effort: S
 created: "2026-10-12T20:09:05.289Z"
-updated: "2026-10-12T21:31:05.747Z"
+updated: "2026-10-12T21:41:06.190Z"
 started: "2026-10-12T21:31:05.747Z"
+completed: "2026-10-12T21:41:06.190Z"
 tags:
   - server
   - remote
@@ -64,9 +65,9 @@ README: remote mode section; CLAUDE.md: layout rows for `remote/`, `server/auth`
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./plugin/
-- [ ] Following `/clued-setup` on a machine with no MongoDB ends with a successful `whoami` and registered hooks
-- [ ] CLAUDE.md's layout table lists every new package and file
+- [x] VERIFY: cd mind-palace && go test -race ./plugin/
+- [x] Following `/clued-setup` on a machine with no MongoDB ends with a successful `whoami` and registered hooks
+- [x] CLAUDE.md's layout table lists every new package and file
 
 ## Files
 
