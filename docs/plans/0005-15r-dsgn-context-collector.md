@@ -2,11 +2,11 @@
 id: 0005-15r
 title: 'Context collector: `clued context` probes and `prime` for skills'
 type: dsgn
-status: pending
+status: in_progress
 priority: "2"
 effort: L
 created: "2026-10-12T14:20:39.754Z"
-updated: "2026-10-12T14:20:39.754Z"
+updated: "2026-10-12T14:25:33.831Z"
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
@@ -58,9 +58,9 @@ progress:
 
 **Goal:** A skill or slash command runs `${CLAUDE_PLUGIN_ROOT}/bin/clued context <probe>` or `bin/clued context prime` and gets a plain-text answer about the working directory, the git repository, GitHub, project config files, the toolchain, and what clued already knows about the current session, its plans and its stories, with no Node runtime and no shell logic.
 
-**Problem:** clued captures cwd, project path, git origin and branch, account id, host details and every hook event into MongoDB, but nothing hands that knowledge back to Claude when work starts. The reference collector `wiz-context.js` covers the filesystem, git, gh, JSON and environment probes a skill needs, but it is Node (the plugin just retired its Node runtime), passes arbitrary `git`/`gh` arguments through, hardcodes `main`, a sibling `stories-cli.js` and `.claude/active-plan.json`, and knows nothing about captured sessions or mind-palace plans and stories.
+**Problem:** clued captures cwd, project path, git origin and branch, account id, host details and every hook event into MongoDB, but nothing hands that knowledge back to Claude when work starts. A skill that wants a fact about the working tree (does a file exist, how many tests are there, is the tree clean, which PR is open for this branch, what is the stack) has to improvise it in Bash each time, with `jq` and shell logic that is neither portable nor testable, and nothing ties those facts to the sessions, plans and stories mind-palace already holds.
 
-**Approach:** Add a `context` domain to mind-palace in the same hexagonal layout as `session`: probe adapters behind a command-runner port, a `prime` use case that composes them with the session store and the plan/story services, and entrypoints through the existing CLI (`mind-palace context`, reached as `bin/clued context`) and the clued MCP server. Every `wiz-context.js` subcommand is ported one-for-one with the same name and output contract, clued-native probes are added, and a `clued-context` skill plus a `/clued-prime` command teach Claude to use them.
+**Approach:** Add a `context` domain to mind-palace in the same hexagonal layout as `session`: probe adapters behind a command-runner port, a `prime` use case that composes them with the session store and the plan/story services, and entrypoints through the existing CLI (`mind-palace context`, reached as `bin/clued context`) and the clued MCP server. The probes follow one plain-text contract (one answer on stdout, fixed sentinels, exit 0), clued-native probes are added, and a `clued-context` skill plus a `/clued-prime` command teach Claude to use them.
 
 ---
 
@@ -72,26 +72,26 @@ progress:
 
 **What mind-palace already offers.** `service.Palace` holds the plan and story services (`List(ctx, ListFilter)` with type and status filters, `Resolve`, content access) over `store.Store`; `cli.App.init` loads `mind-palace.config.yaml` and opens the stores, and `filestore.Init` creates `docs/plans` and `docs/stories` in the working directory as a side effect (noted in 0003-7lv). The CLI prints every result in a JSON `{ok, result}` envelope; `cli/session.go` shows the pattern for a command group with lazily connected state, and `cli/session_test.go` drives `App` with buffers. `sessionmcp.Tools` is a `ToolProvider` on the clued stdio server that `.mcp.json` starts in the project directory. `plugin/` holds Go tests of the bash hooks and the `bin/clued` shim; CI (`.github/workflows/mind-palace.yml`) runs gofmt, vet, build and `go test -race` with a MongoDB service.
 
-**The reference collector.** `wiz-context.js` is a dependency-free Node CLI: `node wiz-context.js <subcommand> [args]` prints one plain-text answer and always exits 0. Groups: filesystem (`file-exists`, `dir-exists`, `count-files`, `list-files`, `file-head --lines`, `count-lines`, `find-files --name --maxdepth --count`, `count-files-with-content`, `pwd`), git (`git <args> --limit`, `git-is-clean`, `git-commits-since-tag`), GitHub (`gh <args> --limit`, `gh-pr-for-branch`), JSON (`json-field`, `json-count`, `json-count-where`, `json-count-with-key`, `mcp-configured`), environment (`command-exists`, `detect-stack`, `detect-coverage`, `detect-frontend`, `detect-css-framework`, `detect-build-tool`, `detect-port`) and the composite `prime-context` (README/SPEC/CHANGELOG/AGENTS heads, story and review counts, branch and status, last 15 commits on `main`, last 10 on HEAD, diff stat against `main`, `stories-cli.js list`, the plan named by `.claude/active-plan.json`, build tool and versions). Sentinels: `yes`/`no`, `none`, `0`, `unknown`, `not configured`, `not detected`, `not a git repo`, `[FALLBACK: …]`. Nothing in the plugin provides any of this today.
+**What a skill needs and does not have.** At the start of a task a skill asks a fixed set of questions: filesystem (does a file or directory exist, how many files match a glob, list them, the first lines of a file, its line count, a recursive find by name, how many files contain a pattern, the working directory), git (a read-only git query with a line limit, is the tree clean, commits since the last tag), GitHub (a read-only gh query, the open PR for this branch), JSON (a field by dot path, a count at a path, a count of array items where a key equals a value, how often a key appears, whether an MCP server keyword is configured), environment (is a command on PATH, the language stack, coverage files, a frontend, the CSS framework, the build tool and its versions, which of some ports is open) and one composite report that primes a session (key document heads, branch and status, recent commits on the base branch and on HEAD, the diff stat, active stories and plans, the build tool). Nothing in the plugin answers any of these today, and the plugin has no Node runtime any more, so the answers have to come from the Go binary.
 
 ## Decisions
 
 - **The collector is a `context` domain inside the mind-palace module (`mind-palace/context/...`), exposed as `mind-palace context <probe>` and therefore as `bin/clued context <probe>`.** — The plugin ships one Go binary and the shim already resolves it, so a skill needs no new install step; the domain is neither a document kind nor session data, so it gets its own package tree like `session` did.
-- **Every `wiz-context.js` subcommand is ported one-for-one: same name, same arguments and flags (`--limit`, `--lines`, `--name`, `--maxdepth`, `--count`), same sentinel outputs, plain text on stdout, exit code 0 even on failure.** — Skills written against the reference collector port with a path change, and the sentinel contract is what lets a skill paste the output into a prompt without error handling. Plain text is a deliberate exception to the JSON envelope the other commands print.
+- **Every probe follows one plain-text contract: `bin/clued context <probe> [args] [--limit n]` prints exactly one answer on stdout, uses the fixed sentinel vocabulary (`yes`/`no` for existence checks, `none` for empty lists and absent JSON values, `0` for empty counts, `unknown` for undetectable stacks and tag distances, `not configured`, `not detected`, `no build tool detected`, `not a git repo`, `no <basename>` for an unreadable head, `store unavailable`, `no plans dir`, and `[FALLBACK: <subcommand> <args>]` when a probe itself fails), takes its options as flags (`--limit`, `--lines`, `--name`, `--maxdepth`, `--count`) and exits 0 even on failure.** — The sentinel contract is what lets a skill paste the output into a prompt without error handling, and a fixed vocabulary keeps the skill text short. Plain text is a deliberate exception to the JSON envelope the other commands print.
 - **Probes are adapters behind a `context.Runner` port (`Run(ctx, dir, name string, args ...string) (string, error)` with a per-call timeout); `gitprobe` and `ghprobe` take a Runner, `fsprobe`, `jsonprobe` and `envprobe` take a root directory.** — Keeps the use case free of `os/exec`, lets `ghprobe` be tested with a scripted runner and `gitprobe` against real temporary repositories, and matches the no-mocks rule the session port followed.
-- **`git` and `gh` passthrough accept only a read-only allowlist. git: `log`, `status`, `diff`, `show`, `rev-parse`, `branch`, `describe`, `remote`, `ls-files`, `tag`, `blame`, `shortlog`, `stash list`, `rev-list`, `symbolic-ref`, `config --get`. gh: `pr`, `issue`, `run`, `release`, `repo` with `list`, `view`, `status`, `checks` or `diff`, and `api` without `--method`/`-X` or `-f`/`-F`. Anything else prints `[FALLBACK: git …]` or `[FALLBACK: gh …]`.** — The reference collector passes arbitrary arguments to both tools; a collector that skills run without a permission prompt must not be a way to push, reset or write.
-- **The base branch is detected (`refs/remotes/origin/HEAD`, then a local `main`, then `master`) instead of hardcoded, and the prime sections are labelled with the detected name.** — The reference's `LOG:main` and `DIFF-STAT` sections are empty on every repository whose default branch is not `main`.
+- **`git` and `gh` passthrough accept only a read-only allowlist. git: `log`, `status`, `diff`, `show`, `rev-parse`, `branch`, `describe`, `remote`, `ls-files`, `tag`, `blame`, `shortlog`, `stash list`, `rev-list`, `symbolic-ref`, `config --get`. gh: `pr`, `issue`, `run`, `release`, `repo` with `list`, `view`, `status`, `checks` or `diff`, and `api` without `--method`/`-X` or `-f`/`-F`. Anything else prints `[FALLBACK: git …]` or `[FALLBACK: gh …]`.** — A collector that skills run without a permission prompt must not be a way to push, reset or write, and an allowlist is easier to audit than a denylist.
+- **The base branch is detected (`refs/remotes/origin/HEAD`, then a local `main`, then `master`) instead of hardcoded, and the prime sections are labelled with the detected name.** — A hardcoded `main` leaves the log and diff sections empty on every repository whose default branch has another name.
 - **`prime` includes what clued already captures: cwd and its encoded project path, git origin and branch via `session/gitinfo`, the account id via `session.ReadAccountID`, a host summary via `session/hostinfo` (hostname, username, platform, arch, os release; never ip or mac), daemon health on the configured port, and the most recent captured session for this cwd (session id, started, last seen, top commands) through `query.Service`.** — This is the clued-specific value of the tool: the session mirror finally feeds context back into a session. The store is opened lazily with a 2 s timeout and the section degrades to `store unavailable`, so prime stays useful on a machine without MongoDB.
 - **Stories and plans come from the palace services, not from globs, `stories-cli.js` or `.claude/active-plan.json`: active stories are those with status `pending`, `ready` or `in_progress`; active plans are those with status `in_progress` (then `ready`), each shown with id, type, title and the first 100 lines of the top in-progress plan. The palace is opened only when `mind-palace.config.yaml`/`.json` or the plans directory already exists.** — The plugin stores plans and stories in mind-palace, so that is the truth. Opening the palace runs `filestore.Init`, which creates `docs/plans` and `docs/stories`; guarding on existence keeps prime side-effect free in an unrelated project.
-- **Globbing supports `**` through a walker in `fsprobe` (hidden directories skipped, results relative to the root, forward slashes for display), with no new dependency.** — `filepath.Glob` has no `**`; the reference relies on it for `stories/*-pending-*.md`-style patterns and recursive finds. Mirroring the reference's walker keeps behaviour identical and the dependency list unchanged.
+- **Globbing supports `**` through a walker in `fsprobe` (hidden directories skipped, results relative to the root, forward slashes for display), with no new dependency.** — `filepath.Glob` has no `**`, and skills need recursive patterns such as `docs/**/*.md`; a small walker keeps the dependency list unchanged.
 - **Every probe has its own timeout (git 2 s as in `gitinfo`, gh 15 s, port 1 s, version commands 5 s), prime has a 20 s budget, and each prime section is computed independently so one failure prints that section's sentinel and the others still render.** — The collector runs at the start of work; a hung `gh` or an unreachable MongoDB must cost a sentinel line, not the session.
 - **Entry points are the CLI group and one read-only MCP tool, `prime_context`, on the clued stdio server (`sessionmcp`), taking an optional `cwd`. Individual probes stay CLI-only.** — Skills run probes from Bash, where the plain-text contract matters; `.mcp.json` already starts the clued server in the project directory, so prime is one tool call away without a Bash permission prompt.
 - **The plugin ships `skills/clued-context/SKILL.md` (every probe with its sentinel, and the instruction to run `prime` before starting a task) and `commands/clued-prime.md`; `prime` is not wired into `SessionStart`.** — A SessionStart hook would inject a few hundred lines into every session whether or not the task needs them; a skill and a command let the work opt in. The hook can be added later without changing the collector.
 
 ### Rejected alternatives
 
-- **Vendor `wiz-context.js` into the plugin and run it with `node`.** — The plugin removed its Node runtime in 0004-b1m; the plugin cache has no toolchain and `node` is not a prerequisite any more.
-- **One bash script per probe under `hooks/` or `scripts/`.** — Needs `jq`, breaks on Windows, and is only testable through process-level tests; the reference collector exists precisely because shell probes were not portable.
+- **A Node script shipped with the plugin.** — The plugin removed its Node runtime in 0004-b1m; the plugin cache has no toolchain and `node` is not a prerequisite any more.
+- **One bash script per probe under `hooks/` or `scripts/`.** — Needs `jq`, breaks on Windows, and is only testable through process-level tests.
 - **Inject the prime output from the `SessionStart` hook.** — Cost on every session, including ones that never touch the repository; the skill and command opt in instead, and the hook remains possible later.
 - **Model collected context as a new mind-palace document kind.** — Kinds are Markdown documents with front matter, templates and a workflow; a context snapshot is transient output.
 - **Store every prime snapshot in MongoDB as a hook event.** — Out of scope for the first version: a snapshot is derivable from the hook events the daemon already stores, and a later enricher can do it without changing the collector.
@@ -101,15 +101,15 @@ progress:
 
 ### `context` — domain (package `context`)
 
-Pure package. `Runner` port and its default `ExecRunner{Timeout}` (argv only, never a shell; `Run` returns trimmed stdout, and on a non-zero exit returns stdout with the error so callers can keep partial output like the reference does). Sentinel constants (`yes`/`no` for existence checks, `none` for empty lists and absent JSON values, `0` for empty counts, `unknown` for undetectable stacks and tag distances, `not configured`, `not detected`, `no build tool detected`, `not a git repo`, `no <basename>` for an unreadable head, `store unavailable`, `no plans dir`, and `[FALLBACK: <subcommand> <args>]` when a probe itself fails). `Report{Sections []Section}` with `Section{Name, Body string}` rendered as `=== NAME ===` blocks separated by a blank line. Helpers shared by the probes: `ExpandHome`, `Resolve(root, p)` (absolute or root-relative), `DisplayPath` (forward slashes), `Truncate(s string, limit int)` (line limit, `limit <= 0` means unlimited), `ParseLimit`. Option types for the CLI flags so the probes never read `os.Args`.
+Pure package. `Runner` port and its default `ExecRunner{Timeout}` (argv only, never a shell; `Run` returns trimmed stdout, and on a non-zero exit returns stdout with the error so callers can keep partial output). Sentinel constants (`yes`/`no` for existence checks, `none` for empty lists and absent JSON values, `0` for empty counts, `unknown` for undetectable stacks and tag distances, `not configured`, `not detected`, `no build tool detected`, `not a git repo`, `no <basename>` for an unreadable head, `store unavailable`, `no plans dir`, and `[FALLBACK: <subcommand> <args>]` when a probe itself fails). `Report{Sections []Section}` with `Section{Name, Body string}` rendered as `=== NAME ===` blocks separated by a blank line. Helpers shared by the probes: `ExpandHome`, `Resolve(root, p)` (absolute or root-relative), `DisplayPath` (forward slashes), `Truncate(s string, limit int)` (line limit, `limit <= 0` means unlimited), `ParseLimit`. Option types for the CLI flags so the probes never read `os.Args`.
 
 ### `context/fsprobe` — filesystem probes
 
-`Probe{Root string}` with `FileExists`, `DirExists`, `CountFiles(globs)`, `ListFiles(globs, limit)`, `FileHead(path, lines)` (bufio line reader, never the whole file), `CountLines(path)` (newline count, like `wc -l`), `FindFiles(dir, names []string, maxDepth, limit int, countOnly bool)` (depth starts at 1, hidden directories skipped, inaccessible directories ignored), `CountFilesWithContent(glob, pattern)` (Go `regexp`), `Pwd`. `Glob(root, pattern)` handles `*`, `?` and `**` with the same semantics as the reference's walker; `MatchName(name, pattern)` is the per-segment matcher with a compiled-pattern cache. Outputs are root-relative, forward-slashed and sorted for stable tests.
+`Probe{Root string}` with `FileExists`, `DirExists`, `CountFiles(globs)`, `ListFiles(globs, limit)`, `FileHead(path, lines)` (bufio line reader, never the whole file), `CountLines(path)` (newline count, like `wc -l`), `FindFiles(dir, names []string, maxDepth, limit int, countOnly bool)` (depth starts at 1, hidden directories skipped, inaccessible directories ignored), `CountFilesWithContent(glob, pattern)` (Go `regexp`), `Pwd`. `Glob(root, pattern)` handles `*` (any run of characters within a name), `?` (one character) and `**` (any number of directories, hidden ones excluded); `MatchName(name, pattern)` is the per-segment matcher with a compiled-pattern cache. Outputs are root-relative, forward-slashed and sorted for stable tests.
 
 ### `context/gitprobe` — git probes
 
-`Probe{Root string; Runner context.Runner}`. `Git(args, limit)` applies the read-only allowlist then runs `git -C root <args>` and truncates; `IsClean` (`status --porcelain`); `CommitsSinceTag` (`describe --tags --abbrev=0` then `rev-list --count`); `Origin` and `Branch` delegate to `session/gitinfo`; `DefaultBranch` (origin/HEAD, `main`, `master`, else empty); `Log(ref, n)`; `DiffStat(base)` (`diff base...HEAD --stat`); `StatusSummary` (`clean` or `N changed files`). Every failure maps to the reference sentinels (`not a git repo`, `unknown`, `no`).
+`Probe{Root string; Runner context.Runner}`. `Git(args, limit)` applies the read-only allowlist then runs `git -C root <args>` and truncates; `IsClean` (`status --porcelain`); `CommitsSinceTag` (`describe --tags --abbrev=0` then `rev-list --count`); `Origin` and `Branch` delegate to `session/gitinfo`; `DefaultBranch` (origin/HEAD, `main`, `master`, else empty); `Log(ref, n)`; `DiffStat(base)` (`diff base...HEAD --stat`); `StatusSummary` (`clean` or `N changed files`). Every failure maps to a sentinel (`not a git repo`, `unknown`, `no`).
 
 ### `context/ghprobe` — GitHub CLI probes
 
@@ -121,7 +121,7 @@ Pure package. `Runner` port and its default `ExecRunner{Timeout}` (argv only, ne
 
 ### `context/envprobe` — environment probes
 
-`CommandExists` (`exec.LookPath`), `DetectStack` (go.mod → Go, package.json → TS, Cargo.toml → Rust, pom.xml/build.gradle → Java, *.csproj/*.sln → C#, requirements.txt/pyproject.toml → Python; space-joined, `unknown`), `DetectCoverage`, `DetectFrontend`, `DetectCSSFramework` (substring search of package.json in the reference's order), `DetectBuildTool` (first match wins; versions through the Runner, missing tools skipped), `DetectPort(ports)` (in-process `net.DialTimeout` to 127.0.0.1, 1 s, first open port or `not detected`).
+`CommandExists` (`exec.LookPath`), `DetectStack` (go.mod → Go, package.json → TS, Cargo.toml → Rust, pom.xml/build.gradle → Java, *.csproj/*.sln → C#, requirements.txt/pyproject.toml → Python; space-joined, `unknown`), `DetectCoverage`, `DetectFrontend`, `DetectCSSFramework` (substring search of package.json for `tailwindcss`, `styled-components`, `@emotion/`, `sass`, `less`, first match wins), `DetectBuildTool` (first match wins; versions through the Runner, missing tools skipped), `DetectPort(ports)` (in-process `net.DialTimeout` to 127.0.0.1, 1 s, first open port or `not detected`).
 
 ### `context/prime` — composite use case
 
@@ -145,11 +145,11 @@ Seventh tool on the clued server: `prime_context` with schema `{cwd?: string}` (
 
 ### Error Handling
 
-Probes never return an error to the CLI: each maps its failure to the reference sentinel (`yes`/`no` for existence checks, `none` for empty lists and absent JSON values, `0` for empty counts, `unknown` for undetectable stacks and tag distances, `not configured`, `not detected`, `no build tool detected`, `not a git repo`, `no <basename>` for an unreadable head, `store unavailable`, `no plans dir`, and `[FALLBACK: <subcommand> <args>]` when a probe itself fails) and the process exits 0. `Runner` errors keep partial stdout, as the reference keeps `err.stdout`. `prime` runs each section under its own context; a section that times out or panics (recovered) prints `[FALLBACK: <section>]` and the report still renders. The MCP tool returns the report text on success and a tool error only when the cwd does not exist.
+Probes never return an error to the CLI: each maps its failure to a sentinel (`yes`/`no` for existence checks, `none` for empty lists and absent JSON values, `0` for empty counts, `unknown` for undetectable stacks and tag distances, `not configured`, `not detected`, `no build tool detected`, `not a git repo`, `no <basename>` for an unreadable head, `store unavailable`, `no plans dir`, and `[FALLBACK: <subcommand> <args>]` when a probe itself fails) and the process exits 0. `Runner` errors keep partial stdout, so a `git log` that fails late still yields its lines. `prime` runs each section under its own context; a section that times out or panics (recovered) prints `[FALLBACK: <section>]` and the report still renders. The MCP tool returns the report text on success and a tool error only when the cwd does not exist.
 
 ### Edge Cases
 
-Not a git repository, detached HEAD (`BRANCH` prints `detached HEAD`), no `origin`, no default branch (`LOG:` and `DIFF-STAT` print `no default branch`), shallow clones (`CommitsSinceTag` → `unknown`). Hidden directories are skipped by `find-files` and `**` globs; symbolic links are not followed. `file-head` on a file without a trailing newline returns the last partial line; `count-lines` counts newline bytes so `wc -l` parity holds. `count-files-with-content` reads files as bytes and skips unreadable ones. `--limit` with a non-numeric value means unlimited, as `parseInt || Infinity` did. `detect-port` only dials loopback. `mcp-configured` is a substring match, so `mongo` matches `mongodb`. Windows paths display with forward slashes; `~` expands on every platform. A plans directory that exists but holds no documents prints `none`, not `no plans dir`.
+Not a git repository, detached HEAD (`BRANCH` prints `detached HEAD`), no `origin`, no default branch (`LOG:` and `DIFF-STAT` print `no default branch`), shallow clones (`CommitsSinceTag` → `unknown`). Hidden directories are skipped by `find-files` and `**` globs; symbolic links are not followed. `file-head` on a file without a trailing newline returns the last partial line; `count-lines` counts newline bytes so `wc -l` parity holds. `count-files-with-content` reads files as bytes and skips unreadable ones. `--limit` with a non-numeric or non-positive value means unlimited. `detect-port` only dials loopback. `mcp-configured` is a substring match, so `mongo` matches `mongodb`. Windows paths display with forward slashes; `~` expands on every platform. A plans directory that exists but holds no documents prints `none`, not `no plans dir`.
 
 ## Considerations
 
@@ -158,23 +158,23 @@ Not a git repository, detached HEAD (`BRANCH` prints `detached HEAD`), no `origi
 
 ## Testing
 
-Unit tests per probe against real temporary directories and real `git init` repositories (skipped when `git` is absent); `ghprobe` and `DetectBuildTool` against a scripted `Runner` that records calls and returns canned stdout; `jsonprobe` against fixture files; `prime` against `memsession` seeded through `daemon`-shaped documents and a `DocSource` backed by `memstore`, asserting section order, sentinels and the budget; CLI tests through `App` with buffers for every subcommand, including the exit-0-on-failure rule and `git`/`gh` allowlist rejections; `sessionmcp` test for `prime_context` over the in-memory transport; `cli/context_skill_test.go` for skill/CLI consistency; a parity test that runs every ported probe over `testdata/context-repo` and compares with recorded outputs of `wiz-context.js` on the same tree. CI is unchanged apart from the path filters; the store-backed tests already run against the MongoDB service.
+Unit tests per probe against real temporary directories and real `git init` repositories (skipped when `git` is absent); `ghprobe` and `DetectBuildTool` against a scripted `Runner` that records calls and returns canned stdout; `jsonprobe` against fixture files; `prime` against `memsession` seeded through `daemon`-shaped documents and a `DocSource` backed by `memstore`, asserting section order, sentinels and the budget; CLI tests through `App` with buffers for every subcommand, including the exit-0-on-failure rule and `git`/`gh` allowlist rejections; `sessionmcp` test for `prime_context` over the in-memory transport; `cli/context_skill_test.go` for skill/CLI consistency; a golden test that runs every probe over the committed fixture tree `testdata/context-repo` and compares with expected outputs written from the contract, so a change in any probe's text is a visible diff. CI is unchanged apart from the path filters; the store-backed tests already run against the MongoDB service.
 
 ## Scope
 
 **In scope:**
 
 - `mind-palace/context` domain, five probe packages, the `prime` use case and the two source adapters
-- `mind-palace context` CLI group with every reference subcommand plus `git-origin`, `git-branch`, `git-default-branch`, `host`, `account`, `project-path`, `daemon-status`, `session` and `prime`
+- `mind-palace context` CLI group with every probe in the design plus `git-origin`, `git-branch`, `git-default-branch`, `host`, `account`, `project-path`, `daemon-status`, `session` and `prime`
 - `prime_context` MCP tool on the clued server
-- `skills/clued-context/SKILL.md`, `commands/clued-prime.md`, README section, CI path filters, consistency and parity tests
+- `skills/clued-context/SKILL.md`, `commands/clued-prime.md`, README section, CI path filters, consistency and golden tests
 
 **Out of scope:**
 
 - Injecting `prime` output from the `SessionStart` hook — cost on every session; can be added later as one hook line
 - Storing prime snapshots in MongoDB — derivable from hook events by a later enricher
 - A `--json` output mode for the probes — the plain-text contract is what skills consume; add when a consumer needs it
-- `.claude/active-plan.json` and `stories-cli.js` compatibility — replaced by mind-palace plans and stories
+- Reading `.claude/active-plan.json` as a plan marker — mind-palace plans carry their own status
 - Windows CI — the code is portable but the workflow stays on ubuntu like the rest of mind-palace
 
 ## Open Questions
@@ -196,7 +196,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 - Every section is test-first: write the failing tests named in Step 1, watch them fail, implement, watch them pass, then commit. Tests use real temporary directories, real git repositories and the in-memory stores; no mocks.
 - A subagent edits only the files its section lists and never reformats files it does not own.
 - All Go commands run from `mind-palace/`; `gofmt -l .` must print nothing and `go vet ./...` must pass before every commit.
-- Output parity with `wiz-context.js` is the acceptance test for every ported probe: when a port decision is unclear, the reference's behaviour wins, except where a decision above overrides it (allowlists, default branch, palace-backed stories and plans).
+- The probe contract in Part 1 (names, flags, sentinels, exit 0) is the acceptance test for every probe: when a detail is unclear, the sentinel table and the component description win, and the golden test records the result.
 - Probes never exit non-zero and never print to stdout anything but the answer; diagnostics go to stderr.
 - Nothing is pushed and no pull request is opened unless Boss asks.
 - The orchestrator tracks progress with `mind-palace plan set-progress <this plan> <section> <status>` after each merge.
@@ -217,7 +217,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 | `mind-palace/cli/context.go` | create | `context` command group |
 | `mind-palace/cli/cli.go` | modify | Register `contextCmd` on the root |
 | `mind-palace/session/sessionmcp/sessionmcp.go` | modify | `prime_context` tool |
-| `mind-palace/testdata/context-repo/` | create | Fixture tree plus recorded `wiz-context.js` outputs for the parity test |
+| `mind-palace/testdata/context-repo/` | create | Fixture tree plus expected outputs for the golden test |
 | `skills/clued-context/SKILL.md` | create | Probe reference and usage rules for Claude |
 | `commands/clued-prime.md` | create | `/clued-prime` slash command |
 | `README.md` | modify | Context section |
@@ -254,7 +254,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 **Depends on:** 1.1
 
 **Interfaces:**
-- Consumes: `context` helpers and sentinels; the reference's `resolveGlobs`, `matchGlob`, `find-files`, `file-head`, `count-lines` semantics
+- Consumes: `context` helpers and sentinels
 - Produces: `Probe{Root}` with `FileExists`, `DirExists`, `CountFiles`, `ListFiles`, `FileHead`, `CountLines`, `FindFiles`, `CountFilesWithContent`, `Pwd`; `Glob`, `MatchName`
 
 - [ ] **Step 1: Write the failing tests** — Build a temp tree (nested dirs, a hidden dir, files with and without trailing newline, a CRLF file). Assert: existence checks print `yes`/`no` and `no` for a directory asked as a file; `Glob` with `*.md`, `docs/**/*.md`, `stories/*-pending-*.md`, `~`-prefixed patterns; `ListFiles` sorted, forward-slashed, `none` when empty, `--limit` honoured; `FileHead` N lines and `no <basename>` for a missing file; `CountLines` equals the newline count; `FindFiles` with multiple `--name`, `--maxdepth 1`, `--count`, hidden dirs skipped; `CountFilesWithContent` with a regex and an unreadable file skipped; `MatchName` table (`*.test.js`, `?.go`, `**`, literal dots).
@@ -274,7 +274,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 **Depends on:** 1.1
 
 **Interfaces:**
-- Consumes: `context` helpers; the reference's `getByDotPath`, `countKeyInJSON`, `mcp-configured` search paths
+- Consumes: `context` helpers
 - Produces: `Field`, `Count`, `CountWhere`, `CountWithKey`, `MCPConfigured(keyword, cwd, home string)`
 
 - [ ] **Step 1: Write the failing tests** — Fixture JSON with nested objects and arrays: `Field` on scalar, object (compact JSON), missing (`none`), with and without a leading `.`; `Count` on array, object and scalar (`0`); `CountWhere` string-compares values (`true` matches `"true"`); `CountWithKey` counts nested occurrences; `MCPConfigured` finds a keyword in `.mcp.json`, in `~/.claude/settings.json`, in a plugin `*.mcp.json` three levels deep, and prints `not configured` when absent or on an empty keyword.
@@ -294,7 +294,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 **Depends on:** 1.1
 
 **Interfaces:**
-- Consumes: `context.Runner` for version commands; the reference's detection tables
+- Consumes: `context.Runner` for version commands; the detection tables in the design
 - Produces: `Probe{Root string; Runner context.Runner}` with `CommandExists`, `DetectStack`, `DetectCoverage`, `DetectFrontend`, `DetectCSSFramework`, `DetectBuildTool`, `DetectPort`
 
 - [ ] **Step 1: Write the failing tests** — Temp roots with marker files for every stack combination (`Go TS`, `C#` from a `.sln`, `Python` from `pyproject.toml`, `unknown`); coverage markers; frontend yes/no; CSS framework order (`tailwindcss` before `sass`); `DetectBuildTool` with a scripted Runner returning versions and with a Runner that fails (label only); `DetectPort` against a listener opened in the test and a closed port; `CommandExists` for `go` and a nonsense name.
@@ -319,7 +319,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 - Consumes: `context.Runner`, `session/gitinfo` for origin and branch
 - Produces: `Probe{Root; Runner}` with `Git(args, limit)`, `IsClean`, `CommitsSinceTag`, `Origin`, `Branch`, `DefaultBranch`, `Log(ref, n)`, `DiffStat(base)`, `StatusSummary`; `Allowed(args) bool`
 
-- [ ] **Step 1: Write the failing tests** — Helper that `git init`s a temp repo with two commits, a tag, a dirty file and a second branch (skip when `git` is missing). Assert: `Git(["log","--oneline"], 1)` returns one line; `Git(["push"])` and `Git(["reset","--hard"])` return the fallback without running; `IsClean` flips after committing; `CommitsSinceTag` is `1` and `unknown` without tags; `DefaultBranch` prefers `origin/HEAD` (set up with a bare clone), then `main`, then `master`, else empty; `DiffStat` across branches; `StatusSummary` counts porcelain lines; outside a repository everything maps to the reference sentinels.
+- [ ] **Step 1: Write the failing tests** — Helper that `git init`s a temp repo with two commits, a tag, a dirty file and a second branch (skip when `git` is missing). Assert: `Git(["log","--oneline"], 1)` returns one line; `Git(["push"])` and `Git(["reset","--hard"])` return the fallback without running; `IsClean` flips after committing; `CommitsSinceTag` is `1` and `unknown` without tags; `DefaultBranch` prefers `origin/HEAD` (set up with a bare clone), then `main`, then `master`, else empty; `DiffStat` across branches; `StatusSummary` counts porcelain lines; outside a repository everything maps to the sentinels.
 - [ ] **Step 2: Run them and confirm they fail** — `go test ./context/gitprobe`
 - [ ] **Step 3: Implement** — Allowlist on the first argument (and the second for `stash` and `config`); every call through `Runner.Run(ctx, root, "git", args...)` with a 2 s timeout; keep partial stdout on error.
 - [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./context/... && go test ./context/...`
@@ -409,7 +409,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 
 - [ ] **Step 1: Write the failing tests** — Through `App` with buffers and a temp cwd (`--root`): every subcommand prints its answer plus one newline and exits 0; `context git push` prints the fallback and exits 0; `context nonsense` prints `unknown subcommand: nonsense` and exits 0; `--limit 2` truncates `list-files`; `file-head --lines 3`; `find-files --name '*.go' --count`; `prime --no-store --no-docs` prints the eleven sections with `SESSION` reading `store disabled`; `session` prints `none` with the in-memory store empty (reusing `session_test.go`'s store override); `project-path` encodes the root; `daemon-status` on a closed port.
 - [ ] **Step 2: Run them and confirm they fail** — `go test ./cli -run Context`
-- [ ] **Step 3: Implement** — Cobra group with `DisableFlagParsing` on `git` and `gh`, manual `--limit` extraction (as `extractLimit` did), `SilenceErrors`/`SilenceUsage`, and `RunE` always returning nil after writing the answer; register in `cli.go` next to `sessionCmd`.
+- [ ] **Step 3: Implement** — Cobra group with `DisableFlagParsing` on `git` and `gh`, manual `--limit` extraction, `SilenceErrors`/`SilenceUsage`, and `RunE` always returning nil after writing the answer; register in `cli.go` next to `sessionCmd`.
 - [ ] **Step 4: Run the tests, gofmt and vet** — `gofmt -l . && go vet ./cli && go test ./cli`
 - [ ] **Step 5: Commit** — `git commit -m 'feat(cli): context command group'`
 
@@ -462,31 +462,31 @@ Unit tests per probe against real temporary directories and real `git init` repo
 
 ## Phase 6: Verification
 
-### 6.1: Parity and end-to-end (wave F)
+### 6.1: Golden outputs and end-to-end (wave F)
 
 **Files:**
 - Create: `mind-palace/testdata/context-repo/README.md`
 - Create: `mind-palace/testdata/context-repo/expected/*.txt`
-- Create: `mind-palace/context/parity_test.go`
+- Create: `mind-palace/cli/context_golden_test.go`
 
 **Depends on:** 5.1
 
 **Interfaces:**
-- Consumes: `wiz-context.js` (run once by the implementer with Node, outside the repository, to record expected outputs)
-- Produces: Recorded outputs for every ported probe over the fixture tree and a Go test comparing them
+- Consumes: the `context` CLI group through `App`
+- Produces: A committed fixture tree, one expected output per probe case, and a Go test comparing them
 
-- [ ] **Step 1: Record the reference outputs** — Over `testdata/context-repo` (a committed tree with docs, stories, a package.json and a go.mod; git-dependent probes run against a repository the test creates), run each ported probe with `wiz-context.js` and save stdout under `expected/<probe>[-<case>].txt`.
-- [ ] **Step 2: Write the parity test and confirm it fails where expected** — `parity_test.go` runs every case through the Go probes and diffs against the recorded files; cases that a decision changes on purpose (allowlist, default branch) are listed with their reason and asserted against the new behaviour. — `go test ./context -run Parity`
-- [ ] **Step 3: Fix the deviations** — Adjust probes until the parity test passes.
+- [ ] **Step 1: Write the fixture and the expected outputs** — `testdata/context-repo` holds docs, stories, a package.json, a go.mod and a `.mcp.json`; each case is a probe invocation (`file-exists README.md`, `count-files '**/*.md'`, `find-files --name '*.go' --count`, `json-field package.json .name`, `detect-stack`, `mcp-configured clued`, and so on) with its expected stdout written from the contract under `expected/<case>.txt`. Git-dependent cases run against a repository the test creates so the fixture needs no `.git`.
+- [ ] **Step 2: Write the golden test and confirm it fails** — `context_golden_test.go` runs every case through `App` with `--root testdata/context-repo` and diffs stdout against the expected file; `-update` rewrites the files. — `go test ./cli -run Golden`
+- [ ] **Step 3: Fix the deviations** — Adjust probes until every case matches the contract.
 - [ ] **Step 4: Run the full gate** — `test -z "$(gofmt -l .)" && go vet ./... && go test -race ./...`
 - [ ] **Step 5: Run it live** — With `devRepoPath` set, in the clued checkout: `bin/clued context prime`, `bin/clued context prime --no-store`, `bin/clued context git log --oneline --limit 3`, `bin/clued context gh-pr-for-branch`; in an empty temp directory `bin/clued context prime` prints sentinels and creates no files; in Claude Code, `/clued-prime` and the `prime_context` tool return the report.
-- [ ] **Step 6: Commit** — `git commit -m 'test(context): parity with the reference collector and live verification'`
+- [ ] **Step 6: Commit** — `git commit -m 'test(context): golden outputs and live verification'`
 
-**Validation:** `go test ./context -run Parity`
+**Validation:** `go test ./cli -run Golden`
 
 ## Acceptance Criteria
 
-- [ ] `bin/clued context <probe>` exists for every `wiz-context.js` subcommand with the same name, arguments and sentinel outputs, and always exits 0.
+- [ ] `bin/clued context <probe>` exists for every probe in the design's command list, prints one plain-text answer using the sentinel vocabulary, and always exits 0.
 - [ ] `git` and `gh` passthrough refuse anything outside the read-only allowlists with a `[FALLBACK: …]` line and no process spawned.
 - [ ] `bin/clued context prime` prints the ENV, CLUED, FILES, BRANCH, LOG:<default>, LOG:HEAD, DIFF-STAT, STORIES, PLANS, SESSION and BUILD sections, with the default branch detected.
 - [ ] The ENV and SESSION sections carry what clued already captures: cwd, project path, git origin and branch, account id, host summary without ip or mac, and the most recent captured session for the cwd with its top commands.
@@ -494,7 +494,7 @@ Unit tests per probe against real temporary directories and real `git init` repo
 - [ ] `prime` degrades to sentinels without MongoDB, without `gh`, outside a git repository, and finishes within its budget when a probe hangs.
 - [ ] `prime_context` is listed by the clued MCP server and returns the same report.
 - [ ] `skills/clued-context/SKILL.md` lists every registered probe and nothing else, enforced by a test; `/clued-prime` runs the report.
-- [ ] The parity test passes against recorded `wiz-context.js` outputs, with every intentional deviation listed with its reason.
+- [ ] The golden test passes over the committed fixture tree, so every probe's output text is recorded and reviewed.
 - [ ] `gofmt -l .` is empty, `go vet ./...` and `go test -race ./...` pass locally and in CI; no new Go dependency.
 
 ## Self-Review
@@ -502,14 +502,14 @@ Unit tests per probe against real temporary directories and real `git init` repo
 | Requirement | Delivered by |
 |---|---|
 | Collect everything clued already collects (cwd, project path, git origin/branch, account, host, session) | 3.1, 3.2 (ENV, CLUED, SESSION sections) |
-| Every reference probe, same contract | 1.2, 1.3, 1.4, 2.1, 2.2, 4.1, 6.1 |
+| Every probe in the contract, one plain-text answer each | 1.2, 1.3, 1.4, 2.1, 2.2, 4.1, 6.1 |
 | Composite prime for skills | 3.2, 4.1, 5.1 |
 | Stories and plans from mind-palace | 3.1, 3.2 |
 | Safe to run without a prompt | 2.1, 2.2 allowlists; 1.1 argv-only runner |
 | Usable from a skill and from MCP | 4.2, 5.1 |
 
 **Placeholder scan:** No section leaves a stub: every probe has a full implementation and tests in its section; `line-summary`-style disabled placeholders do not exist here.
-**Residual risk:** Exact parity on `find-files` ordering depends on directory read order in Node versus Go; the parity test sorts both sides. `gh` behaviour differs across versions; `PRForBranch` only depends on `--json number,title`.
+**Residual risk:** `find-files` and glob ordering depend on directory read order, so outputs are sorted to keep the golden files stable. `gh` behaviour differs across versions; `PRForBranch` only depends on `--json number,title`.
 
 ## Next Steps
 
