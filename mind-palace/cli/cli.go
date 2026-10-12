@@ -82,6 +82,7 @@ type App struct {
 	regs   ops.Registries
 	st     *store.MultiStore
 	sess   sessionState
+	ctx    contextState
 }
 
 // New returns an App bound to the standard streams.
@@ -338,7 +339,7 @@ or the path to the file.`,
 	for _, k := range kind.All() {
 		root.AddCommand(a.kindGroup(k))
 	}
-	root.AddCommand(a.syncCmd(), a.serveCmd(), a.mcpCmd(), a.callCmd(), a.opsCmd(), a.configCmd(), a.schemaCmd(), a.storesCmd(), a.sessionCmd())
+	root.AddCommand(a.syncCmd(), a.serveCmd(), a.mcpCmd(), a.callCmd(), a.opsCmd(), a.configCmd(), a.schemaCmd(), a.storesCmd(), a.sessionCmd(), a.contextCmd())
 	return root
 }
 
