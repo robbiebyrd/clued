@@ -76,9 +76,11 @@ func (a *App) serverRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run [--addr host:port] [--tls-cert file --tls-key file | --behind-proxy]",
 		Short: "Run the clued server: sessions, plans and stories over HTTPS behind bearer tokens",
-		Long: `Serves /health, /api/v1/whoami, the session transport under /api/v1/session
-and the per-project store transport under /api/v1/projects, every route but
-/health behind the bearer tokens of the token file. TLS is terminated from
+		Long: `Serves /health, /api/v1/whoami, the session transport under /api/v1/session,
+the per-project store transport under /api/v1/projects, and, for the project
+named by the X-Clued-Project header (or ?project=), the plan and story API
+under /api/v1, the WebSocket at /ws and the MCP endpoint at /mcp; every route
+but /health is behind the bearer tokens of the token file. TLS is terminated from
 --tls-cert and --tls-key; plain HTTP is accepted only on a loopback address
 or with --behind-proxy. Each flag falls back to its CLUED_SERVER_* variable.
 
@@ -196,6 +198,7 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 		Tokens:    auth.OpenTokenFile(o.Tokens),
 		Sessions:  sessions,
 		Open:      opener.Open,
+		Config:    cfg,
 		Enrichers: session.Active(sessionCfg.DisabledEnrichers, sessionCfg.EnabledEnrichers),
 		Logger:    logger,
 	})

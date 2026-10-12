@@ -361,17 +361,30 @@ func TestServerRunStoreRoutesHonourProjectList(t *testing.T) {
 	}
 }
 
-func TestServerRunNoRouteIs404(t *testing.T) {
+func TestServerRunMountsTheProjectScopedRoutesAndNoRouteIs404(t *testing.T) {
 	clearServerEnv(t)
 	tokens, raw, _ := tokenFile(t, "laptop", "alpha")
 	r := startServer(t, serverRunOptions{Addr: "127.0.0.1:0", Tokens: tokens}, nil)
+	// The service API, the WebSocket and the MCP endpoint are mounted and
+	// need a project: none is 400 "invalid".
 	for _, path := range []string{"/ws", "/mcp", "/api/v1/plans"} {
-		if status, _ := r.call(t, "GET", path, raw, nil); status != http.StatusNotFound {
-			t.Errorf("%s = %d, want 404 (not mounted by this story)", path, status)
+		if status, body := r.call(t, "GET", path, raw, nil); status != http.StatusBadRequest {
+			t.Errorf("%s = %d %v, want 400 (missing project)", path, status, body)
 		}
 	}
+	// ?project= selects the project (the X-Clued-Project header is the
+	// documented way); one outside the token's list is 403.
+	if status, body := r.call(t, "GET", "/api/v1/plans?project=alpha", raw, nil); status != http.StatusOK {
+		t.Errorf("/api/v1/plans?project=alpha = %d %v", status, body)
+	}
+	if status, _ := r.call(t, "GET", "/api/v1/plans?project=beta", raw, nil); status != http.StatusForbidden {
+		t.Errorf("/api/v1/plans?project=beta = %d, want 403", status)
+	}
+	if status, _ := r.call(t, "GET", "/nope", raw, nil); status != http.StatusNotFound {
+		t.Errorf("/nope = %d, want 404", status)
+	}
 	if status, _ := r.call(t, "GET", "/ws", "", nil); status != http.StatusUnauthorized {
-		t.Error("unknown routes are not behind authentication")
+		t.Error("routes are not behind authentication")
 	}
 	if err := r.wait(t); err != nil {
 		t.Fatal(err)
