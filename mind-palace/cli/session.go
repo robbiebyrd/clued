@@ -331,7 +331,7 @@ func (a *App) sessionDaemonCmd() *cobra.Command {
 			d := daemon.New(daemon.Options{
 				Config:    cfg,
 				Store:     store,
-				Enrichers: session.Active(cfg.DisabledEnrichers),
+				Enrichers: session.Active(cfg.DisabledEnrichers, cfg.EnabledEnrichers),
 				AccountID: session.ReadAccountID(cfg.ClaudeAppConfigPath),
 				Host:      hostinfo.Read(),
 				Git: func(ctx context.Context, dir string) (string, string) {

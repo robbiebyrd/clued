@@ -54,6 +54,9 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.DisabledEnrichers == nil || len(cfg.DisabledEnrichers) != 0 {
 		t.Fatalf("DisabledEnrichers = %#v, want empty non-nil", cfg.DisabledEnrichers)
 	}
+	if cfg.EnabledEnrichers == nil || len(cfg.EnabledEnrichers) != 0 {
+		t.Fatalf("EnabledEnrichers = %#v, want empty non-nil", cfg.EnabledEnrichers)
+	}
 	h := home(t)
 	if cfg.ProjectsDir != filepath.Join(h, ".claude", "projects") {
 		t.Fatalf("ProjectsDir = %s", cfg.ProjectsDir)
@@ -62,10 +65,13 @@ func TestLoadConfigDefaults(t *testing.T) {
 
 func TestLoadConfigFileOverridesDefaults(t *testing.T) {
 	cleanEnv(t)
-	p := writeConfig(t, t.TempDir(), "config.json", `{"port": 9999, "dbName": "my_db"}`)
+	p := writeConfig(t, t.TempDir(), "config.json", `{"port": 9999, "dbName": "my_db", "enabledEnrichers": ["privacy-redact"]}`)
 	cfg := LoadConfig(p)
 	if cfg.Port != 9999 || cfg.DBName != "my_db" {
 		t.Fatalf("port/db = %d/%s", cfg.Port, cfg.DBName)
+	}
+	if len(cfg.EnabledEnrichers) != 1 || cfg.EnabledEnrichers[0] != "privacy-redact" {
+		t.Fatalf("EnabledEnrichers = %#v", cfg.EnabledEnrichers)
 	}
 	if cfg.MongoURL != "mongodb://localhost:27018" {
 		t.Fatalf("default MongoURL not preserved: %s", cfg.MongoURL)

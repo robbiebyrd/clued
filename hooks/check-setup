@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Session-start health check: prints one systemMessage listing whatever is missing.
+PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 INSTALL_CMD="go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest"
 
@@ -7,8 +8,10 @@ problems=()
 if [[ ! -f "$CONFIG_FILE" ]]; then
   problems+=("clued: run /clued-setup to finish configuring this plugin")
 fi
-if ! command -v mind-palace &>/dev/null && [[ ! -x "${HOME}/.claude/plugins/data/clued/bin/mind-palace" ]]; then
-  problems+=("clued: mind-palace is not on PATH or in ~/.claude/plugins/data/clued/bin, so the session daemon and the MCP servers cannot start. Install it with: ${INSTALL_CMD} (or download a release binary from github.com/robbiebyrd/clued/releases)")
+# bin/clued --locate resolves the binary the same way every hook and MCP server
+# does: the bundled binary for this platform, then PATH, then a downloaded release.
+if ! "${PLUGIN_ROOT}/bin/clued" --locate &>/dev/null; then
+  problems+=("clued: no mind-palace binary is bundled for $(uname -s)/$(uname -m) and none is on PATH or in ~/.claude/plugins/data/clued/bin, so the session daemon and the MCP servers cannot start. Install it with: ${INSTALL_CMD} (or download a release binary from github.com/robbiebyrd/clued/releases)")
 fi
 
 if (( ${#problems[@]} > 0 )); then

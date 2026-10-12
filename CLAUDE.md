@@ -11,7 +11,9 @@ binary.
 | Path | What it is |
 |---|---|
 | `hooks.json`, `hooks/` | Hook registrations and the bash hooks (`event-relay`, `session-start`, `check-setup`, `guard-superpowers-plans`, `register-hooks`, `uninstall`) |
-| `bin/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then PATH, then `~/.claude/plugins/data/clued/bin`) |
+| `bin/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the bundled binary, then PATH, then `~/.claude/plugins/data/clued/bin`); `--locate` prints the choice |
+| `bin/dist/` | Pre-built `mind-palace_<os>_<arch>[.exe].gz` for 7 platforms plus `SHA256SUMS`; produced by `scripts/build-binaries.sh`, unpacked by the shim on first use |
+| `scripts/build-binaries.sh` | Reproducible cross-compile of the bundled binaries (`--check` verifies them, `--raw DIR` builds release assets) |
 | `.mcp.json` | The two stdio MCP servers the plugin registers: `clued` (session tools) and `mind-palace` (plan and story tools) |
 | `commands/`, `skills/` | `/clued-setup`, `/clued-uninstall`, and the `plan-storage` skill |
 | `mind-palace/` | The Go module (`github.com/robbiebyrd/clued/mind-palace`); see its README for the package map |
@@ -45,6 +47,12 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   their conformance suite only when their `MIND_PALACE_TEST_*` DSN is set.
 - Build the binary with `go build -o mind-palace ./cmd/mind-palace`; `cmd/plan`
   and `cmd/story` are thin wrappers around the same CLI.
+- The binaries under `bin/dist/` must match the Go source: after changing
+  anything the binary compiles in, run `scripts/build-binaries.sh` from the
+  repository root and commit `bin/dist/` in the same change. CI's `binaries`
+  job runs `scripts/build-binaries.sh --check` and fails on a mismatch. Each
+  rebuild adds about 100 MB to the repository, so rebuild once per change
+  set, not per commit.
 
 ## Conventions
 
@@ -64,5 +72,7 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
 - Do not write under `docs/superpowers/plans/`. Plans for work in this repo
   are created with the `plan_*` MCP tools (or `mind-palace plan create`) and
   live in `docs/plans/`; stories in `docs/stories/`.
-- Releases: push a `v*` tag; `.github/workflows/release.yml` builds and
-  uploads the `mind-palace_<os>_<arch>` assets that `/clued-setup` downloads.
+- Releases: push a `v*` tag; `.github/workflows/release.yml` runs
+  `scripts/build-binaries.sh --raw` and uploads the `mind-palace_<os>_<arch>`
+  assets and `SHA256SUMS` that `/clued-setup` falls back to on platforms
+  without a bundled binary.

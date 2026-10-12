@@ -11,7 +11,7 @@ func TestEventRelayFallsBackToAPrivateWALWhenNothingListens(t *testing.T) {
 	home := t.TempDir()
 	walDir := filepath.Join(t.TempDir(), "data", "clued")
 	walPath := filepath.Join(walDir, "events.wal")
-	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "CLUED_PORT=" + closedPort(t), "CLUED_WAL_PATH=" + walPath}
+	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "CLUED_PORT=" + closedPort(t), "CLUED_WAL_PATH=" + walPath, "CLUED_DIST_DIR=" + t.TempDir()}
 	body := `{"session_id":"s1","tool_name":"Bash"}`
 
 	r := runScript(t, filepath.Join(repoRoot(t), "hooks/event-relay"), body, env)

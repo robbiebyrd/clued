@@ -25,7 +25,7 @@ Use AskUserQuestion to confirm scope before touching anything. Example options:
 
 - **Services** (always offer): stop the daemon (port 8085); the MCP server is started by Claude Code and ends with the session
 - **launchd plist** (macOS, only if plist is present): unload and remove `~/Library/LaunchAgents/org.mongodb.mongod.plist`
-- **Config** (only if present): remove `~/.claude/plugins/data/clued/` (includes the downloaded binary directory `bin/`) and remove any legacy `mcpServers.clued` entry from `~/.claude/settings.json`
+- **Config** (only if present): remove `~/.claude/plugins/data/clued/` (includes `bin/`, which holds the unpacked bundled binary and any downloaded one) and remove any legacy `mcpServers.clued` entry from `~/.claude/settings.json`
 - **MongoDB binaries** (only if `~/mongodb/` is present): remove the tarball install at `~/mongodb/`
   - Note: MongoDB data at `~/data/db/` contains session transcripts — offer to keep or remove separately
 - **MongoDB data** (only if `~/data/db/` exists): remove `~/data/db/` — warn that this deletes all captured session transcripts
@@ -53,7 +53,7 @@ echo "launchd plist removed"
 
 The stdio MCP server is declared by the plugin's `.mcp.json` and goes away with the plugin. Older setups may have left a `"clued"` key under `mcpServers` in `~/.claude/settings.json`; if present, remove it with the Edit tool. If `mcpServers` becomes empty, remove it entirely.
 
-Then remove the config directory, which also holds the downloaded binary directory `bin/`. A `mind-palace` installed with `go install` lives in `$(go env GOPATH)/bin` and is not touched:
+Then remove the config directory, which also holds `bin/` with the unpacked bundled binary and any downloaded one. A `mind-palace` installed with `go install` lives in `$(go env GOPATH)/bin` and is not touched:
 ```bash
 rm -rf ~/.claude/plugins/data/clued
 echo "config and binary dirs removed"
