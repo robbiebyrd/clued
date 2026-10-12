@@ -3,12 +3,13 @@ id: 0005-owt
 title: Remote session store adapter and conformance
 purpose: Let every session consumer run unchanged against a clued server by implementing session.Store over HTTP.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:04.968Z"
-updated: "2026-10-12T20:49:47.617Z"
+updated: "2026-10-12T21:00:14.716Z"
 started: "2026-10-12T20:49:47.617Z"
+completed: "2026-10-12T21:00:14.716Z"
 tags:
   - server
   - remote
@@ -62,9 +63,9 @@ Run `sessiontest.Run` against `httptest.NewServer(auth.Middleware(sessionapi.Han
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/... ./cli/
-- [ ] `sessiontest.Run` passes over plain HTTP and over TLS with a private CA, with no environment variables set
-- [ ] `session find`, `session full`, `session transcript`, `session restore` and `session backfill` work with only `serverUrl` and `serverToken` configured
+- [x] VERIFY: cd mind-palace && go test -race ./session/... ./cli/
+- [x] `sessiontest.Run` passes over plain HTTP and over TLS with a private CA, with no environment variables set
+- [x] `session find`, `session full`, `session transcript`, `session restore` and `session backfill` work with only `serverUrl` and `serverToken` configured
 
 ## Files
 

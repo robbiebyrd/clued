@@ -3,11 +3,12 @@ id: 0008-gep
 title: hook relay command and the remote snapshot path
 purpose: Replace the daemon on the client with a short-lived subcommand that ingests the event, catches up the transcript and flushes the WAL.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:05.060Z"
-updated: "2026-10-12T20:09:05.060Z"
+updated: "2026-10-12T21:00:06.367Z"
+started: "2026-10-12T21:00:06.367Z"
 tags:
   - server
   - remote
