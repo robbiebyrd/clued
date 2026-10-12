@@ -1,18 +1,30 @@
 #!/usr/bin/env bash
 # The WAL holds session content: keep it and its directory private.
 umask 077
+PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 DEFAULT_PORT=8085
 
 if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
   PORT=$(jq -r ".port // ${DEFAULT_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_PORT")
+  SERVER_URL=$(jq -r '.serverUrl // empty' "$CONFIG_FILE" 2>/dev/null)
   WAL_DIR=$(dirname "$CONFIG_FILE")
 else
   PORT=$DEFAULT_PORT
   WAL_DIR="${HOME}/.claude/plugins/data/clued"
 fi
 PORT="${CLUED_PORT:-$PORT}"
+SERVER_URL="${CLUED_SERVER_URL:-$SERVER_URL}"
 WAL_FILE="${CLUED_WAL_PATH:-${WAL_DIR}/events.wal}"
+
+# Remote mode: no daemon listens on loopback. The Go relay stores the event
+# on the server, pushes the session's transcript delta and owns the WAL
+# (it buffers a failed insert itself), so nothing is written from here. The
+# hook is async and must never fail the session, whatever the relay did.
+if [[ -n "$SERVER_URL" ]]; then
+  "${PLUGIN_ROOT}/scripts/clued" hook relay >/dev/null 2>&1
+  exit 0
+fi
 
 BODY=$(cat)
 
