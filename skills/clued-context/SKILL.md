@@ -8,7 +8,7 @@ description: Use when starting or resuming work in a repository, or whenever a f
 The plugin binary carries a context collector:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/clued context <probe> [args] [--limit n] [--root dir]
+${CLAUDE_PLUGIN_ROOT}/scripts/clued context <probe> [args] [--limit n] [--root dir]
 ```
 
 Every probe answers one question with exactly one plain-text answer on
@@ -24,7 +24,7 @@ When starting or resuming a task in a repository, run the composite report
 first:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/clued context prime
+${CLAUDE_PLUGIN_ROOT}/scripts/clued context prime
 ```
 
 Add `--no-store` when MongoDB is known to be down (the SESSION section then

@@ -6,7 +6,7 @@ on:
       - 'mind-palace/**'
       - 'hooks/**'
       - 'hooks.json'
-      - 'bin/**'
+      - 'dist/**'
       - 'skills/**'
       - 'commands/**'
       - 'scripts/**'
@@ -17,7 +17,7 @@ on:
       - 'mind-palace/**'
       - 'hooks/**'
       - 'hooks.json'
-      - 'bin/**'
+      - 'dist/**'
       - 'skills/**'
       - 'commands/**'
       - 'scripts/**'
@@ -57,7 +57,7 @@ jobs:
           MIND_PALACE_TEST_MONGODB_URI: mongodb://127.0.0.1:27017
 
   binaries:
-    # The archives under bin/dist must be rebuilt from the current Go source.
+    # The archives under dist/ must be rebuilt from the current Go source.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

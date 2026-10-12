@@ -86,11 +86,11 @@ func findHook(groups []hookGroup, suffix string) *hookEntry {
 
 func TestHooksJSONRunsStopGuardSynchronouslyOnStop(t *testing.T) {
 	hooks := readHooksJSON(t)
-	h := findHook(hooks["Stop"], "/bin/clued hook stop-guard")
+	h := findHook(hooks["Stop"], "/scripts/clued hook stop-guard")
 	if h == nil {
 		t.Fatal("stop-guard missing from Stop")
 	}
-	if h.Type != "command" || !strings.HasPrefix(h.Command, "${CLAUDE_PLUGIN_ROOT}/bin/clued") {
+	if h.Type != "command" || !strings.HasPrefix(h.Command, "${CLAUDE_PLUGIN_ROOT}/scripts/clued") {
 		t.Errorf("hook = %+v", *h)
 	}
 	if h.Async != nil {
@@ -103,11 +103,12 @@ func TestHooksJSONRunsStopGuardSynchronouslyOnStop(t *testing.T) {
 
 func TestHooksJSONRunsStatusReviewOnSessionStartAndThrottledOnPrompts(t *testing.T) {
 	hooks := readHooksJSON(t)
-	if h := findHook(hooks["SessionStart"], "/bin/clued hook status-review"); h == nil || h.Async != nil {
-		t.Errorf("SessionStart status-review = %+v, want a synchronous hook", h)
+	const shim = "${CLAUDE_PLUGIN_ROOT}/scripts/clued"
+	if h := findHook(hooks["SessionStart"], "/scripts/clued hook status-review"); h == nil || h.Async != nil || !strings.HasPrefix(h.Command, shim) {
+		t.Errorf("SessionStart status-review = %+v, want a synchronous hook run from %s", h, shim)
 	}
-	h := findHook(hooks["UserPromptSubmit"], "/bin/clued hook status-review --every 30m")
-	if h == nil || h.Async != nil {
-		t.Errorf("UserPromptSubmit status-review = %+v, want a synchronous throttled hook", h)
+	h := findHook(hooks["UserPromptSubmit"], "/scripts/clued hook status-review --every 30m")
+	if h == nil || h.Async != nil || !strings.HasPrefix(h.Command, shim) {
+		t.Errorf("UserPromptSubmit status-review = %+v, want a synchronous throttled hook run from %s", h, shim)
 	}
 }

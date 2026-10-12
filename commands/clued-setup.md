@@ -159,12 +159,12 @@ Ask the user for their full connection string (e.g. `mongodb+srv://...` for Atla
 
 ## Step 5 — Check the mind-palace binary
 
-clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP servers. The plugin ships it pre-built for macOS (Intel and Apple Silicon), Linux (amd64, arm64 and 32-bit arm) and Windows (amd64 and arm64) under `bin/dist/`, so no Go toolchain is needed. The `bin/clued` shim unpacks the archive for this machine on first use into `~/.claude/plugins/data/clued/bin/bundled/<sha256>/` and checks it against `bin/dist/SHA256SUMS`.
+clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP servers. The plugin ships it pre-built for macOS (Intel and Apple Silicon), Linux (amd64, arm64 and 32-bit arm) and Windows (amd64 and arm64) under `dist/`, so no Go toolchain is needed. The `scripts/clued` shim unpacks the archive for this machine on first use into `~/.claude/plugins/data/clued/bin/bundled/<sha256>/` and checks it against `dist/SHA256SUMS`.
 
 Confirm the shim can find a binary (`${CLAUDE_PLUGIN_ROOT}` is the plugin root; see Step 8 if it is not set):
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/clued" --locate
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" --locate
 ```
 
 It prints the path of the binary that will run and exits 0. Nothing more to do when it succeeds.
@@ -188,7 +188,7 @@ curl -fsSL "https://github.com/robbiebyrd/clued/releases/latest/download/mind-pa
 chmod +x ~/.claude/plugins/data/clued/bin/mind-palace
 ```
 
-`bin/clued` resolves the binary in this order: a dev build when `devRepoPath` is set, the bundled binary, `mind-palace` on PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`.
+`scripts/clued` resolves the binary in this order: a dev build when `devRepoPath` is set, the bundled binary, `mind-palace` on PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`.
 
 ## Step 6 — Write config file
 
@@ -209,8 +209,8 @@ EOF
 ## Step 7 — MCP servers (no action needed)
 
 The plugin ships its own `.mcp.json`, so Claude Code launches both MCP servers
-itself over stdio: `clued` (`${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp`, the
-session tools) and `mind-palace` (`${CLAUDE_PLUGIN_ROOT}/bin/clued mcp
+itself over stdio: `clued` (`${CLAUDE_PLUGIN_ROOT}/scripts/clued session mcp`, the
+session tools) and `mind-palace` (`${CLAUDE_PLUGIN_ROOT}/scripts/clued mcp
 --no-session-tools`, the plan and story tools) — no settings edit is required.
 Their tools appear in the next fresh session.
 
@@ -234,7 +234,7 @@ Wait 2 seconds, then verify:
 curl -sf http://127.0.0.1:8085/health && echo "daemon running"
 ```
 
-If the health check fails: `timeout 3 "${CLAUDE_PLUGIN_ROOT}/bin/clued" session daemon 2>&1 || true`
+If the health check fails: `timeout 3 "${CLAUDE_PLUGIN_ROOT}/scripts/clued" session daemon 2>&1 || true`
 
 Most common failure: MongoDB not reachable. Confirm with `nc -z <host> <port>`.
 
@@ -242,9 +242,9 @@ Most common failure: MongoDB not reachable. Confirm with `nc -z <host> <port>`.
 
 - MongoDB option and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
-- mind-palace binary location as printed by `bin/clued --locate` (bundled with the plugin, on PATH, or in `~/.claude/plugins/data/clued/bin/`)
+- mind-palace binary location as printed by `scripts/clued --locate` (bundled with the plugin, on PATH, or in `~/.claude/plugins/data/clued/bin/`)
 - MCP servers (`clued` session tools, `mind-palace` plan and story tools) provided by the plugin's `.mcp.json` over stdio — start a new session to load them
 - Daemon on port 8085 — running or failed with error
 - macOS tarball: launchd plist at `~/Library/LaunchAgents/org.mongodb.mongod.plist` auto-restarts mongod at login
-- Hooks registered automatically via `hooks.json` (and mirrored into `~/.claude/settings.json` by `register-hooks` on every session start) — no manual settings edit needed. Two of them run the binary directly: `bin/clued hook stop-guard` on Stop and `bin/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit
+- Hooks registered automatically via `hooks.json` (and mirrored into `~/.claude/settings.json` by `register-hooks` on every session start) — no manual settings edit needed. Two of them run the binary directly: `scripts/clued hook stop-guard` on Stop and `scripts/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit
 - To enable the privacy-redact enricher (off by default): add `"privacy-redact"` to `enabledEnrichers` in `config.json` and restart the daemon. It stores a masked copy of each transcript line (`sk-` API keys, e-mail addresses, AWS access key ids, JWTs) under `enrichments.privacy-redact`; the raw line is still stored. `disabledEnrichers` only switches enrichers off.

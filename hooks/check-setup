@@ -8,9 +8,9 @@ problems=()
 if [[ ! -f "$CONFIG_FILE" ]]; then
   problems+=("clued: run /clued-setup to finish configuring this plugin")
 fi
-# bin/clued --locate resolves the binary the same way every hook and MCP server
+# scripts/clued --locate resolves the binary the same way every hook and MCP server
 # does: the bundled binary for this platform, then PATH, then a downloaded release.
-if ! "${PLUGIN_ROOT}/bin/clued" --locate &>/dev/null; then
+if ! "${PLUGIN_ROOT}/scripts/clued" --locate &>/dev/null; then
   problems+=("clued: no mind-palace binary is bundled for $(uname -s)/$(uname -m) and none is on PATH or in ~/.claude/plugins/data/clued/bin, so the session daemon and the MCP servers cannot start. Install it with: ${INSTALL_CMD} (or download a release binary from github.com/robbiebyrd/clued/releases)")
 fi
 

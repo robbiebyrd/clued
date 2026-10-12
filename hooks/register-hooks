@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Writes clued hook entries into ~/.claude/settings.json (or $CLAUDE_CONFIG_DIR/settings.json).
-# Safe to run multiple times: replaces stale clued entries, preserves all others.
+# Safe to run multiple times: replaces stale clued entries (including ones from
+# plugin versions that kept the shim at bin/clued), preserves all others.
 
 HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RELAY="${HOOKS_DIR}/event-relay"
 CHECK_SETUP="${HOOKS_DIR}/check-setup"
 SESSION_START="${HOOKS_DIR}/session-start"
 GUARD="${HOOKS_DIR}/guard-superpowers-plans"
-CLUED="$(cd "${HOOKS_DIR}/.." && pwd)/bin/clued"
+CLUED="$(cd "${HOOKS_DIR}/.." && pwd)/scripts/clued"
 SETTINGS="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
 
 if ! command -v jq &>/dev/null; then
@@ -29,7 +30,7 @@ jq \
   --arg clued         "$CLUED" \
   '
   def is_clued:
-    [.hooks[].command] | any(test("/hooks/(event-relay|session-start|check-setup|guard-superpowers-plans)$|/bin/clued hook "));
+    [.hooks[].command] | any(test("/hooks/(event-relay|session-start|check-setup|guard-superpowers-plans)$|/(bin|scripts)/clued hook "));
 
   def binary_hook(args):
     {"hooks": [{"type": "command", "command": ($clued + " " + args)}]};

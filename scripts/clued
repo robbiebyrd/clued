@@ -3,9 +3,9 @@
 # Resolution order:
 #   1. When devRepoPath is set in the config, a build of $devRepoPath/mind-palace,
 #      refreshed whenever a .go file there is newer than the binary.
-#   2. The binary bundled with the plugin for this OS and CPU (bin/dist/*.gz),
+#   2. The binary bundled with the plugin for this OS and CPU (dist/*.gz),
 #      decompressed once into $BIN_DIR/bundled/<sha256>/ and verified against
-#      bin/dist/SHA256SUMS.
+#      dist/SHA256SUMS.
 #   3. `mind-palace` on PATH.
 #   4. A downloaded release binary at $BIN_DIR/mind-palace.
 # `--build-only` performs the dev build step without running the binary.
@@ -17,7 +17,7 @@ BIN_DIR="${DATA_DIR}/bin"
 BIN="${BIN_DIR}/mind-palace"
 REBUILT_MARKER="${BIN_DIR}/.rebuilt"
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DIST_DIR="${CLUED_DIST_DIR:-${PLUGIN_ROOT}/bin/dist}"
+DIST_DIR="${CLUED_DIST_DIR:-${PLUGIN_ROOT}/dist}"
 
 MODE=run
 case "${1:-}" in
@@ -106,7 +106,7 @@ bundled_binary() {
   actual="$(sha256_of "$tmp")" || { rm -f "$tmp"; echo "clued: sha256sum or shasum is needed to verify the bundled binary" >&2; return 1; }
   if [[ "$actual" != "$sum" ]]; then
     rm -f "$tmp"
-    echo "clued: bundled ${name} does not match bin/dist/SHA256SUMS (got ${actual}); not using it" >&2
+    echo "clued: bundled ${name} does not match dist/SHA256SUMS (got ${actual}); not using it" >&2
     return 1
   fi
   chmod +x "$tmp" && mv -f "$tmp" "$exe" || { rm -f "$tmp"; return 1; }
