@@ -37,6 +37,11 @@ type CommandQuery struct {
 // ErrNotFound is returned when a session does not exist.
 var ErrNotFound = errors.New("session not found")
 
+// ErrTooLarge is returned (possibly wrapped) when a store refuses a document
+// because its content exceeds the store's size limit, as a remote store does
+// for a 413. Callers record such a refusal instead of retrying it.
+var ErrTooLarge = errors.New("content too large")
+
 // Lookup is the read access an enricher gets to the store.
 type Lookup interface {
 	HookEventIDsByToolUse(ctx context.Context, sessionID string, toolUseIDs []string) ([]string, error)
