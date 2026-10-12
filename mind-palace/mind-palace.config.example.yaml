@@ -80,6 +80,11 @@ storage:
   # - name: firestore
   #   kind: firestore
   #   options: { project: my-gcp-project, database: "(default)", collection: mp_ }
+  # - name: nextcloud
+  #   kind: webdav
+  #   # Markdown files under <url>/plans and <url>/stories (archive/ and templates/ inside each).
+  #   # Put the password in MIND_PALACE_WEBDAV_PASSWORD rather than here when the file is committed.
+  #   options: { url: "https://cloud.example.org/remote.php/dav/files/me/mind-palace", username: me, plansPath: plans, storiesPath: stories, timeout: 30s }
 
 server:
   addr: 127.0.0.1:8087

@@ -358,7 +358,8 @@ The `clued-context` skill (`skills/clued-context/SKILL.md`) documents every prob
 Every operation is available as `mind-palace plan …` / `mind-palace story …`,
 over HTTP, WebSockets and MCP (`plan_*` and `story_*` tools, served by the
 plugin's `mind-palace` MCP server), and can mirror documents into SQLite,
-PostgreSQL, MySQL, ClickHouse, MongoDB or Firestore next to the files.
+PostgreSQL, MySQL, ClickHouse, MongoDB, Firestore or a WebDAV folder
+(Nextcloud, ownCloud, a NAS) next to the files.
 Configuration lives in `mind-palace.config.yaml` in the repository (the
 example file in `mind-palace/` documents every key).
 
