@@ -42,6 +42,11 @@ var ErrNotFound = errors.New("session not found")
 // for a 413. Callers record such a refusal instead of retrying it.
 var ErrTooLarge = errors.New("content too large")
 
+// ErrUnsupported is returned by a store that cannot perform an operation at
+// all, as the remote adapter does for the enrichment methods (enrichment
+// runs on the server). Callers must not wire such a store to enrich.Loop.
+var ErrUnsupported = errors.New("operation not supported by this store")
+
 // Lookup is the read access an enricher gets to the store.
 type Lookup interface {
 	HookEventIDsByToolUse(ctx context.Context, sessionID string, toolUseIDs []string) ([]string, error)

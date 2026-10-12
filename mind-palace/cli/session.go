@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 
+	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
@@ -21,13 +22,30 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/mongosession"
 	"github.com/robbiebyrd/clued/mind-palace/session/query"
+	"github.com/robbiebyrd/clued/mind-palace/session/remotesession"
 	"github.com/robbiebyrd/clued/mind-palace/session/restore"
 	"github.com/robbiebyrd/clued/mind-palace/session/sessionmcp"
 )
 
-// openSessionStore connects the session store; tests replace it with an
-// in-memory store.
+// openSessionStore connects the session store: the remote adapter when the
+// config names a server (serverUrl / CLUED_SERVER_URL), the local MongoDB
+// otherwise. A server URL the remote client refuses, such as plain http://
+// off loopback without serverInsecure, is the error. Tests replace it with
+// an in-memory store.
 var openSessionStore = func(ctx context.Context, cfg session.Config) (session.Store, error) {
+	client, err := remote.FromConfigE(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if client != nil {
+		return remotesession.New(client), nil
+	}
+	return openMongoSessionStore(ctx, cfg)
+}
+
+// openMongoSessionStore connects the local MongoDB store; the remote-mode
+// test replaces it to prove it is never reached.
+var openMongoSessionStore = func(ctx context.Context, cfg session.Config) (session.Store, error) {
 	s := mongosession.New(cfg)
 	return s, s.Connect(ctx)
 }
