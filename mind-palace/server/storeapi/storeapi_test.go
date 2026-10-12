@@ -303,6 +303,15 @@ func TestBadRequests(t *testing.T) {
 	big := doc(kind.Plan, "0001-abc", "x")
 	big.Content = strings.Repeat("x", 1024)
 	c.expectError("PUT", plans+"/0001-abc", big, 413, ErrTooLarge)
+	// Unsafe ids and paths are refused before any store sees them.
+	c.expectError("PUT", plans+"/not-an-id", doc(kind.Plan, "not-an-id", "x"), 400, ErrInvalid)
+	escaping := doc(kind.Plan, "0001-abc", "x")
+	escaping.Path = "../../outside.md"
+	c.expectError("PUT", plans+"/0001-abc", escaping, 400, ErrInvalid)
+	absolute := doc(kind.Plan, "0001-abc", "x")
+	absolute.Path = "/etc/outside.md"
+	c.expectError("PUT", plans+"/0001-abc", absolute, 400, ErrInvalid)
+	c.expectError("PUT", plans+"/templates/bad:id", map[string]any{"kind": "plan", "id": "bad:id", "content": "x"}, 400, ErrInvalid)
 	if code, _ := c.do("GET", plans, nil); code != 200 {
 		t.Errorf("list after bad puts: %d", code)
 	}

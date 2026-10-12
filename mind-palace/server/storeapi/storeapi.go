@@ -29,6 +29,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/robbiebyrd/clued/mind-palace/kind"
@@ -130,6 +133,20 @@ func (a *api) handle(op operation) http.HandlerFunc {
 		}
 		op(w, r, &request{project: project, kind: k.Name, id: r.PathValue("id"), store: st})
 	}
+}
+
+// templateIDRe is the shape of a template id: one path segment of letters,
+// digits, dots, underscores and hyphens, never "." or "..".
+var templateIDRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$`)
+
+// validDocPath accepts a kind-relative document path that stays under the
+// kind's root: slash-separated, clean, and local (no "..", no absolute
+// path, no backslashes).
+func validDocPath(p string) bool {
+	if strings.ContainsAny(p, "\\\x00") || path.Clean(p) != p || strings.HasPrefix(p, "/") {
+		return false
+	}
+	return filepath.IsLocal(filepath.FromSlash(p))
 }
 
 // isKindName accepts only the registered kind names (plan, story), not
@@ -244,6 +261,15 @@ func (a *api) put(w http.ResponseWriter, r *http.Request, req *request) {
 		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("document id %q does not match the path id %q", d.ID(), req.id))
 		return
 	}
+	if !model.IDRe.MatchString(req.id) {
+		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("invalid document id %q", req.id))
+		return
+	}
+	if d.Path != "" && !validDocPath(d.Path) {
+		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("invalid document path %q", d.Path))
+		return
+	}
+	d.FrontMatter.ID = req.id
 	err := req.store.Put(r.Context(), &d)
 	writeWriteResult(w, &d, err, req.kind+" "+req.id)
 }
@@ -293,6 +319,11 @@ func (a *api) putTemplate(w http.ResponseWriter, r *http.Request, req *request) 
 		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("template id %q does not match the path id %q", t.ID, req.id))
 		return
 	}
+	if !templateIDRe.MatchString(req.id) {
+		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("invalid template id %q", req.id))
+		return
+	}
+	t.ID = req.id
 	err := req.store.PutTemplate(r.Context(), &t)
 	writeWriteResult(w, &t, err, req.kind+" template "+req.id)
 }

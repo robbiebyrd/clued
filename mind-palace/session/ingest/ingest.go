@@ -85,7 +85,7 @@ func (s *Service) Handle(ctx context.Context, event session.Doc) (Tracked, error
 		tr.FirstSeen = s.track(ctx, sessionID, transcriptPath, cwd)
 		s.run(ctx, func(ctx context.Context) { s.touch(ctx, sessionID, time.Now()) })
 	}
-	ev := make(session.Doc, len(event)+3)
+	ev := make(session.Doc)
 	for k, v := range event {
 		ev[k] = v
 	}

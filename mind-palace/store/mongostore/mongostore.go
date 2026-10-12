@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -80,6 +81,10 @@ type templateRecord struct {
 }
 
 func templateKey(kindName, id string) string { return kindName + ":" + id }
+
+// templateIDRe is the shape of a template id: one segment of letters, digits,
+// dots, underscores and hyphens, so it can never carry a query operator.
+var templateIDRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$`)
 
 func (s *Store) Name() string   { return s.name }
 func (s *Store) Driver() string { return "mongodb" }
@@ -187,6 +192,9 @@ func (s *Store) Put(ctx context.Context, d *model.Document) error {
 		return err
 	}
 	fm := d.FrontMatter
+	if !model.IDRe.MatchString(fm.ID) {
+		return fmt.Errorf("invalid document id %q", fm.ID)
+	}
 	rec := docRecord{ID: fm.ID, Path: d.Path, Type: fm.Type, Status: fm.Status, Priority: fm.Priority, Title: fm.Title, Updated: fm.Updated, Document: doc}
 	_, err = col.ReplaceOne(ctx, bson.M{"_id": fm.ID}, rec, options.Replace().SetUpsert(true))
 	return err
@@ -239,6 +247,9 @@ func (s *Store) PutTemplate(ctx context.Context, t *model.Template) error {
 	updated := t.Updated
 	if updated == "" {
 		updated = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	if !templateIDRe.MatchString(t.ID) {
+		return fmt.Errorf("invalid template id %q", t.ID)
 	}
 	rec := templateRecord{Key: templateKey(t.Kind, t.ID), Kind: t.Kind, ID: t.ID, Content: t.Content, Updated: updated}
 	_, err := s.tmpls.ReplaceOne(ctx, bson.M{"_id": rec.Key}, rec, options.Replace().SetUpsert(true))

@@ -225,7 +225,14 @@ func (s *Store) Put(_ context.Context, d *model.Document) error {
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return err
 	}
-	abs := s.AbsPath(d.Kind, d.Path)
+	if !filepath.IsLocal(filepath.FromSlash(d.Path)) {
+		return fmt.Errorf("document path %q escapes the %s root", d.Path, d.Kind)
+	}
+	root := filepath.Clean(s.roots[d.Kind])
+	abs := filepath.Clean(s.AbsPath(d.Kind, d.Path))
+	if !strings.HasPrefix(abs, root+string(filepath.Separator)) {
+		return fmt.Errorf("document path %q escapes the %s root", d.Path, d.Kind)
+	}
 	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
 		return err
 	}
