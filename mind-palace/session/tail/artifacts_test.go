@@ -71,9 +71,15 @@ func TestWatchArtifactsCapturesToolResultBlob(t *testing.T) {
 	mkdir(t, dir)
 	write(t, filepath.Join(dir, "blob1.txt"), "tool output here")
 
-	eventually(t, "tool-result blob", func() bool { return blobNamed(t, st, "sess-tr", "tool-result", "blob1.txt") != nil })
-	d := blobNamed(t, st, "sess-tr", "tool-result", "blob1.txt")
-	if d["content"] != "tool output here" || d["encoding"] != "utf8" {
+	// The watcher may catch the file between its creation and its write and
+	// mirror it empty first; the next poll sees the size change and mirrors
+	// the content, so wait for that rather than for the name alone.
+	var d session.Doc
+	eventually(t, "tool-result blob with its content", func() bool {
+		d = blobNamed(t, st, "sess-tr", "tool-result", "blob1.txt")
+		return d != nil && d["content"] == "tool output here"
+	})
+	if d["encoding"] != "utf8" {
 		t.Fatalf("unexpected blob: %v", d)
 	}
 }
@@ -90,11 +96,14 @@ func TestWatchArtifactsCapturesFileHistoryAsBase64(t *testing.T) {
 	mkdir(t, fh)
 	write(t, filepath.Join(fh, "abc123@v1"), "binary file content")
 
-	eventually(t, "file-history blob", func() bool { return blobNamed(t, st, "sess-fh", "file-history", "abc123@v1") != nil })
-	d := blobNamed(t, st, "sess-fh", "file-history", "abc123@v1")
-	raw, err := base64.StdEncoding.DecodeString(d["content"].(string))
-	if err != nil || string(raw) != "binary file content" || d["encoding"] != "base64" {
-		t.Fatalf("unexpected blob: %v (err %v)", d, err)
+	want := base64.StdEncoding.EncodeToString([]byte("binary file content"))
+	var d session.Doc
+	eventually(t, "file-history blob with its content", func() bool {
+		d = blobNamed(t, st, "sess-fh", "file-history", "abc123@v1")
+		return d != nil && d["content"] == want
+	})
+	if d["encoding"] != "base64" {
+		t.Fatalf("unexpected blob: %v", d)
 	}
 }
 
