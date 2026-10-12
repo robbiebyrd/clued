@@ -1,0 +1,21 @@
+# The clued server's mind-palace configuration (docker-compose.server.yml
+# mounts it at /etc/clued/mind-palace.config.yaml and points MIND_PALACE_CONFIG
+# at it; from the binary pass --config or set the variable).
+#
+# Plans and stories live in MongoDB alone: `server run` validates the storage
+# list with AllowNoFileStore, so no file store is needed, and it namespaces
+# every enabled entry per project (for MongoDB the collection prefix becomes
+# <prefix><project>_, e.g. mp_github.com__owner__repo_plans). The clients keep
+# their own files under docs/plans and docs/stories and fan every write out to
+# this store.
+#
+# Sessions do not come from here: the server reads CLUED_MONGO_URL and
+# CLUED_DB_NAME (or --session-config) for them, so the same MongoDB can hold
+# both in different databases.
+storage:
+  - name: mongo
+    kind: mongodb
+    options:
+      uri: mongodb://mongo:27017
+      database: mind_palace
+      collection: mp_

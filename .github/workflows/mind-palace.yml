@@ -11,6 +11,8 @@ on:
       - 'commands/**'
       - 'scripts/**'
       - '.mcp.json'
+      - 'Dockerfile.server'
+      - '.dockerignore'
       - '.github/workflows/mind-palace.yml'
   pull_request:
     paths:
@@ -22,6 +24,8 @@ on:
       - 'commands/**'
       - 'scripts/**'
       - '.mcp.json'
+      - 'Dockerfile.server'
+      - '.dockerignore'
       - '.github/workflows/mind-palace.yml'
 
 permissions:
@@ -66,3 +70,19 @@ jobs:
           go-version-file: mind-palace/go.mod
           cache-dependency-path: mind-palace/go.sum
       - run: scripts/build-binaries.sh --check
+
+  image:
+    # Dockerfile.server must keep building from the current source; the
+    # image is not pushed here (release.yml publishes it on v* tags).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.server
+          push: false
+          tags: ghcr.io/robbiebyrd/clued-server:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

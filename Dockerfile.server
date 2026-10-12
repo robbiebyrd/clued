@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1
+#
+# The clued server image: `mind-palace server run` serving sessions, plans
+# and stories over HTTPS behind bearer tokens (see docs/server.md).
+#
+#   docker build -f Dockerfile.server -t ghcr.io/robbiebyrd/clued-server:dev .
+#
+# Mounts (all read-only; the server re-reads the token file when it changes):
+#   /etc/clued/tokens.json               the token file (`mind-palace server token create`)
+#   /etc/clued/mind-palace.config.yaml   the server's plan and story storage (database only)
+#   /etc/clued/tls/                      cert.pem and key.pem when the server terminates TLS
+#
+# Environment (each is the fallback of the matching `server run` flag):
+#   CLUED_SERVER_ADDR          listen address; the image sets 0.0.0.0:8443
+#   CLUED_SERVER_TOKENS        token file; the image sets /etc/clued/tokens.json
+#   CLUED_SERVER_TLS_CERT      PEM certificate, e.g. /etc/clued/tls/cert.pem
+#   CLUED_SERVER_TLS_KEY       PEM private key, e.g. /etc/clued/tls/key.pem
+#   CLUED_SERVER_BEHIND_PROXY  "true" to serve plain HTTP because a reverse proxy
+#                              terminates TLS (one of TLS or this is required off loopback)
+#   MIND_PALACE_CONFIG         the plan and story config, e.g. /etc/clued/mind-palace.config.yaml
+#   CLUED_MONGO_URL            MongoDB for sessions, e.g. mongodb://mongo:27017
+#   CLUED_DB_NAME              its database (default claude_sessions)
+#
+# The runtime image is distroless: no shell and no HTTP client, so there is
+# no HEALTHCHECK here; probe GET /health from the host or the orchestrator.
+
+# --- build -------------------------------------------------------------------
+# The Go version follows mind-palace/go.mod (go 1.26.0): GOTOOLCHAIN=local
+# keeps the build on the image's toolchain instead of downloading another.
+# The stage runs on the build platform and cross-compiles for the target
+# (TARGETOS/TARGETARCH are set by BuildKit), so a multi-arch build needs no
+# emulation.
+FROM --platform=$BUILDPLATFORM golang:1.26 AS build
+ARG TARGETOS TARGETARCH
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=mod
+WORKDIR /src/mind-palace
+COPY mind-palace/go.mod mind-palace/go.sum ./
+RUN go mod download
+COPY mind-palace/ ./
+# The same flags as scripts/build-binaries.sh, so the binary matches a release.
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -buildvcs=false -ldflags '-s -w' -o /out/mind-palace ./cmd/mind-palace
+
+# --- runtime -----------------------------------------------------------------
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/mind-palace /usr/local/bin/mind-palace
+ENV CLUED_SERVER_ADDR=0.0.0.0:8443 \
+    CLUED_SERVER_TOKENS=/etc/clued/tokens.json
+EXPOSE 8443
+USER nonroot:nonroot
+ENTRYPOINT ["mind-palace", "server", "run"]
