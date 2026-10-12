@@ -1,0 +1,1 @@
+[FALLBACK: git log --output=/tmp/x]

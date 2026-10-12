@@ -70,7 +70,9 @@ func (a *App) sessionStore(ctx context.Context) (session.Store, error) {
 func (a *App) sessionTools() *sessionmcp.Tools {
 	cfg := a.sessionConfig()
 	connect := func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }
-	return sessionmcp.New(cfg, connect, session.ReadAccountID(cfg.ClaudeAppConfigPath))
+	tools := sessionmcp.New(cfg, connect, session.ReadAccountID(cfg.ClaudeAppConfigPath))
+	tools.ConfigPath = a.sess.configPath
+	return tools
 }
 
 // closeSessionStore disconnects the store if one was opened.

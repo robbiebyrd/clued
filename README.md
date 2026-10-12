@@ -188,6 +188,7 @@ lists stays off.
 | `search_commands` | Search the Bash commands run in previous sessions |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
+| `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |
 
 ### Session commands
 
@@ -260,6 +261,29 @@ it in the foreground to see its output:
 The most common failure is MongoDB not being reachable at `mongoUrl`; check
 with `nc -z <host> <port>`. The daemon's log is
 `~/.claude/plugins/data/clued/daemon.log`.
+
+## Context collector
+
+`bin/clued context <probe> [args] [--limit n] [--root dir]` answers one question about the working directory with a single plain-text line (or block) so skills can gather facts without parsing JSON. Every probe always exits 0 and prints a sentinel (`yes`/`no`, `none`, `0`, `unknown`, `not a git repo`, `store unavailable`, `[FALLBACK: ...]`) instead of an error.
+
+The composite report that primes a session:
+
+```
+bin/clued context prime [--no-store] [--no-docs]
+```
+
+`--no-store` skips the SESSION lookup in MongoDB, `--no-docs` skips the STORIES and PLANS sections. When the daemon is running, the report is also posted to it as a `ContextCollected` hook event, so every snapshot is stored next to its session; `--no-snapshot` skips that.
+
+| Group | Probes |
+|---|---|
+| Filesystem | `file-exists`, `dir-exists`, `count-files`, `list-files`, `file-head`, `count-lines`, `find-files`, `count-files-with-content`, `pwd` |
+| Git | `git` (read-only passthrough), `git-is-clean`, `git-commits-since-tag`, `git-origin`, `git-branch`, `git-default-branch` |
+| GitHub | `gh` (read-only passthrough), `gh-pr-for-branch` |
+| JSON/config | `json-field`, `json-count`, `json-count-where`, `json-count-with-key`, `mcp-configured` |
+| Environment | `command-exists`, `detect-stack`, `detect-coverage`, `detect-frontend`, `detect-css-framework`, `detect-build-tool`, `detect-port` |
+| clued | `host`, `account`, `project-path`, `daemon-status`, `session`, `prime` |
+
+The `clued-context` skill (`skills/clued-context/SKILL.md`) documents every probe, its arguments and its sentinels, and `/clued-prime` runs the report and summarises it. The clued MCP server exposes the same report as the `prime_context` tool, which takes an optional `cwd`.
 
 ## Plans and stories
 

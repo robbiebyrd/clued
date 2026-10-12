@@ -1,0 +1,13 @@
+{
+  "name": "demo",
+  "version": "1.0",
+  "private": true,
+  "scripts": {"test": "go test ./...", "build": "go build ./..."},
+  "deps": [
+    {"name": "a", "kind": "dev"},
+    {"name": "b", "kind": "prod"},
+    {"name": "c", "kind": "dev", "nested": {"kind": "x"}},
+    {"name": "d"}
+  ],
+  "devDependencies": {"sass": "1.0", "tailwindcss": "3.0"}
+}
