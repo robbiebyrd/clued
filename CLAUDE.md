@@ -18,6 +18,7 @@ binary.
 | `commands/`, `skills/` | `/clued-setup`, `/clued-uninstall`, and the `plan-storage` skill |
 | `mind-palace/` | The Go module (`github.com/robbiebyrd/clued/mind-palace`); see its README for the package map |
 | `mind-palace/session/` | Session capture: config, Mongo and in-memory stores, daemon, tailing, backfill, enrichers, queries, restore, `sessionmcp` |
+| `mind-palace/hookguard/` | Rules behind the hooks the binary serves (`mind-palace hook stop-guard`); the status review (`hook status-review`, `review`) lives in `service/review.go` |
 | `mind-palace/plugin/` | Go tests that execute the bash hooks and the shim |
 | `docs/plans/`, `docs/stories/` | This repository's own plans and stories, managed by `mind-palace` |
 | `docs/superpowers/specs/` | Design documents (brainstorm output); linked from plans with `plan_addSpec` |
@@ -57,8 +58,12 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
 ## Conventions
 
 - Keep `gofmt` clean and `go vet` silent; CI fails on either.
-- Business rules live in `service/` (plans and stories) and `session/`
-  (capture); entrypoints (`cli/`, `server/`, `sessionmcp`) only translate.
+- Business rules live in `service/` (plans and stories), `session/`
+  (capture) and `hookguard/` (hook decisions); entrypoints (`cli/`,
+  `server/`, `sessionmcp`) only translate. Hooks the binary serves are
+  `mind-palace hook …` subcommands registered in `hooks.json` and
+  `hooks/register-hooks` as `${CLAUDE_PLUGIN_ROOT}/bin/clued hook …`; they
+  print bare hook JSON, not the `{"ok": …}` envelope.
   Store plugins persist what they are given and must pass `store/storetest`.
 - Document kinds (plan, story) are described in `kind/`; a behaviour that
   differs between kinds belongs there as a flag, not as a type switch

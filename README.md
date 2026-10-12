@@ -73,7 +73,9 @@ the data.
 | `hooks/session-start` | SessionStart (async): re-runs `register-hooks`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` |
 | `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later |
 | `hooks/guard-superpowers-plans` | PreToolUse on `Write`/`Edit`: blocks writes under `docs/superpowers/plans/` and points at the plan MCP tools (see [Plan storage](#plan-storage-for-superpowers)) |
-| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
+| `bin/clued hook stop-guard` | Stop: blocks the assistant from stopping when its last message dodges ownership of a failure, defers work to another session or asks whether to continue (see [Hooks served by the binary](#hooks-served-by-the-binary)) |
+| `bin/clued hook status-review` | SessionStart, and UserPromptSubmit at most every 30 minutes: tells the assistant to ask you about plans whose stories are all complete and stories whose steps and acceptance criteria are all done but still open |
+| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the two `bin/clued hook` commands) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
 | `hooks/uninstall` | Non-interactive cleanup used by `/clued-uninstall` |
 | `bin/clued` | Shim that finds and runs `mind-palace` (resolution order below) |
 | `.mcp.json` | Two stdio MCP servers: `clued` (`bin/clued session mcp`, the session tools) and `mind-palace` (`bin/clued mcp --no-session-tools`, the plan and story tools) |
@@ -312,8 +314,39 @@ mind-palace story check 0002-a3f 1         # tick acceptance criterion 1
 mind-palace serve                          # HTTP + WebSocket + MCP on 127.0.0.1:8087
 ```
 
+`mind-palace review` lists the plans whose linked stories are all complete
+and the stories whose steps and acceptance criteria are all done while their
+own status is still open; the `status-review` hook below runs it for you.
+
 The full reference (front matter, workflow, every operation, storage plugins,
 templates, error codes) is in [`mind-palace/README.md`](mind-palace/README.md).
+
+### Hooks served by the binary
+
+Two hooks run `bin/clued hook …` directly; their rules live in the Go module
+(`mind-palace/hookguard` and `service.Palace.Review`), not in bash, and each
+reads the hook's JSON on stdin and prints exactly what Claude Code expects.
+
+- **`hook stop-guard`** (Stop, blocking). When the assistant's last message
+  contains a phrase that dodges ownership of a failure ("pre-existing",
+  "unrelated to my changes"), calls something a known limitation or future
+  work, quits because the session is long, defers work to a next session, or
+  asks whether to continue work it was already asked to do ("shall I
+  continue"), it prints `{"decision":"block","reason":"STOP HOOK VIOLATION:
+  …"}` and the assistant is sent back to work with that correction. Patterns
+  are matched case-insensitively, the first match wins, and the guard lets
+  the assistant stop once it has already fired this turn
+  (`stop_hook_active`), so it never loops. The rule table is in
+  `mind-palace/hookguard/stop.go`.
+- **`hook status-review`** (SessionStart; UserPromptSubmit with
+  `--every 30m`). Reviews the plans and stories of the hook's `cwd` and, when
+  a plan has all of its stories complete or a story has all of its steps
+  complete and all of its acceptance criteria done while its status is still
+  open, adds context asking the assistant to ask you whether to close them
+  (the hook never changes a status itself). A directory without documents
+  stays silent. `--every` keeps one timestamp per directory under
+  `~/.claude/plugins/data/clued/status-review/`; SessionStart runs without
+  it.
 
 ### Plan storage for superpowers
 

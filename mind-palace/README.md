@@ -186,6 +186,22 @@ Claude Code registration example (`.mcp.json`):
 `mcp` and `serve` also expose the session tools; pass `--no-session-tools` when
 another server (for example `session mcp`) already provides them.
 
+### Review and hooks
+
+```bash
+mind-palace review                          # plans whose stories are all complete, stories whose steps and criteria are all done, still open
+mind-palace hook stop-guard                 # Stop hook: reads the hook JSON on stdin, prints a block decision on violations
+mind-palace hook status-review --every 30m  # SessionStart/UserPromptSubmit hook: asks about the review's findings
+```
+
+`review` reports documents whose work is finished while their status is still
+open (`Palace.Review`): a plan is listed when it has at least one story (in
+`links.stories`, on its progress entries or linking back to it through
+`links.plans`) and every one of them is `complete`; a story when every step is
+complete and no acceptance criterion is open. Complete, archived and rejected
+documents are skipped. The `hook` commands print the JSON Claude Code expects
+rather than the usual envelope; the `stop-guard` rules are in `hookguard`.
+
 ## Configuration
 
 `mind-palace` looks for `--config`, then `$MIND_PALACE_CONFIG` (or the older
@@ -360,5 +376,6 @@ expose them next to the plan and story tools.
 | `events` | In-process event bus (filter by kind and id) |
 | `server/*` | HTTP, WebSocket and MCP entrypoints |
 | `session`, `session/*` | Claude Code session capture: config, MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
+| `hookguard` | Rules behind the Claude Code hooks the binary serves (the Stop guard) |
 | `plugin` | Tests for the Claude Code plugin glue (`bin/clued`, the bash hooks, `hooks.json`) |
 | `cli`, `cmd/*` | Command line: `mind-palace`, plus the `plan` and `story` wrappers |

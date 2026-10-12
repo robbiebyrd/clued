@@ -172,3 +172,44 @@ func TestRegisterHooksKeepsOneGuardWhenRunTwice(t *testing.T) {
 		t.Errorf("guards = %d, want 1", n)
 	}
 }
+
+func TestRegisterHooksMirrorsTheBinaryHooks(t *testing.T) {
+	h := registerHooks(t, t.TempDir(), "{}", 2).hooks(t)
+	clued := filepath.Join(repoRoot(t), "bin", "clued")
+	want := map[string]string{
+		"Stop":             clued + " hook stop-guard",
+		"UserPromptSubmit": clued + " hook status-review --every 30m",
+		"SessionStart":     clued + " hook status-review",
+	}
+	for ev, cmd := range want {
+		n := 0
+		for _, g := range h[ev] {
+			for _, hk := range g.Hooks {
+				if hk.Command == cmd {
+					n++
+				}
+			}
+		}
+		if n != 1 {
+			t.Errorf("%s: %q registered %d times after two runs, want 1", ev, cmd, n)
+		}
+	}
+	if len(h["Stop"]) != 2 || len(h["UserPromptSubmit"]) != 2 {
+		t.Errorf("Stop = %d groups, UserPromptSubmit = %d groups, want relay plus binary hook", len(h["Stop"]), len(h["UserPromptSubmit"]))
+	}
+}
+
+func TestRegisterHooksReplacesStaleBinaryHooks(t *testing.T) {
+	seed := `{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/old/path/bin/clued hook stop-guard"}]}]}}`
+	h := registerHooks(t, t.TempDir(), seed, 1).hooks(t)
+	for _, g := range h["Stop"] {
+		for _, hk := range g.Hooks {
+			if strings.HasPrefix(hk.Command, "/old/path/") {
+				t.Errorf("stale entry kept: %q", hk.Command)
+			}
+		}
+	}
+	if len(h["Stop"]) != 2 {
+		t.Errorf("Stop = %d groups, want 2", len(h["Stop"]))
+	}
+}
