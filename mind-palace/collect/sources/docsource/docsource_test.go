@@ -4,17 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/robbiebyrd/clued/mind-palace/collect/prime"
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/events"
+	"github.com/robbiebyrd/clued/mind-palace/kind"
 	"github.com/robbiebyrd/clued/mind-palace/markdown"
 	"github.com/robbiebyrd/clued/mind-palace/model"
+	"github.com/robbiebyrd/clued/mind-palace/server/auth"
+	"github.com/robbiebyrd/clued/mind-palace/server/storeapi"
 	"github.com/robbiebyrd/clued/mind-palace/service"
+	"github.com/robbiebyrd/clued/mind-palace/store"
 	"github.com/robbiebyrd/clued/mind-palace/store/memstore"
 )
 
@@ -272,5 +278,86 @@ func TestOpenConfigFileWithoutPlansDir(t *testing.T) {
 	got, err := src.ActivePlans(ctx)
 	if err != nil || len(got) != 0 {
 		t.Errorf("ActivePlans = %v, %v; want none", got, err)
+	}
+}
+
+// remoteStub resolves the test token to a principal allowed everywhere.
+type remoteStub struct{}
+
+func (remoteStub) Lookup(raw string) (auth.Principal, bool) {
+	if raw != "docsource-token" {
+		return auth.Principal{}, false
+	}
+	return auth.Principal{Name: "test", AccountID: "acct", Projects: []string{"*"}}, true
+}
+
+func TestOpenAppendsRemoteStoreInRemoteMode(t *testing.T) {
+	var mu sync.Mutex
+	stores := map[string]*memstore.Store{}
+	h := storeapi.Handler(storeapi.Options{Open: func(_ context.Context, project string) (store.Store, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		s, ok := stores[project]
+		if !ok {
+			s = memstore.New(project)
+			stores[project] = s
+		}
+		return s, nil
+	}})
+	srv := httptest.NewServer(auth.Middleware(remoteStub{})(h))
+	defer srv.Close()
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CLUED_SERVER_URL", srv.URL)
+	t.Setenv("CLUED_SERVER_TOKEN", "docsource-token")
+
+	root := filepath.Join(t.TempDir(), "my-notes")
+	plan := writePlan(t, filepath.Join(root, "docs", "plans"), "in_progress", "File plan")
+
+	src, err := Open(ctx, root)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if src == nil {
+		t.Fatal("Open returned nil for a root with docs/plans")
+	}
+	defer src.Close()
+	if names := strings.Join(src.palace.StoreNames(), ","); names != "file (file),clued-server (clued)" {
+		t.Errorf("stores = %q, want the file store first and clued-server second", names)
+	}
+	defs := src.palace.Config().Storage
+	if len(defs) != 2 || defs[1].Name != "clued-server" || defs[1].Options["project"] != "my-notes" {
+		t.Errorf("storage definitions = %+v, want clued-server for project my-notes (the directory name) second", defs)
+	}
+	if len(defs) == 2 && defs[1].Options["token"] != "" {
+		t.Error("the configuration carries the server token")
+	}
+	// Reads come from the file store; the server has nothing yet.
+	got, err := src.ActivePlans(ctx)
+	if err != nil || len(got) != 1 || got[0].ID != plan.ID() {
+		t.Errorf("ActivePlans = %+v, %v; want the file plan %s", got, err, plan.ID())
+	}
+	mu.Lock()
+	remote, opened := stores["my-notes"]
+	mu.Unlock()
+	if opened {
+		// A connectivity probe is allowed; a write is not.
+		if docs, _ := remote.List(ctx, kind.Plan); len(docs) != 0 {
+			t.Errorf("the read-only source wrote %d plans to the server", len(docs))
+		}
+	}
+}
+
+func TestOpenWithoutServerURLHasOnlyTheFileStore(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CLUED_SERVER_URL", "")
+	root := t.TempDir()
+	writePlan(t, filepath.Join(root, "docs", "plans"), "ready", "Plan")
+	src, err := Open(ctx, root)
+	if err != nil || src == nil {
+		t.Fatalf("Open = %v, %v", src, err)
+	}
+	defer src.Close()
+	if names := strings.Join(src.palace.StoreNames(), ","); names != "file (file)" {
+		t.Errorf("stores = %q, want only the file store", names)
 	}
 }

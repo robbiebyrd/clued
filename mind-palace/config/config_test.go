@@ -372,3 +372,29 @@ func TestValidateAllowNoFileStore(t *testing.T) {
 		t.Errorf("default with option: %v", err)
 	}
 }
+
+func TestRemoteProjectKey(t *testing.T) {
+	if Default().Remote.Project != "" {
+		t.Error("the default config names a remote project")
+	}
+	dir := t.TempDir()
+	yamlPath := filepath.Join(dir, "mind-palace.config.yaml")
+	os.WriteFile(yamlPath, []byte("remote:\n  project: ' team__thing '\n"), 0o644)
+	c, err := Load(yamlPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Remote.Project != "team__thing" {
+		t.Errorf("remote.project from YAML = %q", c.Remote.Project)
+	}
+	jsonPath := filepath.Join(dir, "mind-palace.config.json")
+	os.WriteFile(jsonPath, []byte(`{"remote": {"project": "owner__repo"}}`), 0o644)
+	if c, err = Load(jsonPath); err != nil || c.Remote.Project != "owner__repo" {
+		t.Errorf("remote.project from JSON = %q, %v", c.Remote.Project, err)
+	}
+	// Other remote keys are not known.
+	os.WriteFile(yamlPath, []byte("remote:\n  url: https://clued.example\n"), 0o644)
+	if _, err := Load(yamlPath); err == nil {
+		t.Error("an unknown remote key must be rejected")
+	}
+}

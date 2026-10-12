@@ -93,6 +93,16 @@ type ServerConfig struct {
 	Addr string `yaml:"addr" json:"addr"`
 }
 
+// RemoteConfig holds the per-repository settings of remote mode, where the
+// client fans plans and stories out to a clued server (the server itself is
+// configured per machine in the plugin's config.json).
+type RemoteConfig struct {
+	// Project is the project slug the server files this repository's
+	// documents under. It overrides the slug derived from the git origin
+	// (github.com__owner__repo); the value is normalized the same way.
+	Project string `yaml:"project" json:"project,omitempty"`
+}
+
 // KindConfig is the configuration of one entity kind.
 type KindConfig struct {
 	// Dir is the root for file-based storage of this kind.
@@ -110,6 +120,7 @@ type Config struct {
 	Stories KindConfig   `yaml:"stories" json:"stories"`
 	Storage []StorageDef `yaml:"storage" json:"storage"`
 	Server  ServerConfig `yaml:"server" json:"server"`
+	Remote  RemoteConfig `yaml:"remote" json:"remote"`
 	// Source is the config file the values came from ("" for defaults).
 	Source string `yaml:"-" json:"source,omitempty"`
 }
@@ -241,6 +252,7 @@ type fileConfig struct {
 	Stories *fileKindConfig `yaml:"stories" json:"stories"`
 	Storage []StorageDef    `yaml:"storage" json:"storage"`
 	Server  *ServerConfig   `yaml:"server" json:"server"`
+	Remote  *RemoteConfig   `yaml:"remote" json:"remote"`
 
 	PlansDir   *string             `yaml:"plansDir" json:"plansDir"`
 	Types      []TypeDef           `yaml:"types" json:"types"`
@@ -386,6 +398,9 @@ func (c *Config) Overlay(data []byte, ext string) error {
 	}
 	if fc.Server != nil && fc.Server.Addr != "" {
 		c.Server.Addr = fc.Server.Addr
+	}
+	if fc.Remote != nil {
+		c.Remote.Project = strings.TrimSpace(fc.Remote.Project)
 	}
 	return nil
 }

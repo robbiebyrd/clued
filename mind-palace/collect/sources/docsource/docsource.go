@@ -8,10 +8,11 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/robbiebyrd/clued/mind-palace/clientcfg"
 	"github.com/robbiebyrd/clued/mind-palace/collect/prime"
 	"github.com/robbiebyrd/clued/mind-palace/config"
-	"github.com/robbiebyrd/clued/mind-palace/events"
 	"github.com/robbiebyrd/clued/mind-palace/service"
+	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/store"
 
 	// The default configuration stores documents in files; the driver
@@ -61,16 +62,13 @@ func Open(ctx context.Context, root string) (*Source, error) {
 	cfg.Plans.Dir = resolveAgainst(root, cfg.Plans.Dir)
 	cfg.Stories.Dir = resolveAgainst(root, cfg.Stories.Dir)
 
-	st, err := store.OpenAll(ctx, cfg)
+	// The same opener as the CLI, so remote mode appends the clued server
+	// here too; this source only reads, so the server is not probed.
+	opened, err := clientcfg.Open(ctx, root, cfg, session.LoadConfig(session.DefaultConfigPath()), clientcfg.Options{})
 	if err != nil {
 		return nil, err
 	}
-	p, err := service.NewPalace(cfg, st, events.New())
-	if err != nil {
-		_ = st.Close()
-		return nil, err
-	}
-	return &Source{palace: p, store: st}, nil
+	return &Source{palace: opened.Palace, store: opened.Store}, nil
 }
 
 // findConfig returns the first config file present directly in root, or "".

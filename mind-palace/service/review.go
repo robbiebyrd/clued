@@ -30,10 +30,28 @@ type ReviewItem struct {
 type Review struct {
 	Plans   []ReviewItem `json:"plans"`
 	Stories []ReviewItem `json:"stories"`
+	// Notes are remarks about where the documents live that the caller
+	// attached (WithReviewNote), such as the clued server project being
+	// derived from the directory name because the repository has no git
+	// origin. They do not make the review non-empty on their own.
+	Notes []string `json:"notes,omitempty"`
 }
 
 // IsEmpty reports whether nothing needs the user's attention.
 func (r *Review) IsEmpty() bool { return len(r.Plans) == 0 && len(r.Stories) == 0 }
+
+// ReviewOption adds to a review what the palace cannot know itself.
+type ReviewOption func(*Review)
+
+// WithReviewNote appends a remark to the review's Notes; an empty note is
+// ignored.
+func WithReviewNote(note string) ReviewOption {
+	return func(r *Review) {
+		if note != "" {
+			r.Notes = append(r.Notes, note)
+		}
+	}
+}
 
 // settled statuses need no review: the work is closed one way or another.
 var settled = map[string]bool{"complete": true, "archived": true, "rejected": true}
@@ -43,8 +61,8 @@ var settled = map[string]bool{"complete": true, "archived": true, "rejected": tr
 // open. A plan's stories are those in its links.stories, those listed on its
 // progress entries and those whose links.plans name it; a plan with no
 // stories is not reported. Documents in complete, archived or rejected
-// status are skipped.
-func (p *Palace) Review(ctx context.Context) (*Review, error) {
+// status are skipped. Options attach notes to the result.
+func (p *Palace) Review(ctx context.Context, opts ...ReviewOption) (*Review, error) {
 	plans, err := p.store.List(ctx, kind.Plan)
 	if err != nil {
 		return nil, err
@@ -58,6 +76,9 @@ func (p *Palace) Review(ctx context.Context) (*Review, error) {
 		byID[s.ID()] = s
 	}
 	out := &Review{Plans: []ReviewItem{}, Stories: []ReviewItem{}}
+	for _, opt := range opts {
+		opt(out)
+	}
 
 	storySvc := p.services[kind.Story]
 	for _, s := range stories {
