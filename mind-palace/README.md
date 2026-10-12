@@ -283,6 +283,7 @@ and `mind-palace sync` reconciles.
 | `clickhouse` | `dsn`, `tablePrefix` | ReplacingMergeTree tables |
 | `mongodb` (`mongo`) | `uri`, `database` (default `mind-palace`), `collection` prefix (default `mp_`) | |
 | `firestore` | `project`, `database`, `collection` prefix (default `mp_`) | Application Default Credentials; honours `FIRESTORE_EMULATOR_HOST` |
+| `webdav` (`dav`) | `url` (required), `plansPath` (default `plans`), `storiesPath` (default `stories`), `username`, `password` or `token`, `timeout` (default `30s`) | Markdown files in a WebDAV folder (Nextcloud, ownCloud, mod_dav, a NAS) with the file store's layout under each path; credentials may also come from the URL's userinfo or `MIND_PALACE_WEBDAV_USERNAME` / `_PASSWORD` / `_TOKEN`; missing folders are created on first use |
 | `memory` | | in-process, for tests |
 
 Databases created by the earlier `plan` tool (tables `plan_plans`,

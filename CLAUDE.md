@@ -46,6 +46,9 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   real bash scripts and skip when `jq` is not installed.
 - Other store plugins (Postgres, MySQL, ClickHouse, Mongo, Firestore) run
   their conformance suite only when their `MIND_PALACE_TEST_*` DSN is set.
+  The WebDAV store runs it against an in-process `golang.org/x/net/webdav`
+  server always, and against a real server when `MIND_PALACE_TEST_WEBDAV_URL`
+  is set.
 - Build the binary with `go build -o mind-palace ./cmd/mind-palace`; `cmd/plan`
   and `cmd/story` are thin wrappers around the same CLI.
 - The binaries under `dist/` must match the Go source: after changing

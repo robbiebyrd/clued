@@ -16,6 +16,7 @@ import (
 	_ "github.com/robbiebyrd/clued/mind-palace/store/memstore"
 	_ "github.com/robbiebyrd/clued/mind-palace/store/mongostore"
 	_ "github.com/robbiebyrd/clued/mind-palace/store/sqlstore"
+	_ "github.com/robbiebyrd/clued/mind-palace/store/webdavstore"
 )
 
 func main() {
