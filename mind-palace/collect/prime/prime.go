@@ -15,6 +15,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/collect/fsprobe"
 	"github.com/robbiebyrd/clued/mind-palace/collect/ghprobe"
 	"github.com/robbiebyrd/clued/mind-palace/collect/gitprobe"
+	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 )
 
@@ -61,8 +62,12 @@ type Collector struct {
 	Host      func() session.HostInfo // nil omits the host line
 	AccountID func() string           // nil omits the account line
 
-	ConfigPath        string
-	DaemonPort        int
+	ConfigPath string
+	DaemonPort int
+	// Server, when set, is the clued server of remote mode: the CLUED
+	// section then reports whether it accepts the token (ServerHealthy)
+	// instead of whether the daemon runs on DaemonPort.
+	Server            *remote.Client
 	DisabledEnrichers []string
 	EnabledEnrichers  []string // enrichers switched on among those that ship disabled
 
@@ -199,13 +204,20 @@ func HostLine(h session.HostInfo) string {
 
 func (c *Collector) clued(ctx context.Context) string {
 	lines := []string{"config: " + orNone(c.ConfigPath)}
-	if c.DaemonPort > 0 {
+	switch {
+	case c.Server != nil:
+		state := "unreachable"
+		if ServerHealthy(ctx, c.Server) {
+			state = "healthy"
+		}
+		lines = append(lines, fmt.Sprintf("server: %s (%s)", state, c.Server.BaseURL()))
+	case c.DaemonPort > 0:
 		state := "not running"
 		if DaemonHealthy(ctx, c.DaemonPort) {
 			state = "healthy"
 		}
 		lines = append(lines, fmt.Sprintf("daemon: %s (port %d)", state, c.DaemonPort))
-	} else {
+	default:
 		lines = append(lines, "daemon: not configured")
 	}
 	lines = append(lines,

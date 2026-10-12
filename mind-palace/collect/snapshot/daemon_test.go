@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/collect"
 	"github.com/robbiebyrd/clued/mind-palace/collect/snapshot"
@@ -71,7 +72,17 @@ func TestRealDaemonStoresTheSnapshotAsAHookEvent(t *testing.T) {
 	}
 
 	// The daemon also tracks the session the snapshot names, with its cwd.
-	sess, err := st.GetSession(ctx, "acct-snap", "live-check")
+	// The upsert runs detached from the request so a slow store never stalls
+	// a hook; wait for it rather than assume it beat the event insert.
+	var sess session.Doc
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		sess, err = st.GetSession(ctx, "acct-snap", "live-check")
+		if err == nil || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 	if err != nil {
 		t.Fatalf("session not tracked: %v", err)
 	}

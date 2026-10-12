@@ -187,8 +187,12 @@ func (s *Store) Put(ctx context.Context, d *model.Document) error {
 		return err
 	}
 	fm := d.FrontMatter
-	rec := docRecord{ID: fm.ID, Path: d.Path, Type: fm.Type, Status: fm.Status, Priority: fm.Priority, Title: fm.Title, Updated: fm.Updated, Document: doc}
-	_, err = col.ReplaceOne(ctx, bson.M{"_id": fm.ID}, rec, options.Replace().SetUpsert(true))
+	id, ok := model.CanonicalID(fm.ID)
+	if !ok {
+		return fmt.Errorf("invalid document id %q", fm.ID)
+	}
+	rec := docRecord{ID: id, Path: d.Path, Type: fm.Type, Status: fm.Status, Priority: fm.Priority, Title: fm.Title, Updated: fm.Updated, Document: doc}
+	_, err = col.ReplaceOne(ctx, bson.M{"_id": id}, rec, options.Replace().SetUpsert(true))
 	return err
 }
 
@@ -240,7 +244,15 @@ func (s *Store) PutTemplate(ctx context.Context, t *model.Template) error {
 	if updated == "" {
 		updated = time.Now().UTC().Format(time.RFC3339Nano)
 	}
-	rec := templateRecord{Key: templateKey(t.Kind, t.ID), Kind: t.Kind, ID: t.ID, Content: t.Content, Updated: updated}
+	k, ok := kind.Get(t.Kind)
+	if !ok {
+		return fmt.Errorf("unknown document kind %q", t.Kind)
+	}
+	id, ok := model.CanonicalTemplateID(t.ID)
+	if !ok {
+		return fmt.Errorf("invalid template id %q", t.ID)
+	}
+	rec := templateRecord{Key: templateKey(k.Name, id), Kind: k.Name, ID: id, Content: t.Content, Updated: updated}
 	_, err := s.tmpls.ReplaceOne(ctx, bson.M{"_id": rec.Key}, rec, options.Replace().SetUpsert(true))
 	return err
 }

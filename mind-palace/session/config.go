@@ -21,6 +21,23 @@ type Config struct {
 	EnabledEnrichers    []string `json:"enabledEnrichers"`
 	ClaudeAppConfigPath string   `json:"claudeAppConfigPath"`
 	WalPath             string   `json:"walPath"`
+
+	// ServerURL switches the plugin into remote mode: when set, sessions,
+	// plans and stories are sent to a clued server over HTTPS instead of a
+	// local MongoDB (see Remote). ServerToken is the bearer token the server
+	// minted; ServerCAFile is an optional PEM bundle that is trusted in
+	// addition to the system roots (a private CA); ServerInsecure allows a
+	// plain http:// ServerURL on a host that is not loopback.
+	ServerURL      string `json:"serverUrl"`
+	ServerToken    string `json:"serverToken"`
+	ServerCAFile   string `json:"serverCaFile"`
+	ServerInsecure bool   `json:"serverInsecure"`
+}
+
+// Remote reports whether the plugin runs in remote mode, which is the case
+// exactly when a server URL is configured.
+func (c Config) Remote() bool {
+	return c.ServerURL != ""
 }
 
 func userHome() string {
@@ -86,11 +103,20 @@ func LoadConfig(path string) Config {
 			cfg.Port = port
 		}
 	}
+	setFromEnv(&cfg.ServerURL, "CLUED_SERVER_URL")
+	setFromEnv(&cfg.ServerToken, "CLUED_SERVER_TOKEN")
+	setFromEnv(&cfg.ServerCAFile, "CLUED_SERVER_CA_FILE")
+	if v := os.Getenv("CLUED_SERVER_INSECURE"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.ServerInsecure = b
+		}
+	}
 
 	cfg.ProjectsDir = expandHome(cfg.ProjectsDir)
 	cfg.FileHistoryDir = expandHome(cfg.FileHistoryDir)
 	cfg.MongoURL = expandHome(cfg.MongoURL)
 	cfg.ClaudeAppConfigPath = expandHome(cfg.ClaudeAppConfigPath)
+	cfg.ServerCAFile = expandHome(cfg.ServerCAFile)
 
 	cfg.WalPath = filepath.Join(filepath.Dir(path), "events.wal")
 	setFromEnv(&cfg.WalPath, "CLUED_WAL_PATH")

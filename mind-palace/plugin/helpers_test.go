@@ -33,7 +33,15 @@ type result struct {
 // runScript runs a script with bash, the given stdin and exactly the given environment.
 func runScript(t *testing.T, script, stdin string, env []string, args ...string) result {
 	t.Helper()
+	return runScriptIn(t, "", script, stdin, env, args...)
+}
+
+// runScriptIn is runScript with the working directory set to dir ("" keeps
+// the test's), which is what a hook sees as the project directory.
+func runScriptIn(t *testing.T, dir, script, stdin string, env []string, args ...string) result {
+	t.Helper()
 	cmd := exec.Command("/bin/bash", append([]string{script}, args...)...)
+	cmd.Dir = dir
 	cmd.Env = env
 	cmd.Stdin = bytes.NewBufferString(stdin)
 	var out, errb bytes.Buffer

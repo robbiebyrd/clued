@@ -26,7 +26,7 @@ func (a *App) hookCmd() *cobra.Command {
 		Use:   "hook",
 		Short: "Claude Code hooks served by the binary (read hook JSON on stdin)",
 	}
-	cmd.AddCommand(a.hookStopGuardCmd(), a.hookWriteGuardCmd(), a.hookStatusReviewCmd())
+	cmd.AddCommand(a.hookStopGuardCmd(), a.hookWriteGuardCmd(), a.hookStatusReviewCmd(), a.hookRelayCmd())
 	return cmd
 }
 
@@ -191,7 +191,7 @@ than that (the time is kept per directory under --state-dir).`,
 				fmt.Fprintf(a.Stderr, "hook status-review: %v\n", err)
 				return nil
 			}
-			r, err := a.palace.Review(ctx)
+			r, err := a.palace.Review(ctx, a.reviewOptions()...)
 			if err != nil {
 				fmt.Fprintf(a.Stderr, "hook status-review: %v\n", err)
 				return nil
@@ -225,6 +225,9 @@ func reviewContext(r *service.Review) string {
 	}
 	for _, s := range r.Stories {
 		fmt.Fprintf(&b, "- Story %s %q (status %s): %s. To close it: story_setStatus or `mind-palace story set-status %s complete`.\n", s.ID, s.Title, s.Status, s.Reason, s.ID)
+	}
+	for _, n := range r.Notes {
+		fmt.Fprintf(&b, "Note: %s\n", n)
 	}
 	return b.String()
 }
