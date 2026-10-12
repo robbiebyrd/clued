@@ -6,7 +6,7 @@ status: ready
 priority: "2"
 effort: XL
 created: "2026-10-12T19:57:12.904Z"
-updated: "2026-10-12T21:00:15.054Z"
+updated: "2026-10-12T21:05:28.054Z"
 tags:
   - server
   - remote
@@ -61,7 +61,7 @@ progress:
     stories:
       - 0009-pdw
   "3":
-    status: pending
+    status: complete
   "3.1":
     status: complete
     stories:
@@ -71,7 +71,7 @@ progress:
     stories:
       - 0011-zbb
   "3.3":
-    status: in_progress
+    status: complete
     stories:
       - 0012-gbx
   "4":

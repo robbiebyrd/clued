@@ -3,12 +3,13 @@ id: 0012-gbx
 title: Client fan-out of plans and stories to the server
 purpose: Make every Palace the client opens write to the file store first and the clued server second when remote mode is on.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:05.174Z"
-updated: "2026-10-12T20:51:37.749Z"
+updated: "2026-10-12T21:05:27.812Z"
 started: "2026-10-12T20:51:37.749Z"
+completed: "2026-10-12T21:05:27.812Z"
 tags:
   - server
   - remote
@@ -65,10 +66,10 @@ Project from `gitinfo` through `projects.Slug`; a `remote.project` key in `mind-
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./...
-- [ ] With `CLUED_SERVER_URL` set, `plan_create` writes the file under `docs/plans` and the document on the test server under the repository's project
-- [ ] With the server down, `plan_create` still writes the file and returns the sync warning naming `clued-server`
-- [ ] `mind-palace sync --from file --to clued-server` brings the server up to date after an outage
+- [x] VERIFY: cd mind-palace && go test -race ./...
+- [x] With `CLUED_SERVER_URL` set, `plan_create` writes the file under `docs/plans` and the document on the test server under the repository's project
+- [x] With the server down, `plan_create` still writes the file and returns the sync warning naming `clued-server`
+- [x] `mind-palace sync --from file --to clued-server` brings the server up to date after an outage
 
 ## Files
 
