@@ -134,10 +134,12 @@ docker info 2>&1 | head -1
 If Docker is not running, ask the user to start Docker Desktop first.
 
 ```bash
-docker compose -f "${CLAUDE_PLUGIN_ROOT}/docker-compose.transcripts.yml" up -d mongodb
+docker compose -f "${CLAUDE_PLUGIN_ROOT}/docker-compose.transcripts.yml" up -d
 ```
 
 **Docker default port: `27018`**
+
+The compose file publishes that port on every interface with no authentication. If this machine is reachable from an untrusted network, tell the user to change the mapping in `docker-compose.transcripts.yml` to `127.0.0.1:27018:27017` (or enable authentication) before continuing.
 
 ---
 
@@ -195,11 +197,13 @@ cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
 EOF
 ```
 
-## Step 7 — MCP server (no action needed)
+## Step 7 — MCP servers (no action needed)
 
-The plugin ships its own `.mcp.json`, so Claude Code launches the clued MCP server
-itself over stdio (`${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp`) — no settings
-edit is required. Its tools appear after `/reload-plugins` or in the next session.
+The plugin ships its own `.mcp.json`, so Claude Code launches both MCP servers
+itself over stdio: `clued` (`${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp`, the
+session tools) and `mind-palace` (`${CLAUDE_PLUGIN_ROOT}/bin/clued mcp
+--no-session-tools`, the plan and story tools) — no settings edit is required.
+Their tools appear in the next fresh session.
 
 Claude Code does not read `mcpServers` from `~/.claude/settings.json`. If an older
 setup left a `mcpServers.clued` entry there, remove it:
@@ -230,8 +234,8 @@ Most common failure: MongoDB not reachable. Confirm with `nc -z <host> <port>`.
 - MongoDB option and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
 - mind-palace binary location (PATH or `~/.claude/plugins/data/clued/bin/`)
-- MCP server provided by the plugin's `.mcp.json` (stdio) — run `/reload-plugins` to load its tools
+- MCP servers (`clued` session tools, `mind-palace` plan and story tools) provided by the plugin's `.mcp.json` over stdio — start a new session to load them
 - Daemon on port 8085 — running or failed with error
 - macOS tarball: launchd plist at `~/Library/LaunchAgents/org.mongodb.mongod.plist` auto-restarts mongod at login
-- Hooks registered automatically via `hooks.json` — no manual settings edit needed
+- Hooks registered automatically via `hooks.json` (and mirrored into `~/.claude/settings.json` by `register-hooks` on every session start) — no manual settings edit needed
 - To enable the privacy-redact enricher: remove `privacy-redact` from `disabledEnrichers` in `config.json`
