@@ -1,0 +1,1 @@
+[FALLBACK: gh api -X POST repos/o/r/issues]
