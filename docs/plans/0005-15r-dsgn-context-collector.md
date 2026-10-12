@@ -6,8 +6,8 @@ status: complete
 priority: "2"
 effort: L
 created: "2026-10-12T14:20:39.754Z"
-updated: "2026-10-12T15:04:48.022Z"
-completed: "2026-10-12T15:04:48.022Z"
+updated: "2026-10-12T15:13:42.694Z"
+completed: "2026-10-12T15:13:42.694Z"
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
@@ -130,7 +130,7 @@ Pure package. `Runner` port and its default `ExecRunner{Timeout}` (argv only, ne
 
 ### `collect/prime` — composite use case
 
-`Collector{Root, Home string; FS *fsprobe.Probe; Git *gitprobe.Probe; GH *ghprobe.Probe; Env *envprobe.Probe; Sessions SessionSource; Docs DocSource; Host func() session.HostInfo; AccountID func() string; DaemonPort int; Budget time.Duration}` and `Collect(ctx) Report`. Ports: `SessionSource{Current(ctx, cwd) (*SessionSnapshot, error)}` and `DocSource{ActiveStories(ctx) ([]DocSummary, error); ActivePlans(ctx) ([]DocSummary, error); PlanContent(ctx, id) (string, error)}`; nil sources print their sentinel. Sections, in order: `ENV` (cwd, project_path, git_origin, git_branch, account_id, host line); `CLUED` (config path, daemon `healthy`/`not running` on the port, enrichers disabled); `FILES` (README.md 80, SPEC.md 120, CHANGELOG.md 30, AGENTS.md 60, CLAUDE.md 60 lines with `… (N more lines)`, else `<file>: no`; `docs/plans: N files`, `docs/stories: N files`); `BRANCH` (`<branch> (<status summary>)`, `detached HEAD`); `LOG:<default>` (15 commits) and `LOG:HEAD` (10); `DIFF-STAT` (against the default branch, `no diff (on <default>)`); `STORIES` (one line per active story: id, type, status, title); `PLANS` (one line per active plan, then the first 100 lines of the top one); `SESSION` (id, started, last seen, up to ten top commands, or `store unavailable`/`none`); `BUILD` (`DetectBuildTool`). Sections run in a bounded `errgroup`-free loop with per-section contexts so the budget holds.
+`Collector{Root, Home string; FS *fsprobe.Probe; Git *gitprobe.Probe; GH *ghprobe.Probe; Env *envprobe.Probe; Sessions SessionSource; Docs DocSource; Host func() session.HostInfo; AccountID func() string; DaemonPort int; Budget time.Duration}` and `Collect(ctx) Report`. Ports: `SessionSource{Current(ctx, cwd) (*SessionSnapshot, error)}` and `DocSource{ActiveStories(ctx) ([]DocSummary, error); ActivePlans(ctx) ([]DocSummary, error); PlanContent(ctx, id) (string, error)}`; nil sources print their sentinel. Sections, in order: `ENV` (cwd, project_path, git_origin, git_branch, account_id, host line); `CLUED` (config path, daemon `healthy`/`not running` on the port, the disabled enrichers and the enrichers enabled from config); `FILES` (README.md 80, SPEC.md 120, CHANGELOG.md 30, AGENTS.md 60, CLAUDE.md 60 lines with `… (N more lines)`, else `<file>: no`; `docs/plans: N files`, `docs/stories: N files`); `BRANCH` (`<branch> (<status summary>)`, `detached HEAD`); `LOG:<default>` (15 commits) and `LOG:HEAD` (10); `DIFF-STAT` (against the default branch, `no diff (on <default>)`); `STORIES` (one line per active story: id, type, status, title); `PLANS` (one line per active plan, then the first 100 lines of the top one); `SESSION` (id, started, last seen, up to ten top commands, or `store unavailable`/`none`); `BUILD` (`DetectBuildTool`). Sections run in a bounded `errgroup`-free loop with per-section contexts so the budget holds.
 
 ### `collect/sources` — adapters for the palace and the session store
 

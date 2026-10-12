@@ -201,6 +201,7 @@ func (t *Tools) collector(ctx context.Context, root string, opts prime.Options) 
 		ConfigPath:        t.ConfigPath,
 		DaemonPort:        t.cfg.Port,
 		DisabledEnrichers: t.cfg.DisabledEnrichers,
+		EnabledEnrichers:  t.cfg.EnabledEnrichers,
 	}
 	if !opts.NoStore {
 		c.Sessions = sessionsource.New(t.getStore, t.accountID)

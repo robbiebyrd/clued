@@ -113,7 +113,7 @@ A probe called with too few arguments prints `[FALLBACK: <probe> <args>]`.
 ## prime sections
 
 1. **ENV**: `cwd`, `project_path`, `git_origin`, `git_branch`, `account_id` and the `host` line.
-2. **CLUED**: the config path, `daemon: healthy|not running (port N)` and the disabled enrichers.
+2. **CLUED**: the config path, `daemon: healthy|not running (port N)`, the disabled enrichers and the enrichers switched on from config (`none` when empty).
 3. **FILES**: the heads of README.md, SPEC.md, CHANGELOG.md, AGENTS.md and CLAUDE.md (`<name>: no` when absent) and the `docs/plans` and `docs/stories` file counts.
 4. **BRANCH**: `branch (status summary)` and `pr: #number: title` or `none`.
 5. **LOG:<base>**: the last 15 commits of the base branch (the header names the branch; `not a git repo` or `no default branch` otherwise).

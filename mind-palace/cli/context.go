@@ -66,6 +66,7 @@ func (a *App) primeCollector(ctx context.Context, root string, opts prime.Option
 		ConfigPath:        a.sess.configPath,
 		DaemonPort:        cfg.Port,
 		DisabledEnrichers: cfg.DisabledEnrichers,
+		EnabledEnrichers:  cfg.EnabledEnrichers,
 	}
 	var closers []func()
 	if !opts.NoStore {

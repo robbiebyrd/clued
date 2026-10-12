@@ -600,7 +600,7 @@ func TestPrimeContextReturnsTheReport(t *testing.T) {
 		must(t, os.WriteFile(filepath.Join(root, "README.md"), []byte("# Demo\n"), 0o644))
 		seedSession(t, st, account, "sess-here", filepath.ToSlash(root), "")
 		seedBash(t, st, account, "sess-here", "make test", t0)
-		tools := newTools(st, session.Config{Port: 1})
+		tools := newTools(st, session.Config{Port: 1, DisabledEnrichers: []string{"tool-classifier"}, EnabledEnrichers: []string{"privacy-redact"}})
 		tools.ConfigPath = "/tmp/clued.json"
 		cs := connectClient(t, tools.Server(), nil)
 
@@ -612,7 +612,7 @@ func TestPrimeContextReturnsTheReport(t *testing.T) {
 		for _, want := range []string{
 			"=== ENV ===\ncwd: " + filepath.ToSlash(root),
 			"account_id: " + account,
-			"=== CLUED ===\nconfig: /tmp/clued.json\ndaemon: not running (port 1)",
+			"=== CLUED ===\nconfig: /tmp/clued.json\ndaemon: not running (port 1)\ndisabled enrichers: tool-classifier\nenabled enrichers: privacy-redact",
 			"--- README.md ---\n# Demo",
 			"=== BRANCH ===\nnot a git repo",
 			"=== STORIES ===\nno plans dir",

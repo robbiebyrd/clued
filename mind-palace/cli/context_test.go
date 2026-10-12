@@ -433,6 +433,26 @@ func TestContextPrimeSnapshotUsesTheCapturedSessionWithoutEnv(t *testing.T) {
 	}
 }
 
+func TestContextPrimeListsEnabledAndDisabledEnrichers(t *testing.T) {
+	root := gitTree(t)
+	sessionEnv(t, memsession.New())
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(cfgPath, []byte(`{"port":1,"disabledEnrichers":["tool-classifier"],"enabledEnrichers":["privacy-redact"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	app := New()
+	var out bytes.Buffer
+	app.Stdout, app.Stderr = &out, &out
+	cmd := app.Root()
+	cmd.SetArgs([]string{"context", "--config", cfgPath, "--root", root, "prime", "--no-store", "--no-docs"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "disabled enrichers: tool-classifier\nenabled enrichers: privacy-redact") {
+		t.Errorf("CLUED section:\n%s", out.String())
+	}
+}
+
 func TestContextPrimeWithoutDaemonPostsNothingAndStaysQuiet(t *testing.T) {
 	root := gitTree(t)
 	sessionEnv(t, memsession.New())

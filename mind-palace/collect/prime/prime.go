@@ -64,6 +64,7 @@ type Collector struct {
 	ConfigPath        string
 	DaemonPort        int
 	DisabledEnrichers []string
+	EnabledEnrichers  []string // enrichers switched on among those that ship disabled
 
 	Budget time.Duration // zero means DefaultBudget
 }
@@ -207,12 +208,18 @@ func (c *Collector) clued(ctx context.Context) string {
 	} else {
 		lines = append(lines, "daemon: not configured")
 	}
-	disabled := collect.None
-	if len(c.DisabledEnrichers) > 0 {
-		disabled = strings.Join(c.DisabledEnrichers, " ")
-	}
-	lines = append(lines, "disabled enrichers: "+disabled)
+	lines = append(lines,
+		"disabled enrichers: "+namesOrNone(c.DisabledEnrichers),
+		"enabled enrichers: "+namesOrNone(c.EnabledEnrichers),
+	)
 	return strings.Join(lines, "\n")
+}
+
+func namesOrNone(names []string) string {
+	if len(names) == 0 {
+		return collect.None
+	}
+	return strings.Join(names, " ")
 }
 
 // DaemonHealthy reports whether the clued daemon answers GET /health on

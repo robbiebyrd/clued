@@ -139,6 +139,7 @@ func collector(t *testing.T, root string) *Collector {
 		ConfigPath:        "/home/me/.claude/plugins/data/clued/config.json",
 		DaemonPort:        1, // nothing listens on port 1
 		DisabledEnrichers: []string{"privacy-redact"},
+		EnabledEnrichers:  []string{"line-summary", "intent-classifier"},
 		Sessions: &fakeSessions{snap: &SessionSnapshot{
 			SessionID: "sess-9", StartedAt: t0, LastSeen: t0.Add(time.Hour), TopCommands: []string{"go test ./...", "ls"},
 		}},
@@ -206,7 +207,7 @@ func TestCluedSection(t *testing.T) {
 	if !strings.Contains(body, "daemon: not running (port 1)") {
 		t.Errorf("closed port must read not running:\n%s", body)
 	}
-	if !strings.Contains(body, "disabled enrichers: privacy-redact") || !strings.Contains(body, "config: /home/me/.claude/plugins/data/clued/config.json") {
+	if !strings.Contains(body, "disabled enrichers: privacy-redact\nenabled enrichers: line-summary intent-classifier") || !strings.Contains(body, "config: /home/me/.claude/plugins/data/clued/config.json") {
 		t.Errorf("CLUED body:\n%s", body)
 	}
 
@@ -465,7 +466,7 @@ func TestNilProbes(t *testing.T) {
 	if strings.Contains(m["ENV"], "account_id") || strings.Contains(m["ENV"], "host:") {
 		t.Errorf("nil account and host funcs must omit their lines: %s", m["ENV"])
 	}
-	if !strings.Contains(m["CLUED"], "daemon: not configured") {
+	if !strings.Contains(m["CLUED"], "daemon: not configured") || !strings.Contains(m["CLUED"], "disabled enrichers: none\nenabled enrichers: none") {
 		t.Errorf("CLUED = %s", m["CLUED"])
 	}
 }
