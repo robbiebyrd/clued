@@ -45,6 +45,13 @@ func TestPrivacyRedactAPIKey(t *testing.T) {
 	}
 }
 
+func TestPrivacyRedactHyphenatedAPIKey(t *testing.T) {
+	got := privacyRedactOf(t, "ANTHROPIC_API_KEY=sk-ant-api03-Ab1_cD2-eF3gH4iJ5kL6mN7oP8qR9sT0uV done")
+	if !strings.Contains(got, "[REDACTED:api-key] done") || strings.Contains(got, "sk-ant") || strings.Contains(got, "api03") {
+		t.Errorf("hyphenated key not fully redacted: %q", got)
+	}
+}
+
 func TestPrivacyRedactEmail(t *testing.T) {
 	if got := privacyRedactOf(t, "contact me at user@example.com please"); got != "contact me at [REDACTED:email] please" {
 		t.Fatalf("got %q", got)

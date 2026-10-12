@@ -35,7 +35,7 @@ func names(es []Enricher) []string {
 func TestActiveReturnsEnabledEnrichers(t *testing.T) {
 	isolateRegistry(t)
 	Register(named("foo", true))
-	if got := names(Active(nil)); !reflect.DeepEqual(got, []string{"foo"}) {
+	if got := names(Active(nil, nil)); !reflect.DeepEqual(got, []string{"foo"}) {
 		t.Fatalf("Active = %v", got)
 	}
 }
@@ -43,7 +43,7 @@ func TestActiveReturnsEnabledEnrichers(t *testing.T) {
 func TestActiveSkipsDisabledEnrichers(t *testing.T) {
 	isolateRegistry(t)
 	Register(named("bar", false))
-	if got := Active(nil); len(got) != 0 {
+	if got := Active(nil, nil); len(got) != 0 {
 		t.Fatalf("Active = %v, want none", names(got))
 	}
 }
@@ -52,14 +52,14 @@ func TestActiveSkipsNamesInDisabledList(t *testing.T) {
 	isolateRegistry(t)
 	Register(named("baz", true))
 	Register(named("keep", true))
-	if got := names(Active([]string{"baz"})); !reflect.DeepEqual(got, []string{"keep"}) {
+	if got := names(Active([]string{"baz"}, nil)); !reflect.DeepEqual(got, []string{"keep"}) {
 		t.Fatalf("Active = %v", got)
 	}
 }
 
 func TestActiveIsEmptyWithNothingRegistered(t *testing.T) {
 	isolateRegistry(t)
-	if got := Active(nil); len(got) != 0 {
+	if got := Active(nil, nil); len(got) != 0 {
 		t.Fatalf("Active = %v, want empty", names(got))
 	}
 }
@@ -69,12 +69,12 @@ func TestActiveIsSortedByNameAndFresh(t *testing.T) {
 	Register(named("zeta", true))
 	Register(named("alpha", true))
 	Register(named("mid", true))
-	got := Active(nil)
+	got := Active(nil, nil)
 	if want := []string{"alpha", "mid", "zeta"}; !reflect.DeepEqual(names(got), want) {
 		t.Fatalf("Active = %v, want %v", names(got), want)
 	}
 	got[0] = named("clobbered", true)
-	if again := names(Active(nil)); again[0] != "alpha" {
+	if again := names(Active(nil, nil)); again[0] != "alpha" {
 		t.Fatalf("mutating the result changed the registry: %v", again)
 	}
 }
@@ -88,4 +88,17 @@ func TestRegisterPanicsOnDuplicateName(t *testing.T) {
 		}
 	}()
 	Register(named("dup", true))
+}
+
+func TestActiveEnablesNamesInEnabledList(t *testing.T) {
+	isolateRegistry(t)
+	Register(named("off", false))
+	Register(named("on", true))
+	if got := names(Active(nil, []string{"off"})); !reflect.DeepEqual(got, []string{"off", "on"}) {
+		t.Fatalf("Active = %v", got)
+	}
+	// disabled wins over enabled, and unknown names are ignored.
+	if got := names(Active([]string{"off"}, []string{"off", "nope"})); !reflect.DeepEqual(got, []string{"on"}) {
+		t.Fatalf("Active = %v", got)
+	}
 }

@@ -288,7 +288,8 @@ when `MIND_PALACE_TEST_MONGODB_URI` points at a MongoDB.
 `session --config`). Keys: `mongoUrl` (default `mongodb://localhost:27018`),
 `dbName` (`claude_sessions`), `port` (`8085`), `projectsDir`
 (`~/.claude/projects`), `fileHistoryDir` (`~/.claude/file-history`),
-`disabledEnrichers`, `claudeAppConfigPath` and `devRepoPath` (read by the
+`disabledEnrichers`, `enabledEnrichers` (switches on enrichers that ship
+disabled, such as `privacy-redact`), `claudeAppConfigPath` and `devRepoPath` (read by the
 plugin's `bin/clued` shim, not by the binary). The write-ahead log defaults
 to `events.wal` next to the config file and is set only through
 `CLUED_WAL_PATH`, not a config key. Environment variables override the file:
@@ -322,7 +323,7 @@ primary IP and MAC); queries and restores are scoped to the account.
 
 The enrichment loop runs every 5 seconds over the enrichers in
 `session/enrichers` (six on `hook_events`, twelve on `transcript_lines`;
-`privacy-redact` is disabled by default) and stores results under
+`privacy-redact` is off unless listed in `enabledEnrichers`) and stores results under
 `enrichments.<name>`. Documents an enricher does not apply to are marked
 skipped so they leave its queue; transient write failures are retried; a
 panicking enricher is recorded, not fatal. Restore writes only under the

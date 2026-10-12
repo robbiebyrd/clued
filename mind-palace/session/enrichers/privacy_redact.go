@@ -34,7 +34,8 @@ var redactionPatterns = []struct {
 	label string
 	re    *regexp.Regexp
 }{
-	{"api-key", regexp.MustCompile(`\b(sk-[A-Za-z0-9]{20,})\b`)},
+	// Hyphens and underscores are part of real keys (sk-ant-api03-…, sk-proj-…).
+	{"api-key", regexp.MustCompile(`\bsk-[A-Za-z0-9_-]{20,}`)},
 	{"email", regexp.MustCompile(`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b`)},
 	{"aws-key", regexp.MustCompile(`\b(AKIA[0-9A-Z]{16})\b`)},
 	{"jwt", regexp.MustCompile(`\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b`)},
