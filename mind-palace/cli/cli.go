@@ -26,8 +26,8 @@ import (
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 
+	"github.com/robbiebyrd/clued/mind-palace/clientcfg"
 	"github.com/robbiebyrd/clued/mind-palace/config"
-	"github.com/robbiebyrd/clued/mind-palace/events"
 	"github.com/robbiebyrd/clued/mind-palace/kind"
 	"github.com/robbiebyrd/clued/mind-palace/ops"
 	"github.com/robbiebyrd/clued/mind-palace/server"
@@ -81,6 +81,7 @@ type App struct {
 	palace *service.Palace
 	regs   ops.Registries
 	st     *store.MultiStore
+	remote *clientcfg.Remote // the clued server store, in remote mode
 	sess   sessionState
 	ctx    contextState
 }
@@ -200,16 +201,11 @@ func (a *App) init(ctx context.Context) error {
 	if a.storiesDir != "" {
 		cfg.Stories.Dir = a.storiesDir
 	}
-	st, err := store.OpenAll(ctx, cfg)
+	opened, err := a.openPalace(ctx, workingDir(), cfg)
 	if err != nil {
-		return &service.Error{Kind: service.KindStorage, Message: err.Error()}
-	}
-	palace, err := service.NewPalace(cfg, st, events.New())
-	if err != nil {
-		_ = st.Close()
 		return err
 	}
-	a.cfg, a.st, a.palace = cfg, st, palace
+	a.cfg, a.st, a.palace, a.remote = cfg, opened.Store, opened.Palace, opened.Remote
 	return nil
 }
 
