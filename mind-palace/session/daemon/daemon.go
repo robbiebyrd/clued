@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -197,7 +198,11 @@ func (d *Daemon) flushWAL(ctx context.Context) {
 // trackSession starts capturing a session the first time it is seen, and on
 // later events fills in git info once a cwd is known.
 func (d *Daemon) trackSession(sessionID, transcriptPath, cwd string) {
-	if !safePathElement(sessionID) {
+	// Both checks are spelled out here (rather than behind helpers) so the
+	// values that reach the file system are visibly validated at the point of
+	// use: a session id must be a single local path element, and a transcript
+	// must be an absolute path under the projects directory.
+	if !filepath.IsLocal(sessionID) || filepath.Base(sessionID) != sessionID {
 		d.log.Warn("session_id is not a single safe path element; session not tracked", "session_id", sessionID)
 		return
 	}
@@ -220,29 +225,31 @@ func (d *Daemon) trackSession(sessionID, transcriptPath, cwd string) {
 	if transcriptPath == "" {
 		return
 	}
-	if !d.insideProjectsDir(transcriptPath) {
+	// Clean resolves any ".." segments, so a prefix check against the
+	// projects directory is enough to keep the tailed path inside it.
+	path := filepath.Clean(transcriptPath)
+	if !filepath.IsAbs(path) || !strings.HasPrefix(path, projectsPrefix(d.opts.Config.ProjectsDir)) {
 		d.log.Warn("transcript_path is outside the projects directory; not tailed", "session_id", sessionID, "transcript_path", transcriptPath)
 		return
 	}
-	d.stops = append(d.stops, d.tailTranscript(sessionID, transcriptPath))
-	sessionDir := filepath.Join(filepath.Dir(transcriptPath), sessionID)
+	d.stops = append(d.stops, d.tailTranscript(sessionID, path))
+	sessionDir := filepath.Join(filepath.Dir(path), sessionID)
 	fileHistory := filepath.Join(d.opts.Config.FileHistoryDir, sessionID)
 	d.stops = append(d.stops, tail.WatchArtifacts(sessionID, sessionDir, fileHistory, d.opts.AccountID, &d.opts.Host, d.opts.Store, d.opts.Tail))
 }
 
-// safePathElement reports whether id can be joined onto a directory without escaping it.
-func safePathElement(id string) bool {
-	return filepath.IsLocal(id) && filepath.Base(id) == id
-}
-
-// insideProjectsDir reports whether path is an absolute path under Config.ProjectsDir.
-func (d *Daemon) insideProjectsDir(path string) bool {
-	root := d.opts.Config.ProjectsDir
-	if root == "" || !filepath.IsAbs(path) {
-		return false
+// projectsPrefix is the cleaned projects directory with a trailing separator,
+// so that a sibling such as "<root>-evil" does not match. An empty root yields
+// a prefix no absolute path has.
+func projectsPrefix(root string) string {
+	if root == "" {
+		return "\x00"
 	}
-	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(path))
-	return err == nil && filepath.IsLocal(rel)
+	root = filepath.Clean(root)
+	if strings.HasSuffix(root, string(filepath.Separator)) {
+		return root
+	}
+	return root + string(filepath.Separator)
 }
 
 // background runs fn on a tracked goroutine unless the daemon is shutting down.
