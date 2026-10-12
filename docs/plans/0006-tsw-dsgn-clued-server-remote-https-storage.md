@@ -100,7 +100,7 @@ progress:
 - **The client runs no daemon in remote mode. Hook events are relayed by a new short-lived `mind-palace hook relay` subcommand that also pushes the transcript and artifact delta since the previous hook, keeping its offset in a small state file.** — Hooks fire on every tool use, prompt and stop, so a per-hook catch-up delivers transcript lines within one hook of being written, which is enough for a persistence store. It removes the listening port, the restart-on-rebuild dance in `session-start` and the `ErrAddrInUse` race. The daemon stays as the local-MongoDB mode; the ingest bookkeeping is extracted into one package both modes share.
 - **Plans and stories keep the file store as the primary and add the server as a secondary store through the existing `MultiStore` fan-out; sessions have no local copy in remote mode, only the WAL as an outage buffer.** — The request keeps local plans and stories, and `MultiStore` already provides fan-out, `FanoutError` and `mind-palace sync` for reconciliation. Sessions have no local store today other than MongoDB, and the WAL already covers unreachable stores.
 - **The local stdio MCP servers in `.mcp.json` stay; in remote mode they are backed by the remote adapters and spawn no other process. The server additionally serves `/mcp` over HTTPS for clients that want zero local processes.** — `restore_session` writes files to the local disk and `prime_context` runs local fs, git, gh and env probes; neither can run on the server. A stdio MCP process is spawned and owned by Claude Code for the life of one session, not a daemon the user manages. The plugin manifest cannot be switched per machine, so the tool set must be identical in both modes. The remote `/mcp` endpoint carries the subset that needs no local disk (`find_sessions`, `get_session_context`, `get_full_session`, `search_commands`, `read_transcript`, all `plan_*` and `story_*`) and is registered per user with `claude mcp add --transport http`.
-- **Authentication is a bearer token minted on the server (`mind-palace server token create`), stored hashed on the server and bound to an account id; the server stamps that account id on every write and scopes every read by it, ignoring any account id the client sends.** — Today isolation rests on `lastKnownAccountUuid`, a value the client chooses. Binding the account to the token moves isolation to the server. SHA-256 of a 32-byte random token, compared in constant time, needs no password hashing library and no database table; a 0600 JSON file the CLI edits is enough for a single-operator server.
+- **Authentication is a bearer token minted on the server (`mind-palace server token create`), stored hashed on the server and bound to an account id and a list of allowed projects; the server stamps that account id on every write, scopes every read by it, ignores any account id the client sends, and answers 403 for a project outside the token's list.** — Today isolation rests on `lastKnownAccountUuid`, a value the client chooses. Binding the account to the token moves isolation to the server, and the project list means a token leaked from one machine cannot read or write another repository's plans and stories. SHA-256 of a 32-byte random token, compared in constant time, needs no password hashing library and no database table; a 0600 JSON file the CLI edits is enough for a single-operator server. (Decided by Robbie, 2026-10-12: account plus project list.)
 - **TLS is terminated by the server itself from a certificate and key file (`--tls-cert`, `--tls-key`); plain HTTP is accepted only on a loopback address or with `--behind-proxy`. The client refuses a plain `http://` server URL unless it is loopback or `serverInsecure` is set, and accepts a private CA through `serverCaFile`.** — Certificate and key files cover both Let's Encrypt (certbot, acme.sh) and private CAs without adding an ACME dependency or an HTTP-01 listener. `--behind-proxy` covers Caddy, nginx and cloud load balancers that terminate TLS. Refusing plain HTTP on the client stops a mistyped scheme from sending transcripts in clear.
 - **Plans and stories on the server are namespaced by project, derived from the normalized git origin (`github.com/robbiebyrd/clued`) with a per-repository override in `mind-palace.config.yaml`; the server opens one store per project by stamping the project into the plugin-specific prefix option (`collection` for Mongo, `tablePrefix` for SQL, `dir` for file).** — Plan ids are per repository (`0001-v1i` exists in every repository), so a shared server needs a namespace. Deriving it from the origin needs no new config on the common path, and the existing prefix options give per-project isolation without changing `store.Store` or the plugins.
 - **Enrichment runs on the server (`enrich.Loop` inside `mind-palace server`), not on the client.** — Enrichers are store-side passes over `Unenriched` documents and need a long-lived process, which only the server has in remote mode. The client keeps no enricher state.
@@ -124,7 +124,7 @@ progress:
 
 ### `server/auth` (tokens and principals)
 
-Token file `tokens.json` (0600) with `{"tokens": [{"name", "hash", "account_id", "created", "revoked"?}]}`; `hash` is hex SHA-256 of the raw token. `auth.Middleware(source)` reads `Authorization: Bearer <token>`, compares in constant time, and puts `auth.Principal{Name, AccountID}` on the request context; failure is `401` with `WWW-Authenticate: Bearer`. The file is re-read when its mtime changes, so revocation needs no restart. `mind-palace server token create --name <n> [--account <id>]` prints the raw token once (account defaults to a new UUID; `--account` lets several machines share one account); `token list` and `token revoke <name>` edit the file. `GET /api/v1/whoami` returns the principal and the server version, which `/clued-setup` and `check-setup` use as the connectivity probe.
+Token file `tokens.json` (0600) with `{"tokens": [{"name", "hash", "account_id", "projects", "created", "revoked"?}]}`; `hash` is hex SHA-256 of the raw token and `projects` is the list of project slugs the token may use (`["*"]` for every project). `auth.Middleware(source)` reads `Authorization: Bearer <token>`, compares in constant time, and puts `auth.Principal{Name, AccountID, Projects}` on the request context; failure is `401` with `WWW-Authenticate: Bearer`. `auth.AllowProject(principal, slug)` is called by `storeapi`, the service API, `/ws` and `/mcp` before any project-scoped work and answers `403 forbidden` otherwise; the session routes carry no project and are scoped by account alone. The file is re-read when its mtime changes, so revocation and project changes need no restart. `mind-palace server token create --name <n> --project <slug>... [--account <id>]` prints the raw token once (account defaults to a new UUID; `--account` lets several machines share one account; `--project '*'` grants every project); `token list`, `token revoke <name>` and `token grant <name> --project <slug>` edit the file. `GET /api/v1/whoami` returns the principal with its projects and the server version, which `/clued-setup` and `check-setup` use as the connectivity probe; `check-setup` also warns when the current repository's project is not in the list.
 
 ### `server/sessionapi` (session.Store over HTTP)
 
@@ -170,7 +170,7 @@ Reads the hook JSON from stdin, loads `config.json`, builds the remote store, ru
 
 ### `server/storeapi` and `server/projects` (store.Store over HTTP, per project)
 
-`storeapi.Handler(open func(project string) (store.Store, error))` serves the port under `/api/v1/projects/{project}/store/`: `GET /{kind}` (List), `GET|PUT|DELETE /{kind}/{id}` (Get, Put, Delete), `GET|PUT|DELETE /{kind}/templates[/{id}]`. `project` is a slug (`[a-z0-9._-]+`, `/` encoded as `__`), validated inline before use. `projects.Opener` opens one store per project from the server's storage definitions by copying each enabled `StorageDef` and setting its prefix option from the project (`collection: <project>_` for mongo, `tablePrefix: <project>_` for sql, `dir: <root>/<project>` for file), wrapping them in `store.NewMulti` and caching the result; `config.Validate` gains `AllowNoFileStore` so a server may run on a database alone.
+`storeapi.Handler(open func(project string) (store.Store, error))` serves the port under `/api/v1/projects/{project}/store/`: `GET /{kind}` (List), `GET|PUT|DELETE /{kind}/{id}` (Get, Put, Delete), `GET|PUT|DELETE /{kind}/templates[/{id}]`. `project` is a slug (`[a-z0-9._-]+`, `/` encoded as `__`), validated inline before use and checked against the principal's project list with `auth.AllowProject`. `projects.Opener` opens one store per project from the server's storage definitions by copying each enabled `StorageDef` and setting its prefix option from the project (`collection: <project>_` for mongo, `tablePrefix: <project>_` for sql, `dir: <root>/<project>` for file), wrapping them in `store.NewMulti` and caching the result; `config.Validate` gains `AllowNoFileStore` so a server may run on a database alone.
 
 ### `store/remotestore` (client driver `clued`)
 
@@ -208,7 +208,7 @@ Registered in `init()` as driver `clued`; options `url`, `token` and `project` a
 
 ## Considerations
 
-- **Security:** Transcripts, tool results and file-history blobs leave the machine, so the transport is HTTPS only (plain HTTP refused off loopback on both sides) and the token is the only credential on the client, held in `config.json` at 0600 and never logged. Tokens are 32 random bytes, stored as SHA-256 on the server, compared in constant time, revocable without restart. The server stamps the account from the token and ignores client-supplied `account_id`, so one token cannot read another's sessions; reads of enrichment internals are not exposed. Request bodies are capped (16 MiB) and headers limited; `ReadHeaderTimeout` guards slowloris. Project slugs and every path derived from requests are validated inline (`filepath.IsLocal`) before use, as the write guard does. The WebSocket keeps its origin check behind auth. The `privacy-redact` enricher runs on the server after ingest, so redaction does not prevent transmission; a client-side redaction pass before upload is an open question below. Docker image runs as a non-root user with the token file and certificates mounted read-only.
+- **Security:** Transcripts, tool results and file-history blobs leave the machine, so the transport is HTTPS only (plain HTTP refused off loopback on both sides) and the token is the only credential on the client, held in `config.json` at 0600 and never logged. Tokens are 32 random bytes, stored as SHA-256 on the server, compared in constant time, revocable without restart. The server stamps the account from the token and ignores client-supplied `account_id`, so one token cannot read another's sessions; reads of enrichment internals are not exposed. Request bodies are capped (16 MiB) and headers limited; `ReadHeaderTimeout` guards slowloris. Project slugs and every path derived from requests are validated inline (`filepath.IsLocal`) before use, as the write guard does. The WebSocket keeps its origin check behind auth. The `privacy-redact` enricher runs on the server after ingest, so redaction does not prevent transmission; this is accepted (Robbie, 2026-10-12): the transport is TLS end to end and the server is the operator's own, so a client-side pass is not built and the relay stays stateless. Docker image runs as a non-root user with the token file and certificates mounted read-only.
 - **Performance:** Each hook now costs one process start (bash shim plus the Go binary, tens of milliseconds) and one HTTPS connection with a fresh handshake, since no connection outlives the hook; hooks are async so Claude does not wait. Catch-up reads only the byte delta of the transcript and stats only the session's artifact files, so a hook on a long session costs the same as on a short one; lines go in batches of 500 and blobs are sent only when size or mtime changed. The server keeps the existing MongoDB indexes (`account_id`, `{session_id, seq}`) and runs enrichment where the data is. `FindSessions` and `FullSession` are the same single round trips the MongoDB adapter makes today, so the MCP tools see one HTTPS request per call plus the handshake. The per-project store cache on the server avoids reopening databases per request.
 
 ## Testing
@@ -235,17 +235,18 @@ Registered in `init()` as driver `clued`; options `url`, `token` and `project` a
 
 - A SQL or SQLite session store so the server can run without MongoDB — Server-side storage is the server's own business and `mongosession` exists; a single-binary server with SQLite is a follow-up plan once the protocol is in place.
 - ACME certificate issuance inside the server — Certificate files and `--behind-proxy` cover the deployments at hand without a new dependency.
-- Multi-user administration (web UI, OAuth, per-project token scopes) — One operator mints tokens from the CLI; project scopes are an open question and can be added to the token file without a protocol change.
+- Multi-user administration (web UI, OAuth, self-service tokens) — One operator mints tokens from the CLI; per-project token scopes are in scope (see the auth decision), the rest is not.
+- Client-side redaction before upload — Decided against: redaction stays a server-side enricher, the transport is TLS and the server is the operator's own.
 - Real-time push from server to client (SSE or WebSocket subscriptions on sessions) — Clients are hook-driven and short-lived; nothing on the client listens.
 - Removing the local-MongoDB mode and the daemon — They keep working unchanged and remain the zero-server option for a single machine.
 - Rate limiting and quotas — Single-operator service behind a reverse proxy where limits belong if needed.
 
 ## Open Questions
 
-- [ ] Should a token be restricted to a list of projects, or is per-account scoping enough for the first release? — Robbie
-- [ ] Should `hook relay` run the `privacy-redact` enricher on the client before upload, so redaction happens before transmission rather than after ingest on the server? — Robbie
-- [ ] Is `X-Clued-Project` the right way to select the project on the HTTPS `/mcp` endpoint, or should one MCP registration per project be the documented pattern? — Robbie
-- [ ] Should the Docker image be published by `release.yml` on `v*` tags (needs a registry and credentials), or only built locally from `Dockerfile.server` for now? — Robbie
+- [x] Should a token be restricted to a list of projects, or is per-account scoping enough for the first release? — Robbie, 2026-10-12: account plus project list. Folded into the auth decision, `server/auth`, `storeapi` and sections 1.2, 3.1 and 4.2.
+- [x] Should `hook relay` run the `privacy-redact` enricher on the client before upload? — Robbie, 2026-10-12: server-side only. Recorded under Considerations and Out of scope.
+- [x] Is `X-Clued-Project` the right way to select the project on the HTTPS `/mcp` endpoint? — Robbie, 2026-10-12: yes, one registration per server with the header; `docs/server.md` documents it as the pattern.
+- [x] Should the Docker image be published by `release.yml` on `v*` tags? — Robbie, 2026-10-12: publish to GHCR as `ghcr.io/robbiebyrd/clued-server:<tag>` with the workflow's `GITHUB_TOKEN`. Folded into section 4.3.
 
 ---
 
@@ -332,7 +333,7 @@ Registered in `init()` as driver `clued`; options `url`, `token` and `project` a
 **Interfaces:**
 - Produces: `auth.Middleware`, `auth.Principal`, `auth.FromContext`, `auth.TokenFile` (`Create`, `List`, `Revoke`, `Lookup`), `auth.WhoamiHandler`
 
-- [ ] **Step 1: Write failing tests** — token file round trip at 0600, SHA-256 hash, constant-time lookup, revoked token → 401, mtime reload, missing or malformed header → 401 with `WWW-Authenticate`, `whoami` body
+- [ ] **Step 1: Write failing tests** — token file round trip at 0600, SHA-256 hash, constant-time lookup, revoked token → 401, mtime reload, missing or malformed header → 401 with `WWW-Authenticate`, `whoami` body with projects, `AllowProject` for a listed slug, an unlisted slug and `*`, `token grant` adds a project
 - [ ] **Step 2: Confirm they fail** — `cd mind-palace && go test ./server/auth/`
 - [ ] **Step 3: Implement the token file and middleware**
 - [ ] **Step 4: Confirm green** — `cd mind-palace && go test -race ./server/auth/`
@@ -490,7 +491,7 @@ Registered in `init()` as driver `clued`; options `url`, `token` and `project` a
 - Consumes: `store.Store`, `config.StorageDef`, `store.Open`
 - Produces: `storeapi.Handler(open)`, `projects.Opener`, `projects.Slug(origin)`, `config.Validate(cfg, config.AllowNoFileStore)`
 
-- [ ] **Step 1: Write failing tests** — slug validation (reject `..`, `/`, empty), prefix stamping for file, sql and mongo definitions, cache returns the same store, `storeapi` routes against `memstore` incl. 404 and templates, `Validate` with no file store allowed only under the option
+- [ ] **Step 1: Write failing tests** — slug validation (reject `..`, `/`, empty), prefix stamping for file, sql and mongo definitions, cache returns the same store, `storeapi` routes against `memstore` incl. 404 and templates, 403 for a project outside the token's list, `Validate` with no file store allowed only under the option
 - [ ] **Step 2: Confirm they fail** — `cd mind-palace && go test ./server/storeapi/ ./server/projects/ ./config/`
 - [ ] **Step 3: Implement**
 - [ ] **Step 4: Confirm green** — `cd mind-palace && go test -race ./server/storeapi/ ./server/projects/ ./config/`
@@ -584,7 +585,7 @@ Registered in `init()` as driver `clued`; options `url`, `token` and `project` a
 **Interfaces:**
 - Produces: `server.Options.Resolve func(*http.Request) (*service.Palace, error)` (project from `X-Clued-Project` or `?project=`); `/mcp` serves plan, story and the disk-free session tools under auth; `sessionmcp.Tools.Subset(remote bool)`
 
-- [ ] **Step 1: Write failing tests** — two projects see different plans through `/api/v1/plans`, `/ws` and `/mcp`; missing project → 400; MCP over HTTPS lists no `restore_session` or `prime_context`; `mind-palace serve` (local) still works with a fixed palace
+- [ ] **Step 1: Write failing tests** — two projects see different plans through `/api/v1/plans`, `/ws` and `/mcp`; missing project → 400; a project outside the token's list → 403 on all three; MCP over HTTPS lists no `restore_session` or `prime_context`; `mind-palace serve` (local) still works with a fixed palace
 - [ ] **Step 2: Confirm they fail** — `cd mind-palace && go test ./server/... ./session/sessionmcp/`
 - [ ] **Step 3: Implement the resolver and the subset**
 - [ ] **Step 4: Confirm green** — `cd mind-palace && go test -race ./server/... ./session/sessionmcp/`
@@ -600,12 +601,13 @@ Registered in `init()` as driver `clued`; options `url`, `token` and `project` a
 - Create: `docker-compose.server.yml`
 - Create: `docs/server.md`
 - Modify: `.github/workflows/ci.yml`
+- Modify: `.github/workflows/release.yml`
 
 **Depends on:** 4.2, 2.4
 
 - [ ] **Step 1: Write the end-to-end test** — in-process `server run --store memory` with a token file; `hook relay` with a synthetic event and a temp transcript; assert through `sessionmcp` over `remotesession` and `plan_create` through the two-store palace; stop and restart the server, run `sync`
 - [ ] **Step 2: Confirm it fails, then passes** — `cd mind-palace && go test -race -run Remote ./cli/`
-- [ ] **Step 3: Add the Docker image and compose file** — multi-stage build from `mind-palace/`, non-root user, `tokens.json` and certificates as read-only mounts, `mongo:8` service, `CLUED_SERVER_*` env; CI builds the image without pushing
+- [ ] **Step 3: Add the Docker image and compose file** — multi-stage build from `mind-palace/`, non-root user, `tokens.json` and certificates as read-only mounts, `mongo:8` service, `CLUED_SERVER_*` env; CI builds the image without pushing, and `.github/workflows/release.yml` pushes `ghcr.io/robbiebyrd/clued-server:<tag>` and `:latest` on `v*` tags with the workflow's `GITHUB_TOKEN` (`packages: write` permission), so `docker-compose.server.yml` pulls the published image by default
 - [ ] **Step 4: Write `docs/server.md`** — binary and Docker setups, token management, TLS and reverse-proxy, client config, `claude mcp add --transport http`, `sync` after outages
 - [ ] **Step 5: Commit** — `git commit -am "Package and document the clued server"`
 
@@ -671,6 +673,5 @@ Registered in `init()` as driver `clued`; options `url`, `token` and `project` a
 
 ## Next Steps
 
-1. Robbie answers the open questions (token project scopes, client-side redaction, MCP project selection, image publishing)
-2. Create one story per section with `story_create` and link it with `story_addPlanLink`, starting with 1.1 to 1.4
-3. Set the plan to `validated` then `ready` with `plan_setStatus` and start phase 1 on a branch from `main`
+1. Create one story per section with `story_create` and link it with `story_addPlanLink`, starting with 1.1 to 1.4
+2. Set the plan to `validated` then `ready` with `plan_setStatus` and start phase 1 on a branch from `main`
