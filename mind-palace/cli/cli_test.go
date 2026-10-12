@@ -105,6 +105,52 @@ func TestCLIFlow(t *testing.T) {
 	if r.code != 6 {
 		t.Errorf("immutable exit code: %+v", r)
 	}
+	r = exec(t, dir, "plan", "set-tags", id, "feature, security,feature")
+	if fm := result(t, r)["frontMatter"].(map[string]any); r.code != 0 || len(fm["tags"].([]any)) != 2 {
+		t.Errorf("set-tags: %+v", r)
+	}
+	if r = exec(t, dir, "plan", "add-tag", id, "docs"); r.code != 0 {
+		t.Errorf("add-tag: %+v", r)
+	}
+	if r = exec(t, dir, "plan", "remove-tag", id, "feature"); r.code != 0 {
+		t.Errorf("remove-tag: %+v", r)
+	}
+	r = exec(t, dir, "plan", "set-milestone", id, "milestone_beta")
+	if r.code != 0 || result(t, r)["frontMatter"].(map[string]any)["milestone"] != "milestone_beta" {
+		t.Errorf("set-milestone: %+v", r)
+	}
+	r = exec(t, dir, "plan", "set-due-date", id, "2026-03-01")
+	if r.code != 0 || result(t, r)["frontMatter"].(map[string]any)["due_date"] != "2026-03-01" {
+		t.Errorf("set-due-date: %+v", r)
+	}
+	if r = exec(t, dir, "plan", "set-due-date", id, "soon"); r.code != 2 {
+		t.Errorf("bad due date exit code: %+v", r)
+	}
+	r = exec(t, dir, "plan", "set-planned", id, "--start", "2026-02-01", "--end", "2026-02-28")
+	if r.code != 0 || result(t, r)["frontMatter"].(map[string]any)["planned_end"] != "2026-02-28" {
+		t.Errorf("set-planned: %+v", r)
+	}
+	if r = exec(t, dir, "plan", "set-planned", id, "--start", "2026-02-28", "--end", "2026-02-01"); r.code != 2 {
+		t.Errorf("end before start exit code: %+v", r)
+	}
+	r = exec(t, dir, "plan", "set-order", id, "4")
+	if r.code != 0 || result(t, r)["frontMatter"].(map[string]any)["order"] != float64(4) {
+		t.Errorf("set-order: %+v", r)
+	}
+	if r = exec(t, dir, "plan", "set-order", id, "x"); r.code != 2 {
+		t.Errorf("bad order exit code: %+v", r)
+	}
+	r = exec(t, dir, "plan", "patch", id, "--tags", "", "--order", "0", "--milestone", "m2")
+	if fm := result(t, r)["frontMatter"].(map[string]any); r.code != 0 || len(fm["tags"].([]any)) != 0 || fm["order"] != float64(0) || fm["milestone"] != "m2" {
+		t.Errorf("patch planning fields: %+v", r)
+	}
+	r = exec(t, dir, "plan", "list", "--milestone", "m2", "--compact")
+	if r.code != 0 || strings.Count(r.stdout, "\n") != 1 || !strings.Contains(r.stdout, id) {
+		t.Errorf("list by milestone: %+v", r)
+	}
+	if r = exec(t, dir, "plan", "set-assignee", id, "github:octocat"); r.code == 0 {
+		t.Errorf("plans must not have set-assignee: %+v", r)
+	}
 	r = exec(t, dir, "plan", "set-progress", id, "4.4", "done")
 	if r.code != 7 {
 		t.Errorf("unknown section exit code: %+v", r)
@@ -226,6 +272,21 @@ func TestStoryCommandsAndKindBinaries(t *testing.T) {
 	}
 	if r = exec(t, dir, "story", "set-progress", id, "9", "done"); r.code != 12 {
 		t.Errorf("unknown step exit code: %+v", r)
+	}
+	r = exec(t, dir, "story", "set-assignee", id, "github:octocat")
+	if r.code != 0 || result(t, r)["frontMatter"].(map[string]any)["assignee"] != "github:octocat" {
+		t.Errorf("set-assignee: %+v", r)
+	}
+	r = exec(t, dir, "story", "list", "--assignee", "github:octocat", "--compact")
+	if r.code != 0 || !strings.Contains(r.stdout, id) {
+		t.Errorf("list by assignee: %+v", r)
+	}
+	r = exec(t, dir, "story", "patch", id, "--assignee", "github:hubot", "--tags", "bug,urgent")
+	if fm := result(t, r)["frontMatter"].(map[string]any); r.code != 0 || fm["assignee"] != "github:hubot" || len(fm["tags"].([]any)) != 2 {
+		t.Errorf("patch assignee and tags: %+v", r)
+	}
+	if r = exec(t, dir, "story", "set-assignee", id); r.code != 0 || result(t, r)["frontMatter"].(map[string]any)["assignee"] != nil {
+		t.Errorf("clear assignee: %+v", r)
 	}
 	if r = exec(t, dir, "story", "check", id, "5"); r.code != 13 {
 		t.Errorf("unknown criterion exit code: %+v", r)

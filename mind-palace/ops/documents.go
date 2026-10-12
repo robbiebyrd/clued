@@ -30,6 +30,9 @@ type ListParams struct {
 	Priority        string `json:"priority,omitempty" jsonschema:"Keep documents with this priority (number or label)"`
 	Plan            string `json:"plan,omitempty" jsonschema:"Keep documents linked to this plan id"`
 	Story           string `json:"story,omitempty" jsonschema:"Keep documents linked to this story id"`
+	Tag             string `json:"tag,omitempty" jsonschema:"Keep documents carrying this tag"`
+	Milestone       string `json:"milestone,omitempty" jsonschema:"Keep documents in this milestone"`
+	Assignee        string `json:"assignee,omitempty" jsonschema:"Keep documents assigned to this provider:handle (stories)"`
 	IncludeArchived bool   `json:"includeArchived,omitempty" jsonschema:"Include archived documents (hidden by default unless status filters for them)"`
 }
 
@@ -84,9 +87,45 @@ type SetEffortParams struct {
 	Effort   string `json:"effort" jsonschema:"Effort size (XS–XL), label (Medium) or points (5)"`
 }
 
+type SetTagsParams struct {
+	Document string   `json:"document" jsonschema:"Document identifier"`
+	Tags     []string `json:"tags" jsonschema:"The complete tag list (empty clears); duplicates are dropped"`
+}
+
+type TagParams struct {
+	Document string `json:"document" jsonschema:"Document identifier"`
+	Tag      string `json:"tag" jsonschema:"One tag (no whitespace)"`
+}
+
+type SetMilestoneParams struct {
+	Document  string `json:"document" jsonschema:"Document identifier"`
+	Milestone string `json:"milestone" jsonschema:"Milestone name (empty clears)"`
+}
+
+type SetDueDateParams struct {
+	Document string `json:"document" jsonschema:"Document identifier"`
+	Date     string `json:"date" jsonschema:"Calendar date YYYY-MM-DD (a timestamp keeps its UTC day; empty clears)"`
+}
+
+type SetPlannedDatesParams struct {
+	Document string `json:"document" jsonschema:"Document identifier"`
+	Start    string `json:"start,omitempty" jsonschema:"planned_start as YYYY-MM-DD (empty clears)"`
+	End      string `json:"end,omitempty" jsonschema:"planned_end as YYYY-MM-DD, not before start (empty clears)"`
+}
+
+type SetOrderParams struct {
+	Document string `json:"document" jsonschema:"Document identifier"`
+	Order    int    `json:"order" jsonschema:"Sort position (lower first; 0 is the default)"`
+}
+
+type SetAssigneeParams struct {
+	Document string `json:"document" jsonschema:"Document identifier"`
+	Assignee string `json:"assignee" jsonschema:"Owner as provider:handle, e.g. github:octocat (empty clears)"`
+}
+
 type PatchParams struct {
 	Document string         `json:"document" jsonschema:"Document identifier"`
-	Patch    map[string]any `json:"patch" jsonschema:"Fields to set: title, purpose (stories), type, status, priority, effort (null clears), links (merged per kind: repo, specs, web, stories, plans; a kind set to null is cleared, kinds left out are kept), plans (shorthand for links.plans), progress. Managed fields (id, created, updated, started, completed) are rejected."`
+	Patch    map[string]any `json:"patch" jsonschema:"Fields to set: title, purpose (stories), type, status, priority, effort (null clears), tags (list; null clears), milestone, due_date, planned_start, planned_end (YYYY-MM-DD; empty clears), order (integer), assignee (stories; empty clears), links (merged per kind: repo, specs, web, stories, plans; a kind set to null is cleared, kinds left out are kept), plans (shorthand for links.plans), progress. Managed fields (id, created, updated, started, completed) are rejected."`
 	Force    bool           `json:"force,omitempty" jsonschema:"Skip the workflow check for status"`
 }
 
@@ -209,7 +248,7 @@ func For(k *kind.Kind) *Registry {
 		})
 	Register(r, &Op{Name: "list", Group: "documents", ReadOnly: true, Description: fmt.Sprintf("List %ss (path and front matter), optionally filtered by type, status, priority, or a linked plan or story.", T)},
 		func(ctx context.Context, svc *service.Service, p ListParams) (any, error) {
-			return svc.List(ctx, service.ListFilter{Type: p.Type, Status: p.Status, Priority: p.Priority, Plan: p.Plan, Story: p.Story, IncludeArchived: p.IncludeArchived})
+			return svc.List(ctx, service.ListFilter{Type: p.Type, Status: p.Status, Priority: p.Priority, Plan: p.Plan, Story: p.Story, Tag: p.Tag, Milestone: p.Milestone, Assignee: p.Assignee, IncludeArchived: p.IncludeArchived})
 		})
 	updateDesc := fmt.Sprintf("Replace a %s's content. Front matter is unchanged apart from updated.", T)
 	if k.StrictProgressOnUpdate {
@@ -300,6 +339,40 @@ func For(k *kind.Kind) *Registry {
 		func(ctx context.Context, svc *service.Service, p DocParams) (any, error) {
 			return svc.ClearEffort(ctx, p.Document)
 		})
+	Register(r, &Op{Name: "setTags", Group: "fields", Description: "Replace the tag list (an empty list clears it). Tags are trimmed and de-duplicated."},
+		func(ctx context.Context, svc *service.Service, p SetTagsParams) (any, error) {
+			return svc.SetTags(ctx, p.Document, p.Tags)
+		})
+	Register(r, &Op{Name: "addTag", Group: "fields", Description: "Add one tag (ignored when already present)."},
+		func(ctx context.Context, svc *service.Service, p TagParams) (any, error) {
+			return svc.AddTag(ctx, p.Document, p.Tag)
+		})
+	Register(r, &Op{Name: "removeTag", Group: "fields", Description: "Remove one tag (ignored when absent)."},
+		func(ctx context.Context, svc *service.Service, p TagParams) (any, error) {
+			return svc.RemoveTag(ctx, p.Document, p.Tag)
+		})
+	Register(r, &Op{Name: "setMilestone", Group: "fields", Description: "Set the milestone (empty clears it)."},
+		func(ctx context.Context, svc *service.Service, p SetMilestoneParams) (any, error) {
+			return svc.SetMilestone(ctx, p.Document, p.Milestone)
+		})
+	Register(r, &Op{Name: "setDueDate", Group: "fields", Description: "Set due_date to a calendar date (empty clears it)."},
+		func(ctx context.Context, svc *service.Service, p SetDueDateParams) (any, error) {
+			return svc.SetDueDate(ctx, p.Document, p.Date)
+		})
+	Register(r, &Op{Name: "setPlannedDates", Group: "fields", Description: "Set planned_start and planned_end together (an empty value clears that date; the end may not be before the start)."},
+		func(ctx context.Context, svc *service.Service, p SetPlannedDatesParams) (any, error) {
+			return svc.SetPlannedDates(ctx, p.Document, p.Start, p.End)
+		})
+	Register(r, &Op{Name: "setOrder", Group: "fields", Description: fmt.Sprintf("Set the sort position of the %s (lower first).", T)},
+		func(ctx context.Context, svc *service.Service, p SetOrderParams) (any, error) {
+			return svc.SetOrder(ctx, p.Document, p.Order)
+		})
+	if k.HasAssignee {
+		Register(r, &Op{Name: "setAssignee", Group: "fields", Description: "Set the assignee as provider:handle, e.g. github:octocat (empty clears it)."},
+			func(ctx context.Context, svc *service.Service, p SetAssigneeParams) (any, error) {
+				return svc.SetAssignee(ctx, p.Document, p.Assignee)
+			})
+	}
 	Register(r, &Op{Name: "patchFrontMatter", Group: "fields", Description: "Set several front matter fields in one write, following the same rules as the individual setters. Changes to managed fields (" + joinWords(k.Immutable) + ") are rejected."},
 		func(ctx context.Context, svc *service.Service, p PatchParams) (any, error) {
 			return svc.PatchFrontMatter(ctx, p.Document, p.Patch, p.Force)

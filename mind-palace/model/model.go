@@ -85,14 +85,31 @@ type FrontMatter struct {
 	Started string `yaml:"started,omitempty" json:"started,omitempty"`
 	// Completed is omitted until the document first reaches complete; it is
 	// never written as an empty string.
-	Completed string   `yaml:"completed,omitempty" json:"completed,omitempty"`
-	Links     *Links   `yaml:"links,omitempty" json:"links,omitempty"`
-	Progress  Progress `yaml:"progress,omitempty" json:"progress,omitempty"`
+	Completed string `yaml:"completed,omitempty" json:"completed,omitempty"`
+	// Tags are free-form labels; Milestone groups documents that ship
+	// together; Order sorts documents inside a milestone or list. Both kinds
+	// always write them (an empty list, string or 0 when unset).
+	Tags      []string `yaml:"tags" json:"tags"`
+	Milestone string   `yaml:"milestone" json:"milestone"`
+	// DueDate, PlannedStart and PlannedEnd are calendar dates (YYYY-MM-DD)
+	// or empty.
+	DueDate      string `yaml:"due_date" json:"due_date"`
+	PlannedStart string `yaml:"planned_start" json:"planned_start"`
+	PlannedEnd   string `yaml:"planned_end" json:"planned_end"`
+	Order        int    `yaml:"order" json:"order"`
+	// Assignee names who owns the work as provider:handle (github:octocat);
+	// kinds without one omit it.
+	Assignee string   `yaml:"assignee,omitempty" json:"assignee,omitempty"`
+	Links    *Links   `yaml:"links,omitempty" json:"links,omitempty"`
+	Progress Progress `yaml:"progress,omitempty" json:"progress,omitempty"`
 }
 
 // Clone returns a deep copy.
 func (f FrontMatter) Clone() FrontMatter {
 	c := f
+	if f.Tags != nil {
+		c.Tags = append([]string(nil), f.Tags...)
+	}
 	if f.Links != nil {
 		c.Links = f.Links.Clone()
 	}
@@ -531,6 +548,44 @@ func NormalizeTimestamp(s string) (string, error) {
 		}
 	}
 	return s, fmt.Errorf("unrecognised timestamp %q", s)
+}
+
+// DateLayout is the calendar date layout of due_date, planned_start and
+// planned_end.
+const DateLayout = "2006-01-02"
+
+// NormalizeDate converts a date in any accepted timestamp form (see
+// NormalizeTimestamp) or a bare YYYY-MM-DD into the DateLayout; a timestamp
+// contributes its UTC calendar day. Unparsable input is returned unchanged
+// with an error so schema validation can report it.
+func NormalizeDate(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "", nil
+	}
+	ts, err := NormalizeTimestamp(s)
+	if err != nil {
+		return s, fmt.Errorf("unrecognised date %q (want YYYY-MM-DD)", s)
+	}
+	t, err := time.Parse(TimestampLayout, ts)
+	if err != nil {
+		return s, fmt.Errorf("unrecognised date %q (want YYYY-MM-DD)", s)
+	}
+	return t.Format(DateLayout), nil
+}
+
+// NormalizeDates rewrites due_date, planned_start and planned_end into the
+// DateLayout where they parse, leaving unparsable values for validation, and
+// makes tags an empty list rather than nil so every document carries the key.
+func (f *FrontMatter) NormalizeDates() {
+	for _, p := range []*string{&f.DueDate, &f.PlannedStart, &f.PlannedEnd} {
+		if n, err := NormalizeDate(*p); err == nil {
+			*p = n
+		}
+	}
+	if f.Tags == nil {
+		f.Tags = []string{}
+	}
 }
 
 // NormalizeTimestamps rewrites created, updated, started and completed into

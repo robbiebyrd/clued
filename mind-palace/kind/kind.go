@@ -50,6 +50,8 @@ type Kind struct {
 	PlanLinkSections bool
 	// HasPurpose allows the `purpose` front matter field.
 	HasPurpose bool
+	// HasAssignee allows the `assignee` front matter field.
+	HasAssignee bool
 	// TracksStarted records `started` when the document enters in_progress.
 	TracksStarted bool
 	// CriteriaGate refuses a move to complete while acceptance criteria are open.
@@ -97,6 +99,7 @@ var (
 		StoryRelations:          []string{"parent", "included", "depends", "blocks"},
 		PlanLinkSections:        true,
 		HasPurpose:              true,
+		HasAssignee:             true,
 		TracksStarted:           true,
 		CriteriaGate:            true,
 		AutoComplete:            true,

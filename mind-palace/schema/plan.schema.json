@@ -85,6 +85,11 @@
       "enum": ["parent", "included", "depends", "blocks"]
     },
     "storyRelation": { "enum": ["included", "depends", "blocks"] },
+    "date": {
+      "type": "string",
+      "pattern": "^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "A calendar date, YYYY-MM-DD, or the empty string."
+    },
     "timestamp": {
       "description": "RFC 3339 UTC timestamp with millisecond precision, e.g. 2026-09-09T14:07:05.352Z. Other accepted input forms are normalized to this before validating.",
       "type": "string",
@@ -114,6 +119,17 @@
           "description": "Omitted until the plan is first complete; never an empty string.",
           "$ref": "#/$defs/timestamp"
         },
+        "tags": {
+          "description": "Free-form labels, e.g. [\"feature\", \"security\"]. Always present; an empty list when unset.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "pattern": "^\\S+$" }
+        },
+        "milestone": { "type": "string", "description": "The milestone this plan ships in (milestone_beta). Always present; empty when unset." },
+        "due_date": { "$ref": "#/$defs/date", "description": "Calendar date (YYYY-MM-DD) the plan is due, or empty. Always present." },
+        "planned_start": { "$ref": "#/$defs/date", "description": "Calendar date (YYYY-MM-DD) work is planned to start, or empty. Always present." },
+        "planned_end": { "$ref": "#/$defs/date", "description": "Calendar date (YYYY-MM-DD) work is planned to end, or empty; never before planned_start. Always present." },
+        "order": { "type": "integer", "default": 0, "description": "Sort position among plans (lower first). Always present; 0 when unset." },
         "links": {
           "type": "object",
           "additionalProperties": false,

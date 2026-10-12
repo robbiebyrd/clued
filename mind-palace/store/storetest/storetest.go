@@ -26,6 +26,8 @@ func document(k, id, typ, status string) *model.Document {
 		FrontMatter: model.FrontMatter{
 			ID: id, Title: "Conformance " + id, Type: typ, Status: status, Priority: "2", Effort: "M",
 			Created: "2026-01-01T00:00:00.000Z", Updated: "2026-01-01T00:00:00.000Z",
+			Tags: []string{"feature", "security"}, Milestone: "milestone_beta",
+			DueDate: "2026-03-01", PlannedStart: "2026-02-01", PlannedEnd: "2026-02-28", Order: 3,
 			Links: &model.Links{
 				Repo:    &model.Repo{Remote: "git@github.com:org/p.git", Local: "~/p"},
 				Specs:   []string{"./docs/x.md"},
@@ -39,6 +41,7 @@ func document(k, id, typ, status string) *model.Document {
 	}
 	if k == kind.Story {
 		d.FrontMatter.Purpose = "Prove the store round-trips stories"
+		d.FrontMatter.Assignee = "github:octocat"
 		d.FrontMatter.Started = "2026-01-02T00:00:00.000Z"
 		d.FrontMatter.Links.Repo.PullRequest = "https://github.com/org/p/pull/1"
 		d.FrontMatter.Links.Repo.Files = []string{"src/a.go"}
@@ -80,6 +83,12 @@ func Run(t *testing.T, newStore Factory) {
 			}
 			if got.Kind != k.Name || got.FrontMatter.Links.Web["jira"] != "https://jira/1" || got.FrontMatter.Links.Plans[0].ID != "0009-zzz" {
 				t.Errorf("nested data lost: %+v", got.FrontMatter)
+			}
+			if len(got.FrontMatter.Tags) != 2 || got.FrontMatter.Milestone != "milestone_beta" || got.FrontMatter.DueDate != "2026-03-01" || got.FrontMatter.PlannedEnd != "2026-02-28" || got.FrontMatter.Order != 3 {
+				t.Errorf("planning fields lost: %+v", got.FrontMatter)
+			}
+			if k.Name == kind.Story && got.FrontMatter.Assignee != "github:octocat" {
+				t.Errorf("assignee lost: %+v", got.FrontMatter)
 			}
 			if k.Name == kind.Story && (got.FrontMatter.Purpose == "" || got.FrontMatter.Started == "" || len(got.FrontMatter.Links.Plans[0].Sections) != 2 || got.FrontMatter.Progress["2.1.3"].Status != "blocked") {
 				t.Errorf("story fields lost: %+v", got.FrontMatter)

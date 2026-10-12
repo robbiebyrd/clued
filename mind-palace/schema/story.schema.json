@@ -55,6 +55,11 @@
       "description": "How this Story relates to the referenced Story. parent: the referenced Story owns this one. included: this Story was split out of the referenced one. depends: the referenced Story must finish before this one can. blocks: the referenced Story can't finish until this one does.",
       "enum": ["parent", "included", "depends", "blocks"]
     },
+    "date": {
+      "type": "string",
+      "pattern": "^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "A calendar date, YYYY-MM-DD, or the empty string."
+    },
     "timestamp": {
       "description": "RFC 3339 UTC timestamp with millisecond precision, e.g. 2026-09-09T14:07:05.352Z. Other accepted input forms are normalized to this before validating.",
       "type": "string",
@@ -94,6 +99,18 @@
           "description": "Omitted until the Story first moves to complete; never an empty string. Kept when the Story leaves complete, overwritten when it returns.",
           "$ref": "#/$defs/timestamp"
         },
+        "tags": {
+          "description": "Free-form labels, e.g. [\"feature\", \"security\"]. Always present; an empty list when unset.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "pattern": "^\\S+$" }
+        },
+        "milestone": { "type": "string", "description": "The milestone this story ships in (milestone_beta). Always present; empty when unset." },
+        "due_date": { "$ref": "#/$defs/date", "description": "Calendar date (YYYY-MM-DD) the story is due, or empty. Always present." },
+        "planned_start": { "$ref": "#/$defs/date", "description": "Calendar date (YYYY-MM-DD) work is planned to start, or empty. Always present." },
+        "planned_end": { "$ref": "#/$defs/date", "description": "Calendar date (YYYY-MM-DD) work is planned to end, or empty; never before planned_start. Always present." },
+        "order": { "type": "integer", "default": 0, "description": "Sort position among storys (lower first). Always present; 0 when unset." },
+        "assignee": { "type": "string", "pattern": "^\\S+$", "description": "Who owns the work, as provider:handle (github:octocat). Omitted when unset." },
         "links": {
           "type": "object",
           "additionalProperties": false,
