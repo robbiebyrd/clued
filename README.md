@@ -25,8 +25,8 @@ for the plan and story service in depth.
 - [Claude Code](https://claude.ai/code).
 - A MongoDB instance for session capture (local, Docker or remote). The setup
   command walks you through installing one; plans and stories do not need it.
-- `jq` (optional but recommended): the hooks use it to read the config file
-  and the plan guard needs it to run.
+- `jq` (optional but recommended): the bash hooks use it to read the config
+  file and to mirror the hook entries into `settings.json`.
 - Nothing else: the `mind-palace` binary ships with the plugin, pre-built for
   macOS (Intel and Apple Silicon), Linux (amd64, arm64, 32-bit arm) and Windows
   (amd64, arm64), so no Go toolchain is needed. On another platform install it
@@ -72,10 +72,10 @@ the data.
 | `hooks/check-setup` | SessionStart: prints one system message when the config file or the `mind-palace` binary is missing |
 | `hooks/session-start` | SessionStart (async): re-runs `register-hooks`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` |
 | `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later |
-| `hooks/guard-superpowers-plans` | PreToolUse on `Write`/`Edit`: blocks writes under `docs/superpowers/plans/` and points at the plan MCP tools (see [Plan storage](#plan-storage-for-superpowers)) |
+| `bin/clued hook write-guard` | PreToolUse on `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Bash`, `EnterPlanMode` and `ExitPlanMode`: routes every change to a plan or story through mind-palace (see [Plans and stories are written by mind-palace](#plans-and-stories-are-written-by-mind-palace)) |
 | `bin/clued hook stop-guard` | Stop: blocks the assistant from stopping when its last message dodges ownership of a failure, defers work to another session or asks whether to continue (see [Hooks served by the binary](#hooks-served-by-the-binary)) |
 | `bin/clued hook status-review` | SessionStart, and UserPromptSubmit at most every 30 minutes: tells the assistant to ask you about plans whose stories are all complete and stories whose steps and acceptance criteria are all done but still open |
-| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the two `bin/clued hook` commands) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
+| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the three `bin/clued hook` commands) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
 | `hooks/uninstall` | Non-interactive cleanup used by `/clued-uninstall` |
 | `bin/clued` | Shim that finds and runs `mind-palace` (resolution order below) |
 | `.mcp.json` | Two stdio MCP servers: `clued` (`bin/clued session mcp`, the session tools) and `mind-palace` (`bin/clued mcp --no-session-tools`, the plan and story tools) |
@@ -323,9 +323,10 @@ templates, error codes) is in [`mind-palace/README.md`](mind-palace/README.md).
 
 ### Hooks served by the binary
 
-Two hooks run `bin/clued hook …` directly; their rules live in the Go module
-(`mind-palace/hookguard` and `service.Palace.Review`), not in bash, and each
-reads the hook's JSON on stdin and prints exactly what Claude Code expects.
+Three hooks run `bin/clued hook …` directly; their rules live in the Go
+module (`mind-palace/hookguard` and `service.Palace.Review`), not in bash,
+and each reads the hook's JSON on stdin and prints exactly what Claude Code
+expects.
 
 - **`hook stop-guard`** (Stop, blocking). When the assistant's last message
   contains a phrase that dodges ownership of a failure ("pre-existing",
@@ -338,6 +339,9 @@ reads the hook's JSON on stdin and prints exactly what Claude Code expects.
   the assistant stop once it has already fired this turn
   (`stop_hook_active`), so it never loops. The rule table is in
   `mind-palace/hookguard/stop.go`.
+- **`hook write-guard`** (PreToolUse, blocking). Keeps plans and stories
+  under mind-palace's control; the rules are described in the next section
+  and live in `mind-palace/hookguard/write.go`.
 - **`hook status-review`** (SessionStart; UserPromptSubmit with
   `--every 30m`). Reviews the plans and stories of the hook's `cwd` and, when
   a plan has all of its stories complete or a story has all of its steps
@@ -348,22 +352,39 @@ reads the hook's JSON on stdin and prints exactly what Claude Code expects.
   `~/.claude/plugins/data/clued/status-review/`; SessionStart runs without
   it.
 
-### Plan storage for superpowers
+### Plans and stories are written by mind-palace
 
-With the plugin installed, implementation plans written by the superpowers
-`writing-plans` skill are stored by mind-palace rather than under
-`docs/superpowers/plans/`:
+With the plugin installed, any planning tool (Claude Code's own plan mode,
+the superpowers `writing-plans` skill, or Claude deciding to "just write the
+file") has to go through mind-palace's templates and CRUD interface. The
+`write-guard` hook runs before every `Write`, `Edit`, `MultiEdit`,
+`NotebookEdit` and `Bash` call, works out which directories hold the plans
+and stories of the hook's `cwd` (from `mind-palace.config.yaml`, else
+`docs/plans` and `docs/stories`; `docs/superpowers/plans/` is blocked
+wherever it appears) and answers with a `permissionDecision` of `deny` whose
+reason names the MCP tool and the CLI command to use instead:
 
-- `hooks/guard-superpowers-plans` blocks `Write` and `Edit` under
-  `docs/superpowers/plans/` and names the `plan_create` / `plan_update` MCP
-  tools to use instead. Design docs under `docs/superpowers/specs/` are not
-  affected.
-- `skills/plan-storage` tells Claude to fetch a template with
-  `plan_getTemplate`, save with `plan_create` or `plan_update`, link a design
-  doc with `plan_addSpec`, and read plans back with `plan_get`.
-- The `mind-palace` MCP server starts in the project directory, so plans go
-  to that project's `docs/plans`. `check-setup` warns at session start when
-  the binary is missing.
+| Call | Decision |
+|---|---|
+| `Write` or `Edit` of a file that does not exist yet in a plans or stories directory | Denied: fetch the layout with `plan_getTemplate` / `plan_getSchema` and create it with `plan_create` (`story_*` for stories) |
+| `Write` (or `NotebookEdit`) over an existing document | Denied: `plan_update` replaces the content; front matter goes through the setters |
+| `Edit` whose `old_string` touches the front matter | Denied: `plan_setStatus` (with `plan_getTransitions` for the allowed moves), `plan_setTitle`, `plan_setPriority`, `plan_setType`, the link and progress tools |
+| `Edit` of the H1, or of a story's `## Acceptance Criteria` or `## Work Log` | Denied: `plan_setTitle`; `story_setCriterion` / `story_addCriterion` / `story_removeCriterion`; `story_appendWorkLog` |
+| `Edit` elsewhere in the body | Allowed, with context reminding the assistant that `plan_update` keeps progress keys consistent |
+| Anything under `templates/` | Denied: `plan_createTemplate` / `plan_updateTemplate` |
+| An existing file in those directories that is not a document (a README) | Not the guard's business |
+| `Bash` that redirects into, or runs `rm`, `mv`, `cp`, `tee`, `touch`, `sed -i`, `perl -i`, `git rm`, … against, one of those directories without invoking `mind-palace` | Denied: `plan_update`, `plan_setStatus`, `plan_delete` and friends |
+| `Bash` running `git commit` with `closes`, `fixes`, `resolves` or `completes` and the id of a story that is not complete | Denied: finish its steps and criteria, then `story_setStatus complete`, or drop the closing keyword |
+| `EnterPlanMode`, `ExitPlanMode` | Allowed, with context: fetch `plan_getTemplate` first and save the finished plan with `plan_create`, then break it into stories |
+
+Read-only tools are never touched, and the guard prints nothing for calls it
+does not concern. `skills/plan-storage` tells Claude the same workflow from
+the other side: fetch a template with `plan_getTemplate`, save with
+`plan_create` or `plan_update`, link a design doc with `plan_addSpec`, and
+read plans back with `plan_get`. Design docs under `docs/superpowers/specs/`
+stay plain files. The `mind-palace` MCP server starts in the project
+directory, so plans go to that project's `docs/plans`; `check-setup` warns at
+session start when the binary is missing.
 
 This repository uses it on itself: the plans that drove each piece of work
 are under `docs/plans`, the story tracker under `docs/stories`, and the

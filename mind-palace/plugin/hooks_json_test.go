@@ -19,7 +19,9 @@ type hookGroup struct {
 	Hooks   []hookEntry `json:"hooks"`
 }
 
-func TestHooksJSONRegistersPlanGuardAsBlockingWriteEditPreToolUse(t *testing.T) {
+const writeGuardMatcher = "Write|Edit|MultiEdit|NotebookEdit|Bash|EnterPlanMode|ExitPlanMode"
+
+func TestHooksJSONRegistersWriteGuardAsBlockingPreToolUse(t *testing.T) {
 	b, err := os.ReadFile(filepath.Join(repoRoot(t), "hooks.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +35,7 @@ func TestHooksJSONRegistersPlanGuardAsBlockingWriteEditPreToolUse(t *testing.T) 
 	var guard *hookGroup
 	for i, g := range doc.Hooks["PreToolUse"] {
 		for _, h := range g.Hooks {
-			if strings.HasSuffix(h.Command, "/hooks/guard-superpowers-plans") {
+			if strings.HasSuffix(h.Command, "/bin/clued hook write-guard") {
 				guard = &doc.Hooks["PreToolUse"][i]
 			}
 		}
@@ -41,14 +43,14 @@ func TestHooksJSONRegistersPlanGuardAsBlockingWriteEditPreToolUse(t *testing.T) 
 	if guard == nil {
 		t.Fatal("guard group missing from PreToolUse")
 	}
-	if guard.Matcher != "Write|Edit" {
+	if guard.Matcher != writeGuardMatcher {
 		t.Errorf("matcher = %q", guard.Matcher)
 	}
 	if len(guard.Hooks) != 1 {
 		t.Fatalf("hooks = %d, want 1", len(guard.Hooks))
 	}
 	h := guard.Hooks[0]
-	if h.Type != "command" || h.Command != "${CLAUDE_PLUGIN_ROOT}/hooks/guard-superpowers-plans" {
+	if h.Type != "command" || h.Command != "${CLAUDE_PLUGIN_ROOT}/bin/clued hook write-guard" {
 		t.Errorf("hook = %+v", h)
 	}
 	if h.Async != nil {

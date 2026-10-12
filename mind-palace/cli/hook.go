@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/hookguard"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 )
@@ -25,8 +26,79 @@ func (a *App) hookCmd() *cobra.Command {
 		Use:   "hook",
 		Short: "Claude Code hooks served by the binary (read hook JSON on stdin)",
 	}
-	cmd.AddCommand(a.hookStopGuardCmd(), a.hookStatusReviewCmd())
+	cmd.AddCommand(a.hookStopGuardCmd(), a.hookWriteGuardCmd(), a.hookStatusReviewCmd())
 	return cmd
+}
+
+func (a *App) hookWriteGuardCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "write-guard",
+		Short: "PreToolUse hook: route writes to plans and stories through mind-palace",
+		Long: `Reads a PreToolUse hook input on stdin and decides whether the tool call may
+touch the plans and stories mind-palace manages (the directories configured
+for the hook's cwd, docs/plans and docs/stories by default, and
+docs/superpowers/plans anywhere). Creating a document, overwriting one,
+editing its front matter, H1, acceptance criteria or work log, editing a
+template, and changing those directories from the shell are denied with
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny",
+"permissionDecisionReason":...}} naming the MCP tool and CLI command to use
+instead; an edit of a document's body proceeds with additionalContext; a
+git commit that closes a story that is not complete is denied; EnterPlanMode
+and ExitPlanMode add context telling the assistant to save the plan with
+plan_create. Nothing is printed for calls the guard does not concern.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			input, err := io.ReadAll(a.Stdin)
+			if err != nil {
+				return fmt.Errorf("hook write-guard: read stdin: %w", err)
+			}
+			var in hookguard.WriteInput
+			if err := json.Unmarshal(input, &in); err != nil {
+				return fmt.Errorf("hook write-guard: parse hook input: %w", err)
+			}
+			decision := hookguard.CheckWrite(in, a.guardDirs(in.Cwd))
+			if decision == nil {
+				return nil
+			}
+			return json.NewEncoder(a.Stdout).Encode(decision)
+		},
+	}
+}
+
+// guardDirs resolves the plans and stories directories the write guard
+// protects: the configuration found from cwd (or --config), with the
+// --plans-dir and --stories-dir flags on top, made absolute against cwd.
+// When no configuration loads, the defaults under cwd apply.
+func (a *App) guardDirs(cwd string) hookguard.Dirs {
+	if cwd == "" {
+		cwd, _ = os.Getwd()
+	}
+	if cwd != "" {
+		if wd, err := os.Getwd(); err == nil && wd != cwd {
+			if err := os.Chdir(cwd); err == nil {
+				defer func() { _ = os.Chdir(wd) }()
+			}
+		}
+	}
+	cfg, err := config.Load(a.configPath)
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "hook write-guard: %v; guarding the default directories\n", err)
+		cfg = config.Default()
+	}
+	plans, stories := cfg.Plans.Dir, cfg.Stories.Dir
+	if a.plansDir != "" {
+		plans = a.plansDir
+	}
+	if a.storiesDir != "" {
+		stories = a.storiesDir
+	}
+	abs := func(p string) string {
+		if p == "" || filepath.IsAbs(p) {
+			return filepath.Clean(p)
+		}
+		return filepath.Join(cwd, p)
+	}
+	return hookguard.Dirs{Plans: abs(plans), Stories: abs(stories)}
 }
 
 func (a *App) hookStopGuardCmd() *cobra.Command {
