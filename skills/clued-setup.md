@@ -198,7 +198,7 @@ CLUED_PLUGIN_ROOT="${CLUED_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/*/clued
 Start MongoDB using the included compose file:
 
 ```bash
-docker compose -f "${CLUED_PLUGIN_ROOT}/docker-compose.transcripts.yml" up -d mongodb
+docker compose -f "${CLUED_PLUGIN_ROOT}/docker-compose.transcripts.yml" up -d
 ```
 
 **Docker default port: `27018`** (avoids clashing with a local mongod on 27017).
@@ -278,16 +278,17 @@ jq '.devRepoPath = "/path/to/clued"' \
 
 Replace `/path/to/clued` with the actual repo path. Skip this for normal installations.
 
-## Step 7 — MCP server (no action needed)
+## Step 7 — MCP servers (no action needed)
 
-The plugin ships a `.mcp.json` that tells Claude Code to run:
+The plugin ships a `.mcp.json` that tells Claude Code to run two stdio servers:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp
+${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp              # clued: the session tools
+${CLAUDE_PLUGIN_ROOT}/bin/clued mcp --no-session-tools   # mind-palace: the plan and story tools
 ```
 
-Claude Code reads this at startup and spawns the MCP server as a stdio child
-process — no settings edit is required. **MCP tools appear in the next fresh
+Claude Code reads this at startup and spawns both as stdio child processes —
+no settings edit is required. **MCP tools appear in the next fresh
 session** (a new Claude Code window or `exit` + reopen); `/reload-plugins` alone
 is not sufficient.
 
@@ -357,7 +358,7 @@ Tell the user:
 
 - MongoDB option chosen and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
-- MCP server: provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns it automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
+- MCP servers: `clued` (session tools) and `mind-palace` (plan and story tools), provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns them automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
 - Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`
 - mind-palace binary location (PATH or `~/.claude/plugins/data/clued/bin/`)
 - Daemon status: running on port 8085 / failed (show error output)

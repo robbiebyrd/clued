@@ -42,10 +42,15 @@ top-level `plans` key still parse and are rewritten under `links.plans`.
 cd mind-palace
 go build -o mind-palace ./cmd/mind-palace
 go build -o plan ./cmd/plan && go build -o story ./cmd/story   # optional kind-only binaries
-go test ./...
+go test -race ./...                                          # in-memory stores only
+MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./...   # plus the MongoDB suites
 ```
 
-Requires Go 1.26 (the toolchain is downloaded automatically by `go`).
+Requires Go 1.26 (the toolchain is downloaded automatically by `go`). The
+`plugin` package tests execute the Claude Code plugin's bash hooks and shim
+from the repository root, so they need `bash`, `jq` and `curl`. Release
+binaries for darwin/linux on amd64/arm64 are built by the `Release` workflow
+when a `v*` tag is pushed.
 
 ## Quick start
 
@@ -304,10 +309,25 @@ mind-palace session daemon [--addr host:port]   # POST /event, GET /health; defa
 mind-palace session mcp                         # session tools only, over stdio
 ```
 
-The daemon only tails transcripts under `projectsDir`, rejects
-browser-originated requests and caps event body size. Documents an enricher
-does not apply to are marked skipped so they leave its queue. Restore produces
-equivalent JSON whose key order may differ from the original file.
+The daemon stores each `POST /event` (store writes happen off the request
+path), and on the first event of a session starts tailing its transcript and
+watching its subagent files, tool-result blobs and file-history backups. It
+only tails transcripts under `projectsDir`, requires session ids to be a
+single path element, rejects browser-originated requests and caps bodies at
+16 MiB. Events the plugin's hook could not deliver are appended to the
+write-ahead log and replayed at start and every 60 seconds. Every document
+is stamped with the Claude account id (from `claudeAppConfigPath`, or
+`unknown`) and the host (hostname, user, platform, release, architecture,
+primary IP and MAC); queries and restores are scoped to the account.
+
+The enrichment loop runs every 5 seconds over the enrichers in
+`session/enrichers` (six on `hook_events`, twelve on `transcript_lines`;
+`privacy-redact` is disabled by default) and stores results under
+`enrichments.<name>`. Documents an enricher does not apply to are marked
+skipped so they leave its queue; transient write failures are retried; a
+panicking enricher is recorded, not fatal. Restore writes only under the
+projects and file-history directories and produces equivalent JSON whose key
+order may differ from the original file.
 
 **MCP tools.** `find_sessions`, `get_session_context`, `get_full_session`,
 `search_commands`, `read_transcript` and `restore_session`. `session mcp`
@@ -315,11 +335,12 @@ serves just these; `mind-palace mcp` and `mind-palace serve` expose them next
 to the plan and story tools.
 
 **Store layout.** The `session` package defines the store interface;
-`session/mongosession` is the MongoDB implementation (the collections, indexes
-and the `session_full` view are the ones the TypeScript plugin created) and
+`session/mongosession` is the MongoDB implementation (collections `sessions`,
+`hook_events`, `transcript_lines`, `subagent_lines`, `blobs` and the
+`session_full` view, as the TypeScript plugin created them) and
 `session/memsession` the in-memory one used by tests. `daemon`, `tail`,
-`backfill`, `enrich`/`enrichers`, `query`, `restore`, `wal` and `sessionmcp`
-sit on top of it.
+`backfill`, `enrich`/`enrichers`, `query`, `restore`, `wal`, `gitinfo`,
+`hostinfo` and `sessionmcp` sit on top of it.
 
 ## Layout
 
@@ -336,5 +357,6 @@ sit on top of it.
 | `store`, `store/*` | Kind-aware store interface, fan-out, sync, plugins |
 | `events` | In-process event bus (filter by kind and id) |
 | `server/*` | HTTP, WebSocket and MCP entrypoints |
-| `session`, `session/*` | Claude Code session capture: config, MongoDB and in-memory stores, daemon, transcript tailing, backfill, queries, restore and the session MCP tools |
+| `session`, `session/*` | Claude Code session capture: config, MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
+| `plugin` | Tests for the Claude Code plugin glue (`bin/clued`, the bash hooks, `hooks.json`) |
 | `cli`, `cmd/*` | Command line: `mind-palace`, plus the `plan` and `story` wrappers |
