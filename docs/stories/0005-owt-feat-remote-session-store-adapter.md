@@ -3,11 +3,12 @@ id: 0005-owt
 title: Remote session store adapter and conformance
 purpose: Let every session consumer run unchanged against a clued server by implementing session.Store over HTTP.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:04.968Z"
-updated: "2026-10-12T20:09:04.968Z"
+updated: "2026-10-12T20:49:47.617Z"
+started: "2026-10-12T20:49:47.617Z"
 tags:
   - server
   - remote

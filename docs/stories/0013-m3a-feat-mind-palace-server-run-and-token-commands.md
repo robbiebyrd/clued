@@ -3,11 +3,12 @@ id: 0013-m3a
 title: mind-palace server run and server token commands
 purpose: Compose the clued server as a mode of the mind-palace binary with TLS, auth, graceful shutdown and server-side enrichment.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.204Z"
-updated: "2026-10-12T20:09:05.204Z"
+updated: "2026-10-12T20:49:47.651Z"
+started: "2026-10-12T20:49:47.651Z"
 tags:
   - server
   - remote

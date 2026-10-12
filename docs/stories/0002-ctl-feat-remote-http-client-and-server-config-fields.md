@@ -3,12 +3,13 @@ id: 0002-ctl
 title: Remote HTTP client and server config fields
 purpose: Give every remote adapter one authenticated, TLS-aware HTTP client and the config.json keys that switch the plugin into remote mode.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: S
 created: "2026-10-12T20:09:04.868Z"
-updated: "2026-10-12T20:35:07.894Z"
+updated: "2026-10-12T20:50:01.443Z"
 started: "2026-10-12T20:35:07.894Z"
+completed: "2026-10-12T20:50:01.443Z"
 tags:
   - server
   - remote
@@ -67,10 +68,10 @@ Add `serverUrl`, `serverToken`, `serverCaFile` and `serverInsecure` to `session.
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./remote/ ./session/
-- [ ] An `http://` server URL on a non-loopback host fails at config load with `ErrInsecureURL` unless `serverInsecure` is set
-- [ ] A test server with a private CA is reachable through `serverCaFile` and unreachable without it
-- [ ] `config.json` with only the pre-existing keys still loads identically and `Remote()` is false
+- [x] VERIFY: cd mind-palace && go test -race ./remote/ ./session/
+- [x] An `http://` server URL on a non-loopback host fails at config load with `ErrInsecureURL` unless `serverInsecure` is set
+- [x] A test server with a private CA is reachable through `serverCaFile` and unreachable without it
+- [x] `config.json` with only the pre-existing keys still loads identically and `Remote()` is false
 
 ## Files
 

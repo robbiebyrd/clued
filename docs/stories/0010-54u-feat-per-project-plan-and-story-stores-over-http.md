@@ -3,12 +3,13 @@ id: 0010-54u
 title: Per-project plan and story stores over HTTP (storeapi, projects)
 purpose: Serve store.Store per project so plans and stories from many repositories live on one server without colliding ids.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.114Z"
-updated: "2026-10-12T20:35:08.025Z"
+updated: "2026-10-12T20:50:01.677Z"
 started: "2026-10-12T20:35:08.025Z"
+completed: "2026-10-12T20:50:01.677Z"
 tags:
   - server
   - remote
@@ -69,10 +70,10 @@ Plan and story ids are per repository (`0001-v1i` exists in every repository), t
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./server/storeapi/ ./server/projects/ ./config/
-- [ ] Two projects with the same plan id are stored and listed independently
-- [ ] A request for a project outside the token's list gets 403 before any store is opened
-- [ ] `..`, `/` and empty project slugs are rejected with 400
+- [x] VERIFY: cd mind-palace && go test -race ./server/storeapi/ ./server/projects/ ./config/
+- [x] Two projects with the same plan id are stored and listed independently
+- [x] A request for a project outside the token's list gets 403 before any store is opened
+- [x] `..`, `/` and empty project slugs are rejected with 400
 
 ## Files
 

@@ -3,12 +3,13 @@ id: 0003-sd3
 title: Bearer-token auth with project scopes and the whoami route
 purpose: Authenticate every clued-server request with a hashed, revocable token bound to an account and a list of projects.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:04.909Z"
-updated: "2026-10-12T20:35:07.919Z"
+updated: "2026-10-12T20:50:01.477Z"
 started: "2026-10-12T20:35:07.919Z"
+completed: "2026-10-12T20:50:01.477Z"
 tags:
   - server
   - remote
@@ -66,10 +67,10 @@ No part of mind-palace handles an Authorization header. Isolation today rests on
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./server/auth/
-- [ ] The token file never contains a raw token, and `token create` prints it exactly once
-- [ ] Revoking a token in the file takes effect on the next request without restarting the server
-- [ ] `AllowProject` admits listed slugs and `*`, rejects everything else
+- [x] VERIFY: cd mind-palace && go test -race ./server/auth/
+- [x] The token file never contains a raw token, and `token create` prints it exactly once
+- [x] Revoking a token in the file takes effect on the next request without restarting the server
+- [x] `AllowProject` admits listed slugs and `*`, rejects everything else
 
 ## Files
 

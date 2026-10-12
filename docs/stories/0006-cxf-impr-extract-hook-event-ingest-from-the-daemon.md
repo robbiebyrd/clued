@@ -3,12 +3,13 @@ id: 0006-cxf
 title: Extract hook-event ingest from the session daemon
 purpose: Share the daemon's event bookkeeping with the daemon-less relay so both modes stamp, track and buffer events identically.
 type: impr
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:05.003Z"
-updated: "2026-10-12T20:35:07.967Z"
+updated: "2026-10-12T20:50:01.543Z"
 started: "2026-10-12T20:35:07.967Z"
+completed: "2026-10-12T20:50:01.543Z"
 tags:
   - server
   - remote
@@ -61,9 +62,9 @@ The daemon keeps `/event`, `/health`, tailing and its loops and calls the servic
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/ingest/ ./session/daemon/
-- [ ] `daemon_test.go` is unchanged and green
-- [ ] A failed insert lands in the WAL and `FlushWAL` replays it in order
+- [x] VERIFY: cd mind-palace && go test -race ./session/ingest/ ./session/daemon/
+- [x] `daemon_test.go` is unchanged and green
+- [x] A failed insert lands in the WAL and `FlushWAL` replays it in order
 
 ## Files
 

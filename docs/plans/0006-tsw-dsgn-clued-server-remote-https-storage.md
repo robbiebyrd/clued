@@ -6,7 +6,7 @@ status: ready
 priority: "2"
 effort: XL
 created: "2026-10-12T19:57:12.904Z"
-updated: "2026-10-12T20:09:49.469Z"
+updated: "2026-10-12T20:50:02.490Z"
 tags:
   - server
   - remote
@@ -27,29 +27,29 @@ progress:
   "1":
     status: pending
   "1.1":
-    status: pending
+    status: complete
     stories:
       - 0002-ctl
   "1.2":
-    status: pending
+    status: complete
     stories:
       - 0003-sd3
   "1.3":
-    status: pending
+    status: complete
     stories:
       - 0004-n6z
   "1.4":
-    status: pending
+    status: in_progress
     stories:
       - 0005-owt
   "2":
     status: pending
   "2.1":
-    status: pending
+    status: complete
     stories:
       - 0006-cxf
   "2.2":
-    status: pending
+    status: complete
     stories:
       - 0007-frt
   "2.3":
@@ -63,11 +63,11 @@ progress:
   "3":
     status: pending
   "3.1":
-    status: pending
+    status: complete
     stories:
       - 0010-54u
   "3.2":
-    status: pending
+    status: in_progress
     stories:
       - 0011-zbb
   "3.3":
@@ -77,7 +77,7 @@ progress:
   "4":
     status: pending
   "4.1":
-    status: pending
+    status: in_progress
     stories:
       - 0013-m3a
   "4.2":

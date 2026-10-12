@@ -3,11 +3,12 @@ id: 0011-zbb
 title: The clued remote store driver and conformance
 purpose: Register a store.Store driver that writes plans and stories to the server through storeapi.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: S
 created: "2026-10-12T20:09:05.148Z"
-updated: "2026-10-12T20:09:05.148Z"
+updated: "2026-10-12T20:46:48.311Z"
+started: "2026-10-12T20:46:48.311Z"
 tags:
   - server
   - remote

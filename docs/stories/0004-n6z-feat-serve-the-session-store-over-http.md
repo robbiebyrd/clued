@@ -3,12 +3,13 @@ id: 0004-n6z
 title: Serve the session store over HTTP (sessionapi)
 purpose: Expose every session.Store method as an authenticated JSON route so a client needs no database connection.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:04.939Z"
-updated: "2026-10-12T20:35:07.941Z"
+updated: "2026-10-12T20:50:01.508Z"
 started: "2026-10-12T20:35:07.941Z"
+completed: "2026-10-12T20:50:01.508Z"
 tags:
   - server
   - remote
@@ -59,9 +60,9 @@ Share the `httpapi` envelope writer (export it or move it to a small shared file
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./server/sessionapi/
-- [ ] A write with a foreign `account_id` is stored under the token's account, and a read for another account returns nothing
-- [ ] A transcript batch above 500 lines and a body above 16 MiB are rejected with the documented codes
+- [x] VERIFY: cd mind-palace && go test -race ./server/sessionapi/
+- [x] A write with a foreign `account_id` is stored under the token's account, and a read for another account returns nothing
+- [x] A transcript batch above 500 lines and a body above 16 MiB are rejected with the documented codes
 
 ## Files
 

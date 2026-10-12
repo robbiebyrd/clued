@@ -3,12 +3,13 @@ id: 0007-frt
 title: Per-hook transcript and artifact catch-up
 purpose: Push the transcript lines, subagent lines and blobs written since the previous hook without a resident tailer.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.034Z"
-updated: "2026-10-12T20:35:07.987Z"
+updated: "2026-10-12T20:50:01.603Z"
 started: "2026-10-12T20:35:07.987Z"
+completed: "2026-10-12T20:50:01.603Z"
 tags:
   - server
   - remote
@@ -61,10 +62,10 @@ Lift the mirroring out of `WatchArtifacts` into `tail.MirrorArtifacts(ctx, store
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/catchup/ ./session/tail/
-- [ ] Running catch-up twice without new data makes no store calls the second time
-- [ ] A truncated transcript restarts from offset 0 and the re-upsert is idempotent by `{session_id, seq}`
-- [ ] A second concurrent run for the same session skips without error, and a stale lock is reclaimed
+- [x] VERIFY: cd mind-palace && go test -race ./session/catchup/ ./session/tail/
+- [x] Running catch-up twice without new data makes no store calls the second time
+- [x] A truncated transcript restarts from offset 0 and the re-upsert is idempotent by `{session_id, seq}`
+- [x] A second concurrent run for the same session skips without error, and a stale lock is reclaimed
 
 ## Files
 
