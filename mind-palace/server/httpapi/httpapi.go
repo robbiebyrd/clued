@@ -509,6 +509,19 @@ func mustJSON(v any) string {
 	return string(b)
 }
 
+// WriteResult writes the success envelope {"ok": true, "result": v} with the
+// given status. It is shared with the other APIs served next to this one so
+// one client decoder serves them all.
+func WriteResult(w http.ResponseWriter, status int, v any) {
+	writeJSON(w, status, map[string]any{"ok": true, "result": v})
+}
+
+// WriteError writes the failure envelope {"ok": false, "error": {"kind",
+// "message", "problems"?}} with the given status.
+func WriteError(w http.ResponseWriter, status int, kind, message string, problems ...string) {
+	writeJSON(w, status, map[string]any{"ok": false, "error": &service.Error{Kind: kind, Message: message, Problems: problems}})
+}
+
 func writeResult(w http.ResponseWriter, status int, res *ops.Result) {
 	body := map[string]any{"ok": true, "result": res.Value}
 	if res.Warning != nil {
