@@ -339,7 +339,7 @@ or the path to the file.`,
 	for _, k := range kind.All() {
 		root.AddCommand(a.kindGroup(k))
 	}
-	root.AddCommand(a.syncCmd(), a.serveCmd(), a.mcpCmd(), a.callCmd(), a.opsCmd(), a.configCmd(), a.schemaCmd(), a.storesCmd(), a.sessionCmd(), a.contextCmd(), a.hookCmd(), a.reviewCmd())
+	root.AddCommand(a.syncCmd(), a.serveCmd(), a.mcpCmd(), a.callCmd(), a.opsCmd(), a.configCmd(), a.schemaCmd(), a.storesCmd(), a.sessionCmd(), a.contextCmd(), a.hookCmd(), a.reviewCmd(), a.serverCmd())
 	return root
 }
 
