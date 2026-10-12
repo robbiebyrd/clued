@@ -7,6 +7,7 @@ on:
       - 'hooks/**'
       - 'hooks.json'
       - 'bin/**'
+      - 'scripts/**'
       - '.mcp.json'
       - '.github/workflows/mind-palace.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'hooks/**'
       - 'hooks.json'
       - 'bin/**'
+      - 'scripts/**'
       - '.mcp.json'
       - '.github/workflows/mind-palace.yml'
 
@@ -49,3 +51,14 @@ jobs:
       - run: go test -race ./...
         env:
           MIND_PALACE_TEST_MONGODB_URI: mongodb://127.0.0.1:27017
+
+  binaries:
+    # The archives under bin/dist must be rebuilt from the current Go source.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: mind-palace/go.mod
+          cache-dependency-path: mind-palace/go.sum
+      - run: scripts/build-binaries.sh --check

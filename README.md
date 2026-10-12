@@ -27,10 +27,12 @@ for the plan and story service in depth.
   command walks you through installing one; plans and stories do not need it.
 - `jq` (optional but recommended): the hooks use it to read the config file
   and the plan guard needs it to run.
-- The `mind-palace` binary. `/clued-setup` downloads a release build for your
-  OS and architecture; to install it yourself:
-  `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`
-  and make sure `$(go env GOPATH)/bin` is on the PATH Claude Code inherits.
+- Nothing else: the `mind-palace` binary ships with the plugin, pre-built for
+  macOS (Intel and Apple Silicon), Linux (amd64, arm64, 32-bit arm) and Windows
+  (amd64, arm64), so no Go toolchain is needed. On another platform install it
+  with `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`
+  (and put `$(go env GOPATH)/bin` on the PATH Claude Code inherits) or download
+  a release asset; `/clued-setup` covers both.
 
 ## Install
 
@@ -68,7 +70,7 @@ the data.
 |---|---|
 | `hooks.json` | Registers the hooks below for every Claude Code hook event; no manual edit of `settings.json` is needed |
 | `hooks/check-setup` | SessionStart: prints one system message when the config file or the `mind-palace` binary is missing |
-| `hooks/session-start` | SessionStart (async): re-runs `register-hooks`, rebuilds a dev checkout when `devRepoPath` is set, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` |
+| `hooks/session-start` | SessionStart (async): re-runs `register-hooks`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` |
 | `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later |
 | `hooks/guard-superpowers-plans` | PreToolUse on `Write`/`Edit`: blocks writes under `docs/superpowers/plans/` and points at the plan MCP tools (see [Plan storage](#plan-storage-for-superpowers)) |
 | `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
@@ -92,12 +94,21 @@ Events relayed to the daemon: `PreToolUse`, `PostToolUse`,
    `<devRepoPath>/mind-palace`, rebuilt whenever a `.go` file there is newer
    than the binary. This wins over everything below, so plugin developers run
    their own checkout.
-2. `mind-palace` on the PATH.
-3. `~/.claude/plugins/data/clued/bin/mind-palace`, the release asset
+2. The binary bundled with the plugin: `bin/dist/mind-palace_<os>_<arch>[.exe].gz`
+   for the `uname -s` / `uname -m` of this machine, unpacked on first use into
+   `~/.claude/plugins/data/clued/bin/bundled/<sha256>/` and verified against
+   `bin/dist/SHA256SUMS`. A plugin update brings new archives, so a new hash
+   triggers a fresh unpack and the old copy is removed. Needs `gzip` and
+   `sha256sum` or `shasum`.
+3. `mind-palace` on the PATH.
+4. `~/.claude/plugins/data/clued/bin/mind-palace`, the release asset
    `mind-palace_<os>_<arch>` downloaded by `/clued-setup`.
 
-When a rebuild happens, `session-start` restarts the daemon; relaunch Claude
-Code to reconnect the MCP servers to the new build.
+`bin/clued --locate` prints the path that would run; `check-setup` uses it at
+session start and warns when nothing resolves. `session-start` records the
+path the daemon was started from and restarts the daemon when that path
+changes (a plugin update unpacks to a new hash directory) or a dev rebuild
+happened; relaunch Claude Code to reconnect the MCP servers to the new build.
 
 ## Session capture
 
@@ -142,7 +153,9 @@ An enrichment loop runs inside the daemon every 5 seconds and stores results
 under `enrichments.<name>` on each matching document. Documents an enricher
 does not apply to are marked skipped so they leave its queue; transient write
 failures are retried; a panicking enricher is recorded, not fatal. Disable
-any of them with `disabledEnrichers` in the config.
+any of them with `disabledEnrichers` in the config; switch on the ones that
+ship disabled (only `privacy-redact`) with `enabledEnrichers`. A name in both
+lists stays off.
 
 | Enricher | Collection | Records |
 |---|---|---|
@@ -163,7 +176,7 @@ any of them with `disabledEnrichers` in the config.
 | `skill-detector` | `transcript_lines` | Skill tool invocations of an assistant line |
 | `thinking-stats` | `transcript_lines` | Size of the thinking and text of an assistant line |
 | `tool-use-summary` | `transcript_lines` | The tools an assistant line calls and whether it thinks |
-| `privacy-redact` | `transcript_lines` | A copy of the raw line with secrets and e-mail addresses masked, stored as an enrichment; the stored line itself is not changed. **Disabled by default** |
+| `privacy-redact` | `transcript_lines` | A copy of the raw line with four patterns masked (`sk-…` API keys, e-mail addresses, `AKIA…` AWS access key ids and JWTs), stored under `enrichments.privacy-redact.redacted_line`; the raw line itself is kept unchanged. **Off by default**: add it to `enabledEnrichers` to run it |
 
 ### MCP tools (`clued` server)
 
@@ -206,7 +219,8 @@ prints JSON.
   "port": 8085,
   "projectsDir": "~/.claude/projects",
   "fileHistoryDir": "~/.claude/file-history",
-  "disabledEnrichers": []
+  "disabledEnrichers": [],
+  "enabledEnrichers": []
 }
 ```
 
@@ -218,6 +232,7 @@ prints JSON.
 | `projectsDir` | `~/.claude/projects` | `CLUED_PROJECTS_DIR` | Where Claude Code keeps transcripts; the daemon only tails files under it |
 | `fileHistoryDir` | `~/.claude/file-history` | `CLUED_FILE_HISTORY_DIR` | Claude Code's file-history backups |
 | `disabledEnrichers` | `[]` | | Enricher names to skip |
+| `enabledEnrichers` | `[]` | | Enricher names to switch on among those that ship disabled (`["privacy-redact"]`); `disabledEnrichers` wins when a name is in both |
 | `claudeAppConfigPath` | the Claude desktop app's `config.json` | `CLUED_CLAUDE_APP_CONFIG_PATH` | Where the account id is read from |
 | (env only) | `events.wal` next to the config file | `CLUED_WAL_PATH` | Write-ahead log; not read from the config file |
 | `devRepoPath` | | | Source checkout that `bin/clued` builds and runs instead of an installed binary (plugin developers) |
@@ -313,9 +328,26 @@ starts.
 `mind-palace/plugin` holds Go tests that execute the bash hooks and the
 `bin/clued` shim, so plugin changes are covered by `go test` too. CI
 (`.github/workflows/mind-palace.yml`) runs all of this against a MongoDB
-service container. Pushing a `v*` tag runs `.github/workflows/release.yml`,
-which builds `mind-palace_{darwin,linux}_{amd64,arm64}` and attaches them to
-the GitHub release that `/clued-setup` downloads from.
+service container.
+
+### Bundled binaries
+
+`scripts/build-binaries.sh` cross-compiles `mind-palace` for
+darwin/{amd64,arm64}, linux/{amd64,arm64,arm} and windows/{amd64,arm64}
+(Go has no windows/arm target and Claude Code does not run on 32-bit x86;
+linux/arm is built with `GOARM=6` so it runs on ARMv6 and ARMv7),
+gzips each one into `bin/dist/` and writes `bin/dist/SHA256SUMS` with the
+hashes of the uncompressed binaries. The builds are reproducible (CGO off,
+`-trimpath`, no VCS stamp, the toolchain pinned to `go.mod`), so CI's
+`binaries` job rebuilds them and fails when the committed hashes differ.
+After changing Go code, run the script and commit `bin/dist/` with the change.
+Each rebuild adds about 100 MB of archives to the repository history, so
+rebuild per change set rather than per commit.
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`, which runs the same
+script with `--raw` and attaches the uncompressed `mind-palace_<os>_<arch>`
+binaries and `SHA256SUMS` to the GitHub release that `/clued-setup` falls
+back to on platforms without a bundled binary.
 
 To run the plugin against your own checkout, add `"devRepoPath": "/path/to/clued"`
 to the config file: `bin/clued` rebuilds the binary when sources change and
