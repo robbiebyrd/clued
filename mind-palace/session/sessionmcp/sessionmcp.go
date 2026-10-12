@@ -61,7 +61,7 @@ func (t *Tools) Server() *mcp.Server {
 	return s
 }
 
-// AddTools registers the seven tools on s, each named prefix + its name.
+// AddTools registers the eight tools on s, each named prefix + its name.
 func (t *Tools) AddTools(s *mcp.Server, prefix string) {
 	for _, spec := range t.specs() {
 		s.AddTool(&mcp.Tool{
@@ -116,6 +116,16 @@ func (t *Tools) specs() []toolSpec {
 			readOnly:    true,
 			handler: tool(t, func(ctx context.Context, q *query.Service, args query.SearchCommandsArgs, _ *mcp.CallToolRequest) (any, error) {
 				hits, err := q.SearchCommands(ctx, args)
+				return nonNil(hits), err
+			}),
+		},
+		{
+			name:        "search_memory",
+			description: "Search the summaries, handoffs and identity notes that claude-remember wrote and clued captured (MemorySaved events), across every session and machine of the account, newest first.",
+			schema:      `{"type":"object","properties":{"pattern":{"type":"string","description":"Case-insensitive regex matched against the record text (default: every record)"},"kind":{"type":"string","enum":["entry","day","recent","archive","handoff","identity"],"description":"Restrict to one kind of record"},"session_id":{"type":"string","description":"Restrict to one session"},"git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},"project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},"limit":{"type":"number","description":"Max records to return (default 20, max 500)"}}}`,
+			readOnly:    true,
+			handler: tool(t, func(ctx context.Context, q *query.Service, args query.SearchMemoryArgs, _ *mcp.CallToolRequest) (any, error) {
+				hits, err := q.SearchMemory(ctx, args)
 				return nonNil(hits), err
 			}),
 		},

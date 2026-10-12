@@ -4,6 +4,8 @@ CLUED="${PLUGIN_ROOT}/scripts/clued"
 
 # Keep hooks registered in settings.json pointing to this plugin installation.
 "${PLUGIN_ROOT}/hooks/register-hooks" &>/dev/null &
+# Keep clued's listener inside every claude-remember plugin (a plugin update removes it).
+"${PLUGIN_ROOT}/hooks/install-remember-listener" &>/dev/null
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 DATA_DIR="${HOME}/.claude/plugins/data/clued"
 BIN_DIR="${DATA_DIR}/bin"
@@ -64,5 +66,8 @@ if ! daemon_ok; then
 fi
 
 "$CLUED" session backfill &>/dev/null &
+disown
+# Summaries claude-remember wrote since the last ingest (handoffs have no listener event).
+"$CLUED" session memory-ingest --quiet &>/dev/null &
 disown
 exit 0

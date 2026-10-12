@@ -10,7 +10,7 @@ binary.
 
 | Path | What it is |
 |---|---|
-| `hooks.json`, `hooks/` | Hook registrations and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `uninstall`) |
+| `hooks.json`, `hooks/` | Hook registrations and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `install-remember-listener`, `uninstall`) |
 | `scripts/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the bundled binary, then PATH, then `~/.claude/plugins/data/clued/bin`); `--locate` prints the choice |
 | `dist/` | Pre-built `mind-palace_<os>_<arch>[.exe].gz` for 7 platforms plus `SHA256SUMS`; produced by `scripts/build-binaries.sh`, unpacked by the shim on first use |
 | `scripts/build-binaries.sh` | Reproducible cross-compile of the bundled binaries (`--check` verifies them, `--raw DIR` builds release assets) |
@@ -18,6 +18,7 @@ binary.
 | `commands/`, `skills/` | `/clued-setup`, `/clued-uninstall`, and the `plan-storage` skill |
 | `mind-palace/` | The Go module (`github.com/robbiebyrd/clued/mind-palace`); see its README for the package map |
 | `mind-palace/session/` | Session capture: config, Mongo and in-memory stores, daemon, tailing, backfill, enrichers, queries, restore, `sessionmcp` |
+| `mind-palace/memory/` | Reads a claude-remember memory store into hashed records and posts them to the daemon as `MemorySaved` events (`session memory-ingest`); searched with `search_memory` |
 | `mind-palace/hookguard/` | Rules behind the hooks the binary serves (`mind-palace hook stop-guard`, `hook write-guard`); the status review (`hook status-review`, `review`) lives in `service/review.go` |
 | `mind-palace/plugin/` | Go tests that execute the bash hooks and the shim |
 | `docs/plans/`, `docs/stories/` | This repository's own plans and stories, managed by `mind-palace` |

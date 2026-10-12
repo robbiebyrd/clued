@@ -28,7 +28,7 @@ jq \
   --arg clued         "$CLUED" \
   '
   def is_clued:
-    [.hooks[].command] | any(test("/hooks/(event-relay|session-start|check-setup|guard-superpowers-plans)$|/(bin|scripts)/clued hook "));
+    [.hooks[].command] | any(test("/hooks/(event-relay|session-start|check-setup|guard-superpowers-plans)$|/(bin|scripts)/clued (hook |session memory-ingest)"));
 
   def binary_hook(args):
     {"hooks": [{"type": "command", "command": ($clued + " " + args)}]};
@@ -56,7 +56,7 @@ jq \
   replace("PostToolUse";      [relay_hook($relay)]) |
   replace("UserPromptSubmit"; [relay_hook($relay), binary_hook("hook status-review --every 30m")]) |
   replace("Stop";             [relay_hook($relay), binary_hook("hook stop-guard")]) |
-  replace("SessionEnd";       [relay_hook($relay)]) |
+  replace("SessionEnd";       [relay_hook($relay), {"hooks": [{"type": "command", "command": ($clued + " session memory-ingest --quiet"), "async": true}]}]) |
   replace("Notification";     [relay_hook($relay)]) |
   replace("SubagentStop";     [relay_hook($relay)])
   ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"

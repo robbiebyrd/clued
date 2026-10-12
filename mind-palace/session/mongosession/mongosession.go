@@ -89,6 +89,15 @@ var indexes = []index{
 	{blobs, key("account_id", 1, "session_id", 1, "blob_type", 1), false},
 }
 
+// partialIndexes are unique indexes limited to the documents matching a
+// filter: one MemorySaved event per account and record hash.
+var partialIndexes = []struct {
+	collection    string
+	keys, partial bson.D
+}{
+	{hookEvents, key("account_id", 1, "memory.hash", 1), key("memory.hash", key("$type", "string"))},
+}
+
 // joinLookup joins a sub-collection onto a session by session_id.
 func joinLookup(from string, sort bson.D, unset ...string) bson.D {
 	return key("$lookup", key(
@@ -135,6 +144,12 @@ func (s *Store) Connect(ctx context.Context) error {
 		if ix.unique {
 			model.Options = options.Index().SetUnique(true)
 		}
+		if _, err := s.db.Collection(ix.collection).Indexes().CreateOne(ctx, model); err != nil {
+			s.logger().Warn("clued: index warning", "collection", ix.collection, "keys", fmt.Sprint(ix.keys), "error", err)
+		}
+	}
+	for _, ix := range partialIndexes {
+		model := mongo.IndexModel{Keys: ix.keys, Options: options.Index().SetUnique(true).SetPartialFilterExpression(ix.partial)}
 		if _, err := s.db.Collection(ix.collection).Indexes().CreateOne(ctx, model); err != nil {
 			s.logger().Warn("clued: index warning", "collection", ix.collection, "keys", fmt.Sprint(ix.keys), "error", err)
 		}
@@ -392,7 +407,37 @@ func (s *Store) FindSessions(ctx context.Context, q session.SessionQuery) ([]ses
 
 func (s *Store) InsertHookEvent(ctx context.Context, ev session.Doc) error {
 	_, err := s.coll(hookEvents).InsertOne(ctx, ev)
+	if err != nil && mongo.IsDuplicateKeyError(err) && isMemoryEvent(ev) {
+		return nil
+	}
 	return err
+}
+
+// isMemoryEvent reports whether ev is a MemorySaved event with a record hash.
+func isMemoryEvent(ev session.Doc) bool {
+	name, _ := ev.String("hook_event_name")
+	hash, _ := ev.Map("memory").String("hash")
+	return name == session.MemoryEventName && hash != ""
+}
+
+func (s *Store) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]session.Doc, error) {
+	text := key("$type", "string")
+	if q.PatternRe != "" {
+		re, err := regexFilter(q.PatternRe)
+		if err != nil {
+			return nil, err
+		}
+		text = re
+	}
+	filter := key("hook_event_name", session.MemoryEventName, "memory.text", text, "account_id", q.AccountID)
+	if len(q.Kinds) > 0 {
+		filter = append(filter, bson.E{Key: "memory.kind", Value: key("$in", q.Kinds)})
+	}
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	projection := key("_id", 0, "session_id", 1, "cwd", 1, "memory", 1, "created_at", 1)
+	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
 }
 
 func (s *Store) HookEventIDsByToolUse(ctx context.Context, sessionID string, toolUseIDs []string) ([]string, error) {

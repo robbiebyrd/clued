@@ -7,12 +7,15 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 
+	"github.com/robbiebyrd/clued/mind-palace/memory"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
@@ -100,9 +103,95 @@ func (a *App) sessionCmd() *cobra.Command {
 	c.AddCommand(
 		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
-		a.sessionDaemonCmd(), a.sessionMCPCmd(),
+		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionSearchMemoryCmd(), a.sessionMemoryIngestCmd(),
 	)
 	return c
+}
+
+func (a *App) sessionSearchMemoryCmd() *cobra.Command {
+	var args query.SearchMemoryArgs
+	c := &cobra.Command{
+		Use:   "search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]",
+		Short: "Search the claude-remember summaries, handoffs and identity notes captured as MemorySaved events, newest first",
+		Args:  cobra.MaximumNArgs(1),
+	}
+	run := a.sessionAction(func(ctx context.Context, _ session.Store, svc *query.Service) (any, error) {
+		return svc.SearchMemory(ctx, args)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if len(positional) == 1 {
+			args.Pattern = positional[0]
+		}
+		if err := a.validated(
+			checkRegex("pattern", args.Pattern), checkRegex("--git-origin", args.GitOrigin),
+			checkRegex("--project-path", args.ProjectPath), checkNotNegative("--limit", args.Limit),
+		); err != nil {
+			return err
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringVar(&args.Kind, "kind", "", "only this kind of record: "+strings.Join(memory.Kinds, ", "))
+	f.StringVar(&args.SessionID, "session", "", "only this session")
+	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
+	f.StringVar(&args.ProjectPath, "project-path", "", "only sessions whose project path matches this regular expression")
+	f.IntVar(&args.Limit, "limit", 0, "maximum records (default 20, at most 500)")
+	return c
+}
+
+func (a *App) sessionMemoryIngestCmd() *cobra.Command {
+	var opts memory.IngestOptions
+	var quiet bool
+	c := &cobra.Command{
+		Use:   "memory-ingest [--dir d]... [--cwd c] [--session id] [--quiet]",
+		Short: "Post the new records of a claude-remember store to the daemon as MemorySaved events",
+		Long: `Reads the claude-remember memory store of the working directory (its
+.remember/ folder and ~/.remember/<slug>/, or the --dir folders given) and
+posts every record not posted before to the daemon as a MemorySaved event;
+when the daemon is unreachable the events go to the write-ahead log it
+replays. A state file under the clued data directory keeps the ingest
+idempotent. The claude-remember hooks.d listener and the clued session hooks
+run this; it prints nothing with --quiet.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := a.sessionConfig()
+			if opts.Cwd == "" {
+				wd, err := os.Getwd()
+				if err != nil {
+					return a.sessionBadRequest("cannot determine the working directory: " + err.Error())
+				}
+				opts.Cwd = wd
+			}
+			opts.Home, _ = os.UserHomeDir()
+			opts.ProjectsDir = cfg.ProjectsDir
+			opts.StateDir = memoryStateDir(cfg)
+			opts.Poster = memory.Poster{Port: cfg.Port, WalPath: cfg.WalPath}
+			res, err := memory.Ingest(cmd.Context(), opts)
+			if err != nil {
+				return a.sessionFail(err)
+			}
+			if !quiet {
+				a.print(a.Stdout, map[string]any{"ok": true, "result": res})
+			}
+			return nil
+		},
+	}
+	f := c.Flags()
+	f.StringArrayVar(&opts.Dirs, "dir", nil, "claude-remember store to read (default: the stores of --cwd)")
+	f.StringVar(&opts.Cwd, "cwd", "", "project directory (default: the working directory)")
+	f.StringVar(&opts.SessionID, "session", "", "session id to attach (default: the project's newest transcript)")
+	f.BoolVar(&quiet, "quiet", false, "print nothing on success")
+	return c
+}
+
+// memoryStateDir is where the ingest keeps its per-store state: next to the
+// write-ahead log, which lives next to the config file.
+func memoryStateDir(cfg session.Config) string {
+	base := cfg.WalPath
+	if base == "" {
+		base = session.DefaultConfigPath()
+	}
+	return filepath.Join(filepath.Dir(base), "remember")
 }
 
 func (a *App) sessionBadRequest(msg string) error {

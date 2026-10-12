@@ -16,6 +16,8 @@ const (
 	maxLimit             = 500
 	defaultSessionLimit  = 10
 	defaultCommandLimit  = 20
+	defaultMemoryLimit   = 20
+	contextMemoryCount   = 5
 	defaultLineLimit     = 200
 	topCommandCount      = 10
 	topCommandScanWindow = 100
@@ -45,6 +47,34 @@ type SearchCommandsArgs struct {
 	Limit     int    `json:"limit,omitempty"`
 }
 
+// SearchMemoryArgs are the search_memory tool parameters. Pattern is a
+// case-insensitive regex over the text; empty means every record.
+type SearchMemoryArgs struct {
+	Pattern     string `json:"pattern,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	SessionID   string `json:"session_id,omitempty"`
+	GitOrigin   string `json:"git_origin,omitempty"`
+	ProjectPath string `json:"project_path,omitempty"`
+	Limit       int    `json:"limit,omitempty"`
+}
+
+// MemoryHit is one memory record (a claude-remember summary, handoff or
+// identity ingested as a MemorySaved event) with the project and repository
+// of the session it belongs to (nil when unknown).
+type MemoryHit struct {
+	SessionID   string    `json:"session_id"`
+	ProjectPath *string   `json:"project_path"`
+	GitOrigin   *string   `json:"git_origin"`
+	Cwd         string    `json:"cwd"`
+	Kind        string    `json:"kind"`
+	File        string    `json:"file"`
+	Time        string    `json:"time,omitempty"`
+	Day         string    `json:"day,omitempty"`
+	Branch      string    `json:"branch,omitempty"`
+	Text        string    `json:"text"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 // ReadTranscriptArgs are the read_transcript tool parameters.
 type ReadTranscriptArgs struct {
 	SessionID string `json:"session_id"`
@@ -62,13 +92,14 @@ type CommandHit struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-// Context is a session's metadata, its most recent distinct commands and the
-// start and end of its transcript.
+// Context is a session's metadata, its most recent distinct commands, the
+// start and end of its transcript and its latest memory records.
 type Context struct {
-	Session     session.Doc   `json:"session"`
-	TopCommands []string      `json:"top_commands"`
-	FirstLines  []session.Doc `json:"first_lines"`
-	LastLines   []session.Doc `json:"last_lines"`
+	Session      session.Doc   `json:"session"`
+	TopCommands  []string      `json:"top_commands"`
+	FirstLines   []session.Doc `json:"first_lines"`
+	LastLines    []session.Doc `json:"last_lines"`
+	RecentMemory []MemoryHit   `json:"recent_memory"`
 }
 
 // withDefault returns n, or def when n is not positive, never above maxLimit.
@@ -105,7 +136,7 @@ func (s *Service) FindSessions(ctx context.Context, args FindSessionsArgs) ([]se
 // optionally limited to one session or to the sessions of a repository.
 // A session_id that is not the account's yields no hits.
 func (s *Service) SearchCommands(ctx context.Context, args SearchCommandsArgs) ([]CommandHit, error) {
-	sessionIDs, scoped, err := s.searchScope(ctx, args)
+	sessionIDs, scoped, err := s.scope(ctx, args.SessionID, args.GitOrigin, "")
 	if err != nil {
 		return nil, err
 	}
@@ -144,19 +175,77 @@ func (s *Service) SearchCommands(ctx context.Context, args SearchCommandsArgs) (
 	return hits, nil
 }
 
-// searchScope resolves the session ids a command search is limited to.
-// scoped is false when the search covers every session of the account.
-func (s *Service) searchScope(ctx context.Context, args SearchCommandsArgs) (ids []string, scoped bool, err error) {
+// SearchMemory returns memory records matching the pattern, newest first,
+// optionally of one kind and limited to one session or to the sessions of a
+// repository or project. A session_id that is not the account's yields no
+// hits.
+func (s *Service) SearchMemory(ctx context.Context, args SearchMemoryArgs) ([]MemoryHit, error) {
+	sessionIDs, scoped, err := s.scope(ctx, args.SessionID, args.GitOrigin, args.ProjectPath)
+	if err != nil {
+		return nil, err
+	}
+	if scoped && len(sessionIDs) == 0 {
+		return []MemoryHit{}, nil
+	}
+	var kinds []string
+	if args.Kind != "" {
+		kinds = []string{args.Kind}
+	}
+	events, err := s.Store.MemoryEvents(ctx, session.MemoryQuery{
+		AccountID:  s.AccountID,
+		PatternRe:  args.Pattern,
+		Kinds:      kinds,
+		SessionIDs: sessionIDs,
+		Limit:      withDefault(args.Limit, defaultMemoryLimit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.memoryHits(ctx, events)
+}
+
+// memoryHits joins memory events with their sessions.
+func (s *Service) memoryHits(ctx context.Context, events []session.Doc) ([]MemoryHit, error) {
+	sessions := map[string]session.Doc{}
+	hits := make([]MemoryHit, 0, len(events))
+	for _, ev := range events {
+		id, _ := ev.String("session_id")
+		if _, known := sessions[id]; !known && id != "" {
+			var err error
+			if sessions[id], err = s.sessionOrNil(ctx, id); err != nil {
+				return nil, err
+			}
+		}
+		mem := ev.Map("memory")
+		str := func(k string) string { v, _ := mem.String(k); return v }
+		cwd, _ := ev.String("cwd")
+		createdAt, _ := ev["created_at"].(time.Time)
+		hits = append(hits, MemoryHit{
+			SessionID:   id,
+			ProjectPath: stringPtr(sessions[id], "project_path"),
+			GitOrigin:   stringPtr(sessions[id], "git_origin"),
+			Cwd:         cwd,
+			Kind:        str("kind"), File: str("file"), Time: str("time"), Day: str("day"), Branch: str("branch"), Text: str("text"),
+			CreatedAt: createdAt,
+		})
+	}
+	return hits, nil
+}
+
+// scope resolves the session ids a search is limited to: one session, the
+// sessions of a repository, or the sessions of a project path. scoped is
+// false when the search covers every session of the account.
+func (s *Service) scope(ctx context.Context, sessionID, gitOrigin, projectPath string) (ids []string, scoped bool, err error) {
 	switch {
-	case args.SessionID != "":
-		owned, err := s.sessionOrNil(ctx, args.SessionID)
+	case sessionID != "":
+		owned, err := s.sessionOrNil(ctx, sessionID)
 		if err != nil || owned == nil {
 			return nil, true, err
 		}
-		return []string{args.SessionID}, true, nil
-	case args.GitOrigin != "":
+		return []string{sessionID}, true, nil
+	case gitOrigin != "" || projectPath != "":
 		found, err := s.Store.FindSessions(ctx, session.SessionQuery{
-			AccountID: s.AccountID, GitOriginRe: args.GitOrigin, Limit: maxLimit,
+			AccountID: s.AccountID, GitOriginRe: gitOrigin, ProjectPathRe: projectPath, Limit: maxLimit,
 		})
 		if err != nil {
 			return nil, true, err
@@ -187,8 +276,9 @@ func stringPtr(d session.Doc, key string) *string {
 }
 
 // SessionContext returns the session's metadata, its ten most recent distinct
-// Bash commands (from the last 100), and the first 20 and last 20 transcript
-// lines; last_lines is empty unless the transcript has more than 20 lines.
+// Bash commands (from the last 100), the first 20 and last 20 transcript
+// lines (last_lines is empty unless the transcript has more than 20 lines)
+// and its five latest memory records.
 func (s *Service) SessionContext(ctx context.Context, sessionID string) (Context, error) {
 	stored, err := s.Store.GetSession(ctx, s.AccountID, sessionID)
 	if err != nil {
@@ -217,7 +307,15 @@ func (s *Service) SessionContext(ctx context.Context, sessionID string) (Context
 			last[i], last[j] = last[j], last[i]
 		}
 	}
-	return Context{Session: sessionSummary(stored), TopCommands: topCommands, FirstLines: first, LastLines: last}, nil
+	memoryEvents, err := s.Store.MemoryEvents(ctx, session.MemoryQuery{AccountID: s.AccountID, SessionIDs: []string{sessionID}, Limit: contextMemoryCount})
+	if err != nil {
+		return Context{}, err
+	}
+	recent, err := s.memoryHits(ctx, memoryEvents)
+	if err != nil {
+		return Context{}, err
+	}
+	return Context{Session: sessionSummary(stored), TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent}, nil
 }
 
 // sessionSummary keeps the six fields the context reports; git_origin is

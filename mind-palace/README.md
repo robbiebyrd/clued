@@ -317,6 +317,12 @@ Steps, Acceptance Criteria and Work Log sections the service reads).
 
 ## Sessions
 
+The `memory` package captures what the claude-remember plugin writes for a
+project: `mind-palace session memory-ingest` scans the store, posts each new
+record to the daemon as a `MemorySaved` hook event (the store keeps one per
+account and record hash) and `session search-memory` / the `search_memory`
+tool search them across sessions.
+
 `mind-palace` also holds the clued session capture: the Claude Code plugin's
 hook events and transcripts are mirrored into MongoDB and queried through the
 `session` group, with no Node runtime involved. `go test ./...` runs the
@@ -370,7 +376,7 @@ projects and file-history directories and produces equivalent JSON whose key
 order may differ from the original file.
 
 **MCP tools.** `find_sessions`, `get_session_context`, `get_full_session`,
-`search_commands`, `read_transcript`, `restore_session` and `prime_context`
+`search_commands`, `search_memory`, `read_transcript`, `restore_session` and `prime_context`
 (the context collector's report for a `cwd`; see `mind-palace context --help`).
 `session mcp` serves just these; `mind-palace mcp` and `mind-palace serve`
 expose them next to the plan and story tools.

@@ -70,12 +70,14 @@ the data.
 |---|---|
 | `hooks.json` | Registers the hooks below for every Claude Code hook event; no manual edit of `settings.json` is needed |
 | `hooks/check-setup` | SessionStart: prints one system message when the config file or the `mind-palace` binary is missing |
-| `hooks/session-start` | SessionStart (async): re-runs `register-hooks`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` |
+| `hooks/session-start` | SessionStart (async): re-runs `register-hooks` and `install-remember-listener`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` and a `session memory-ingest` |
+| `hooks/install-remember-listener` | Run by `session-start`: writes clued's listener into the `hooks.d/after_save` and `hooks.d/after_consolidate` directories of every installed [claude-remember](https://github.com/Digital-Process-Tools/claude-remember) plugin (see [claude-remember summaries](#claude-remember-summaries)); a plugin update that removes it is healed on the next start |
+| `scripts/clued session memory-ingest` | SessionEnd (async), the claude-remember listener, and `session-start`: posts the summaries claude-remember wrote since the last run to the daemon as `MemorySaved` events |
 | `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later |
 | `scripts/clued hook write-guard` | PreToolUse on `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Bash`, `EnterPlanMode` and `ExitPlanMode`: routes every change to a plan or story through mind-palace (see [Plans and stories are written by mind-palace](#plans-and-stories-are-written-by-mind-palace)) |
 | `scripts/clued hook stop-guard` | Stop: blocks the assistant from stopping when its last message dodges ownership of a failure, defers work to another session or asks whether to continue (see [Hooks served by the binary](#hooks-served-by-the-binary)) |
 | `scripts/clued hook status-review` | SessionStart, and UserPromptSubmit at most every 30 minutes: tells the assistant to ask you about plans whose stories are all complete and stories whose steps and acceptance criteria are all done but still open |
-| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the three `scripts/clued hook` commands) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
+| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the three `scripts/clued hook` commands and the SessionEnd `session memory-ingest`) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
 | `hooks/uninstall` | Non-interactive cleanup used by `/clued-uninstall` |
 | `scripts/clued` | Shim that finds and runs `mind-palace` (resolution order below) |
 | `.mcp.json` | Two stdio MCP servers: `clued` (`scripts/clued session mcp`, the session tools) and `mind-palace` (`scripts/clued mcp --no-session-tools`, the plan and story tools) |
@@ -185,9 +187,10 @@ lists stays off.
 | Tool | Does |
 |---|---|
 | `find_sessions` | Find previous sessions, newest first; regex filters on project path, cwd and git origin |
-| `get_session_context` | Metadata, the most recent distinct Bash commands, and the first and last transcript lines |
+| `get_session_context` | Metadata, the most recent distinct Bash commands, the first and last transcript lines, and the session's latest memory records |
 | `get_full_session` | The complete record: metadata, transcript, subagent lines, blob metadata and hook events |
 | `search_commands` | Search the Bash commands run in previous sessions |
+| `search_memory` | Search the claude-remember summaries, handoffs and identity notes captured as `MemorySaved` events across every session and machine of the account: regex over the text, optional `kind`, `session_id`, `git_origin` or `project_path` scope |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
 | `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |
@@ -203,6 +206,8 @@ prints JSON.
 |---|---|
 | `session find [--project-path re] [--git-origin re] [--query re] [--limit n]` | Find sessions, newest first |
 | `session search-commands <pattern> [--session id] [--git-origin re] [--limit n]` | Search the Bash commands run in sessions |
+| `session search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]` | Search the memory records ingested from claude-remember |
+| `session memory-ingest [--dir d]... [--cwd c] [--session id] [--quiet]` | Post the new records of the working directory's claude-remember store(s) to the daemon (what the hooks run) |
 | `session context <session>` | Metadata, recent commands, first and last transcript lines |
 | `session full <session>` | The session joined with its transcript, subagents, blobs and hook events |
 | `session transcript <session> [--offset n] [--limit n]` | Read transcript lines |
@@ -210,6 +215,33 @@ prints JSON.
 | `session backfill` | Load every transcript under `projectsDir` into the store (idempotent) |
 | `session daemon [--addr host:port]` | Run the capture daemon |
 | `session mcp [--mcp-tool-prefix p]` | Serve only the session tools over stdio |
+
+### claude-remember summaries
+
+If the [claude-remember](https://github.com/Digital-Process-Tools/claude-remember)
+plugin is installed, the memory it writes for a project (the Haiku-written
+`## HH:MM | branch` entries of `now.md` and `today-*.md`, the consolidated
+`recent.md` and `archive.md` and their rotated slices, the `/remember`
+handoff and `identity.md`) is captured into the clued store as well, so other
+sessions and other machines can search it:
+
+- `hooks/install-remember-listener` drops `70-clued-ingest.sh` into every
+  claude-remember plugin's `hooks.d/after_save` and `hooks.d/after_consolidate`
+  (the plugin runs executables there after each save and consolidation, with
+  the store's directory exported). `session-start` re-runs it on every start,
+  so a plugin update that replaces `hooks.d/` heals itself.
+- The listener, the SessionEnd hook and `session-start` run
+  `scripts/clued session memory-ingest`, which reads the project's store
+  (`<project>/.remember/` or `~/.remember/<slug>/`), hashes every record and
+  posts the ones not posted before to the daemon as `MemorySaved` hook events
+  (`memory.kind`, `file`, `time`, `branch`, `text`, `hash`, `slug`,
+  `remember_dir`; the session is the project's newest transcript). State
+  files under `~/.claude/plugins/data/clued/remember/` keep the ingest
+  idempotent, the store drops a record whose hash the account already holds,
+  and an unreachable daemon sends the events to the write-ahead log.
+- `search_memory` (and `session search-memory`) search the records newest
+  first; `get_session_context` lists a session's latest five. Nothing is ever
+  written into claude-remember's own store.
 
 ### Configuration
 
