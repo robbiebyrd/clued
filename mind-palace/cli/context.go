@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,8 +21,10 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/collect/snapshot"
 	"github.com/robbiebyrd/clued/mind-palace/collect/sources/docsource"
 	"github.com/robbiebyrd/clued/mind-palace/collect/sources/sessionsource"
+	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
+	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 )
 
 // contextState holds the flags of the context group.
@@ -67,6 +70,9 @@ func (a *App) primeCollector(ctx context.Context, root string, opts prime.Option
 		DaemonPort:        cfg.Port,
 		DisabledEnrichers: cfg.DisabledEnrichers,
 		EnabledEnrichers:  cfg.EnabledEnrichers,
+	}
+	if client, ok := remote.FromConfig(cfg); ok {
+		c.Server = client
 	}
 	var closers []func()
 	if !opts.NoStore {
@@ -356,7 +362,7 @@ func (a *App) primeCmd() *cobra.Command {
 			defer closeAll()
 			result := collector.CollectResult(ctx, opts)
 			if !noSnapshot {
-				if err := PostSnapshot(ctx, a.sessionConfig().Port, root, result); err != nil {
+				if err := a.postSnapshot(ctx, root, result); err != nil {
 					fmt.Fprintf(a.Stderr, "clued: context snapshot not stored: %v\n", err)
 				}
 			}
@@ -378,9 +384,45 @@ func PostSnapshot(ctx context.Context, port int, root string, result prime.Resul
 	if !prime.DaemonHealthy(ctx, port) {
 		return nil
 	}
+	return snapshot.Post(ctx, port, snapshotEvent(root, result))
+}
+
+// snapshotEvent is the ContextCollected event of a prime report, attached
+// to the session named by CLAUDE_SESSION_ID, else to the one the SESSION
+// section found, else to none.
+func snapshotEvent(root string, result prime.Result) snapshot.Event {
 	sessionID := os.Getenv("CLAUDE_SESSION_ID")
 	if sessionID == "" {
 		sessionID = result.SessionID
 	}
-	return snapshot.Post(ctx, port, snapshot.Event{SessionID: sessionID, Cwd: filepath.ToSlash(root), Report: result.Report})
+	return snapshot.Event{SessionID: sessionID, Cwd: filepath.ToSlash(root), Report: result.Report}
+}
+
+// postSnapshot stores a prime report where the session capture lives:
+// through the remote store when a server is configured and accepts the
+// token (an unreachable server is not an error, like a daemon that is
+// down), through the daemon otherwise (PostSnapshot).
+func (a *App) postSnapshot(ctx context.Context, root string, result prime.Result) error {
+	cfg := a.sessionConfig()
+	if !cfg.Remote() {
+		return PostSnapshot(ctx, cfg.Port, root, result)
+	}
+	client, err := remote.FromConfigE(cfg)
+	if err != nil {
+		return err
+	}
+	if !prime.ServerHealthy(ctx, client) {
+		return nil
+	}
+	defer a.closeSessionStore()
+	store, err := a.sessionStore(ctx)
+	if err != nil {
+		return err
+	}
+	svc := &ingest.Service{Store: store, AccountID: session.ReadAccountID(cfg.ClaudeAppConfigPath), Host: hostinfo.Read(), WALPath: cfg.WalPath}
+	err = snapshot.Insert(ctx, svc, snapshotEvent(root, result))
+	if errors.Is(err, snapshot.ErrNoSession) {
+		return nil // no session to attach the report to: nothing to store
+	}
+	return err
 }
