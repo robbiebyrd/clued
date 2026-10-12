@@ -10,7 +10,7 @@ binary.
 
 | Path | What it is |
 |---|---|
-| `hooks.json`, `hooks/` | Hook registrations and the bash hooks (`event-relay`, `session-start`, `check-setup`, `guard-superpowers-plans`, `register-hooks`, `uninstall`) |
+| `hooks.json`, `hooks/` | Hook registrations and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `uninstall`) |
 | `scripts/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the bundled binary, then PATH, then `~/.claude/plugins/data/clued/bin`); `--locate` prints the choice |
 | `dist/` | Pre-built `mind-palace_<os>_<arch>[.exe].gz` for 7 platforms plus `SHA256SUMS`; produced by `scripts/build-binaries.sh`, unpacked by the shim on first use |
 | `scripts/build-binaries.sh` | Reproducible cross-compile of the bundled binaries (`--check` verifies them, `--raw DIR` builds release assets) |
@@ -18,11 +18,11 @@ binary.
 | `commands/`, `skills/` | `/clued-setup`, `/clued-uninstall`, and the `plan-storage` skill |
 | `mind-palace/` | The Go module (`github.com/robbiebyrd/clued/mind-palace`); see its README for the package map |
 | `mind-palace/session/` | Session capture: config, Mongo and in-memory stores, daemon, tailing, backfill, enrichers, queries, restore, `sessionmcp` |
-| `mind-palace/hookguard/` | Rules behind the hooks the binary serves (`mind-palace hook stop-guard`); the status review (`hook status-review`, `review`) lives in `service/review.go` |
+| `mind-palace/hookguard/` | Rules behind the hooks the binary serves (`mind-palace hook stop-guard`, `hook write-guard`); the status review (`hook status-review`, `review`) lives in `service/review.go` |
 | `mind-palace/plugin/` | Go tests that execute the bash hooks and the shim |
 | `docs/plans/`, `docs/stories/` | This repository's own plans and stories, managed by `mind-palace` |
 | `docs/superpowers/specs/` | Design documents (brainstorm output); linked from plans with `plan_addSpec` |
-| `docs/superpowers/plans/` | Historical plans from the retired TypeScript implementation; writes here are blocked by a hook |
+| `docs/superpowers/plans/` | Historical plans from the retired TypeScript implementation; writes here are blocked by the write guard |
 
 ## Build and test
 
@@ -74,9 +74,12 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
 - Paths that come from hook requests are validated inline with
   `filepath.IsLocal` / `filepath.Clean` + prefix checks (CodeQL needs to see
   the guard at the point of use).
-- Do not write under `docs/superpowers/plans/`. Plans for work in this repo
-  are created with the `plan_*` MCP tools (or `mind-palace plan create`) and
-  live in `docs/plans/`; stories in `docs/stories/`.
+- Do not write under `docs/superpowers/plans/`, and do not write or edit the
+  files under `docs/plans/` and `docs/stories/` by hand: the `write-guard`
+  hook denies it. Plans for work in this repo are created with the `plan_*`
+  MCP tools (or `mind-palace plan create`), stories with `story_*`, and both
+  change through the setters (`plan_setStatus`, `story_setCriterion`, …) or
+  `plan_update` / `story_update` for the content.
 - Releases: push a `v*` tag; `.github/workflows/release.yml` runs
   `scripts/build-binaries.sh --raw` and uploads the `mind-palace_<os>_<arch>`
   assets and `SHA256SUMS` that `/clued-setup` falls back to on platforms

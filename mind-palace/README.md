@@ -21,7 +21,7 @@ format is the canonical representation in every store.
 | | Plans | Stories |
 |---|---|---|
 | Types (default) | `drft`, `dsgn`, `impl` | `bugs` (bug, fix), `feat` (feature), `impr` (improvement, refactor), `chor` (chore), `task` |
-| Extra front matter | | `purpose`, managed `started` |
+| Extra front matter | | `purpose`, `assignee`, managed `started` |
 | `links.plans` | `[planId, relation]`; parent, included, depends, blocks | `[planId, relation, [sections]?]`; included, depends, blocks; sections must exist in the plan's `progress` |
 | `links.stories` | included, depends, blocks (target need not exist) | parent, included, depends, blocks (target must exist) |
 | `links.repo` | `remote`, `local` | plus `pull_request`, `files` |
@@ -32,9 +32,25 @@ format is the canonical representation in every store.
 | Default template | overridable, deletable (restores the built-in) | overridable, cannot be deleted |
 
 Both kinds share: `id`, `title`, `type`, `status`, `priority`, optional
-`effort`, managed `created`/`updated`/`completed`, `links` (`repo`, `specs`,
-`web`, `stories`, `plans`) and `progress`. Plan files written with the earlier
-top-level `plans` key still parse and are rewritten under `links.plans`.
+`effort`, managed `created`/`updated`/`completed`, the planning fields
+below, `links` (`repo`, `specs`, `web`, `stories`, `plans`) and `progress`.
+Plan files written with the earlier top-level `plans` key still parse and
+are rewritten under `links.plans`.
+
+The planning fields are always written, with an empty value when unset:
+
+```yaml
+tags: ["feature", "security"]   # free-form labels, no whitespace, de-duplicated
+milestone: milestone_beta       # the milestone the document ships in
+due_date: ""                    # calendar dates, YYYY-MM-DD (a timestamp keeps its UTC day)
+planned_start: ""
+planned_end: ""                 # never before planned_start
+order: 0                        # sort position, lower first
+assignee: github:robbiebyrd     # stories only, provider:handle; omitted when unset
+```
+
+Files written before these fields existed still validate; they gain the keys
+on their next write.
 
 ## Build
 
@@ -70,6 +86,11 @@ mind-palace story get 0002-a3f           # path, front matter and content
 mind-palace story get 0002-a3f --content # raw Markdown
 
 mind-palace story set-status 0002-a3f approved   # synonyms map to primary names (approved → ready)
+mind-palace story set-assignee 0002-a3f github:robbiebyrd
+mind-palace story set-tags 0002-a3f feature,security
+mind-palace story set-milestone 0002-a3f milestone_beta
+mind-palace story set-planned 0002-a3f --start 2026-02-01 --end 2026-02-28
+mind-palace story list --milestone milestone_beta --tag security --assignee github:robbiebyrd
 mind-palace story link-plan 0002-a3f 0023-de3 included --sections 1.1,1.2
 mind-palace story set-progress 0002-a3f 1.1 done
 mind-palace story criteria 0002-a3f
@@ -119,7 +140,7 @@ every operation of every kind with its JSON Schema; `mind-palace call <op>
 |---|---|
 | Documents | `create`, `get`, `getFrontMatter`, `getContent`, `list`, `update`, `delete`, `validate` |
 | Templates | `getTemplate`, `listTemplates`, `createTemplate`, `updateTemplate`, `deleteTemplate` |
-| Fields | `setTitle`, `setType`, `setStatus`, `getTransitions`, `setPriority`, `setEffort`, `clearEffort`, `patchFrontMatter`; stories: `setPurpose` |
+| Fields | `setTitle`, `setType`, `setStatus`, `getTransitions`, `setPriority`, `setEffort`, `clearEffort`, `setTags`, `addTag`, `removeTag`, `setMilestone`, `setDueDate`, `setPlannedDates`, `setOrder`, `patchFrontMatter`; stories: `setPurpose`, `setAssignee` |
 | Links | `addPlanLink`, `removePlanLink`, `addStoryLink`, `removeStoryLink`, `addSpec`, `removeSpec`, `setWebLink`, `removeWebLink`, `setRepo`, `clearRepo`; stories: `setPlanSections`, `addFile`, `removeFile` |
 | Progress | `getProgress`, `setProgress`, `removeProgress`; plans: `addProgressStory`, `removeProgressStory` |
 | Criteria and work log (stories) | `getCriteria`, `setCriterion`, `addCriterion`, `removeCriterion`, `appendWorkLog` |
@@ -135,6 +156,7 @@ Rules that apply to every write:
 - Content (below the front matter) changes only through `update` and, for stories, the acceptance-criteria and work-log operations; front matter only through the setters.
 - The content's H1 always matches `title`.
 - Synonyms and labels are accepted for type, status, priority and effort and stored as their primary value (`refactor` → `impr`, `approved` → `ready`, `P1` → `1`, `Medium` → `M`).
+- `tags` are trimmed and de-duplicated and may not contain whitespace; `due_date`, `planned_start` and `planned_end` accept any timestamp form and are stored as `YYYY-MM-DD`; `planned_end` may not be before `planned_start`; `order` is an integer; `assignee` is `provider:handle` without whitespace and only stories have it. `list` filters on `tag`, `milestone` and (stories) `assignee`.
 - `create` seeds `progress` with `pending` for every numbered heading the body declares (unless `progress` is given).
 - Reaching `complete` sets `completed` (and overwrites it on a later return); reaching `in_progress` sets `started` on stories. Neither is cleared by moving away, and both are omitted from the front matter until first set. Moving to `archived` moves the file into `archive/`; leaving it moves the file back.
 - Timestamps are RFC 3339 UTC with millisecond precision (`2026-09-09T14:07:05.352Z`). RFC 3339 in any zone or precision, `YYYY-MM-DD HH:MM:SS UTC` and `YYYY-MM-DD` are accepted on input and normalised.

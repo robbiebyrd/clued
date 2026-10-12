@@ -30,11 +30,11 @@
         ]
       },
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash|EnterPlanMode|ExitPlanMode",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard-superpowers-plans"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook write-guard"
           }
         ]
       }

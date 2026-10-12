@@ -71,6 +71,75 @@ func TestHookStopGuardFailsOnInvalidInput(t *testing.T) {
 	}
 }
 
+func TestHookWriteGuardDeniesWithBareHookJSON(t *testing.T) {
+	root := finishedStoryDir(t)
+	in := `{"hook_event_name":"PreToolUse","tool_name":"Write","cwd":"` + root + `","tool_input":{"file_path":"docs/plans/0009-abc-impl-new.md","content":"x"}}`
+	r := execStdin(t, in, "hook", "write-guard")
+	if r.code != 0 {
+		t.Fatalf("code = %d, stderr %q", r.code, r.stderr)
+	}
+	var d struct {
+		Out struct {
+			Event    string `json:"hookEventName"`
+			Decision string `json:"permissionDecision"`
+			Reason   string `json:"permissionDecisionReason"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal([]byte(r.stdout), &d); err != nil {
+		t.Fatalf("stdout is not the decision JSON: %q (%v)", r.stdout, err)
+	}
+	if d.Out.Event != "PreToolUse" || d.Out.Decision != "deny" || !strings.Contains(d.Out.Reason, "plan_create") {
+		t.Errorf("decision = %+v", d.Out)
+	}
+	if strings.Contains(r.stdout, `"ok"`) {
+		t.Errorf("hook output must not be wrapped in the CLI envelope: %q", r.stdout)
+	}
+}
+
+func TestHookWriteGuardUsesTheConfigOfTheHookCwd(t *testing.T) {
+	root := finishedStoryDir(t)
+	cfg := "plans:\n  dir: planning\nstories:\n  dir: tickets\n"
+	if err := os.WriteFile(filepath.Join(root, "mind-palace.config.yaml"), []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The configured directory is guarded, the default one no longer is.
+	r := execStdin(t, `{"tool_name":"Bash","cwd":"`+root+`","tool_input":{"command":"rm planning/0001-abc-impl-x.md"}}`, "hook", "write-guard")
+	if r.code != 0 || !strings.Contains(r.stdout, `"deny"`) || !strings.Contains(r.stdout, "planning/") {
+		t.Errorf("configured dir: got %+v", r)
+	}
+	r = execStdin(t, `{"tool_name":"Bash","cwd":"`+root+`","tool_input":{"command":"rm docs/plans/0001-abc-impl-x.md"}}`, "hook", "write-guard")
+	if r.code != 0 || r.stdout != "" {
+		t.Errorf("default dir with a config elsewhere: got %+v", r)
+	}
+	// Explicit flags win over the config file.
+	r = execStdin(t, `{"tool_name":"Bash","cwd":"`+root+`","tool_input":{"command":"rm elsewhere/0001-abc-impl-x.md"}}`, "--plans-dir", filepath.Join(root, "elsewhere"), "hook", "write-guard")
+	if r.code != 0 || !strings.Contains(r.stdout, `"deny"`) {
+		t.Errorf("flag dir: got %+v", r)
+	}
+}
+
+func TestHookWriteGuardPrintsNothingWhenUnconcerned(t *testing.T) {
+	root := finishedStoryDir(t)
+	for _, in := range []string{
+		`{"tool_name":"Write","cwd":"` + root + `","tool_input":{"file_path":"src/main.go","content":"x"}}`,
+		`{"tool_name":"Read","cwd":"` + root + `","tool_input":{"file_path":"docs/plans/x.md"}}`,
+		`{"tool_name":"Bash","cwd":"` + root + `","tool_input":{"command":"ls docs/plans"}}`,
+		`{}`,
+	} {
+		r := execStdin(t, in, "hook", "write-guard")
+		if r.code != 0 || r.stdout != "" {
+			t.Errorf("input %s: got %+v, want exit 0 and no output", in, r)
+		}
+	}
+}
+
+func TestHookWriteGuardFailsOnInvalidInput(t *testing.T) {
+	r := execStdin(t, "not json", "hook", "write-guard")
+	if r.code == 0 || r.stdout != "" {
+		t.Errorf("got %+v, want a non-zero exit and no decision", r)
+	}
+}
+
 // finishedStoryDir writes a plans/stories tree holding one story whose steps
 // and criteria are all done but whose status is still in_progress, and
 // returns the directory holding both.

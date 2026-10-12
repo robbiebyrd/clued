@@ -361,12 +361,16 @@ func (a *App) kindGroup(k *kind.Kind) *cobra.Command {
 		kc.createCmd(), kc.getCmd(), kc.listCmd(), kc.updateCmd(), kc.deleteCmd(), kc.validateCmd(),
 		kc.templateCmd(),
 		kc.setTitleCmd(), kc.setTypeCmd(), kc.setStatusCmd(), kc.transitionsCmd(), kc.setPriorityCmd(), kc.setEffortCmd(), kc.clearEffortCmd(), kc.patchCmd(),
+		kc.setTagsCmd(), kc.addTagCmd(), kc.removeTagCmd(), kc.setMilestoneCmd(), kc.setDueDateCmd(), kc.setPlannedCmd(), kc.setOrderCmd(),
 		kc.linkPlanCmd(), kc.unlinkPlanCmd(), kc.linkStoryCmd(), kc.unlinkStoryCmd(), kc.addSpecCmd(), kc.removeSpecCmd(), kc.setWebCmd(), kc.removeWebCmd(), kc.setRepoCmd(), kc.clearRepoCmd(),
 		kc.progressCmd(), kc.setProgressCmd(), kc.removeProgressCmd(),
 		kc.schemaCmd(), kc.opsCmd(),
 	)
 	if k.HasPurpose {
 		c.AddCommand(kc.setPurposeCmd())
+	}
+	if k.HasAssignee {
+		c.AddCommand(kc.setAssigneeCmd())
 	}
 	if k.PlanLinkSections {
 		c.AddCommand(kc.planSectionsCmd())
@@ -466,6 +470,11 @@ func (kc *kindCommands) listCmd() *cobra.Command {
 	c.Flags().StringVar(&p.Priority, "priority", "", "filter by priority (number or label)")
 	c.Flags().StringVar(&p.Plan, "plan", "", "filter by linked plan id")
 	c.Flags().StringVar(&p.Story, "story", "", "filter by linked story id")
+	c.Flags().StringVar(&p.Tag, "tag", "", "filter by tag")
+	c.Flags().StringVar(&p.Milestone, "milestone", "", "filter by milestone")
+	if kc.k.HasAssignee {
+		c.Flags().StringVar(&p.Assignee, "assignee", "", "filter by assignee (provider:handle)")
+	}
 	c.Flags().BoolVar(&p.IncludeArchived, "archived", false, "include archived documents")
 	return c
 }
@@ -682,8 +691,89 @@ func (kc *kindCommands) clearEffortCmd() *cobra.Command {
 		}}
 }
 
+func (kc *kindCommands) setTagsCmd() *cobra.Command {
+	return &cobra.Command{Use: "set-tags " + kc.arg() + " [tag,...]", Short: "Replace the tags (comma-separated; omit to clear)", Args: cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var tags []string
+			if len(args) == 2 {
+				tags = splitSections(args[1])
+			}
+			return kc.run(cmd, "setTags", ops.SetTagsParams{Document: args[0], Tags: tags})
+		}}
+}
+
+func (kc *kindCommands) addTagCmd() *cobra.Command {
+	return &cobra.Command{Use: "add-tag " + kc.arg() + " <tag>", Short: "Add a tag", Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return kc.run(cmd, "addTag", ops.TagParams{Document: args[0], Tag: args[1]})
+		}}
+}
+
+func (kc *kindCommands) removeTagCmd() *cobra.Command {
+	return &cobra.Command{Use: "remove-tag " + kc.arg() + " <tag>", Short: "Remove a tag", Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return kc.run(cmd, "removeTag", ops.TagParams{Document: args[0], Tag: args[1]})
+		}}
+}
+
+func (kc *kindCommands) setMilestoneCmd() *cobra.Command {
+	return &cobra.Command{Use: "set-milestone " + kc.arg() + " [milestone]", Short: "Set the milestone (omit to clear)", Args: cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m := ""
+			if len(args) == 2 {
+				m = args[1]
+			}
+			return kc.run(cmd, "setMilestone", ops.SetMilestoneParams{Document: args[0], Milestone: m})
+		}}
+}
+
+func (kc *kindCommands) setDueDateCmd() *cobra.Command {
+	return &cobra.Command{Use: "set-due-date " + kc.arg() + " [YYYY-MM-DD]", Short: "Set the due date (omit to clear)", Args: cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			d := ""
+			if len(args) == 2 {
+				d = args[1]
+			}
+			return kc.run(cmd, "setDueDate", ops.SetDueDateParams{Document: args[0], Date: d})
+		}}
+}
+
+func (kc *kindCommands) setPlannedCmd() *cobra.Command {
+	var start, end string
+	c := &cobra.Command{Use: "set-planned " + kc.arg() + " [--start YYYY-MM-DD] [--end YYYY-MM-DD]", Short: "Set planned_start and planned_end (an omitted date is cleared)", Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return kc.run(cmd, "setPlannedDates", ops.SetPlannedDatesParams{Document: args[0], Start: start, End: end})
+		}}
+	c.Flags().StringVar(&start, "start", "", "planned_start (YYYY-MM-DD)")
+	c.Flags().StringVar(&end, "end", "", "planned_end (YYYY-MM-DD, not before start)")
+	return c
+}
+
+func (kc *kindCommands) setOrderCmd() *cobra.Command {
+	return &cobra.Command{Use: "set-order " + kc.arg() + " <n>", Short: "Set the sort position (lower first)", Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			n, err := strconv.Atoi(strings.TrimSpace(args[1]))
+			if err != nil {
+				return kc.badRequest("order must be an integer: " + args[1])
+			}
+			return kc.run(cmd, "setOrder", ops.SetOrderParams{Document: args[0], Order: n})
+		}}
+}
+
+func (kc *kindCommands) setAssigneeCmd() *cobra.Command {
+	return &cobra.Command{Use: "set-assignee " + kc.arg() + " [provider:handle]", Short: "Set the assignee, e.g. github:octocat (omit to clear)", Args: cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			a := ""
+			if len(args) == 2 {
+				a = args[1]
+			}
+			return kc.run(cmd, "setAssignee", ops.SetAssigneeParams{Document: args[0], Assignee: a})
+		}}
+}
+
 func (kc *kindCommands) patchCmd() *cobra.Command {
 	var title, purpose, typ, status, priority, effort, raw string
+	var tags, milestone, dueDate, plannedStart, plannedEnd, order, assignee string
 	var clearEffort, force bool
 	c := &cobra.Command{
 		Use:   "patch " + kc.arg() + " [--title ...] [--type ...] [--status ...] [--priority ...] [--effort ...] [--json '{...}']",
@@ -700,10 +790,20 @@ func (kc *kindCommands) patchCmd() *cobra.Command {
 					return kc.badRequest("--json must be a JSON object: " + err.Error())
 				}
 			}
-			for key, val := range map[string]string{"title": title, "purpose": purpose, "type": typ, "status": status, "priority": priority, "effort": effort} {
+			for key, val := range map[string]string{"title": title, "purpose": purpose, "type": typ, "status": status, "priority": priority, "effort": effort, "milestone": milestone, "due_date": dueDate, "planned_start": plannedStart, "planned_end": plannedEnd, "assignee": assignee} {
 				if val != "" {
 					patch[key] = val
 				}
+			}
+			if cmd.Flags().Changed("tags") {
+				patch["tags"] = splitSections(tags)
+			}
+			if order != "" {
+				n, err := strconv.Atoi(strings.TrimSpace(order))
+				if err != nil {
+					return kc.badRequest("--order must be an integer: " + order)
+				}
+				patch["order"] = n
 			}
 			if clearEffort {
 				patch["effort"] = nil
@@ -724,6 +824,15 @@ func (kc *kindCommands) patchCmd() *cobra.Command {
 	f.StringVar(&priority, "priority", "", "new priority")
 	f.StringVar(&effort, "effort", "", "new effort")
 	f.BoolVar(&clearEffort, "clear-effort", false, "remove effort")
+	f.StringVar(&tags, "tags", "", "new tags, comma-separated (empty clears)")
+	f.StringVar(&milestone, "milestone", "", "new milestone")
+	f.StringVar(&dueDate, "due-date", "", "new due_date (YYYY-MM-DD)")
+	f.StringVar(&plannedStart, "planned-start", "", "new planned_start (YYYY-MM-DD)")
+	f.StringVar(&plannedEnd, "planned-end", "", "new planned_end (YYYY-MM-DD)")
+	f.StringVar(&order, "order", "", "new sort position (integer)")
+	if kc.k.HasAssignee {
+		f.StringVar(&assignee, "assignee", "", "new assignee (provider:handle)")
+	}
 	f.StringVar(&raw, "json", "", "JSON object with fields to set (plans, links, progress…); file, - or inline")
 	f.BoolVar(&force, "force", false, "skip the workflow check for status")
 	return c

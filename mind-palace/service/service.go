@@ -234,6 +234,7 @@ func (s *Service) Resolve(ctx context.Context, identifier string) (*model.Docume
 		return nil, storageErr(err)
 	}
 	d.Kind = s.kind.Name
+	d.FrontMatter.NormalizeDates()
 	return d, nil
 }
 
@@ -269,6 +270,7 @@ func (s *Service) pathFor(d *model.Document, slug string) string {
 // Timestamps and ids are normalised to their canonical forms first.
 func (s *Service) check(d *model.Document) []string {
 	d.FrontMatter.NormalizeTimestamps()
+	d.FrontMatter.NormalizeDates()
 	d.FrontMatter.NormalizeIDs()
 	problems := s.validator.ValidateStoredFrontMatter(d.FrontMatter)
 	problems = append(problems, s.invariants(d)...)
@@ -288,6 +290,12 @@ func (s *Service) invariants(d *model.Document) []string {
 	}
 	if h1, ok := markdown.FirstH1(d.Content); !ok || h1 != fm.Title {
 		problems = append(problems, fmt.Sprintf("/content: H1 %q does not match title %q", h1, fm.Title))
+	}
+	if err := checkPlannedDates(fm); err != nil {
+		problems = append(problems, "/planned_end: "+err.Error())
+	}
+	if fm.Assignee != "" && !s.kind.HasAssignee {
+		problems = append(problems, fmt.Sprintf("/assignee: %ss have no assignee field", s.kind.Name))
 	}
 	id, typ, _, ok := model.ParseFileName(d.Path)
 	switch {

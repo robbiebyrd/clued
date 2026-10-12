@@ -141,13 +141,13 @@ func TestRegisterHooksSucceedsWhenSettingsMissing(t *testing.T) {
 	registerHooks(t, t.TempDir(), "", 1).hooks(t)
 }
 
-func TestRegisterHooksAddsPlanGuardWithWriteEditMatcher(t *testing.T) {
+func TestRegisterHooksAddsWriteGuardWithItsMatcher(t *testing.T) {
 	h := registerHooks(t, t.TempDir(), "{}", 1).hooks(t)
 	var guards, relays int
 	for _, g := range h["PreToolUse"] {
-		if hasSuffixCommand(g, "guard-superpowers-plans") {
+		if hasSuffixCommand(g, "/scripts/clued hook write-guard") {
 			guards++
-			if g.Matcher != "Write|Edit" {
+			if g.Matcher != writeGuardMatcher {
 				t.Errorf("matcher = %q", g.Matcher)
 			}
 		}
@@ -164,7 +164,7 @@ func TestRegisterHooksKeepsOneGuardWhenRunTwice(t *testing.T) {
 	h := registerHooks(t, t.TempDir(), "{}", 2).hooks(t)
 	n := 0
 	for _, g := range h["PreToolUse"] {
-		if hasSuffixCommand(g, "guard-superpowers-plans") {
+		if hasSuffixCommand(g, "/scripts/clued hook write-guard") {
 			n++
 		}
 	}
@@ -173,11 +173,25 @@ func TestRegisterHooksKeepsOneGuardWhenRunTwice(t *testing.T) {
 	}
 }
 
+func TestRegisterHooksRetiresTheBashPlanGuard(t *testing.T) {
+	seed := `{"hooks":{"PreToolUse":[{"matcher":"Write|Edit","hooks":[{"type":"command","command":"/old/clued/hooks/guard-superpowers-plans"}]}]}}`
+	h := registerHooks(t, t.TempDir(), seed, 1).hooks(t)
+	for _, g := range h["PreToolUse"] {
+		if hasSuffixCommand(g, "guard-superpowers-plans") {
+			t.Errorf("stale bash guard kept: %+v", g)
+		}
+	}
+	if len(h["PreToolUse"]) != 2 {
+		t.Errorf("PreToolUse = %d entries, want relay and write guard", len(h["PreToolUse"]))
+	}
+}
+
 func TestRegisterHooksMirrorsTheBinaryHooks(t *testing.T) {
 	h := registerHooks(t, t.TempDir(), "{}", 2).hooks(t)
 	clued := filepath.Join(repoRoot(t), "scripts", "clued")
 	want := map[string]string{
 		"Stop":             clued + " hook stop-guard",
+		"PreToolUse":       clued + " hook write-guard",
 		"UserPromptSubmit": clued + " hook status-review --every 30m",
 		"SessionStart":     clued + " hook status-review",
 	}
@@ -200,7 +214,7 @@ func TestRegisterHooksMirrorsTheBinaryHooks(t *testing.T) {
 }
 
 func TestRegisterHooksReplacesStaleBinaryHooks(t *testing.T) {
-	seed := `{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/old/path/bin/clued hook stop-guard"}]}]}}`
+	seed := `{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/old/path/scripts/clued hook stop-guard"}]}]}}`
 	h := registerHooks(t, t.TempDir(), seed, 1).hooks(t)
 	for _, g := range h["Stop"] {
 		for _, hk := range g.Hooks {

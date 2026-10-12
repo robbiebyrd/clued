@@ -353,8 +353,17 @@ func (s *Service) PatchFrontMatter(ctx context.Context, identifier string, patch
 			}
 			d.FrontMatter.Progress = prog
 		default:
-			return nil, newErr(KindBadRequest, "unknown front matter field %q", k)
+			handled, err := s.patchPlanning(d, k, v)
+			if err != nil {
+				return nil, err
+			}
+			if !handled {
+				return nil, newErr(KindBadRequest, "unknown front matter field %q", k)
+			}
 		}
+	}
+	if err := checkPlannedDates(&d.FrontMatter); err != nil {
+		return nil, err
 	}
 	d.Path = s.pathFor(d, "")
 	return s.save(ctx, d, "patchFrontMatter", events.ActionUpdated)

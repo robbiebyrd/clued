@@ -176,6 +176,74 @@ func (s *Service) normalizeCreateInput(input json.RawMessage) (map[string]any, [
 			problems = append(problems, fmt.Sprintf("/frontMatter/effort: unknown effort %v", v))
 		}
 	}
+	// Planning fields: tags are de-duplicated, dates accept any timestamp
+	// form and keep the day, and an absent field takes its empty default so
+	// the schema (which requires the keys) and the stored file agree.
+	if v, ok := fm["tags"]; !ok || v == nil {
+		fm["tags"] = []any{}
+	} else if list, ok := v.([]any); ok {
+		strs := make([]string, 0, len(list))
+		for _, x := range list {
+			if str, ok := x.(string); ok {
+				strs = append(strs, str)
+			} else {
+				strs = nil
+				break
+			}
+		}
+		if strs != nil {
+			if t, err := normalizeTags(strs); err != nil {
+				problems = append(problems, "/frontMatter/tags: "+err.Error())
+			} else {
+				out := make([]any, len(t))
+				for i, x := range t {
+					out[i] = x
+				}
+				fm["tags"] = out
+			}
+		}
+	}
+	if v, ok := fm["milestone"]; !ok || v == nil {
+		fm["milestone"] = ""
+	} else if str, ok := v.(string); ok {
+		fm["milestone"] = strings.TrimSpace(str)
+	}
+	for _, k := range []string{"due_date", "planned_start", "planned_end"} {
+		if v, ok := fm[k]; !ok || v == nil {
+			fm[k] = ""
+		} else if str, ok := v.(string); ok {
+			if n, err := model.NormalizeDate(str); err == nil {
+				fm[k] = n
+			} else {
+				problems = append(problems, fmt.Sprintf("/frontMatter/%s: %v", k, err))
+			}
+		}
+	}
+	if v, ok := fm["order"]; !ok || v == nil {
+		fm["order"] = json.Number("0")
+	} else if str, ok := v.(string); ok {
+		if n, err := toInt("order", str); err == nil {
+			fm["order"] = json.Number(fmt.Sprint(n))
+		}
+	}
+	if v, ok := fm["assignee"]; ok && s.kind.HasAssignee {
+		if v == nil || v == "" {
+			delete(fm, "assignee")
+		} else if str, ok := v.(string); ok {
+			if a, err := normalizeAssignee(str); err == nil {
+				fm["assignee"] = a
+			} else {
+				problems = append(problems, "/frontMatter/assignee: "+err.Error())
+			}
+		}
+	}
+	if ps, pe := fm["planned_start"], fm["planned_end"]; ps != "" && pe != "" {
+		if a, ok := ps.(string); ok {
+			if b, ok := pe.(string); ok && b < a {
+				problems = append(problems, fmt.Sprintf("/frontMatter/planned_end: %s is before planned_start %s", b, a))
+			}
+		}
+	}
 	// Managed fields are set by the service.
 	for _, k := range []string{"created", "updated", "started", "completed"} {
 		delete(fm, k)
@@ -303,6 +371,11 @@ type ListFilter struct {
 	Plan string `json:"plan,omitempty"`
 	// Story keeps documents linked to this story id (links.stories or progress).
 	Story string `json:"story,omitempty"`
+	// Tag keeps documents carrying this tag; Milestone and Assignee keep
+	// documents with exactly that value.
+	Tag       string `json:"tag,omitempty"`
+	Milestone string `json:"milestone,omitempty"`
+	Assignee  string `json:"assignee,omitempty"`
 	// IncludeArchived includes documents in archived status (default:
 	// excluded unless Status asks for them).
 	IncludeArchived bool `json:"includeArchived,omitempty"`
@@ -369,10 +442,29 @@ func (s *Service) List(ctx context.Context, f ListFilter) ([]Summary, error) {
 		if f.Story != "" && !hasStory(fm, f.Story) {
 			continue
 		}
+		if f.Tag != "" && !hasTag(fm, f.Tag) {
+			continue
+		}
+		if f.Milestone != "" && fm.Milestone != f.Milestone {
+			continue
+		}
+		if f.Assignee != "" && fm.Assignee != f.Assignee {
+			continue
+		}
+		fm.NormalizeDates()
 		out = append(out, Summary{Kind: s.kind.Name, Path: d.Path, FrontMatter: fm})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].FrontMatter.ID < out[j].FrontMatter.ID })
 	return out, nil
+}
+
+func hasTag(fm model.FrontMatter, tag string) bool {
+	for _, t := range fm.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 func hasPlanLink(fm model.FrontMatter, id string) bool {
