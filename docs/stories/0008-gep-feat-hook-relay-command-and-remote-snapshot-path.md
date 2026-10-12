@@ -3,12 +3,13 @@ id: 0008-gep
 title: hook relay command and the remote snapshot path
 purpose: Replace the daemon on the client with a short-lived subcommand that ingests the event, catches up the transcript and flushes the WAL.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:05.060Z"
-updated: "2026-10-12T21:00:06.367Z"
+updated: "2026-10-12T21:17:37.273Z"
 started: "2026-10-12T21:00:06.367Z"
+completed: "2026-10-12T21:17:37.273Z"
 tags:
   - server
   - remote
@@ -62,10 +63,10 @@ Hook events reach storage only through `curl` to the daemon on loopback, and `pr
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./cli/ ./collect/...
-- [ ] With the test server up, a synthetic `PostToolUse` event and a temp transcript are stored under the token's account with their lines
-- [ ] With the server down, the relay writes the WAL, logs once and exits 0 within the budget
-- [ ] `prime_context` without `no_snapshot` inserts a `ContextCollected` event through the remote store
+- [x] VERIFY: cd mind-palace && go test -race ./cli/ ./collect/...
+- [x] With the test server up, a synthetic `PostToolUse` event and a temp transcript are stored under the token's account with their lines
+- [x] With the server down, the relay writes the WAL, logs once and exits 0 within the budget
+- [x] `prime_context` without `no_snapshot` inserts a `ContextCollected` event through the remote store
 
 ## Files
 

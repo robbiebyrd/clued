@@ -3,11 +3,12 @@ id: 0009-pdw
 title: Plugin hooks for remote mode
 purpose: Route the bash hooks to the server when config.json names one, and start no daemon.
 type: feat
-status: pending
+status: in_progress
 priority: "2"
 effort: M
 created: "2026-10-12T20:09:05.085Z"
-updated: "2026-10-12T20:09:05.085Z"
+updated: "2026-10-12T21:17:29.616Z"
+started: "2026-10-12T21:17:29.616Z"
 tags:
   - server
   - remote
