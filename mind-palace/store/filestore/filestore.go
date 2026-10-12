@@ -255,8 +255,14 @@ func (s *Store) Delete(_ context.Context, kindName, id string) error {
 	return os.Remove(s.AbsPath(kindName, rel))
 }
 
-func (s *Store) templatePath(kindName, id string) string {
-	return filepath.Join(s.roots[kindName], TemplatesDir, id+".md")
+// templatePath returns the file of a template, named from the canonical form
+// of the id so the path can only hold template id characters.
+func (s *Store) templatePath(kindName, id string) (string, error) {
+	canonical, ok := model.CanonicalTemplateID(id)
+	if !ok {
+		return "", fmt.Errorf("invalid template id %q", id)
+	}
+	return filepath.Join(s.roots[kindName], TemplatesDir, canonical+".md"), nil
 }
 
 func (s *Store) ListTemplates(ctx context.Context, kindName string) ([]*model.Template, error) {
@@ -292,14 +298,18 @@ func (s *Store) GetTemplate(_ context.Context, kindName, id string) (*model.Temp
 	if _, err := s.root(kindName); err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(s.templatePath(kindName, id))
+	path, err := s.templatePath(kindName, id)
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, store.ErrNotFound
 		}
 		return nil, err
 	}
-	info, _ := os.Stat(s.templatePath(kindName, id))
+	info, _ := os.Stat(path)
 	t := &model.Template{Kind: kindName, ID: id, Content: string(data)}
 	if info != nil {
 		t.Updated = info.ModTime().UTC().Format(time.RFC3339Nano)
@@ -318,7 +328,11 @@ func (s *Store) PutTemplate(_ context.Context, t *model.Template) error {
 	if err := os.MkdirAll(filepath.Join(root, TemplatesDir), 0o755); err != nil {
 		return err
 	}
-	return writeAtomic(s.templatePath(t.Kind, t.ID), []byte(t.Content))
+	path, err := s.templatePath(t.Kind, t.ID)
+	if err != nil {
+		return err
+	}
+	return writeAtomic(path, []byte(t.Content))
 }
 
 func (s *Store) DeleteTemplate(_ context.Context, kindName, id string) error {
@@ -328,7 +342,11 @@ func (s *Store) DeleteTemplate(_ context.Context, kindName, id string) error {
 	if _, err := s.root(kindName); err != nil {
 		return err
 	}
-	err := os.Remove(s.templatePath(kindName, id))
+	path, err := s.templatePath(kindName, id)
+	if err != nil {
+		return err
+	}
+	err = os.Remove(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return store.ErrNotFound
 	}
@@ -336,7 +354,7 @@ func (s *Store) DeleteTemplate(_ context.Context, kindName, id string) error {
 }
 
 func checkTemplateID(id string) error {
-	if id == "" || strings.ContainsAny(id, `/\`) || id == "." || id == ".." {
+	if _, ok := model.CanonicalTemplateID(id); !ok {
 		return fmt.Errorf("invalid template id %q", id)
 	}
 	return nil

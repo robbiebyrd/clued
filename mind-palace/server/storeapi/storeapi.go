@@ -31,7 +31,6 @@ import (
 	"net/http"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/robbiebyrd/clued/mind-palace/kind"
@@ -134,10 +133,6 @@ func (a *api) handle(op operation) http.HandlerFunc {
 		op(w, r, &request{project: project, kind: k.Name, id: r.PathValue("id"), store: st})
 	}
 }
-
-// templateIDRe is the shape of a template id: one path segment of letters,
-// digits, dots, underscores and hyphens, never "." or "..".
-var templateIDRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$`)
 
 // validDocPath accepts a kind-relative document path that stays under the
 // kind's root: slash-separated, clean, and local (no "..", no absolute
@@ -261,7 +256,8 @@ func (a *api) put(w http.ResponseWriter, r *http.Request, req *request) {
 		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("document id %q does not match the path id %q", d.ID(), req.id))
 		return
 	}
-	if !model.IDRe.MatchString(req.id) {
+	id, ok := model.CanonicalID(req.id)
+	if !ok {
 		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("invalid document id %q", req.id))
 		return
 	}
@@ -269,7 +265,7 @@ func (a *api) put(w http.ResponseWriter, r *http.Request, req *request) {
 		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("invalid document path %q", d.Path))
 		return
 	}
-	d.FrontMatter.ID = req.id
+	d.FrontMatter.ID = id
 	err := req.store.Put(r.Context(), &d)
 	writeWriteResult(w, &d, err, req.kind+" "+req.id)
 }
@@ -319,11 +315,12 @@ func (a *api) putTemplate(w http.ResponseWriter, r *http.Request, req *request) 
 		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("template id %q does not match the path id %q", t.ID, req.id))
 		return
 	}
-	if !templateIDRe.MatchString(req.id) {
+	id, ok := model.CanonicalTemplateID(req.id)
+	if !ok {
 		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("invalid template id %q", req.id))
 		return
 	}
-	t.ID = req.id
+	t.ID = id
 	err := req.store.PutTemplate(r.Context(), &t)
 	writeWriteResult(w, &t, err, req.kind+" template "+req.id)
 }
