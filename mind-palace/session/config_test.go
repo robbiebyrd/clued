@@ -3,6 +3,8 @@ package session
 import (
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -10,6 +12,7 @@ import (
 var configEnvKeys = []string{
 	"CLUED_MONGO_URL", "CLUED_DB_NAME", "CLUED_PORT", "CLUED_PROJECTS_DIR",
 	"CLUED_FILE_HISTORY_DIR", "CLUED_CLAUDE_APP_CONFIG_PATH", "CLUED_WAL_PATH",
+	"CLUED_SERVER_URL", "CLUED_SERVER_TOKEN", "CLUED_SERVER_CA_FILE", "CLUED_SERVER_INSECURE",
 }
 
 // cleanEnv unsets every CLUED_* variable for the test and restores them after.
@@ -181,5 +184,159 @@ func TestDefaultConfigPath(t *testing.T) {
 	want := filepath.Join(home(t), ".claude", "plugins", "data", "clued", "config.json")
 	if got := DefaultConfigPath(); got != want {
 		t.Fatalf("DefaultConfigPath = %s, want %s", got, want)
+	}
+}
+
+func TestLoadConfigServerFieldsDefaultEmptyAndNotRemote(t *testing.T) {
+	cleanEnv(t)
+	cfg := LoadConfig(filepath.Join(t.TempDir(), "nonexistent.json"))
+	if cfg.ServerURL != "" || cfg.ServerToken != "" || cfg.ServerCAFile != "" || cfg.ServerInsecure {
+		t.Fatalf("server fields not empty by default: %+v", cfg)
+	}
+	if cfg.Remote() {
+		t.Fatal("Remote() = true with no serverUrl")
+	}
+}
+
+func TestLoadConfigServerFieldsFromFile(t *testing.T) {
+	cleanEnv(t)
+	p := writeConfig(t, t.TempDir(), "config.json", `{
+		"serverUrl": "https://clued.example.com",
+		"serverToken": "secret-token",
+		"serverCaFile": "/etc/clued/ca.pem",
+		"serverInsecure": true
+	}`)
+	cfg := LoadConfig(p)
+	if cfg.ServerURL != "https://clued.example.com" || cfg.ServerToken != "secret-token" ||
+		cfg.ServerCAFile != "/etc/clued/ca.pem" || !cfg.ServerInsecure {
+		t.Fatalf("server fields not read from file: %+v", cfg)
+	}
+	if !cfg.Remote() {
+		t.Fatal("Remote() = false with serverUrl set")
+	}
+	if cfg.MongoURL != "mongodb://localhost:27018" || cfg.Port != 8085 {
+		t.Fatalf("existing defaults changed: %+v", cfg)
+	}
+}
+
+func TestLoadConfigServerEnvOverridesFile(t *testing.T) {
+	cleanEnv(t)
+	p := writeConfig(t, t.TempDir(), "config.json", `{
+		"serverUrl": "https://file.example.com",
+		"serverToken": "file-token",
+		"serverCaFile": "/file/ca.pem",
+		"serverInsecure": false
+	}`)
+	t.Setenv("CLUED_SERVER_URL", "https://env.example.com")
+	t.Setenv("CLUED_SERVER_TOKEN", "env-token")
+	t.Setenv("CLUED_SERVER_CA_FILE", "/env/ca.pem")
+	t.Setenv("CLUED_SERVER_INSECURE", "1")
+	cfg := LoadConfig(p)
+	if cfg.ServerURL != "https://env.example.com" || cfg.ServerToken != "env-token" ||
+		cfg.ServerCAFile != "/env/ca.pem" || !cfg.ServerInsecure {
+		t.Fatalf("env overrides not applied: %+v", cfg)
+	}
+}
+
+func TestLoadConfigServerEnvOnly(t *testing.T) {
+	cleanEnv(t)
+	t.Setenv("CLUED_SERVER_URL", "https://env.example.com")
+	t.Setenv("CLUED_SERVER_TOKEN", "env-token")
+	cfg := LoadConfig(filepath.Join(t.TempDir(), "nonexistent.json"))
+	if cfg.ServerURL != "https://env.example.com" || cfg.ServerToken != "env-token" {
+		t.Fatalf("env values not applied without a file: %+v", cfg)
+	}
+	if !cfg.Remote() {
+		t.Fatal("Remote() = false with CLUED_SERVER_URL set")
+	}
+}
+
+func TestLoadConfigServerInsecureEnvValues(t *testing.T) {
+	cases := []struct {
+		env  string
+		file bool
+		want bool
+	}{
+		{env: "1", want: true},
+		{env: "true", want: true},
+		{env: "TRUE", want: true},
+		{env: "0", file: true, want: false},
+		{env: "false", file: true, want: false},
+		{env: "", file: true, want: true},
+		{env: "", file: false, want: false},
+		{env: "banana", file: true, want: true},
+		{env: "banana", file: false, want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.env+"/file="+strconv.FormatBool(tc.file), func(t *testing.T) {
+			cleanEnv(t)
+			p := writeConfig(t, t.TempDir(), "config.json", `{"serverInsecure": `+strconv.FormatBool(tc.file)+`}`)
+			if tc.env != "" {
+				t.Setenv("CLUED_SERVER_INSECURE", tc.env)
+			}
+			if cfg := LoadConfig(p); cfg.ServerInsecure != tc.want {
+				t.Fatalf("ServerInsecure = %v, want %v", cfg.ServerInsecure, tc.want)
+			}
+		})
+	}
+}
+
+func TestLoadConfigExpandsHomeInServerCAFile(t *testing.T) {
+	cleanEnv(t)
+	p := writeConfig(t, t.TempDir(), "config.json", `{"serverCaFile": "~/.clued/ca.pem"}`)
+	cfg := LoadConfig(p)
+	if want := filepath.Join(home(t), ".clued", "ca.pem"); cfg.ServerCAFile != want {
+		t.Fatalf("ServerCAFile = %s, want %s", cfg.ServerCAFile, want)
+	}
+	t.Setenv("CLUED_SERVER_CA_FILE", "~/env/ca.pem")
+	cfg = LoadConfig(p)
+	if want := filepath.Join(home(t), "env", "ca.pem"); cfg.ServerCAFile != want {
+		t.Fatalf("ServerCAFile from env = %s, want %s", cfg.ServerCAFile, want)
+	}
+}
+
+// TestLoadConfigOldKeysOnlyLoadsIdentically is the compatibility gate: a
+// config.json written before the server fields existed must load exactly as
+// before, and Remote() must be false.
+func TestLoadConfigOldKeysOnlyLoadsIdentically(t *testing.T) {
+	cleanEnv(t)
+	dir := t.TempDir()
+	p := writeConfig(t, dir, "config.json", `{
+		"mongoUrl": "mongodb://db.example.com:27017",
+		"dbName": "my_db",
+		"port": 9001,
+		"projectsDir": "/p/projects",
+		"fileHistoryDir": "/p/file-history",
+		"disabledEnrichers": ["a"],
+		"enabledEnrichers": ["b"],
+		"claudeAppConfigPath": "/p/claude/config.json",
+		"devRepoPath": "/p/clued"
+	}`)
+	cfg := LoadConfig(p)
+	want := Config{
+		MongoURL:            "mongodb://db.example.com:27017",
+		DBName:              "my_db",
+		Port:                9001,
+		ProjectsDir:         "/p/projects",
+		FileHistoryDir:      "/p/file-history",
+		DisabledEnrichers:   []string{"a"},
+		EnabledEnrichers:    []string{"b"},
+		ClaudeAppConfigPath: "/p/claude/config.json",
+		WalPath:             filepath.Join(dir, "events.wal"),
+	}
+	if !reflect.DeepEqual(cfg, want) {
+		t.Fatalf("LoadConfig = %+v\nwant        %+v", cfg, want)
+	}
+	if cfg.Remote() {
+		t.Fatal("Remote() = true for a config with only the old keys")
+	}
+}
+
+func TestConfigRemote(t *testing.T) {
+	if (Config{}).Remote() {
+		t.Fatal("Remote() = true on the zero Config")
+	}
+	if !(Config{ServerURL: "https://x"}).Remote() {
+		t.Fatal("Remote() = false with ServerURL set")
 	}
 }
