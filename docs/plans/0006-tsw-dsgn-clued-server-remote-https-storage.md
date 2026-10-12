@@ -6,7 +6,7 @@ status: in_progress
 priority: "2"
 effort: XL
 created: "2026-10-12T19:57:12.904Z"
-updated: "2026-10-12T22:01:12.425Z"
+updated: "2026-10-12T22:34:19.872Z"
 tags:
   - server
   - remote
@@ -75,7 +75,7 @@ progress:
     stories:
       - 0012-gbx
   "4":
-    status: pending
+    status: in_progress
   "4.1":
     status: complete
     stories:
@@ -89,13 +89,13 @@ progress:
     stories:
       - 0015-mvd
   "5":
-    status: pending
+    status: complete
   "5.1":
     status: complete
     stories:
       - 0016-pu9
   "5.2":
-    status: in_progress
+    status: complete
     stories:
       - 0017-k62
 ---

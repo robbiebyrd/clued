@@ -7,7 +7,7 @@ status: in_progress
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.261Z"
-updated: "2026-10-12T22:00:55.328Z"
+updated: "2026-10-12T22:33:59.260Z"
 started: "2026-10-12T21:36:17.235Z"
 tags:
   - server
@@ -71,7 +71,7 @@ Binary and Docker setups, token management (`create`, `grant`, `revoke`), TLS an
 ## Acceptance Criteria
 
 - [x] VERIFY: cd mind-palace && go test -race -run Remote ./cli/
-- [ ] VERIFY: docker build -f Dockerfile.server -t clued-server .
+- [x] VERIFY: docker build -f Dockerfile.server -t clued-server .
 - [x] The end-to-end test passes with no environment variables and covers event, transcript, plan fan-out and sync after restart
 - [ ] [MANUAL] A `v*` tag publishes `ghcr.io/robbiebyrd/clued-server:<tag>` and the compose file pulls it
 
@@ -87,3 +87,5 @@ Binary and Docker setups, token management (`create`, `grant`, `revoke`), TLS an
 ## Work Log
 
 ### 2026-10-12T22:00:55.328Z - End-to-end test, Dockerfile.server, compose file, workflows and docs/server.md merged. Criterion 2 (literal docker build) could not run in the sandbox: registry rate limits and the proxy CA forced a two-line scratch variant, which built and passed a smoke run; CI's new image job runs the literal build. Criterion 4 waits for the first v* tag to publish ghcr.io/robbiebyrd/clued-server.
+
+### 2026-10-12T22:33:59.260Z - CI's image job built Dockerfile.server on the PR head (criterion 2). Only the GHCR publish on the first v* tag remains.

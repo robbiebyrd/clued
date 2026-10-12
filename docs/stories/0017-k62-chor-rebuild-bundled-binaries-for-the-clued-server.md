@@ -3,12 +3,13 @@ id: 0017-k62
 title: Rebuild the bundled binaries for the clued server
 purpose: Keep dist/ in step with the Go source so CI's binaries job and the shim pick up the server and relay commands.
 type: chor
-status: in_progress
+status: complete
 priority: "2"
 effort: XS
 created: "2026-10-12T20:09:05.317Z"
-updated: "2026-10-12T22:01:10.716Z"
+updated: "2026-10-12T22:34:05.960Z"
 started: "2026-10-12T22:00:55.352Z"
+completed: "2026-10-12T22:34:05.960Z"
 tags:
   - server
   - remote
@@ -60,7 +61,7 @@ Commit `dist/` in the same change set as the last Go change of the plan, not in 
 ## Acceptance Criteria
 
 - [x] VERIFY: scripts/build-binaries.sh --check
-- [ ] CI's `binaries` job is green on the PR that carries the rebuild
+- [x] CI's `binaries` job is green on the PR that carries the rebuild
 - [x] VERIFY: scripts/clued --locate && scripts/clued hook relay --help && scripts/clued server --help
 
 ## Files
