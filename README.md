@@ -167,6 +167,31 @@ Every command takes `--config` (default `~/.claude/plugins/data/clued/config.jso
 
 ---
 
+## Context collector
+
+`bin/clued context <probe> [args] [--limit n] [--root dir]` answers one question about the working directory with a single plain-text line (or block) so skills can gather facts without parsing JSON. Every probe always exits 0 and prints a sentinel (`yes`/`no`, `none`, `0`, `unknown`, `not a git repo`, `store unavailable`, `[FALLBACK: ...]`) instead of an error.
+
+The composite report that primes a session:
+
+```
+bin/clued context prime [--no-store] [--no-docs]
+```
+
+`--no-store` skips the SESSION lookup in MongoDB, `--no-docs` skips the STORIES and PLANS sections.
+
+| Group | Probes |
+|---|---|
+| Filesystem | `file-exists`, `dir-exists`, `count-files`, `list-files`, `file-head`, `count-lines`, `find-files`, `count-files-with-content`, `pwd` |
+| Git | `git` (read-only passthrough), `git-is-clean`, `git-commits-since-tag`, `git-origin`, `git-branch`, `git-default-branch` |
+| GitHub | `gh` (read-only passthrough), `gh-pr-for-branch` |
+| JSON/config | `json-field`, `json-count`, `json-count-where`, `json-count-with-key`, `mcp-configured` |
+| Environment | `command-exists`, `detect-stack`, `detect-coverage`, `detect-frontend`, `detect-css-framework`, `detect-build-tool`, `detect-port` |
+| clued | `host`, `account`, `project-path`, `daemon-status`, `session`, `prime` |
+
+The `clued-context` skill (`skills/clued-context/SKILL.md`) documents every probe, its arguments and its sentinels, and `/clued-prime` runs the report and summarises it. The clued MCP server exposes the same report as the `prime_context` tool, which takes an optional `cwd`.
+
+---
+
 ## Uninstall
 
 ```

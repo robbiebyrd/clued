@@ -26,14 +26,24 @@ var t0 = time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
 type fakeSessions struct {
 	snap  *SessionSnapshot
 	err   error
-	block time.Duration // ignores the context on purpose when > 0
-	cwd   string
+	block time.Duration // delay before answering
+	// honourCtx makes the delay abort on ctx.Done, as a real store does.
+	honourCtx bool
+	cwd       string
 }
 
-func (f *fakeSessions) Current(_ context.Context, cwd string) (*SessionSnapshot, error) {
+func (f *fakeSessions) Current(ctx context.Context, cwd string) (*SessionSnapshot, error) {
 	f.cwd = cwd
 	if f.block > 0 {
-		time.Sleep(f.block)
+		if f.honourCtx {
+			select {
+			case <-time.After(f.block):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		} else {
+			time.Sleep(f.block)
+		}
 	}
 	return f.snap, f.err
 }
@@ -397,6 +407,23 @@ func TestBudgetFallsBackButRendersTheRest(t *testing.T) {
 	}
 	if len(m) != 11 {
 		t.Errorf("report has %d sections, want 11", len(m))
+	}
+}
+
+func TestSlowStoreHitsTheStoreTimeoutNotTheBudget(t *testing.T) {
+	root := repo(t)
+	c := collector(t, root)
+	c.Sessions = &fakeSessions{block: StoreTimeout + 5*time.Second, honourCtx: true}
+	start := time.Now()
+	m := sectionMap(t, c.Collect(context.Background(), Options{}))
+	if elapsed := time.Since(start); elapsed > StoreTimeout+2*time.Second {
+		t.Fatalf("Collect took %v, the store timeout did not fire", elapsed)
+	}
+	if m["SESSION"] != collect.StoreUnavailable {
+		t.Errorf("SESSION = %q", m["SESSION"])
+	}
+	if m["BUILD"] == "" {
+		t.Error("later sections must still render")
 	}
 }
 

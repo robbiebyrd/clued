@@ -20,6 +20,10 @@ import (
 // DefaultBudget bounds one Collect call.
 const DefaultBudget = 20 * time.Second
 
+// StoreTimeout bounds the SESSION lookup, connect included: a MongoDB that is
+// down must cost a sentinel line, not the whole budget.
+const StoreTimeout = 2 * time.Second
+
 const (
 	baseLogCount  = 15
 	headLogCount  = 10
@@ -341,6 +345,8 @@ func (c *Collector) sessionSection(ctx context.Context, root string, opts Option
 	if c.Sessions == nil || opts.NoStore {
 		return collect.StoreDisabled
 	}
+	ctx, cancel := context.WithTimeout(ctx, StoreTimeout)
+	defer cancel()
 	snap, err := c.Sessions.Current(ctx, filepath.ToSlash(root))
 	if err != nil {
 		return collect.StoreUnavailable

@@ -52,6 +52,7 @@ func (a *App) jsonProbe() *jsonprobe.Probe {
 // returned function closes what was opened.
 func (a *App) primeCollector(ctx context.Context, root string, opts prime.Options) (*prime.Collector, func()) {
 	cfg := a.sessionConfig()
+	accountID := session.ReadAccountID(cfg.ClaudeAppConfigPath)
 	c := &prime.Collector{
 		Root:              root,
 		FS:                &fsprobe.Probe{Root: root},
@@ -59,14 +60,14 @@ func (a *App) primeCollector(ctx context.Context, root string, opts prime.Option
 		GH:                &ghprobe.Probe{Root: root},
 		Env:               &envprobe.Probe{Root: root},
 		Host:              hostinfo.Read,
-		AccountID:         func() string { return session.ReadAccountID(cfg.ClaudeAppConfigPath) },
+		AccountID:         func() string { return accountID },
 		ConfigPath:        a.sess.configPath,
 		DaemonPort:        cfg.Port,
 		DisabledEnrichers: cfg.DisabledEnrichers,
 	}
 	var closers []func()
 	if !opts.NoStore {
-		src := sessionsource.New(func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }, c.AccountID())
+		src := sessionsource.New(func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }, accountID)
 		c.Sessions = src
 		closers = append(closers, func() { _ = src.Close(context.Background()) })
 	}
@@ -213,6 +214,8 @@ exit 0; failures print a sentinel (yes/no, none, 0, unknown, not a git repo,
 			cfg := a.sessionConfig()
 			src := sessionsource.New(func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }, session.ReadAccountID(cfg.ClaudeAppConfigPath))
 			defer func() { _ = src.Close(context.Background()) }()
+			ctx, cancel := context.WithTimeout(ctx, prime.StoreTimeout)
+			defer cancel()
 			snap, err := src.Current(ctx, filepath.ToSlash(a.contextRoot()))
 			if err != nil {
 				return collect.StoreUnavailable
