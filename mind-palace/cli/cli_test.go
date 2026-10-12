@@ -2,12 +2,18 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/robbiebyrd/clued/mind-palace/session"
 	_ "github.com/robbiebyrd/clued/mind-palace/store/filestore"
 	_ "github.com/robbiebyrd/clued/mind-palace/store/memstore"
 )
@@ -281,5 +287,84 @@ func TestStoryCommandsAndKindBinaries(t *testing.T) {
 		if code := kindMain(app, tc.kind, tc.args); code != 0 || !strings.Contains(out.String(), tc.want) {
 			t.Errorf("%s %v: code %d out %s err %s", tc.kind, tc.args, code, out.String(), errb.String())
 		}
+	}
+}
+
+func assertPalaceAndSessionTools(t *testing.T, names []string) {
+	t.Helper()
+	for _, want := range append([]string{"plan_create", "plan_get", "story_create", "story_getCriteria"}, sessionToolNames...) {
+		if !contains(names, want) {
+			t.Errorf("tool %s missing from %v", want, names)
+		}
+	}
+}
+
+func TestMCPServesSessionToolsWithoutConnectingTheStore(t *testing.T) {
+	sessionEnv(t, nil)
+	openSessionStore = func(context.Context, session.Config) (session.Store, error) {
+		return nil, errors.New("mongo unreachable")
+	}
+	dir := t.TempDir()
+	rc, cs, ctx := startStdioCommand(t, "--plans-dir", filepath.Join(dir, "plans"), "--stories-dir", filepath.Join(dir, "stories"), "mcp")
+
+	assertPalaceAndSessionTools(t, toolNames(t, ctx, cs))
+	res, err := cs.CallTool(ctx, &mcp.CallToolParams{Name: "find_sessions", Arguments: map[string]any{}})
+	if err != nil || !res.IsError {
+		t.Fatalf("find_sessions with an unreachable store: %v %+v, want a tool error", err, res)
+	}
+	if code := rc.stop(t); code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+}
+
+func TestMCPNoSessionToolsFlagKeepsOnlyPalaceTools(t *testing.T) {
+	sessionEnv(t, nil)
+	dir := t.TempDir()
+	rc, cs, ctx := startStdioCommand(t, "--plans-dir", filepath.Join(dir, "plans"), "--stories-dir", filepath.Join(dir, "stories"), "mcp", "--no-session-tools")
+
+	names := toolNames(t, ctx, cs)
+	for _, want := range []string{"plan_create", "plan_get", "story_create", "story_getCriteria"} {
+		if !contains(names, want) {
+			t.Errorf("tool %s missing from %v", want, names)
+		}
+	}
+	for _, unwanted := range sessionToolNames {
+		if contains(names, unwanted) {
+			t.Errorf("session tool %s present despite --no-session-tools: %v", unwanted, names)
+		}
+	}
+	if strings.Contains(cs.InitializeResult().Instructions, "find_sessions") {
+		t.Errorf("instructions = %q, want no session tools described", cs.InitializeResult().Instructions)
+	}
+	if code := rc.stop(t); code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+}
+
+func TestServeExposesSessionToolsOverStreamableHTTP(t *testing.T) {
+	sessionEnv(t, seedSessions(t))
+	dir := t.TempDir()
+	rc := startCommand(t, "--plans-dir", filepath.Join(dir, "plans"), "--stories-dir", filepath.Join(dir, "stories"),
+		"serve", "--addr", "127.0.0.1:0", "--no-ws")
+	var addr string
+	waitFor(t, "serve to listen", func() bool {
+		_, rest, ok := strings.Cut(rc.stderr.String(), "listening on http://")
+		addr, _, _ = strings.Cut(rest, " ")
+		return ok && strings.Contains(rest, " ")
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	cs, err := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil).Connect(ctx, &mcp.StreamableClientTransport{Endpoint: "http://" + addr + "/mcp"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertPalaceAndSessionTools(t, toolNames(t, ctx, cs))
+	if !strings.Contains(cs.InitializeResult().Instructions, "find_sessions") {
+		t.Errorf("instructions = %q, want the session tools described", cs.InitializeResult().Instructions)
+	}
+	_ = cs.Close() // an open stream would hold the server's shutdown
+	if code := rc.stop(t); code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
 	}
 }

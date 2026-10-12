@@ -8,6 +8,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/cli"
 
 	// Storage plugins register themselves on import.
+	_ "github.com/robbiebyrd/clued/mind-palace/session/enrichers"
 	_ "github.com/robbiebyrd/clued/mind-palace/store/filestore"
 	_ "github.com/robbiebyrd/clued/mind-palace/store/firestorestore"
 	_ "github.com/robbiebyrd/clued/mind-palace/store/memstore"

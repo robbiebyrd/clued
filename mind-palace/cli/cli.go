@@ -33,6 +33,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/server"
 	"github.com/robbiebyrd/clued/mind-palace/server/mcpserver"
 	"github.com/robbiebyrd/clued/mind-palace/service"
+	"github.com/robbiebyrd/clued/mind-palace/session/sessionmcp"
 	"github.com/robbiebyrd/clued/mind-palace/store"
 )
 
@@ -80,6 +81,7 @@ type App struct {
 	palace *service.Palace
 	regs   ops.Registries
 	st     *store.MultiStore
+	sess   sessionState
 }
 
 // New returns an App bound to the standard streams.
@@ -336,7 +338,7 @@ or the path to the file.`,
 	for _, k := range kind.All() {
 		root.AddCommand(a.kindGroup(k))
 	}
-	root.AddCommand(a.syncCmd(), a.serveCmd(), a.mcpCmd(), a.callCmd(), a.opsCmd(), a.configCmd(), a.schemaCmd(), a.storesCmd())
+	root.AddCommand(a.syncCmd(), a.serveCmd(), a.mcpCmd(), a.callCmd(), a.opsCmd(), a.configCmd(), a.schemaCmd(), a.storesCmd(), a.sessionCmd())
 	return root
 }
 
@@ -1001,7 +1003,7 @@ func (a *App) syncCmd() *cobra.Command {
 
 func (a *App) serveCmd() *cobra.Command {
 	var addr, prefix string
-	var noHTTP, noWS, noMCP, anyOrigin bool
+	var noHTTP, noWS, noMCP, anyOrigin, noSessionTools bool
 	c := &cobra.Command{
 		Use:   "serve [--addr host:port]",
 		Short: "Serve the HTTP/REST, WebSocket and MCP (Streamable HTTP) entrypoints",
@@ -1016,7 +1018,9 @@ func (a *App) serveCmd() *cobra.Command {
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			logger := slog.New(slog.NewTextHandler(a.Stderr, nil))
-			srv := server.New(a.palace, a.regs, server.Options{HTTP: !noHTTP, WebSocket: !noWS, MCP: !noMCP, MCPToolPrefix: prefix, Logger: logger, AllowAnyOrigin: anyOrigin})
+			tools, instructions := a.sessionToolProviders(noSessionTools)
+			srv := server.New(a.palace, a.regs, server.Options{HTTP: !noHTTP, WebSocket: !noWS, MCP: !noMCP, MCPToolPrefix: prefix, Logger: logger, AllowAnyOrigin: anyOrigin,
+				MCPTools: tools, MCPExtraInstructions: instructions})
 			ready := make(chan string, 1)
 			go func() {
 				bound := <-ready
@@ -1034,11 +1038,22 @@ func (a *App) serveCmd() *cobra.Command {
 	c.Flags().BoolVar(&noMCP, "no-mcp", false, "disable the MCP endpoint")
 	c.Flags().StringVar(&prefix, "mcp-tool-prefix", "", "prefix for MCP tool names")
 	c.Flags().BoolVar(&anyOrigin, "allow-any-origin", false, "accept WebSocket connections from any browser origin")
+	c.Flags().BoolVar(&noSessionTools, "no-session-tools", false, "do not add the session tools to the MCP endpoint")
 	return c
+}
+
+// sessionToolProviders returns the session MCP tools and their instructions,
+// or nothing when disabled (the session tools are served by `session mcp`).
+func (a *App) sessionToolProviders(disabled bool) ([]mcpserver.ToolProvider, string) {
+	if disabled {
+		return nil, ""
+	}
+	return []mcpserver.ToolProvider{a.sessionTools()}, sessionmcp.Instructions
 }
 
 func (a *App) mcpCmd() *cobra.Command {
 	var prefix string
+	var noSessionTools bool
 	c := &cobra.Command{
 		Use:   "mcp",
 		Short: "Serve the MCP server over stdio",
@@ -1049,15 +1064,17 @@ func (a *App) mcpCmd() *cobra.Command {
 			}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			srv := mcpserver.New(a.palace, a.regs, &mcpserver.Options{ToolPrefix: prefix})
+			tools, instructions := a.sessionToolProviders(noSessionTools)
+			srv := mcpserver.New(a.palace, a.regs, &mcpserver.Options{ToolPrefix: prefix, Tools: tools, ExtraInstructions: instructions})
 			defer srv.Close()
-			if err := srv.RunStdio(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			if err := srv.MCP.Run(ctx, stdioTransport()); err != nil && !errors.Is(err, context.Canceled) {
 				return a.fail(&service.Error{Kind: service.KindStorage, Message: err.Error()})
 			}
 			return nil
 		},
 	}
 	c.Flags().StringVar(&prefix, "mcp-tool-prefix", "", "prefix for MCP tool names")
+	c.Flags().BoolVar(&noSessionTools, "no-session-tools", false, "do not add the session tools (they are served by `session mcp`)")
 	return c
 }
 

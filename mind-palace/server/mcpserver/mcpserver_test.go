@@ -263,3 +263,46 @@ func TestStoryToolsAndResources(t *testing.T) {
 		t.Errorf("watch with both kinds: %+v", body)
 	}
 }
+
+type stubProvider struct{}
+
+func (stubProvider) AddTools(s *mcp.Server, prefix string) {
+	s.AddTool(&mcp.Tool{Name: prefix + "stub_ping", InputSchema: json.RawMessage(`{"type":"object"}`)}, func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "pong"}}}, nil
+	})
+}
+
+func TestToolProvidersAndExtraInstructions(t *testing.T) {
+	palace, err := service.NewPalace(config.Default(), memstore.New(""), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := New(palace, ops.All(), &Options{ToolPrefix: "mp_", Tools: []ToolProvider{stubProvider{}}, ExtraInstructions: "Session tools: find_sessions."})
+	t.Cleanup(srv.Close)
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+	client := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil)
+	sess, err := client.Connect(t.Context(), &mcp.StreamableClientTransport{Endpoint: ts.URL}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { sess.Close() })
+
+	tools, err := sess.ListTools(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{}
+	for _, tl := range tools.Tools {
+		names[tl.Name] = true
+	}
+	for _, want := range []string{"mp_stub_ping", "mp_plan_create"} {
+		if !names[want] {
+			t.Errorf("missing tool %s", want)
+		}
+	}
+	want := instructions + "\n\nSession tools: find_sessions."
+	if got := sess.InitializeResult().Instructions; got != want {
+		t.Errorf("instructions = %q, want %q", got, want)
+	}
+}

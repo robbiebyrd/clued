@@ -178,6 +178,9 @@ Claude Code registration example (`.mcp.json`):
 { "mind-palace": { "command": "mind-palace", "args": ["mcp"] } }
 ```
 
+`mcp` and `serve` also expose the session tools; pass `--no-session-tools` when
+another server (for example `session mcp`) already provides them.
+
 ## Configuration
 
 `mind-palace` looks for `--config`, then `$MIND_PALACE_CONFIG` (or the older
@@ -268,6 +271,56 @@ built-in; for plans, deleting the override restores it, while the story
 default cannot be deleted (a story template must keep the Problem Statement,
 Steps, Acceptance Criteria and Work Log sections the service reads).
 
+## Sessions
+
+`mind-palace` also holds the clued session capture: the Claude Code plugin's
+hook events and transcripts are mirrored into MongoDB and queried through the
+`session` group, with no Node runtime involved. `go test ./...` runs the
+session tests against an in-memory store; the MongoDB-backed ones run only
+when `MIND_PALACE_TEST_MONGODB_URI` points at a MongoDB.
+
+**Config.** `~/.claude/plugins/data/clued/config.json` (override with
+`session --config`). Keys: `mongoUrl` (default `mongodb://localhost:27018`),
+`dbName` (`claude_sessions`), `port` (`8085`), `projectsDir`
+(`~/.claude/projects`), `fileHistoryDir` (`~/.claude/file-history`),
+`disabledEnrichers`, `claudeAppConfigPath` and `devRepoPath` (read by the
+plugin's `bin/clued` shim, not by the binary). The write-ahead log defaults
+to `events.wal` next to the config file and is set only through
+`CLUED_WAL_PATH`, not a config key. Environment variables override the file:
+`CLUED_MONGO_URL`, `CLUED_DB_NAME`, `CLUED_PORT`, `CLUED_PROJECTS_DIR`,
+`CLUED_FILE_HISTORY_DIR`, `CLUED_CLAUDE_APP_CONFIG_PATH`, `CLUED_WAL_PATH`.
+
+**Commands.**
+
+```bash
+mind-palace session find [--project-path re] [--git-origin re] [--query re] [--limit n]
+mind-palace session search-commands <pattern> [--session id] [--git-origin re] [--limit n]
+mind-palace session context <session>
+mind-palace session full <session>
+mind-palace session transcript <session> [--offset n] [--limit n]
+mind-palace session restore <session> [--project-path p] [--projects-dir d]
+mind-palace session backfill
+mind-palace session daemon [--addr host:port]   # POST /event, GET /health; default 127.0.0.1:8085
+mind-palace session mcp                         # session tools only, over stdio
+```
+
+The daemon only tails transcripts under `projectsDir`, rejects
+browser-originated requests and caps event body size. Documents an enricher
+does not apply to are marked skipped so they leave its queue. Restore produces
+equivalent JSON whose key order may differ from the original file.
+
+**MCP tools.** `find_sessions`, `get_session_context`, `get_full_session`,
+`search_commands`, `read_transcript` and `restore_session`. `session mcp`
+serves just these; `mind-palace mcp` and `mind-palace serve` expose them next
+to the plan and story tools.
+
+**Store layout.** The `session` package defines the store interface;
+`session/mongosession` is the MongoDB implementation (the collections, indexes
+and the `session_full` view are the ones the TypeScript plugin created) and
+`session/memsession` the in-memory one used by tests. `daemon`, `tail`,
+`backfill`, `enrich`/`enrichers`, `query`, `restore`, `wal` and `sessionmcp`
+sit on top of it.
+
 ## Layout
 
 | Package | Responsibility |
@@ -283,4 +336,5 @@ Steps, Acceptance Criteria and Work Log sections the service reads).
 | `store`, `store/*` | Kind-aware store interface, fan-out, sync, plugins |
 | `events` | In-process event bus (filter by kind and id) |
 | `server/*` | HTTP, WebSocket and MCP entrypoints |
+| `session`, `session/*` | Claude Code session capture: config, MongoDB and in-memory stores, daemon, transcript tailing, backfill, queries, restore and the session MCP tools |
 | `cli`, `cmd/*` | Command line: `mind-palace`, plus the `plan` and `story` wrappers |

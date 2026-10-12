@@ -6,7 +6,7 @@ MongoDB session mirror for Claude Code. Captures every hook event and stores it 
 
 - [Claude Code](https://claude.ai/code) installed
 - A running or accessible MongoDB instance (local, Docker, or remote — setup guides you through this)
-- `mind-palace` on your PATH for plan storage: `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`, then make sure `$(go env GOPATH)/bin` is on the PATH that Claude Code inherits
+- The `mind-palace` binary, which runs session capture and plan storage. `/clued-setup` downloads it for you; to install it yourself: `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`, then make sure `$(go env GOPATH)/bin` is on the PATH that Claude Code inherits
 
 ---
 
@@ -59,21 +59,27 @@ The setup wizard will:
 1. Detect your platform
 2. Ask how you want to run MongoDB (local binary, Docker, or remote)
 3. Install and start MongoDB if needed
-4. Write a config file to `~/.claude/plugins/data/clued/config.json`
-5. Start the daemon and MCP server
-6. Verify everything is running
+4. Install the `mind-palace` binary (a release download for your OS and architecture)
+5. Write a config file to `~/.claude/plugins/data/clued/config.json`
+6. Start the daemon and verify it is running
 
-The MCP tools (`find_sessions`, `get_session_context`, `search_commands`, `read_transcript`) are provided by the plugin's `.mcp.json`, which launches the server over stdio — no settings edit needed.
+The plugin runs the Go binary through `bin/clued`, a shim that picks the first of:
+
+1. a build from the source checkout named by `devRepoPath` in the config file (rebuilt when its `.go` files change); when `devRepoPath` is set it wins over everything below
+2. `mind-palace` on your PATH (from `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`)
+3. `~/.claude/plugins/data/clued/bin/mind-palace`, downloaded from the GitHub release assets `mind-palace_<os>_<arch>`
+
+On every session start `hooks/session-start` starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill`. The session MCP tools (`find_sessions`, `get_session_context`, `get_full_session`, `search_commands`, `read_transcript`, `restore_session`) are provided by the plugin's `.mcp.json`, which runs `${CLAUDE_PLUGIN_ROOT}/bin/clued session mcp` over stdio — no settings edit needed.
 
 ---
 
 ## 5. Verify
 
-After setup, two services should be healthy:
+After setup the daemon should be healthy and the CLI should reach MongoDB:
 
 ```bash
 curl -sf http://127.0.0.1:8085/health && echo "daemon running"
-curl -sf http://127.0.0.1:8086/health && echo "mcp server running"
+mind-palace session find --limit 3
 ```
 
 ---
@@ -88,38 +94,41 @@ For environments where `/clued-setup` isn't available or you prefer to configure
 
 ```json
 {
-  "mongoUrl": "mongodb://localhost:27017",
+  "mongoUrl": "mongodb://localhost:27018",
   "dbName": "claude_sessions",
   "port": 8085,
-  "mcpPort": 8086,
   "projectsDir": "~/.claude/projects",
+  "fileHistoryDir": "~/.claude/file-history",
   "disabledEnrichers": []
 }
 ```
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `mongoUrl` | `mongodb://localhost:27017` | MongoDB connection string |
-| `dbName` | `claude_sessions` | Database name |
-| `port` | `8085` | Daemon HTTP port |
-| `mcpPort` | `8086` | MCP server SSE port |
-| `projectsDir` | `~/.claude/projects` | Path Claude Code stores project data |
-| `disabledEnrichers` | `[]` | Enricher names to skip (e.g. `["privacy-redact"]`) |
+| Field | Default | Environment override | Description |
+|-------|---------|----------------------|-------------|
+| `mongoUrl` | `mongodb://localhost:27018` | `CLUED_MONGO_URL` | MongoDB connection string |
+| `dbName` | `claude_sessions` | `CLUED_DB_NAME` | Database name |
+| `port` | `8085` | `CLUED_PORT` | Daemon HTTP port |
+| `projectsDir` | `~/.claude/projects` | `CLUED_PROJECTS_DIR` | Where Claude Code stores project data; the daemon only tails transcripts under it |
+| `fileHistoryDir` | `~/.claude/file-history` | `CLUED_FILE_HISTORY_DIR` | Claude Code's file-history backups |
+| `disabledEnrichers` | `[]` | | Enricher names to skip (e.g. `["privacy-redact"]`) |
+| `claudeAppConfigPath` | the Claude desktop app's `config.json` | `CLUED_CLAUDE_APP_CONFIG_PATH` | Claude desktop app config, used to identify the account |
+| (env only) | `events.wal` next to the config file | `CLUED_WAL_PATH` | Write-ahead log for events received while MongoDB is unreachable; not read from the config file |
+| `devRepoPath` | | | Source checkout `bin/clued` builds and runs, taking precedence over an installed binary |
 
 **Docker MongoDB** uses port `27018` by default to avoid clashing with a local mongod on `27017`.
 
 ### MCP server registration
 
-Add to `~/.claude/settings.json` under `mcpServers`. The `mind-palace` entry
-is what the plan-storage hook and skill expect; without it a blocked plan
-write has no `plan_create` tool to fall back on:
+The plugin's `.mcp.json` registers both servers; nothing goes in `~/.claude/settings.json`. The session tools run over stdio through the shim, and `mind-palace` serves the plan-storage tools (`--no-session-tools` keeps the session tools from being registered twice) the plan hook and skill expect (without it a blocked plan write has no `plan_create` tool to fall back on):
 
 ```json
-"mcpServers": {
-  "clued": { "type": "sse", "url": "http://127.0.0.1:8086/sse" },
-  "mind-palace": { "command": "mind-palace", "args": ["mcp"] }
+{
+  "clued": { "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued", "args": ["session", "mcp"] },
+  "mind-palace": { "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued", "args": ["mcp", "--no-session-tools"] }
 }
 ```
+
+`mind-palace mcp` and `mind-palace serve` (Streamable HTTP) also expose the session tools next to the plan and story tools.
 
 ### Starting the daemon manually
 
@@ -127,6 +136,34 @@ write has no `plan_create` tool to fall back on:
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/register-hooks"
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
 ```
+
+or run it directly, in the foreground:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/bin/clued" session daemon
+```
+
+The daemon listens on `127.0.0.1:8085` (`POST /event` for hook events, `GET /health`). It rejects browser-originated requests, caps event bodies, and only tails transcripts under `projectsDir`.
+
+---
+
+## Session commands
+
+Captured sessions live in MongoDB (collections and the `session_full` view are unchanged). Query them with `mind-palace session` (or `bin/clued session`, which resolves the binary):
+
+| Command | Does |
+|---|---|
+| `session find [--project-path re] [--git-origin re] [--query re] [--limit n]` | Find sessions, newest first |
+| `session search-commands <pattern> [--session id] [--git-origin re] [--limit n]` | Search the Bash commands run in sessions |
+| `session context <session>` | Metadata, recent commands, first and last transcript lines |
+| `session full <session>` | The session joined with its transcript, subagents, blobs and hook events |
+| `session transcript <session> [--offset n] [--limit n]` | Read transcript lines |
+| `session restore <session> [--project-path p] [--projects-dir d]` | Rebuild the transcript, subagent and blob files for Claude Code |
+| `session backfill` | Load the transcripts under `projectsDir` into the store |
+| `session daemon [--addr host:port]` | Run the capture daemon |
+| `session mcp [--mcp-tool-prefix p]` | Serve only the session tools over stdio |
+
+Every command takes `--config` (default `~/.claude/plugins/data/clued/config.json`) and, except `daemon` and `mcp`, prints JSON.
 
 ---
 
@@ -136,7 +173,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-start"
 /clued-uninstall
 ```
 
-The uninstall wizard detects what's present on your machine and asks before removing anything.
+The uninstall wizard detects what's present on your machine and asks before removing anything. It stops the daemon and removes the downloaded `mind-palace` binary along with the config.
 
 ---
 

@@ -2,7 +2,7 @@
 # Non-interactive cleanup for clued services and optional artefacts.
 # Usage: uninstall [--keep-config] [--keep-mongo-binary]
 #
-# Always:  stops daemon, stops MCP server
+# Always:  stops daemon
 # macOS:   unloads and removes ~/Library/LaunchAgents/org.mongodb.mongod.plist
 # Flags:
 #   --keep-config          skip removing ~/.claude/plugins/data/clued/
@@ -19,24 +19,16 @@ done
 
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 DEFAULT_PORT=8085
-DEFAULT_MCP_PORT=8086
 
 if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then
   PORT=$(jq -r ".port // ${DEFAULT_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_PORT")
-  MCP_PORT=$(jq -r ".mcpPort // ${DEFAULT_MCP_PORT}" "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_MCP_PORT")
 else
   PORT=$DEFAULT_PORT
-  MCP_PORT=$DEFAULT_MCP_PORT
 fi
 
 # --- Stop daemon ---
 if curl -sf --max-time 1 "http://127.0.0.1:${PORT}/health" &>/dev/null; then
-  pkill -f "dist/daemon.mjs" 2>/dev/null && echo "clued: daemon stopped" || true
-fi
-
-# --- Stop MCP server ---
-if curl -sf --max-time 1 "http://127.0.0.1:${MCP_PORT}/health" &>/dev/null; then
-  pkill -f "dist/mcp.mjs" 2>/dev/null && echo "clued: mcp server stopped" || true
+  pkill -f 'mind-palace session daemon$' 2>/dev/null && echo "clued: daemon stopped" || true
 fi
 
 # --- macOS launchd plist ---
@@ -47,10 +39,10 @@ if [[ "$(uname -s)" == "Darwin" && -f "$PLIST" ]]; then
   echo "clued: removed launchd plist"
 fi
 
-# --- Config and data dir ---
+# --- Config, data and downloaded binary dir (bin/ lives inside the data dir) ---
 if [[ $KEEP_CONFIG -eq 0 && -d "${HOME}/.claude/plugins/data/clued" ]]; then
   rm -rf "${HOME}/.claude/plugins/data/clued"
-  echo "clued: removed config dir"
+  echo "clued: removed config dir and binary dir"
 fi
 
 # --- MongoDB tarball binaries ---
