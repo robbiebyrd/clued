@@ -16,7 +16,7 @@ Go binary, `mind-palace`:
   HTTP, WebSockets and MCP.
 
 Both are exposed to Claude as MCP tools the plugin registers itself. The
-plugin is bash hooks, a shim (`bin/clued`) and two slash commands; everything
+plugin is bash hooks, a shim (`scripts/clued`) and two slash commands; everything
 else is the `mind-palace` binary. See [`mind-palace/README.md`](mind-palace/README.md)
 for the plan and story service in depth.
 
@@ -73,12 +73,12 @@ the data.
 | `hooks/session-start` | SessionStart (async): re-runs `register-hooks`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` |
 | `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later |
 | `hooks/guard-superpowers-plans` | PreToolUse on `Write`/`Edit`: blocks writes under `docs/superpowers/plans/` and points at the plan MCP tools (see [Plan storage](#plan-storage-for-superpowers)) |
-| `bin/clued hook stop-guard` | Stop: blocks the assistant from stopping when its last message dodges ownership of a failure, defers work to another session or asks whether to continue (see [Hooks served by the binary](#hooks-served-by-the-binary)) |
-| `bin/clued hook status-review` | SessionStart, and UserPromptSubmit at most every 30 minutes: tells the assistant to ask you about plans whose stories are all complete and stories whose steps and acceptance criteria are all done but still open |
-| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the two `bin/clued hook` commands) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
+| `scripts/clued hook stop-guard` | Stop: blocks the assistant from stopping when its last message dodges ownership of a failure, defers work to another session or asks whether to continue (see [Hooks served by the binary](#hooks-served-by-the-binary)) |
+| `scripts/clued hook status-review` | SessionStart, and UserPromptSubmit at most every 30 minutes: tells the assistant to ask you about plans whose stories are all complete and stories whose steps and acceptance criteria are all done but still open |
+| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the two `scripts/clued hook` commands) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
 | `hooks/uninstall` | Non-interactive cleanup used by `/clued-uninstall` |
-| `bin/clued` | Shim that finds and runs `mind-palace` (resolution order below) |
-| `.mcp.json` | Two stdio MCP servers: `clued` (`bin/clued session mcp`, the session tools) and `mind-palace` (`bin/clued mcp --no-session-tools`, the plan and story tools) |
+| `scripts/clued` | Shim that finds and runs `mind-palace` (resolution order below) |
+| `.mcp.json` | Two stdio MCP servers: `clued` (`scripts/clued session mcp`, the session tools) and `mind-palace` (`scripts/clued mcp --no-session-tools`, the plan and story tools) |
 | `commands/clued-setup`, `commands/clued-uninstall` | The `/clued-setup` and `/clued-uninstall` wizards |
 | `skills/clued-setup`, `skills/plan-storage` | The setup walkthrough as a skill, and the skill that routes superpowers plans through mind-palace |
 
@@ -90,23 +90,23 @@ Events relayed to the daemon: `PreToolUse`, `PostToolUse`,
 `Elicitation`, `ElicitationResult`, `ConfigChange`, `WorktreeCreate`,
 `WorktreeRemove`, `InstructionsLoaded`, `CwdChanged` and `FileChanged`.
 
-### How `bin/clued` finds the binary
+### How `scripts/clued` finds the binary
 
 1. When `devRepoPath` is set in the config file, a build of
    `<devRepoPath>/mind-palace`, rebuilt whenever a `.go` file there is newer
    than the binary. This wins over everything below, so plugin developers run
    their own checkout.
-2. The binary bundled with the plugin: `bin/dist/mind-palace_<os>_<arch>[.exe].gz`
+2. The binary bundled with the plugin: `dist/mind-palace_<os>_<arch>[.exe].gz`
    for the `uname -s` / `uname -m` of this machine, unpacked on first use into
    `~/.claude/plugins/data/clued/bin/bundled/<sha256>/` and verified against
-   `bin/dist/SHA256SUMS`. A plugin update brings new archives, so a new hash
+   `dist/SHA256SUMS`. A plugin update brings new archives, so a new hash
    triggers a fresh unpack and the old copy is removed. Needs `gzip` and
    `sha256sum` or `shasum`.
 3. `mind-palace` on the PATH.
 4. `~/.claude/plugins/data/clued/bin/mind-palace`, the release asset
    `mind-palace_<os>_<arch>` downloaded by `/clued-setup`.
 
-`bin/clued --locate` prints the path that would run; `check-setup` uses it at
+`scripts/clued --locate` prints the path that would run; `check-setup` uses it at
 session start and warns when nothing resolves. `session-start` records the
 path the daemon was started from and restarts the daemon when that path
 changes (a plugin update unpacks to a new hash directory) or a dev rebuild
@@ -195,7 +195,7 @@ lists stays off.
 ### Session commands
 
 The same operations from the shell, via `mind-palace session` (or
-`bin/clued session`). Every command takes `--config` (default
+`scripts/clued session`). Every command takes `--config` (default
 `~/.claude/plugins/data/clued/config.json`) and, except `daemon` and `mcp`,
 prints JSON.
 
@@ -238,7 +238,7 @@ prints JSON.
 | `enabledEnrichers` | `[]` | | Enricher names to switch on among those that ship disabled (`["privacy-redact"]`); `disabledEnrichers` wins when a name is in both |
 | `claudeAppConfigPath` | the Claude desktop app's `config.json` | `CLUED_CLAUDE_APP_CONFIG_PATH` | Where the account id is read from |
 | (env only) | `events.wal` next to the config file | `CLUED_WAL_PATH` | Write-ahead log; not read from the config file |
-| `devRepoPath` | | | Source checkout that `bin/clued` builds and runs instead of an installed binary (plugin developers) |
+| `devRepoPath` | | | Source checkout that `scripts/clued` builds and runs instead of an installed binary (plugin developers) |
 
 A leading `~/` is expanded in every path. Unknown keys are ignored, so a
 config file from the earlier Node implementation keeps working; its
@@ -257,7 +257,7 @@ or, when no daemon is running on the port (a second one fails to bind), run
 it in the foreground to see its output:
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/clued" session daemon
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" session daemon
 ```
 
 The most common failure is MongoDB not being reachable at `mongoUrl`; check
@@ -266,12 +266,12 @@ with `nc -z <host> <port>`. The daemon's log is
 
 ## Context collector
 
-`bin/clued context <probe> [args] [--limit n] [--root dir]` answers one question about the working directory with a single plain-text line (or block) so skills can gather facts without parsing JSON. Every probe always exits 0 and prints a sentinel (`yes`/`no`, `none`, `0`, `unknown`, `not a git repo`, `store unavailable`, `[FALLBACK: ...]`) instead of an error.
+`scripts/clued context <probe> [args] [--limit n] [--root dir]` answers one question about the working directory with a single plain-text line (or block) so skills can gather facts without parsing JSON. Every probe always exits 0 and prints a sentinel (`yes`/`no`, `none`, `0`, `unknown`, `not a git repo`, `store unavailable`, `[FALLBACK: ...]`) instead of an error.
 
 The composite report that primes a session:
 
 ```
-bin/clued context prime [--no-store] [--no-docs]
+scripts/clued context prime [--no-store] [--no-docs]
 ```
 
 `--no-store` skips the SESSION lookup in MongoDB, `--no-docs` skips the STORIES and PLANS sections. When the daemon is running, the report is also posted to it as a `ContextCollected` hook event, so every snapshot is stored next to its session; `--no-snapshot` skips that.
@@ -323,7 +323,7 @@ templates, error codes) is in [`mind-palace/README.md`](mind-palace/README.md).
 
 ### Hooks served by the binary
 
-Two hooks run `bin/clued hook …` directly; their rules live in the Go module
+Two hooks run `scripts/clued hook …` directly; their rules live in the Go module
 (`mind-palace/hookguard` and `service.Palace.Review`), not in bash, and each
 reads the hook's JSON on stdin and prints exactly what Claude Code expects.
 
@@ -383,7 +383,7 @@ the CI service container, `27018` for the one `docker-compose.transcripts.yml`
 starts.
 
 `mind-palace/plugin` holds Go tests that execute the bash hooks and the
-`bin/clued` shim, so plugin changes are covered by `go test` too. CI
+`scripts/clued` shim, so plugin changes are covered by `go test` too. CI
 (`.github/workflows/mind-palace.yml`) runs all of this against a MongoDB
 service container.
 
@@ -393,11 +393,11 @@ service container.
 darwin/{amd64,arm64}, linux/{amd64,arm64,arm} and windows/{amd64,arm64}
 (Go has no windows/arm target and Claude Code does not run on 32-bit x86;
 linux/arm is built with `GOARM=6` so it runs on ARMv6 and ARMv7),
-gzips each one into `bin/dist/` and writes `bin/dist/SHA256SUMS` with the
+gzips each one into `dist/` and writes `dist/SHA256SUMS` with the
 hashes of the uncompressed binaries. The builds are reproducible (CGO off,
 `-trimpath`, no VCS stamp, the toolchain pinned to `go.mod`), so CI's
 `binaries` job rebuilds them and fails when the committed hashes differ.
-After changing Go code, run the script and commit `bin/dist/` with the change.
+After changing Go code, run the script and commit `dist/` with the change.
 Each rebuild adds about 100 MB of archives to the repository history, so
 rebuild per change set rather than per commit.
 
@@ -407,7 +407,7 @@ binaries and `SHA256SUMS` to the GitHub release that `/clued-setup` falls
 back to on platforms without a bundled binary.
 
 To run the plugin against your own checkout, add `"devRepoPath": "/path/to/clued"`
-to the config file: `bin/clued` rebuilds the binary when sources change and
+to the config file: `scripts/clued` rebuilds the binary when sources change and
 `session-start` restarts the daemon.
 
 `docker-compose.transcripts.yml` starts a MongoDB on port 27018 for the

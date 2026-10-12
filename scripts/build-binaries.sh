@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Cross-compiles mind-palace for every platform the plugin supports.
 #
-#   scripts/build-binaries.sh            gzip each binary into bin/dist/ and write
-#                                        bin/dist/SHA256SUMS (the hashes of the
+#   scripts/build-binaries.sh            gzip each binary into dist/ and write
+#                                        dist/SHA256SUMS (the hashes of the
 #                                        uncompressed binaries); commit the result
 #   scripts/build-binaries.sh --raw DIR  write the uncompressed binaries and
 #                                        SHA256SUMS into DIR (release assets)
 #   scripts/build-binaries.sh --check    rebuild into a temporary directory and
-#                                        fail when bin/dist/SHA256SUMS differs,
+#                                        fail when dist/SHA256SUMS differs,
 #                                        i.e. the committed binaries are stale
 #
 # Builds are reproducible (CGO off, -trimpath, no VCS stamp, the Go toolchain
@@ -17,7 +17,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODULE="${ROOT}/mind-palace"
-DIST="${ROOT}/bin/dist"
+DIST="${ROOT}/dist"
 
 # GOOS/GOARCH pairs. Go has no windows/arm (32-bit) target, and Claude Code
 # does not run on 32-bit x86, so neither is built. linux/arm is built for
@@ -101,7 +101,7 @@ case "$MODE" in
     trap 'rm -rf "$work"' EXIT
     build_all "$work"
     if ! diff -u "${DIST}/SHA256SUMS" "${work}/SHA256SUMS"; then
-      echo "build-binaries: bin/dist is out of date; run scripts/build-binaries.sh and commit bin/dist" >&2
+      echo "build-binaries: dist is out of date; run scripts/build-binaries.sh and commit dist" >&2
       exit 1
     fi
     # The archives themselves must unpack to the hashed binaries, or the shim
@@ -113,6 +113,6 @@ case "$MODE" in
       actual="$(sha256 "${work}/unpacked")"
       [[ "$actual" == "$sum" ]] || { echo "build-binaries: ${gz} unpacks to ${actual}, SHA256SUMS says ${sum}" >&2; exit 1; }
     done < "${DIST}/SHA256SUMS"
-    echo "bin/dist matches the source" >&2
+    echo "dist matches the source" >&2
     ;;
 esac

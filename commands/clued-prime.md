@@ -10,7 +10,7 @@ You are priming this session with the state of the repository in the working dir
 Run the composite report through Bash:
 
 ```bash
-"${CLAUDE_PLUGIN_ROOT}/bin/clued" context prime
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" context prime
 ```
 
 It always exits 0. Add `--no-store` if MongoDB is known to be down and `--no-docs` outside mind-palace projects. When the daemon is running the report is also stored in MongoDB as a `ContextCollected` event; `--no-snapshot` skips that.

@@ -40,7 +40,7 @@ func TestSessionStartRecordsTheBinaryTheDaemonWasStartedFrom(t *testing.T) {
 	if err != nil {
 		t.Fatalf("daemon.binary missing: %v", err)
 	}
-	located := runScript(t, filepath.Join(repoRoot(t), "bin/clued"), "", env, "--locate")
+	located := runScript(t, filepath.Join(repoRoot(t), "scripts/clued"), "", env, "--locate")
 	if strings.TrimSpace(string(marker)) != strings.TrimSpace(located.stdout) || located.stdout == "" {
 		t.Errorf("marker %q should hold the located binary %q", marker, located.stdout)
 	}

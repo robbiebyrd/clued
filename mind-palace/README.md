@@ -306,7 +306,7 @@ when `MIND_PALACE_TEST_MONGODB_URI` points at a MongoDB.
 (`~/.claude/projects`), `fileHistoryDir` (`~/.claude/file-history`),
 `disabledEnrichers`, `enabledEnrichers` (switches on enrichers that ship
 disabled, such as `privacy-redact`), `claudeAppConfigPath` and `devRepoPath` (read by the
-plugin's `bin/clued` shim, not by the binary). The write-ahead log defaults
+plugin's `scripts/clued` shim, not by the binary). The write-ahead log defaults
 to `events.wal` next to the config file and is set only through
 `CLUED_WAL_PATH`, not a config key. Environment variables override the file:
 `CLUED_MONGO_URL`, `CLUED_DB_NAME`, `CLUED_PORT`, `CLUED_PROJECTS_DIR`,
@@ -377,5 +377,5 @@ expose them next to the plan and story tools.
 | `server/*` | HTTP, WebSocket and MCP entrypoints |
 | `session`, `session/*` | Claude Code session capture: config, MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
 | `hookguard` | Rules behind the Claude Code hooks the binary serves (the Stop guard) |
-| `plugin` | Tests for the Claude Code plugin glue (`bin/clued`, the bash hooks, `hooks.json`) |
+| `plugin` | Tests for the Claude Code plugin glue (`scripts/clued`, the bash hooks, `hooks.json`) |
 | `cli`, `cmd/*` | Command line: `mind-palace`, plus the `plan` and `story` wrappers |

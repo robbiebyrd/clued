@@ -19,7 +19,7 @@ const fakeBinary = "#!/bin/sh\necho \"%s $*\"\n"
 
 type shimEnv struct {
 	home, pathDir string
-	// dist stands in for the plugin's bin/dist; it starts empty so the
+	// dist stands in for the plugin's dist; it starts empty so the
 	// archives committed in the repository never leak into a test.
 	dist string
 }
@@ -29,7 +29,7 @@ func newShimEnv(t *testing.T) shimEnv {
 	return shimEnv{home: t.TempDir(), pathDir: t.TempDir(), dist: t.TempDir()}
 }
 
-// bundledAssetName is the archive name bin/clued looks for on this machine.
+// bundledAssetName is the archive name scripts/clued looks for on this machine.
 func bundledAssetName(t *testing.T) string {
 	t.Helper()
 	switch runtime.GOOS {
@@ -109,7 +109,7 @@ func (e shimEnv) writeDownloaded(t *testing.T, label string) {
 	writeExecutable(t, filepath.Dir(e.downloadedBinary()), "mind-palace", strings.Replace(fakeBinary, "%s", label, 1))
 }
 
-// run executes bin/clued with PATH limited to the fake dir plus system dirs (and go when needed).
+// run executes scripts/clued with PATH limited to the fake dir plus system dirs (and go when needed).
 func (e shimEnv) run(t *testing.T, extraPath string, args ...string) result {
 	t.Helper()
 	path := e.pathDir + ":/usr/bin:/bin"
@@ -117,7 +117,7 @@ func (e shimEnv) run(t *testing.T, extraPath string, args ...string) result {
 		path += ":" + extraPath
 	}
 	env := []string{"HOME=" + e.home, "PATH=" + path, "GOCACHE=" + goCache(t), "GOFLAGS=-mod=mod", "GOTOOLCHAIN=local", "TMPDIR=" + os.TempDir(), "CLUED_DIST_DIR=" + e.dist}
-	return runScript(t, filepath.Join(repoRoot(t), "bin/clued"), "", env, args...)
+	return runScript(t, filepath.Join(repoRoot(t), "scripts/clued"), "", env, args...)
 }
 
 func goCache(t *testing.T) string {
@@ -352,11 +352,11 @@ func TestShimDevBuildOutranksBundledBinary(t *testing.T) {
 	}
 }
 
-// TestDistShipsEveryTarget checks the committed bin/dist against the target
+// TestDistShipsEveryTarget checks the committed dist against the target
 // list in scripts/build-binaries.sh; the hashes themselves are verified by
 // `scripts/build-binaries.sh --check` in CI.
 func TestDistShipsEveryTarget(t *testing.T) {
-	dist := filepath.Join(repoRoot(t), "bin", "dist")
+	dist := filepath.Join(repoRoot(t), "dist")
 	sums, err := os.ReadFile(filepath.Join(dist, "SHA256SUMS"))
 	if err != nil {
 		t.Fatal(err)
