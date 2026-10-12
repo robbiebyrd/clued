@@ -11,6 +11,10 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start",
             "async": true
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued hook status-review"
           }
         ]
       }
@@ -88,6 +92,14 @@
             "async": true
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued hook status-review --every 30m"
+          }
+        ]
       }
     ],
     "UserPromptExpansion": [
@@ -119,6 +131,14 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
             "async": true
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/clued hook stop-guard"
           }
         ]
       }

@@ -246,5 +246,5 @@ Most common failure: MongoDB not reachable. Confirm with `nc -z <host> <port>`.
 - MCP servers (`clued` session tools, `mind-palace` plan and story tools) provided by the plugin's `.mcp.json` over stdio — start a new session to load them
 - Daemon on port 8085 — running or failed with error
 - macOS tarball: launchd plist at `~/Library/LaunchAgents/org.mongodb.mongod.plist` auto-restarts mongod at login
-- Hooks registered automatically via `hooks.json` (and mirrored into `~/.claude/settings.json` by `register-hooks` on every session start) — no manual settings edit needed
+- Hooks registered automatically via `hooks.json` (and mirrored into `~/.claude/settings.json` by `register-hooks` on every session start) — no manual settings edit needed. Two of them run the binary directly: `bin/clued hook stop-guard` on Stop and `bin/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit
 - To enable the privacy-redact enricher (off by default): add `"privacy-redact"` to `enabledEnrichers` in `config.json` and restart the daemon. It stores a masked copy of each transcript line (`sk-` API keys, e-mail addresses, AWS access key ids, JWTs) under `enrichments.privacy-redact`; the raw line is still stored. `disabledEnrichers` only switches enrichers off.

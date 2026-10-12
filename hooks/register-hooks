@@ -7,6 +7,7 @@ RELAY="${HOOKS_DIR}/event-relay"
 CHECK_SETUP="${HOOKS_DIR}/check-setup"
 SESSION_START="${HOOKS_DIR}/session-start"
 GUARD="${HOOKS_DIR}/guard-superpowers-plans"
+CLUED="$(cd "${HOOKS_DIR}/.." && pwd)/bin/clued"
 SETTINGS="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
 
 if ! command -v jq &>/dev/null; then
@@ -25,9 +26,13 @@ jq \
   --arg check_setup   "$CHECK_SETUP" \
   --arg session_start "$SESSION_START" \
   --arg guard         "$GUARD" \
+  --arg clued         "$CLUED" \
   '
   def is_clued:
-    [.hooks[].command] | any(test("/hooks/(event-relay|session-start|check-setup|guard-superpowers-plans)$"));
+    [.hooks[].command] | any(test("/hooks/(event-relay|session-start|check-setup|guard-superpowers-plans)$|/bin/clued hook "));
+
+  def binary_hook(args):
+    {"hooks": [{"type": "command", "command": ($clued + " " + args)}]};
 
   def relay_hook(cmd):
     {"hooks": [{"type": "command", "command": cmd, "async": true}]};
@@ -39,15 +44,16 @@ jq \
   replace("SessionStart"; [
     {"hooks": [
       {"type": "command", "command": $check_setup},
-      {"type": "command", "command": $session_start, "async": true}
+      {"type": "command", "command": $session_start, "async": true},
+      {"type": "command", "command": ($clued + " hook status-review")}
     ]}]) |
   replace("PreToolUse"; [
     relay_hook($relay),
     {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": $guard}]}
   ]) |
   replace("PostToolUse";      [relay_hook($relay)]) |
-  replace("UserPromptSubmit"; [relay_hook($relay)]) |
-  replace("Stop";             [relay_hook($relay)]) |
+  replace("UserPromptSubmit"; [relay_hook($relay), binary_hook("hook status-review --every 30m")]) |
+  replace("Stop";             [relay_hook($relay), binary_hook("hook stop-guard")]) |
   replace("SessionEnd";       [relay_hook($relay)]) |
   replace("Notification";     [relay_hook($relay)]) |
   replace("SubagentStop";     [relay_hook($relay)])

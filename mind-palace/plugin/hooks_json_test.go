@@ -55,3 +55,59 @@ func TestHooksJSONRegistersPlanGuardAsBlockingWriteEditPreToolUse(t *testing.T) 
 		t.Error("a blocking hook must not set async")
 	}
 }
+
+// readHooksJSON parses the plugin's hooks.json.
+func readHooksJSON(t *testing.T) map[string][]hookGroup {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(repoRoot(t), "hooks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Hooks map[string][]hookGroup `json:"hooks"`
+	}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	return doc.Hooks
+}
+
+// findHook returns the hook under event whose command has the given suffix.
+func findHook(groups []hookGroup, suffix string) *hookEntry {
+	for _, g := range groups {
+		for i, h := range g.Hooks {
+			if strings.HasSuffix(h.Command, suffix) {
+				return &g.Hooks[i]
+			}
+		}
+	}
+	return nil
+}
+
+func TestHooksJSONRunsStopGuardSynchronouslyOnStop(t *testing.T) {
+	hooks := readHooksJSON(t)
+	h := findHook(hooks["Stop"], "/bin/clued hook stop-guard")
+	if h == nil {
+		t.Fatal("stop-guard missing from Stop")
+	}
+	if h.Type != "command" || !strings.HasPrefix(h.Command, "${CLAUDE_PLUGIN_ROOT}/bin/clued") {
+		t.Errorf("hook = %+v", *h)
+	}
+	if h.Async != nil {
+		t.Error("a blocking hook must not set async")
+	}
+	if findHook(hooks["Stop"], "/hooks/event-relay") == nil {
+		t.Error("Stop must still be relayed to the daemon")
+	}
+}
+
+func TestHooksJSONRunsStatusReviewOnSessionStartAndThrottledOnPrompts(t *testing.T) {
+	hooks := readHooksJSON(t)
+	if h := findHook(hooks["SessionStart"], "/bin/clued hook status-review"); h == nil || h.Async != nil {
+		t.Errorf("SessionStart status-review = %+v, want a synchronous hook", h)
+	}
+	h := findHook(hooks["UserPromptSubmit"], "/bin/clued hook status-review --every 30m")
+	if h == nil || h.Async != nil {
+		t.Errorf("UserPromptSubmit status-review = %+v, want a synchronous throttled hook", h)
+	}
+}

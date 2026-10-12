@@ -299,7 +299,7 @@ func TestRootGainsOnlySessionGroup(t *testing.T) {
 			groups[c.Name()] = append(groups[c.Name()], sub.Name())
 		}
 	}
-	wantTop := []string{"call", "config", "context", "mcp", "ops", "plan", "schema", "serve", "session", "stores", "story", "sync"}
+	wantTop := []string{"call", "config", "context", "hook", "mcp", "ops", "plan", "review", "schema", "serve", "session", "stores", "story", "sync"}
 	if !reflect.DeepEqual(top, wantTop) {
 		t.Errorf("top-level commands = %v, want %v", top, wantTop)
 	}

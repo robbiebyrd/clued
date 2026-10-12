@@ -370,7 +370,7 @@ Tell the user:
 - MongoDB option chosen and URL configured
 - Config written to `~/.claude/plugins/data/clued/config.json`
 - MCP servers: `clued` (session tools) and `mind-palace` (plan and story tools), provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns them automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
-- Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`
+- Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`. Two of them run the binary directly: `bin/clued hook stop-guard` on Stop and `bin/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit
 - mind-palace binary location as printed by `bin/clued --locate` (bundled with the plugin, on PATH, or in `~/.claude/plugins/data/clued/bin/`)
 - Daemon status: running on port 8085 / failed (show error output)
 - On macOS tarball install: launchd plist written to `~/Library/LaunchAgents/org.mongodb.mongod.plist` — mongod restarts automatically at login with `KeepAlive: true`
