@@ -406,8 +406,28 @@ func (c *Config) Dirs() map[string]string {
 	return map[string]string{kind.Plan: c.Plans.Dir, kind.Story: c.Stories.Dir}
 }
 
-// Validate checks internal consistency.
-func (c *Config) Validate() error {
+// ValidateOption relaxes one rule of Validate.
+type ValidateOption func(*validateOptions)
+
+type validateOptions struct {
+	allowNoFileStore bool
+}
+
+// AllowNoFileStore lets the configuration run without an enabled file
+// store, for a server that keeps plans and stories in a database alone.
+// The default (client) rule still requires one enabled entry of kind file.
+func AllowNoFileStore(o *validateOptions) { o.allowNoFileStore = true }
+
+// Validate checks internal consistency of cfg; see (*Config).Validate.
+func Validate(cfg *Config, opts ...ValidateOption) error { return cfg.Validate(opts...) }
+
+// Validate checks internal consistency. Without options an enabled file
+// store is required; AllowNoFileStore waives that rule.
+func (c *Config) Validate(opts ...ValidateOption) error {
+	var vo validateOptions
+	for _, opt := range opts {
+		opt(&vo)
+	}
 	var errs []error
 	for _, k := range kind.All() {
 		errs = append(errs, c.Kind(k.Name).validate(k.Plural)...)
@@ -421,7 +441,7 @@ func (c *Config) Validate() error {
 			fileEnabled = true
 		}
 	}
-	if !fileEnabled {
+	if !fileEnabled && !vo.allowNoFileStore {
 		errs = append(errs, errors.New("the file store cannot be disabled: storage must include an enabled entry of kind file"))
 	}
 	return errors.Join(errs...)

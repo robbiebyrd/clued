@@ -337,3 +337,38 @@ storage:
 		}
 	}
 }
+
+func TestValidateAllowNoFileStore(t *testing.T) {
+	cfg := Default()
+	cfg.Storage = []StorageDef{{Name: "db", Kind: "sqlite", Options: map[string]string{"dsn": ":memory:"}}}
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "kind file") {
+		t.Errorf("zero-option Validate without a file store: err = %v, want the file-store rule", err)
+	}
+	if err := Validate(cfg); err == nil {
+		t.Error("package-level Validate without options must keep the file-store rule")
+	}
+	if err := cfg.Validate(AllowNoFileStore); err != nil {
+		t.Errorf("Validate(AllowNoFileStore) = %v", err)
+	}
+	if err := Validate(cfg, AllowNoFileStore); err != nil {
+		t.Errorf("Validate(cfg, AllowNoFileStore) = %v", err)
+	}
+	// A disabled file store counts as none.
+	off := false
+	cfg.Storage = append(cfg.Storage, StorageDef{Name: "file", Kind: "file", Enabled: &off})
+	if err := cfg.Validate(); err == nil {
+		t.Error("disabled file store must still fail without the option")
+	}
+	if err := cfg.Validate(AllowNoFileStore); err != nil {
+		t.Errorf("disabled file store with option: %v", err)
+	}
+	// The option waives only the file-store rule.
+	cfg.Storage = []StorageDef{{Name: "", Kind: "sqlite"}}
+	if err := cfg.Validate(AllowNoFileStore); err == nil || !strings.Contains(err.Error(), "name and a kind") {
+		t.Errorf("nameless storage with option: err = %v", err)
+	}
+	// The default configuration still validates both ways.
+	if err := Default().Validate(AllowNoFileStore); err != nil {
+		t.Errorf("default with option: %v", err)
+	}
+}

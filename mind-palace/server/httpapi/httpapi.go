@@ -522,6 +522,24 @@ func writeError(w http.ResponseWriter, err error) {
 	writeJSON(w, e.HTTPStatus(), map[string]any{"ok": false, "error": e})
 }
 
+// WriteResult writes the success envelope {"ok": true, "result": v} with
+// the given status. Other server transports (sessionapi, storeapi) use it so
+// every endpoint answers in the same shape.
+func WriteResult(w http.ResponseWriter, status int, v any) {
+	writeJSON(w, status, map[string]any{"ok": true, "result": v})
+}
+
+// WriteError writes the error envelope {"ok": false, "error": {"kind",
+// "message", "problems"?}} with the given status. problems are rendered as
+// given (strings or structured values) and omitted when empty.
+func WriteError(w http.ResponseWriter, status int, kind, msg string, problems ...any) {
+	e := map[string]any{"kind": kind, "message": msg}
+	if len(problems) > 0 {
+		e["problems"] = problems
+	}
+	writeJSON(w, status, map[string]any{"ok": false, "error": e})
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
