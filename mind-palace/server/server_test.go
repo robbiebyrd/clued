@@ -190,6 +190,64 @@ func TestCluedServiceAPIIsProjectScoped(t *testing.T) {
 	}
 }
 
+// TestCluedNamespaceScopesProjectsPerAccount: with a Namespace that
+// includes the account, two tokens of different accounts naming the same
+// project slug get two stores (service API and store transport alike),
+// while the project checks still run on the slug the request named.
+func TestCluedNamespaceScopesProjectsPerAccount(t *testing.T) {
+	sessions := memsession.New()
+	// One store per key, as projects.Opener caches them; the service API
+	// and the store transport must land on the same one.
+	stores := map[string]store.Store{}
+	c := NewClued(CluedOptions{
+		Version: "test",
+		Tokens: stubTokens{
+			tokenAB:   {Name: "ab", AccountID: "acct-ab", Projects: []string{"a", "b"}},
+			tokenStar: {Name: "star", AccountID: "acct-star", Projects: []string{"*"}},
+		},
+		Sessions: sessions,
+		Open: func(_ context.Context, key string) (store.Store, error) {
+			if st, ok := stores[key]; ok {
+				return st, nil
+			}
+			stores[key] = memstore.New(key)
+			return stores[key], nil
+		},
+		Namespace: func(p auth.Principal, project string) string { return p.AccountID + "__" + project },
+		Config:    config.Default(),
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	t.Cleanup(c.Close)
+	ts := httptest.NewServer(c.Handler)
+	t.Cleanup(ts.Close)
+
+	if status, env := call(t, ts, "POST", "/api/v1/plans", planInput(t), tokenAB, "a"); status != http.StatusCreated || !env.OK {
+		t.Fatalf("create in a as ab: %d %+v", status, env.Error)
+	}
+	if status, env := call(t, ts, "GET", "/api/v1/plans", "", tokenAB, "a"); status != 200 || count(t, env) != 1 {
+		t.Errorf("list a as ab: %d %s", status, env.Result)
+	}
+	if status, env := call(t, ts, "GET", "/api/v1/plans", "", tokenStar, "a"); status != 200 || count(t, env) != 0 {
+		t.Errorf("another account must not see ab's project a: %d %s", status, env.Result)
+	}
+	// The store transport goes through the same namespace.
+	if status, env := call(t, ts, "GET", "/api/v1/projects/a/store/plan", "", tokenAB, ""); status != 200 || count(t, env) != 1 {
+		t.Errorf("storeapi list a as ab: %d %s", status, env.Result)
+	}
+	if status, env := call(t, ts, "GET", "/api/v1/projects/a/store/plan", "", tokenStar, ""); status != 200 || count(t, env) != 0 {
+		t.Errorf("storeapi list a as star: %d %s", status, env.Result)
+	}
+	// The project check still sees the slug the request named.
+	status, env := call(t, ts, "GET", "/api/v1/plans", "", tokenAB, "c")
+	wantEnvelopeError(t, "project outside the token", status, env, http.StatusForbidden, "forbidden")
+	if _, ok := stores["acct-ab__a"]; !ok || len(stores) != 2 {
+		t.Errorf("opened stores %v, want acct-ab__a and acct-star__a", stores)
+	}
+	if _, ok := stores["acct-star__a"]; !ok {
+		t.Errorf("opened stores %v, want acct-star__a", stores)
+	}
+}
+
 type frame struct {
 	ID     json.RawMessage `json:"id"`
 	OK     *bool           `json:"ok"`
