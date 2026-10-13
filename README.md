@@ -527,17 +527,20 @@ toolchain pinned to `go.mod`). CI's `binaries` job runs it on every push to
 prove each target compiles and keeps the output as a workflow artifact for a
 week.
 
-Releasing is CI's job and needs no tag pushed by hand: bump `version` in
-`.claude-plugin/plugin.json` and merge. The `release` job of
-`.github/workflows/mind-palace.yml` runs on every push to main after the
-tests and builds passed; when the manifest's version has no GitHub release
-yet it builds the binaries, pushes the server image as
+Releasing is CI's job and needs no tag pushed by hand: every push to main
+is a release. The `release` job of `.github/workflows/mind-palace.yml` runs
+after the tests and builds passed; when the version in
+`.claude-plugin/plugin.json` is already released it bumps the patch version
+in `plugin.json` and `marketplace.json`, commits `Release v<next> [skip ci]`
+to main and releases that commit, and a version with no release yet (a
+minor or major bumped by hand before merging) is released as it is. The
+release builds the binaries with the version stamped in (`/health` and the
+client's `User-Agent` report it), pushes the server image as
 `ghcr.io/robbiebyrd/clued-server:v<version>` and `:latest`, and creates the
 release `v<version>` (which creates the tag at that commit) with the
-binaries and `SHA256SUMS`. A push whose version is already released
-publishes nothing. `scripts/clued` on every machine then downloads the asset
-of exactly that release, so the binary a plugin install runs always matches
-the hooks it shipped with.
+binaries and `SHA256SUMS`. `scripts/clued` on every machine then downloads
+the asset of exactly that release, so the binary a plugin install runs
+always matches the hooks it shipped with.
 
 To run the plugin against your own checkout, add `"devRepoPath": "/path/to/clued"`
 to the config file: `scripts/clued` rebuilds the binary when sources change and

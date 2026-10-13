@@ -496,4 +496,27 @@ func TestPluginManifestPinsARelease(t *testing.T) {
 			t.Errorf("scripts/build-binaries.sh does not build %s", target)
 		}
 	}
+	// The marketplace manifest names the same version: the release job bumps
+	// both files together, so a drift means someone edited one by hand.
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), ".claude-plugin", "marketplace.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var marketplace struct {
+		Plugins []struct {
+			Name    string `json:"name"`
+			Version string `json:"version"`
+		} `json:"plugins"`
+	}
+	if err := json.Unmarshal(raw, &marketplace); err != nil {
+		t.Fatal(err)
+	}
+	if len(marketplace.Plugins) == 0 {
+		t.Fatal("marketplace.json lists no plugin")
+	}
+	for _, p := range marketplace.Plugins {
+		if p.Version != version {
+			t.Errorf("marketplace.json pins %s at %q, plugin.json at %q", p.Name, p.Version, version)
+		}
+	}
 }
