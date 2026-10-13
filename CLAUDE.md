@@ -33,6 +33,7 @@ binary.
 | `mind-palace/plugin/` | Go tests that execute the bash hooks and the shim, in local and remote mode (the remote tests start a clued server in the test) |
 | `Dockerfile.server` | The clued server image (`ghcr.io/robbiebyrd/clued-server`, published by the release workflow); it compiles nothing and copies `mind-palace_linux_<arch>` from `BINARIES` (`dist/` by default) |
 | `mind-palace/server/stack/` | What `mind-palace server init` generates under `~/.clued-server`: the Compose stack (nginx front-end, clued server, `mongo:8`), the nginx config, the storage config, a private CA and certificate, the first token |
+| `PROTOCOL.md` | The protocol reference: every entrypoint (hooks, shim, daemon, MCP servers, the server's HTTP API, CLI) with its exact JSON, routes, parameters and exit codes; update it when an entrypoint changes |
 | `docs/server.md` | Running the clued server (binary, or the Docker stack from `server init`), tokens, TLS, nginx and other front-ends, the HTTPS `/mcp` endpoint |
 | `docs/plans/`, `docs/stories/` | This repository's own plans and stories, managed by `mind-palace` |
 | `docs/superpowers/specs/` | Design documents (brainstorm output); linked from plans with `plan_addSpec` |

@@ -515,6 +515,12 @@ starts.
 (`.github/workflows/mind-palace.yml`) runs all of this against a MongoDB
 service container.
 
+### Protocol reference
+
+[PROTOCOL.md](PROTOCOL.md) describes every entrypoint and the contract it
+speaks: the hooks, the shim, the daemon, the MCP servers, the clued server's
+HTTP API, the command line and the document model.
+
 ### Release binaries
 
 No binary is committed. `scripts/build-binaries.sh [DIR]` cross-compiles
