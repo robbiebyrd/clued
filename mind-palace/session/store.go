@@ -121,6 +121,11 @@ type Store interface {
 	// SetEnrichmentSkipped marks a document the enricher does not apply to, so
 	// it leaves the queue.
 	SetEnrichmentSkipped(ctx context.Context, collection string, id any, enricher string) error
+	// RequeueSkipped clears enrichments.<enricher>_skipped on the account's
+	// documents in the collection, so the next pass considers them again
+	// (an account that switched the enricher on), and returns how many it
+	// cleared. An empty accountID is ErrNoAccount.
+	RequeueSkipped(ctx context.Context, collection, accountID, enricher string) (int64, error)
 	// DeleteAccount removes every document stamped with the account
 	// (sessions, hook events, transcript and subagent lines, blobs) and
 	// returns how many went. An empty accountID is ErrNoAccount: documents

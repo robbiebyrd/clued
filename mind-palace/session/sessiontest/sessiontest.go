@@ -59,6 +59,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"set enrichment writes enrichments.<name> on the matching document", setEnrichment},
 		{"set enrichment failure records message and time", setEnrichmentFailure},
 		{"set enrichment skipped marks the document and leaves the queue", setEnrichmentSkipped},
+		{"requeue skipped returns only that account's skipped documents to the queue", requeueSkipped},
 		{"hook event ids by tool use are scoped to the session", hookEventIDsByToolUse},
 		{"hook event ids by tool use with an empty session id match across sessions", hookEventIDsAcrossSessions},
 		{"find sessions caps the limit at 500 and treats a limit of 0 or less as the cap", findSessionsLimitCap},
@@ -734,6 +735,27 @@ func setEnrichmentSkipped(t *testing.T, s session.Store) {
 		}
 	}
 	must(t, s.SetEnrichmentSkipped(ctx, "transcript_lines", "no-such-id", "e"))
+}
+
+func requeueSkipped(t *testing.T, s session.Store) {
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s1", 0, "a", "acc"), tl("s1", 1, "b", "acc"), tl("s2", 0, "c", "other")}))
+	for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "e", 10)) {
+		must(t, s.SetEnrichmentSkipped(ctx, "transcript_lines", d["_id"], "e"))
+		must(t, s.SetEnrichmentSkipped(ctx, "transcript_lines", d["_id"], "f"))
+	}
+	eq(t, "all skipped", len(ok(s.Unenriched(ctx, "transcript_lines", "e", 10))), 0)
+
+	eq(t, "requeued", ok(s.RequeueSkipped(ctx, "transcript_lines", "acc", "e")), int64(2))
+	back := ok(s.Unenriched(ctx, "transcript_lines", "e", 10))
+	eq(t, "the account's lines are queued again", len(back), 2)
+	for _, d := range back {
+		eq(t, "account", d["account_id"], "acc")
+	}
+	eq(t, "another enricher's marks stay", len(ok(s.Unenriched(ctx, "transcript_lines", "f", 10))), 0)
+	eq(t, "nothing left to requeue", ok(s.RequeueSkipped(ctx, "transcript_lines", "acc", "e")), int64(0))
+	if _, err := s.RequeueSkipped(ctx, "transcript_lines", "", "e"); !errors.Is(err, session.ErrNoAccount) {
+		t.Errorf("empty account: err = %v, want ErrNoAccount", err)
+	}
 }
 
 func hookEventIDsByToolUse(t *testing.T, s session.Store) {

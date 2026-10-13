@@ -16,7 +16,9 @@ const defaultBatchLimit = 100
 // document is stamped with ("" for a document without one). A document the
 // policy refuses is marked skipped for that enricher, so it leaves the
 // queue: switching the enricher on for the account later applies to new
-// documents only. A nil Policy runs every enricher for everyone.
+// documents only, unless the caller also puts the account's skipped
+// documents back with session.Store.RequeueSkipped. A nil Policy runs
+// every enricher for everyone.
 type Policy func(ctx context.Context, accountID string, e session.Enricher) bool
 
 // Loop runs a Pass immediately and then once per interval until ctx is done.

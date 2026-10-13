@@ -198,6 +198,12 @@ func (s *Store) SetEnrichmentSkipped(context.Context, string, any, string) error
 	return session.ErrUnsupported
 }
 
+// RequeueSkipped is the server's: the enrichment queue is not part of the
+// transport.
+func (s *Store) RequeueSkipped(context.Context, string, string, string) (int64, error) {
+	return 0, session.ErrUnsupported
+}
+
 // DeleteAccount is the server operator's: the transport offers no way to
 // delete an account's data.
 func (s *Store) DeleteAccount(context.Context, string) (int64, error) {
