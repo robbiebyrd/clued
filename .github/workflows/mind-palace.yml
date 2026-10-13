@@ -14,6 +14,9 @@ on:
       - 'Dockerfile.server'
       - '.dockerignore'
       - '.github/workflows/mind-palace.yml'
+  # Re-runs the checks and, on main, the release of the version the plugin
+  # manifest names when it has none yet (see the release job).
+  workflow_dispatch:
   pull_request:
     paths:
       - 'mind-palace/**'
@@ -62,8 +65,8 @@ jobs:
 
   binaries:
     # Every platform the plugin supports must still compile; the binaries
-    # are kept as a workflow artifact for a week (release.yml publishes the
-    # ones scripts/clued downloads, on v* tags) and never committed.
+    # are kept as a workflow artifact for a week (the release job publishes
+    # the ones scripts/clued downloads) and never committed.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -82,7 +85,7 @@ jobs:
 
   image:
     # Dockerfile.server must keep building from the current source; the
-    # image is not pushed here (release.yml publishes it on v* tags).
+    # image is not pushed here (the release job publishes it).
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -95,3 +98,83 @@ jobs:
           tags: ghcr.io/robbiebyrd/clued-server:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  release:
+    # Releases are cut by CI, never by a tag pushed by hand: on a push to
+    # main (or a manual run) whose .claude-plugin/plugin.json names a version
+    # with no GitHub release yet, and once the jobs above passed, this job
+    # builds the binaries, pushes the server image as
+    # ghcr.io/robbiebyrd/clued-server:v<version> and :latest, and creates
+    # the release v<version> with the binaries and SHA256SUMS, which also
+    # creates the tag at this commit. scripts/clued downloads that release
+    # and `mind-palace server init` pins that image. A push whose version is
+    # already released changes nothing here, so bumping the version in the
+    # manifest is the whole release procedure.
+    needs: [test, binaries, image]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        name: Is the manifest's version released?
+        run: |
+          version=$(jq -r '.version // empty' .claude-plugin/plugin.json)
+          if [ -z "$version" ]; then
+            echo "no version in .claude-plugin/plugin.json" >&2
+            exit 1
+          fi
+          tag="v$version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "release $tag exists; nothing to publish"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publishing $tag from $GITHUB_SHA"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.version.outputs.publish == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: mind-palace/go.mod
+          cache-dependency-path: mind-palace/go.sum
+      - if: steps.version.outputs.publish == 'true'
+        name: Build every platform
+        run: scripts/build-binaries.sh release-assets
+      - if: steps.version.outputs.publish == 'true'
+        uses: docker/setup-qemu-action@v3
+      - if: steps.version.outputs.publish == 'true'
+        uses: docker/setup-buildx-action@v3
+      - if: steps.version.outputs.publish == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - if: steps.version.outputs.publish == 'true'
+        name: Push the server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.server
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/robbiebyrd/clued-server:${{ steps.version.outputs.tag }}
+            ghcr.io/robbiebyrd/clued-server:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - if: steps.version.outputs.publish == 'true'
+        name: Create the release and its tag
+        # `gh release create` creates the tag at --target when it does not
+        # exist yet; a tag that already exists is used as it is.
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" --target "$GITHUB_SHA" \
+            --title "${{ steps.version.outputs.tag }}" --generate-notes release-assets/*
