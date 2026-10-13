@@ -19,6 +19,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/events"
 	"github.com/robbiebyrd/clued/mind-palace/ops"
 	"github.com/robbiebyrd/clued/mind-palace/server/auth"
+	"github.com/robbiebyrd/clued/mind-palace/server/device"
 	"github.com/robbiebyrd/clued/mind-palace/server/httpapi"
 	"github.com/robbiebyrd/clued/mind-palace/server/mcpserver"
 	"github.com/robbiebyrd/clued/mind-palace/server/projects"
@@ -102,6 +103,16 @@ type CluedOptions struct {
 	// Logger receives one line per request and the enrichment log
 	// (slog.Default when nil).
 	Logger *slog.Logger
+	// Device, when set, serves the device login clients run `session
+	// login` against: PathDeviceCode, PathDeviceToken and PathDevice
+	// without authentication, PathDevicePending, PathDeviceApprove,
+	// PathDeviceDeny and PathMeCurrentToken behind it. Nil leaves those
+	// routes unserved (404), as with a token source that mints nothing.
+	Device *device.Flow
+	// ClientConfig, when set, serves PathMeConfig: the client settings a
+	// linked machine applies with `session config-pull` (config.json keys
+	// such as enabledEnrichers) and when they last changed.
+	ClientConfig func() (map[string]any, time.Time)
 }
 
 // Clued is the composed clued server. Handler serves every route; Serve
@@ -160,8 +171,10 @@ func NewClued(opts CluedOptions) *Clued {
 	})
 
 	scoped := withProject(c.svc.Handler)
+	routes := &deviceRoutes{flow: opts.Device, clientConfig: opts.ClientConfig}
 	protected := http.NewServeMux()
 	protected.Handle("GET "+PathWhoami, auth.WhoamiHandler(opts.Version))
+	routes.protected(protected)
 	protected.Handle(httpapi.Prefix+"/", scoped)
 	protected.Handle(PathWS, scoped)
 	protected.Handle(PathMCP, scoped)
@@ -193,6 +206,7 @@ func NewClued(opts CluedOptions) *Clued {
 			"ok": true, "service": CluedService, "version": opts.Version, "auth": "bearer",
 		})
 	})
+	routes.public(mux)
 	mux.Handle("/", auth.Middleware(opts.Tokens)(notePrincipal(protected)))
 
 	c.Handler = requestLog(opts.Logger, mux)

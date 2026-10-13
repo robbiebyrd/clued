@@ -22,10 +22,12 @@ func (a *App) serverCmd() *cobra.Command {
 		Short: "The clued server: remote HTTPS storage for sessions, plans and stories",
 		Long: `Commands for operating a clued server. "token" mints, lists, revokes and
 extends the bearer tokens clients authenticate with; they live hashed in a
-0600 JSON file the server re-reads whenever it changes.`,
+0600 JSON file the server re-reads whenever it changes. "device" approves
+or denies the machines logging in with "session login" over the server's
+API.`,
 	}
 	cmd.PersistentFlags().String(tokensFlag, "", "token file (default: $CLUED_SERVER_TOKENS, then ~/.clued-server/tokens.json)")
-	cmd.AddCommand(a.serverRunCmd(), a.serverInitCmd(), a.serverTokenCmd())
+	cmd.AddCommand(a.serverRunCmd(), a.serverInitCmd(), a.serverTokenCmd(), a.serverDeviceCmd())
 	return cmd
 }
 

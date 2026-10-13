@@ -6,43 +6,49 @@ import (
 	"time"
 )
 
+// The query structs travel over the session transport as JSON with the
+// camel-case keys below. Go's decoder matches keys case-insensitively, so a
+// server or client from before the keys were named, which used the Go field
+// names ("ProjectPathRe", "SessionID"), still interoperates. AccountID is
+// never sent: the server stamps the principal's account on every query.
+
 // SessionQuery selects sessions. The regexes are case-insensitive; QueryRe
 // matches project_path or cwd. Limit is capped at 500.
 type SessionQuery struct {
-	AccountID     string
-	ProjectPathRe string
-	GitOriginRe   string
-	QueryRe       string
-	Limit         int
+	AccountID     string `json:"-"`
+	ProjectPathRe string `json:"projectPathRe"`
+	GitOriginRe   string `json:"gitOriginRe"`
+	QueryRe       string `json:"queryRe"`
+	Limit         int    `json:"limit"`
 }
 
 // LineQuery selects transcript lines. An empty AccountID means no account filter.
 type LineQuery struct {
-	AccountID  string
-	SessionID  string
-	Offset     int
-	Limit      int
-	Descending bool
+	AccountID  string `json:"-"`
+	SessionID  string `json:"sessionId"`
+	Offset     int    `json:"offset"`
+	Limit      int    `json:"limit"`
+	Descending bool   `json:"descending"`
 }
 
 // CommandQuery selects Bash tool events whose tool_input.command matches
 // PatternRe, newest first.
 type CommandQuery struct {
-	AccountID  string
-	PatternRe  string
-	SessionIDs []string
-	Limit      int
+	AccountID  string   `json:"-"`
+	PatternRe  string   `json:"patternRe"`
+	SessionIDs []string `json:"sessionIds"`
+	Limit      int      `json:"limit"`
 }
 
 // MemoryQuery selects MemorySaved events (summaries ingested from a
 // claude-remember store), newest first. PatternRe is a case-insensitive
 // regex over memory.text; empty Kinds and SessionIDs mean no filter.
 type MemoryQuery struct {
-	AccountID  string
-	PatternRe  string
-	Kinds      []string
-	SessionIDs []string
-	Limit      int
+	AccountID  string   `json:"-"`
+	PatternRe  string   `json:"patternRe"`
+	Kinds      []string `json:"kinds"`
+	SessionIDs []string `json:"sessionIds"`
+	Limit      int      `json:"limit"`
 }
 
 // MemoryEventName is the hook_event_name of an ingested memory record. Such

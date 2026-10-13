@@ -132,8 +132,11 @@ docker compose -f ~/.clued-server/docker-compose.yml up -d --force-recreate ngin
 ```
 
 **Other machines** connect through the same nginx: their `serverUrl` is
-`https://<name>:8443` for a name the certificate covers, their `serverCaFile`
-a copy of `tls/ca.pem`, and each gets its own token
+`https://<name>:8443` for a name the certificate covers and their
+`serverCaFile` a copy of `tls/ca.pem`. Each gets its own token, either
+through the [device login](#device-login) (`scripts/clued session login
+--server https://<name>:8443 --ca-file <ca.pem>` on the new machine,
+`scripts/clued server device approve <code>` on this one) or minted by hand
 (`mind-palace server token create --name desktop --project '*'`, with
 `--account` to share one session history). A cloud container does the same
 with the `CLUED_SERVER_*` variables.
@@ -175,6 +178,31 @@ mind-palace server token list
 mind-palace server token grant ci --project github.com__acme__site
 mind-palace server token revoke ci
 ```
+
+### Device login
+
+A machine can get its token without anyone copying it: it asks the server
+for a code, and a machine already linked to the server approves the code.
+
+```bash
+# on the new machine: prints a code such as BCDF-GHJK and waits
+scripts/clued session login --server https://clued.home.arpa:8443 --ca-file ~/ca.pem
+# on a machine already linked to the server (its config.json holds the server and a token)
+scripts/clued server device list
+scripts/clued server device approve BCDF-GHJK            # or: --name desk --project github.com__acme__widgets
+scripts/clued server device deny BCDF-GHJK
+```
+
+The approved token is minted into the server's token file under the
+approver's account, with the approver's projects unless `--project` narrows
+them, named after the new machine (`-2`, `-3`, … when the name is taken).
+`session login` then writes `serverUrl`, `serverToken` and `serverCaFile`
+into the new machine's config file and checks them with `whoami`. A request
+expires after 15 minutes. `session logout` revokes a machine's own token on
+the server and takes the keys out of its config file; `session config-pull`
+(run by the session-start hook) applies the enricher settings of the
+server's session config to the machine. The routes behind this are in
+[PROTOCOL.md](../PROTOCOL.md), section 7.9.
 
 - **Account.** `create` binds the token to a new random account id unless
   `--account` names one. The server stamps that account on every session
@@ -305,7 +333,7 @@ so write it with mode 0600.
 | Key | Variable | Meaning |
 |---|---|---|
 | `serverUrl` | `CLUED_SERVER_URL` | The server, for example `https://clued.example.com`. Remote mode is on exactly when this is set |
-| `serverToken` | `CLUED_SERVER_TOKEN` | The raw token `server token create` printed |
+| `serverToken` | `CLUED_SERVER_TOKEN` | The raw token `server token create` printed, or the one `session login` received |
 | `serverCaFile` | `CLUED_SERVER_CA_FILE` | Optional PEM bundle trusted in addition to the system roots (a private CA) |
 | `serverInsecure` | `CLUED_SERVER_INSECURE` | `true` allows a plain `http://` URL off loopback; never for a real deployment |
 

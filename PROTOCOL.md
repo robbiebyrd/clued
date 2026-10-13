@@ -547,7 +547,7 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 | Route | Body | Result |
 |---|---|---|
 | `PUT /sessions` | a `Session` (`session_id`, `transcript_path`, `cwd`, `project_path`, `git_origin`, `git_branch`, `host`, `last_seen`) | `{"session_id"}` |
-| `POST /sessions/find` | `{"ProjectPathRe", "GitOriginRe", "QueryRe", "Limit"}` | sessions |
+| `POST /sessions/find` | `{"projectPathRe", "gitOriginRe", "queryRe", "limit"}` | sessions |
 | `POST /sessions/{id}/touch` | `{"at": "<RFC3339>"}` | `{"session_id"}` |
 | `POST /sessions/{id}/git` | `{"origin", "branch"}` (set once; a foreign session is silently ignored) | `{"session_id"}` |
 | `GET /sessions/{id}` | | the session |
@@ -556,14 +556,19 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 | `POST /hook-events/by-tool-use` | `{"session_id", "tool_use_ids": […]}` (an empty session id matches every session) | event ids |
 | `PUT /transcript-lines` | up to 500 `TranscriptLine`s (`session_id`, `seq`, `line`) | `{"upserted": n}` |
 | `GET /transcript-lines/count?session=` | | an integer |
-| `POST /transcript-lines/query` | `{"SessionID", "Offset", "Limit", "Descending"}` | lines |
+| `POST /transcript-lines/query` | `{"sessionId", "offset", "limit", "descending"}` | lines |
 | `PUT /subagent-lines` | one or more `SubagentLine`s (`session_id`, `subagent_id`, `seq`, `line`) | `{"upserted": n}` |
 | `GET /subagents?session=` | | subagent ids |
 | `POST /subagent-lines/query` | `{"session_id", "subagent_id"}` | lines |
 | `PUT /blobs` | a `Blob` (`session_id`, `blob_type`, `name`, `content`, `encoding`) | `{"upserted": 1}` |
 | `POST /blobs/query` | `{"session_id"}` | blobs |
-| `POST /bash-events` | `{"PatternRe", "SessionIDs", "Limit"}` | Bash hook events |
-| `POST /memory-events` | `{"PatternRe", "Kinds", "SessionIDs", "Limit"}` | `MemorySaved` events |
+| `POST /bash-events` | `{"patternRe", "sessionIds", "limit"}` | Bash hook events |
+| `POST /memory-events` | `{"patternRe", "kinds", "sessionIds", "limit"}` | `MemorySaved` events |
+
+The query bodies use the camel-case keys above. The server decodes keys
+case-insensitively, so the Go field names an older client sent
+(`ProjectPathRe`, `SessionID`, `PatternRe`, `SessionIDs`) still work, and an
+older server reads the new keys the same way. No query carries an account.
 
 The enrichment methods of the port (`Unenriched`, `SetEnrichment*`) and
 `DeleteAccount` are not served: enrichment runs on the server, and deleting
@@ -617,7 +622,8 @@ address plans.
 | `GET /api/v1/events?kind=&ids=a,b&plans=a,b&stories=a,b` | Server-Sent Events, below |
 
 Query values `1`, `true`, `yes`, `y`, `on` and an empty value count as true
-for boolean parameters.
+for boolean parameters. A path under `/api/v1/` that matches none of the
+routes above answers 404 with the envelope kind `not_found`.
 
 The event stream first sends `event: ready` with
 `{"kind": "<filter kind>", "ids": […]}`, then one message per change whose
@@ -680,14 +686,51 @@ session"). Register it in Claude Code with
   duration. The enrichment loop runs on the server.
 - Unknown routes answer 404 with the envelope (`no route for GET /x`).
 
-### 7.9 Cloud routes the client knows
+### 7.9 Device login and the account routes
 
-Three client commands target routes a hosted multi-tenant clued offers and
-this server does not implement; a 404 from them means "not a cloud":
+A machine without a token links itself with `session login --server URL`;
+someone holding a token for the server approves it with `server device
+approve <code>` (section 9). The server keeps the pending requests in
+memory for 15 minutes and mints the approved token into its token file.
 
-- `session login` posts `{"client_name", "client_info": {"os", "arch", "host", "user"}}` to `POST /api/v1/device/code`, receives `{"device_code", "user_code", "verification_uri", "verification_uri_complete", "expires_in", "interval"}`, then polls `POST /api/v1/device/token` with `{"device_code"}` (error kinds `authorization_pending`, `slow_down`, `access_denied`, `expired_token`) until `{"token", "token_id", "name", "account_id"}` arrives, and writes `serverUrl` and `serverToken` to the config file.
-- `session logout` calls `DELETE /api/v1/me/tokens/current` and removes the remote keys from the config file.
-- `session config-pull` reads `GET /api/v1/me/config` → `{"client_config": {…}, "updated_at"}` and copies `enabledEnrichers`, `disabledEnrichers`, `projectsDir` and `fileHistoryDir` into the config file.
+| Route | Auth | Body | Result |
+|---|---|---|---|
+| `POST /api/v1/device/code` | none | `{"client_name", "client_info": {"os", "arch", "host", "user"}}` | `{"device_code", "user_code", "verification_uri", "verification_uri_complete", "expires_in": 900, "interval": 5}` |
+| `GET /api/v1/device?user_code=` | none | | a plain-text page telling how to approve the code |
+| `POST /api/v1/device/token` | none | `{"device_code"}` | `{"token", "token_id", "name", "account_id"}` once approved, handed over once; otherwise 400 with the kind `authorization_pending`, `slow_down` (polled faster than half the interval), `access_denied`, `expired_token` or `invalid_grant` (unknown code) |
+| `GET /api/v1/device/pending` | bearer | | `[{"user_code", "client_name", "client_info", "created", "expires", "state"}]`, oldest first |
+| `POST /api/v1/device/approve` | bearer | `{"user_code", "name"?, "projects"?}` | `{"user_code", "name", "account_id", "projects"}` |
+| `POST /api/v1/device/deny` | bearer | `{"user_code"}` | `{"user_code", "denied": true}` |
+| `DELETE /api/v1/me/tokens/current` | bearer | | `{"revoked": "<token name>", "current": true}`; the token stops working at once |
+| `GET /api/v1/me/config` | bearer | | `{"client_config": {"enabledEnrichers", "disabledEnrichers"}, "updated_at"}` |
+
+The user code is eight letters and digits shown as `BCDF-GHJK`; case and
+punctuation do not matter when it is sent back. The approved token belongs
+to the approver's account and carries the approver's projects unless
+`projects` narrows them, each of which the approver's token must cover
+(`*` only from a token that has `*`). It is named after `name`, else the
+client's name, with `-2`, `-3`, … appended while the name is taken.
+Approving an unknown or expired code is 404 `not_found`, approving twice
+409 `conflict`, a project outside the approver's 403 `forbidden`. A
+`verification_uri` is built from the request's host, honouring
+`X-Forwarded-Proto` and `X-Forwarded-Host` behind a proxy. At most 100
+requests are pending at once; beyond that `POST /api/v1/device/code`
+answers 429 `too_many`.
+
+The client side: `session login` posts to `/device/code`, prints the code
+and the page, polls `/device/token` at the server's interval (adding five
+seconds on `slow_down`), writes `serverUrl` and `serverToken` (plus
+`serverCaFile` or `serverInsecure` when given) to the config file and
+checks the token with `/api/v1/whoami`. Against a server without these
+routes (an older one answers 401 or 404 there) it tells the user to put a
+token in the config file by hand. `session logout` calls
+`DELETE /api/v1/me/tokens/current` and removes the remote keys from the
+config file. `session config-pull` reads `GET /api/v1/me/config` and copies
+`enabledEnrichers`, `disabledEnrichers`, `projectsDir` and `fileHistoryDir`
+into the config file when the server sets them; the self-hosted server
+serves the enricher lists of its own session config. The clued cloud, a
+hosted multi-tenant clued, speaks the same routes and approves the code in
+a browser at `verification_uri`.
 
 ## 8. The remote client
 
@@ -768,13 +811,15 @@ Server (`mind-palace server …`):
 run [--addr host:port] [--tls-cert file --tls-key file | --behind-proxy] [--tokens file] [--session-config file] [--store memory] [--version v]
 token create --name <name> [--project <slug>]… [--account <id>] [--tokens file]
 token list | token revoke <name> | token grant <name> --project <slug>…
+device list | device approve <code> [--name n] [--project slug]… | device deny <code>   (each takes --server, --token, --ca-file, --insecure; defaults from the clued config)
 init [--dir ~/.clued-server] [--proxy nginx|none] [--port 8443] [--host name]… [--name token] [--no-tls] [--force] [--no-token] [--account id] [--image ref] [--nginx-image ref] [--mongo-image ref]
 ```
 
 `token create` prints the raw token once in
 `{"ok": true, "result": {"name", "account_id", "projects", "created", "token", "file"}}`;
 `list`, `revoke` and `grant` print the stored records (hashes, never
-tokens). `init` writes the Compose stack (`docker-compose.yml` with the
+tokens). `device …` acts on a server's device login over its API (section
+7.9) as a machine already linked to it. `init` writes the Compose stack (`docker-compose.yml` with the
 top-level project name `clued`, `nginx/clued.conf`,
 `mind-palace.config.yaml`, a private CA and certificate under `tls/`, the
 first token in `tokens.json`) and prints `{"dir", "composeFile", "proxy",
