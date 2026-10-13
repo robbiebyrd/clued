@@ -322,7 +322,8 @@ override the file, which is how a cloud container is configured without a
 file at all.
 
 `/clued-setup` asks first whether to use a local MongoDB, a clued server in
-Docker on this machine, or a clued server someone else runs. The Docker
+Docker on this machine, a clued server someone else runs, or a clued cloud
+(next section). The Docker
 option runs `server init` and `docker compose up` and fills the file from
 the result; the last asks for the URL and token. Both then write the file,
 check the connection and register the hooks, and start no daemon. The
@@ -337,6 +338,36 @@ fails with exit 10 and an error naming the cause (unreachable, TLS,
 `unauthorized`). `check-setup` runs the same probe on every session start
 and reports an unreachable server, a rejected token, or a token whose project
 list does not cover the current repository as one system message.
+
+### clued cloud: linking without a token
+
+A clued cloud (the hosted, multi-tenant server built on this module in
+`robbiebyrd/clued-cloud`) accepts the same client, but the token is obtained
+by logging in rather than copied. `/clued-setup`'s fourth option runs:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" session login --server https://cloud.example.com
+```
+
+which starts the device flow (`POST /api/v1/device/code`), prints a link
+such as `https://cloud.example.com/link?code=BCDF-GHJK` and the code on
+stderr, and polls (`POST /api/v1/device/token`) until the user approves in a
+browser (terminal, desktop app or cloud container alike: any browser does).
+It then writes `serverUrl` and `serverToken` (and `serverCaFile` with
+`--ca-file`) into `config.json` with mode 0600, keeping the other keys, and
+checks the token with `whoami`. `--name` sets how the machine is listed in
+the cloud (the host name by default); `--wait` bounds the wait (15 minutes).
+
+- `session logout` revokes the machine's token on the cloud
+  (`DELETE /api/v1/me/tokens/current`) and removes the server keys from the
+  file, which puts the plugin back in local mode (`--keep-config` revokes
+  only).
+- `session config-pull` fetches the account's client settings
+  (`GET /api/v1/me/config`: `enabledEnrichers`, `disabledEnrichers`,
+  `projectsDir`, `fileHistoryDir`) into `config.json`; `session-start` runs
+  it with `--quiet` in remote mode, so settings changed in the cloud's web
+  app reach every linked machine at its next session. Against a plain clued
+  server the route does not exist and the command is a no-op.
 
 ### What runs on the client
 

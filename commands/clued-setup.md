@@ -22,15 +22,17 @@ First question. Present the user with three options. **Local MongoDB is the defa
 >
 > 1. **Local MongoDB** (recommended for one machine) — a MongoDB this machine can reach and a capture daemon that runs on this machine
 > 2. **clued server in Docker on this machine** — the clued server, its MongoDB and an nginx HTTPS front-end run as containers here (Docker required); other machines and cloud containers can connect to it with a token. Plans and stories stay as Markdown in each repository and are copied to the server
-> 3. **clued server someone else runs** — a `mind-palace server run` operated for you over HTTPS; nothing runs on this machine between hooks, and no MongoDB is installed here. You need its URL and a bearer token minted with `mind-palace server token create` (see `docs/server.md` in the plugin repository)"
+> 3. **clued server someone else runs** — a `mind-palace server run` operated for you over HTTPS; nothing runs on this machine between hooks, and no MongoDB is installed here. You need its URL and a bearer token minted with `mind-palace server token create` (see `docs/server.md` in the plugin repository)
+> 4. **clued cloud** — a hosted, multi-tenant clued (the `clued-cloud` server) with an account of your own: you log in once in a browser and this machine is linked to the account; no token to copy, and the account's client settings are applied here at every session start. You need the cloud's URL"
 
 Wait for their answer before continuing.
 
 - **clued server someone else runs**: skip Steps 3 and 4 entirely; continue with Step 5. Nothing in Step 3 is installed, started or touched.
+- **clued cloud**: skip Steps 3 and 4 entirely; continue with Step 5, then the "clued cloud" part of Step 6, which links the machine with a browser log-in instead of a token.
 - **clued server in Docker on this machine**: skip Step 4; do Step 5 first (the binary generates the stack), then the "clued server in Docker" part of Step 3, then Step 6.
 - **Local MongoDB**: ask the second question below, then continue with Step 3.
 
-Both server options are "server mode" below: the config file names a server, the hooks relay to it, and the daemon is never started.
+The server options and the cloud are "server mode" below: the config file names a server, the hooks relay to it, and the daemon is never started.
 
 ### Local MongoDB — ask how to run it
 
@@ -291,6 +293,20 @@ chmod 600 ~/.claude/plugins/data/clued/config.json
 
 When a CA file was given, add `"serverCaFile": "<path>"` next to `serverToken` (a leading `~/` is expanded).
 
+### clued cloud
+
+Ask for the cloud's URL, e.g. `https://cloud.example.com` (`https://` only, as above). Then link the machine with the device flow; the command writes `serverUrl` and `serverToken` into the config file itself (mode 0600, every other key kept) once the user approves in a browser:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" session login --server <cloud URL> --name "$(hostname -s 2>/dev/null || hostname)"
+```
+
+The command prints on stderr a line like `clued: open https://cloud.example.com/link?code=BCDF-GHJK in a browser and approve the code BCDF-GHJK`, then waits (up to 15 minutes) for the approval. **Show the user that link and the code immediately** (as a clickable link; in the Claude Code app it renders as one) and tell them to open it in any browser, sign up or log in there, check that the page shows this code and this machine's name, and approve. The command then finishes with a JSON result (`server`, `name`, `account_id`, `token_id`, `config`) and has already checked the token with `whoami`. A denied or expired request fails it: run it again.
+
+If the cloud uses a certificate from a private CA, add `--ca-file <PEM bundle>` (written as `serverCaFile`). The config file is created when missing, so no heredoc is needed; the other keys keep their defaults.
+
+Later, `session logout` revokes this machine's token on the cloud and takes the server keys out of the file (back to local mode), and the account's **Settings** page in the cloud manages `enabledEnrichers`, `disabledEnrichers`, `projectsDir` and `fileHistoryDir` for every linked machine; `session-start` applies them with `session config-pull`.
+
 ## Step 7 — MCP servers (no action needed)
 
 The plugin ships its own `.mcp.json`, so Claude Code launches both MCP servers
@@ -371,7 +387,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/register-hooks"
 
 ## Step 9 — Confirm to user
 
-- Where the data goes: the MongoDB option and URL, or the clued server URL and the token name and projects `session whoami` reported
+- Where the data goes: the MongoDB option and URL, the clued server URL and the token name and projects `session whoami` reported, or the clued cloud URL and the account `session login` linked (its web app manages linked machines and client settings)
 - Config written to `~/.claude/plugins/data/clued/config.json` (mode `0600` in server mode, it holds the token)
 - mind-palace binary location as printed by `scripts/clued --locate` (the downloaded release under `~/.claude/plugins/data/clued/bin/releases/`, on PATH, or `~/.claude/plugins/data/clued/bin/mind-palace`)
 - MCP servers (`clued` session tools, `mind-palace` plan and story tools) provided by the plugin's `.mcp.json` over stdio — start a new session to load them

@@ -34,6 +34,10 @@ if [[ -n "$SERVER_URL" ]]; then
   disown
   "$CLUED" session backfill &>/dev/null &
   disown
+  # A clued cloud manages client settings per account: apply them (a plain
+  # clued server has no such route and the command is a no-op).
+  "$CLUED" session config-pull --quiet &>/dev/null &
+  disown
   exit 0
 fi
 
