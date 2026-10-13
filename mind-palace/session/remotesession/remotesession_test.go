@@ -272,6 +272,10 @@ func (h *harness) SetEnrichmentSkipped(ctx context.Context, collection string, i
 	return h.server.backing.SetEnrichmentSkipped(ctx, collection, id, enricher)
 }
 
+func (h *harness) DeleteAccount(ctx context.Context, accountID string) (int64, error) {
+	return h.server.backing.DeleteAccount(ctx, accountID)
+}
+
 func (h *harness) Close(ctx context.Context) error { return h.as("").Close(ctx) }
 
 func TestConformanceOverHTTP(t *testing.T) {
@@ -343,6 +347,9 @@ func TestEnrichmentIsUnsupportedAndCloseIsANoOp(t *testing.T) {
 	}
 	if err := st.SetEnrichmentSkipped(ctx, "hook_events", "1", "e"); !errors.Is(err, session.ErrUnsupported) {
 		t.Errorf("SetEnrichmentSkipped = %v, want ErrUnsupported", err)
+	}
+	if _, err := st.DeleteAccount(ctx, "acct"); !errors.Is(err, session.ErrUnsupported) {
+		t.Errorf("DeleteAccount = %v, want ErrUnsupported", err)
 	}
 	if err := st.Close(ctx); err != nil {
 		t.Errorf("Close = %v", err)

@@ -198,6 +198,12 @@ func (s *Store) SetEnrichmentSkipped(context.Context, string, any, string) error
 	return session.ErrUnsupported
 }
 
+// DeleteAccount is the server operator's: the transport offers no way to
+// delete an account's data.
+func (s *Store) DeleteAccount(context.Context, string) (int64, error) {
+	return 0, session.ErrUnsupported
+}
+
 // Close is a no-op: the client holds no connection to release.
 func (s *Store) Close(context.Context) error { return nil }
 

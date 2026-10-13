@@ -63,6 +63,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"hook event ids by tool use with an empty session id match across sessions", hookEventIDsAcrossSessions},
 		{"find sessions caps the limit at 500 and treats a limit of 0 or less as the cap", findSessionsLimitCap},
 		{"a limit of 0 or less means no limit on lines, bash events and unenriched", nonPositiveLimitIsUnlimited},
+		{"delete account removes only that account's documents", deleteAccount},
 		{"returned documents are copies", returnedDocsAreCopies},
 		{"stored inputs are copies", storedInputsAreCopies},
 	}
@@ -952,4 +953,37 @@ func memoryEventDedup(t *testing.T, s session.Store) {
 	eq(t, "another account keeps its own copy", len(ok(s.MemoryEvents(ctx, session.MemoryQuery{AccountID: "other", Limit: 10}))), 1)
 	all := ok(s.Unenriched(ctx, "hook_events", "probe", 10))
 	eq(t, "events without a hash are never deduplicated", len(all), 4)
+}
+
+func deleteAccount(t *testing.T, s session.Store) {
+	for _, acc := range []string{"a", "b"} {
+		must(t, s.UpsertSession(ctx, session.Session{SessionID: "s-" + acc, AccountID: acc, ProjectPath: "/p", LastSeen: t0}))
+		must(t, s.InsertHookEvent(ctx, bash("s-"+acc, acc, "make "+acc, t0)))
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s-"+acc, 1, "user", acc), tl("s-"+acc, 2, "assistant", acc)}))
+		must(t, s.UpsertSubagentLine(ctx, sub("s-"+acc, "agent", 1, acc)))
+		must(t, s.UpsertBlob(ctx, blob("s-"+acc, "tool-result", "r", "x", acc)))
+	}
+	if _, err := s.DeleteAccount(ctx, ""); !errors.Is(err, session.ErrNoAccount) {
+		t.Fatalf("DeleteAccount(\"\") = %v, want ErrNoAccount", err)
+	}
+	n := ok(s.DeleteAccount(ctx, "a"))
+	if n < 6 {
+		t.Errorf("deleted %d documents, want at least the 6 of account a", n)
+	}
+	if _, err := s.GetSession(ctx, "a", "s-a"); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("a's session after delete: %v", err)
+	}
+	eq(t, "a's transcript lines", ok(s.CountTranscriptLines(ctx, "a", "s-a")), 0)
+	eq(t, "a's blobs", len(ok(s.Blobs(ctx, "a", "s-a"))), 0)
+	eq(t, "a's subagents", len(ok(s.SubagentIDs(ctx, "a", "s-a"))), 0)
+	eq(t, "a's bash events", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "a", PatternRe: "."}))), 0)
+	// Account b is untouched.
+	if _, err := s.GetSession(ctx, "b", "s-b"); err != nil {
+		t.Errorf("b's session after a's delete: %v", err)
+	}
+	eq(t, "b's transcript lines", ok(s.CountTranscriptLines(ctx, "b", "s-b")), 2)
+	eq(t, "b's blobs", len(ok(s.Blobs(ctx, "b", "s-b"))), 1)
+	eq(t, "b's subagents", len(ok(s.SubagentIDs(ctx, "b", "s-b"))), 1)
+	eq(t, "b's bash events", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "b", PatternRe: "."}))), 1)
+	eq(t, "a second delete", ok(s.DeleteAccount(ctx, "a")), int64(0))
 }

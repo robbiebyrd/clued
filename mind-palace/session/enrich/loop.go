@@ -12,16 +12,28 @@ import (
 
 const defaultBatchLimit = 100
 
+// Policy decides per document whether an enricher runs for the account the
+// document is stamped with ("" for a document without one). A document the
+// policy refuses is marked skipped for that enricher, so it leaves the
+// queue: switching the enricher on for the account later applies to new
+// documents only. A nil Policy runs every enricher for everyone.
+type Policy func(ctx context.Context, accountID string, e session.Enricher) bool
+
 // Loop runs a Pass immediately and then once per interval until ctx is done.
 // Pass errors are logged. A nil logger means slog.Default().
 func Loop(ctx context.Context, store session.Store, enrichers []session.Enricher, interval time.Duration, logger *slog.Logger) {
+	LoopWithPolicy(ctx, store, enrichers, nil, interval, logger)
+}
+
+// LoopWithPolicy is Loop with a per-account Policy.
+func LoopWithPolicy(ctx context.Context, store session.Store, enrichers []session.Enricher, policy Policy, interval time.Duration, logger *slog.Logger) {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
-		if err := Pass(ctx, store, enrichers, logger); err != nil {
+		if err := PassWithPolicy(ctx, store, enrichers, policy, logger); err != nil {
 			logger.Error("enrichment pass failed", "error", err)
 		}
 		select {
@@ -38,19 +50,24 @@ func Loop(ctx context.Context, store session.Store, enrichers []session.Enricher
 // the next pass to retry; query failures are logged and the pass moves on to the next enricher. Pass returns
 // the first store write error, after finishing the pass.
 func Pass(ctx context.Context, store session.Store, enrichers []session.Enricher, logger *slog.Logger) error {
+	return PassWithPolicy(ctx, store, enrichers, nil, logger)
+}
+
+// PassWithPolicy is Pass with a per-account Policy.
+func PassWithPolicy(ctx context.Context, store session.Store, enrichers []session.Enricher, policy Policy, logger *slog.Logger) error {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	var first error
 	for _, e := range enrichers {
-		if err := runEnricher(ctx, store, e, logger); err != nil && first == nil {
+		if err := runEnricher(ctx, store, e, policy, logger); err != nil && first == nil {
 			first = err
 		}
 	}
 	return first
 }
 
-func runEnricher(ctx context.Context, store session.Store, e session.Enricher, logger *slog.Logger) error {
+func runEnricher(ctx context.Context, store session.Store, e session.Enricher, policy Policy, logger *slog.Logger) error {
 	limit := e.BatchLimit
 	if limit <= 0 {
 		limit = defaultBatchLimit
@@ -62,6 +79,15 @@ func runEnricher(ctx context.Context, store session.Store, e session.Enricher, l
 	}
 	var first error
 	for _, doc := range docs {
+		if policy != nil {
+			accountID, _ := doc.String("account_id")
+			if !policy(ctx, accountID, e) {
+				if err := store.SetEnrichmentSkipped(ctx, e.Collection, doc["_id"], e.Name); err != nil {
+					logger.Error("enricher skip mark failed", "enricher", e.Name, "id", doc["_id"], "error", err)
+				}
+				continue
+			}
+		}
 		if err := enrichDoc(ctx, store, e, doc, logger); err != nil && first == nil {
 			first = err
 		}

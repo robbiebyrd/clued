@@ -380,3 +380,70 @@ func TestPassRecordsPanicsAsFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestPassWithPolicySkipsRefusedAccountsOnly(t *testing.T) {
+	store := memsession.New()
+	ctx := context.Background()
+	for _, acct := range []string{"on", "off"} {
+		if err := store.UpsertSession(ctx, session.Session{SessionID: "s-" + acct, AccountID: acct}); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.InsertHookEvent(ctx, session.Doc{"session_id": "s-" + acct, "account_id": acct, "tool_name": "Bash"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var asked []string
+	policy := func(_ context.Context, accountID string, e session.Enricher) bool {
+		asked = append(asked, accountID+"/"+e.Name)
+		return accountID != "off"
+	}
+	e := echoEnricher("echo", 0, matchAll)
+	if err := PassWithPolicy(ctx, store, []session.Enricher{e}, policy, discardLogger()); err != nil {
+		t.Fatal(err)
+	}
+	enrichments := func(acct string) session.Doc {
+		full, err := store.FullSession(ctx, acct, "s-"+acct)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return full[hookEvents].([]session.Doc)[0].Map("enrichments")
+	}
+	if got := enrichments("on"); got.Map("echo")["tool"] != "Bash" {
+		t.Errorf("allowed account not enriched: %v", got)
+	}
+	if got := enrichments("off"); got["echo_skipped"] == nil || got["echo"] != nil {
+		t.Errorf("refused account should be marked skipped: %v", got)
+	}
+	if len(asked) != 2 {
+		t.Errorf("policy asked %v", asked)
+	}
+	// Both left the queue: a second pass asks nothing.
+	asked = nil
+	if err := PassWithPolicy(ctx, store, []session.Enricher{e}, policy, discardLogger()); err != nil {
+		t.Fatal(err)
+	}
+	if len(asked) != 0 {
+		t.Errorf("second pass asked %v", asked)
+	}
+}
+
+func TestAllowsFollowsActive(t *testing.T) {
+	on := session.Enricher{Name: "a", Enabled: true}
+	optIn := session.Enricher{Name: "b", Group: "fam"}
+	cases := []struct {
+		e                 session.Enricher
+		disabled, enabled []string
+		want              bool
+	}{
+		{on, nil, nil, true},
+		{on, []string{"a"}, nil, false},
+		{optIn, nil, nil, false},
+		{optIn, nil, []string{"fam"}, true},
+		{optIn, []string{"b"}, []string{"fam"}, false},
+	}
+	for i, c := range cases {
+		if got := session.Allows(c.e, c.disabled, c.enabled); got != c.want {
+			t.Errorf("case %d: Allows = %v, want %v", i, got, c.want)
+		}
+	}
+}
