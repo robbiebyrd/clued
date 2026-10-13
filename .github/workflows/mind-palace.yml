@@ -125,6 +125,10 @@ jobs:
       - uses: actions/checkout@v4
       - id: version
         name: Is the manifest's version released?
+        # A release counts as published when it carries every asset the
+        # build script produces (its targets plus SHA256SUMS); one that
+        # exists but lacks assets (a failed or partial upload) is completed
+        # by the next run instead of being left broken.
         run: |
           version=$(jq -r '.version // empty' .claude-plugin/plugin.json)
           if [ -z "$version" ]; then
@@ -133,11 +137,19 @@ jobs:
           fi
           tag="v$version"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "release $tag exists; nothing to publish"
-            echo "publish=false" >> "$GITHUB_OUTPUT"
+          want=$(( $(grep -cE '^  (darwin|linux|windows)/[a-z0-9]+$' scripts/build-binaries.sh) + 1 ))
+          if assets=$(gh release view "$tag" --json assets --jq '.assets | length' 2>/dev/null); then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            if [ "$assets" -ge "$want" ]; then
+              echo "release $tag exists with $assets assets; nothing to publish"
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "release $tag exists with $assets of $want assets; completing it from $GITHUB_SHA"
+              echo "publish=true" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "publishing $tag from $GITHUB_SHA"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.version.outputs.publish == 'true'
@@ -172,9 +184,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - if: steps.version.outputs.publish == 'true'
-        name: Create the release and its tag
+        name: Create the release and its tag, or complete its assets
         # `gh release create` creates the tag at --target when it does not
-        # exist yet; a tag that already exists is used as it is.
+        # exist yet; a tag that already exists is used as it is. An existing
+        # release keeps its tag and notes and gets the assets (re)uploaded.
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" --target "$GITHUB_SHA" \
-            --title "${{ steps.version.outputs.tag }}" --generate-notes release-assets/*
+          tag="${{ steps.version.outputs.tag }}"
+          ls -l release-assets
+          if [ "${{ steps.version.outputs.exists }}" = "true" ]; then
+            gh release upload "$tag" release-assets/* --clobber
+          else
+            gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --generate-notes release-assets/*
+          fi
+          gh release view "$tag" --json assets --jq '.assets[].name'

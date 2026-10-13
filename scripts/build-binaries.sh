@@ -39,6 +39,10 @@ case "${1:-}" in
     ;;
 esac
 OUT="${1:-${ROOT}/dist}"
+# The builds run from the module directory, so the output directory must be
+# absolute or a relative DIR would land under mind-palace/.
+mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"
 
 command -v go >/dev/null || { echo "build-binaries: go is not installed" >&2; exit 1; }
 GO_VERSION="$(awk '/^go /{print $2; exit}' "${MODULE}/go.mod")"
@@ -62,7 +66,6 @@ asset_name() {
   echo "$name"
 }
 
-mkdir -p "$OUT"
 rm -f "${OUT}"/mind-palace_* "${OUT}/SHA256SUMS"
 
 # The targets build concurrently: each compile is mostly a single-threaded
@@ -98,6 +101,7 @@ done
 : > "${OUT}/SHA256SUMS"
 for target in "${TARGETS[@]}"; do
   name="$(asset_name "${target%/*}" "${target#*/}")"
-  printf '%s  %s\n' "$(sha256 "${OUT}/${name}")" "$name" >> "${OUT}/SHA256SUMS"
+  sum="$(sha256 "${OUT}/${name}")" || { echo "build-binaries: ${OUT}/${name} is missing" >&2; exit 1; }
+  printf '%s  %s\n' "$sum" "$name" >> "${OUT}/SHA256SUMS"
 done
 echo "wrote ${#TARGETS[@]} binaries and SHA256SUMS to ${OUT}" >&2
