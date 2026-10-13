@@ -523,15 +523,24 @@ windows/{amd64,arm64} (Go has no windows/arm target and Claude Code does not
 run on 32-bit x86; linux/arm is built with `GOARM=6` so it runs on ARMv6 and
 ARMv7) and writes `SHA256SUMS` next to them, into the git-ignored `dist/` by
 default. The builds are reproducible (CGO off, `-trimpath`, no VCS stamp, the
-toolchain pinned to `go.mod`). CI's `binaries` job runs it on every push to
-prove each target compiles and keeps the output as a workflow artifact for a
-week.
+toolchain pinned to `go.mod`). CI's `binaries` job runs it on every push as
+one job per target (`--target os/arch`, the jobs run side by side) to prove
+each target compiles, and keeps each binary as a workflow artifact for a
+week. `Dockerfile.server` compiles nothing: it copies the Linux binary of
+its platform from `dist/` (`BINARIES` names another directory), so build
+them first:
+
+```bash
+scripts/build-binaries.sh --target linux/amd64 --target linux/arm64 dist
+docker build -f Dockerfile.server -t ghcr.io/robbiebyrd/clued-server:dev .
+```
 
 Releasing is CI's job and needs no tag pushed by hand: bump `version` in
 `.claude-plugin/plugin.json` and merge. The `release` job of
 `.github/workflows/mind-palace.yml` runs on every push to main after the
 tests and builds passed; when the manifest's version has no GitHub release
-yet it builds the binaries, pushes the server image as
+yet it collects the binaries the matrix built (`--sums` writes their
+`SHA256SUMS`), assembles and pushes the server image from the Linux ones as
 `ghcr.io/robbiebyrd/clued-server:v<version>` and `:latest`, and creates the
 release `v<version>` (which creates the tag at that commit) with the
 binaries and `SHA256SUMS`. A push whose version is already released

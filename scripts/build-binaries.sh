@@ -4,6 +4,17 @@
 #   scripts/build-binaries.sh [DIR]   write mind-palace_<os>_<arch>[.exe] for
 #                                     every target plus SHA256SUMS into DIR
 #                                     (default: dist/, which git ignores)
+#   scripts/build-binaries.sh --target os/arch [--target ...] [DIR]
+#                                     build only those targets into DIR and
+#                                     write no SHA256SUMS (one CI job per
+#                                     target builds this way)
+#   scripts/build-binaries.sh --sums DIR
+#                                     build nothing; write SHA256SUMS over the
+#                                     binaries of every target already in DIR
+#                                     (the release job, after collecting the
+#                                     per-target jobs' artifacts)
+#   scripts/build-binaries.sh --targets
+#                                     list the targets, one per line
 #
 # Nothing it produces is committed: CI runs it to prove every target still
 # compiles, and the release job of .github/workflows/mind-palace.yml runs it
@@ -32,24 +43,55 @@ TARGETS=(
   windows/arm64
 )
 
-case "${1:-}" in
-  -h|--help)
-    echo "usage: $0 [DIR]" >&2
-    exit 2
-    ;;
-esac
-OUT="${1:-${ROOT}/dist}"
+usage() {
+  echo "usage: $0 [--target os/arch]... [DIR] | --sums DIR | --targets" >&2
+  exit 2
+}
+
+# ONLY holds the targets named with --target; empty means all of them. With
+# --target the SHA256SUMS is not written, since a partial sums file would be
+# mistaken for the whole set. SUMS_ONLY skips the builds.
+ONLY=()
+SUMS_ONLY=0
+OUT=""
+while (( $# > 0 )); do
+  case "$1" in
+    -h|--help) usage ;;
+    --targets) printf '%s\n' "${TARGETS[@]}"; exit 0 ;;
+    --target)
+      [[ -n "${2:-}" ]] || usage
+      known=0
+      for t in "${TARGETS[@]}"; do [[ "$t" == "$2" ]] && known=1; done
+      (( known )) || { echo "build-binaries: unknown target $2 (see --targets)" >&2; exit 2; }
+      ONLY+=("$2")
+      shift 2
+      ;;
+    --sums)
+      [[ -n "${2:-}" ]] || usage
+      SUMS_ONLY=1
+      OUT="$2"
+      shift 2
+      ;;
+    -*) usage ;;
+    *)
+      [[ -z "$OUT" ]] || usage
+      OUT="$1"
+      shift
+      ;;
+  esac
+done
+OUT="${OUT:-${ROOT}/dist}"
 # The builds run from the module directory, so the output directory must be
 # absolute or a relative DIR would land under mind-palace/.
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
 
-command -v go >/dev/null || { echo "build-binaries: go is not installed" >&2; exit 1; }
-GO_VERSION="$(awk '/^go /{print $2; exit}' "${MODULE}/go.mod")"
-export GOTOOLCHAIN="go${GO_VERSION}"
-export CGO_ENABLED=0
-export GOFLAGS=-mod=mod
-export GOARM=6
+# asset_name prints the binary name of a GOOS/GOARCH pair.
+asset_name() {
+  local name="mind-palace_${1}_${2}"
+  [[ "$1" == windows ]] && name+=".exe"
+  echo "$name"
+}
 
 sha256() {
   if command -v sha256sum >/dev/null; then
@@ -59,14 +101,40 @@ sha256() {
   fi
 }
 
-# asset_name prints the binary name of a GOOS/GOARCH pair.
-asset_name() {
-  local name="mind-palace_${1}_${2}"
-  [[ "$1" == windows ]] && name+=".exe"
-  echo "$name"
+# write_sums writes SHA256SUMS listing every target in its declared order,
+# failing on a missing binary.
+write_sums() {
+  : > "${OUT}/SHA256SUMS"
+  local target name sum
+  for target in "${TARGETS[@]}"; do
+    name="$(asset_name "${target%/*}" "${target#*/}")"
+    sum="$(sha256 "${OUT}/${name}")" || { echo "build-binaries: ${OUT}/${name} is missing" >&2; exit 1; }
+    printf '%s  %s\n' "$sum" "$name" >> "${OUT}/SHA256SUMS"
+  done
 }
 
-rm -f "${OUT}"/mind-palace_* "${OUT}/SHA256SUMS"
+if (( SUMS_ONLY )); then
+  write_sums
+  echo "wrote SHA256SUMS for ${#TARGETS[@]} binaries in ${OUT}" >&2
+  exit 0
+fi
+
+command -v go >/dev/null || { echo "build-binaries: go is not installed" >&2; exit 1; }
+GO_VERSION="$(awk '/^go /{print $2; exit}' "${MODULE}/go.mod")"
+export GOTOOLCHAIN="go${GO_VERSION}"
+export CGO_ENABLED=0
+export GOFLAGS=-mod=mod
+export GOARM=6
+
+BUILD=("${TARGETS[@]}")
+if (( ${#ONLY[@]} > 0 )); then
+  BUILD=("${ONLY[@]}")
+  for target in "${BUILD[@]}"; do
+    rm -f "${OUT}/$(asset_name "${target%/*}" "${target#*/}")"
+  done
+else
+  rm -f "${OUT}"/mind-palace_* "${OUT}/SHA256SUMS"
+fi
 
 # The targets build concurrently: each compile is mostly a single-threaded
 # link, so running them side by side uses every core (BUILD_JOBS caps how
@@ -74,10 +142,10 @@ rm -f "${OUT}"/mind-palace_* "${OUT}/SHA256SUMS"
 # for concurrent use, and the module download finished during the first
 # `go build` of the warm-up below, so the parallel builds never race on it.
 (cd "$MODULE" && go mod download) >&2
-JOBS="${BUILD_JOBS:-${#TARGETS[@]}}"
+JOBS="${BUILD_JOBS:-${#BUILD[@]}}"
 declare -A pids
 failed=0
-for target in "${TARGETS[@]}"; do
+for target in "${BUILD[@]}"; do
   goos="${target%/*}"
   goarch="${target#*/}"
   name="$(asset_name "$goos" "$goarch")"
@@ -97,11 +165,10 @@ for name in "${!pids[@]}"; do
 done
 (( failed == 0 )) || exit 1
 
+if (( ${#ONLY[@]} > 0 )); then
+  echo "wrote ${#BUILD[@]} of ${#TARGETS[@]} binaries to ${OUT} (no SHA256SUMS: run --sums once every target is there)" >&2
+  exit 0
+fi
 # SHA256SUMS lists the targets in their declared order whatever finished first.
-: > "${OUT}/SHA256SUMS"
-for target in "${TARGETS[@]}"; do
-  name="$(asset_name "${target%/*}" "${target#*/}")"
-  sum="$(sha256 "${OUT}/${name}")" || { echo "build-binaries: ${OUT}/${name} is missing" >&2; exit 1; }
-  printf '%s  %s\n' "$sum" "$name" >> "${OUT}/SHA256SUMS"
-done
+write_sums
 echo "wrote ${#TARGETS[@]} binaries and SHA256SUMS to ${OUT}" >&2

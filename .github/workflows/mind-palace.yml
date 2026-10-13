@@ -64,10 +64,23 @@ jobs:
           MIND_PALACE_TEST_MONGODB_URI: mongodb://127.0.0.1:27017
 
   binaries:
-    # Every platform the plugin supports must still compile; the binaries
-    # are kept as a workflow artifact for a week (the release job publishes
-    # the ones scripts/clued downloads) and never committed.
+    # Every platform the plugin supports must still compile. One job per
+    # target (the matrix mirrors TARGETS in scripts/build-binaries.sh) so
+    # they build side by side; each uploads its binary as an artifact
+    # (kept a week, never committed) that the release job collects, so a
+    # release never compiles twice.
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - darwin/amd64
+          - darwin/arm64
+          - linux/amd64
+          - linux/arm64
+          - linux/arm
+          - windows/amd64
+          - windows/arm64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -76,35 +89,49 @@ jobs:
           cache-dependency-path: mind-palace/go.sum
       - name: The plugin manifest pins a release
         run: jq -e '.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")' .claude-plugin/plugin.json
-      - run: scripts/build-binaries.sh "$RUNNER_TEMP/binaries"
+      - name: The matrix lists every target of the build script
+        run: diff <(scripts/build-binaries.sh --targets) <(python3 -c 'import yaml; print("\n".join(yaml.safe_load(open(".github/workflows/mind-palace.yml"))["jobs"]["binaries"]["strategy"]["matrix"]["target"]))')
+      - id: build
+        run: |
+          scripts/build-binaries.sh --target "${{ matrix.target }}" "$RUNNER_TEMP/binaries"
+          echo "name=mind-palace-binary-${{ matrix.target }}" | tr '/' '-' >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: mind-palace-binaries
-          path: ${{ runner.temp }}/binaries
+          name: ${{ steps.build.outputs.name }}
+          path: ${{ runner.temp }}/binaries/mind-palace_*
           retention-days: 7
+          if-no-files-found: error
 
   image:
-    # Dockerfile.server must keep building from the current source; the
-    # image is not pushed here (the release job publishes it).
+    # Dockerfile.server must keep assembling from the Linux binaries the
+    # matrix built (it compiles nothing itself); the image is not pushed
+    # here (the release job publishes it).
+    needs: binaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mind-palace-binary-linux-*
+          merge-multiple: true
+          path: dist
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.server
+          platforms: linux/amd64,linux/arm64
           push: false
           tags: ghcr.io/robbiebyrd/clued-server:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   release:
     # Releases are cut by CI, never by a tag pushed by hand: on a push to
     # main (or a manual run) whose .claude-plugin/plugin.json names a version
     # with no GitHub release yet, and once the jobs above passed, this job
-    # builds the binaries, pushes the server image as
-    # ghcr.io/robbiebyrd/clued-server:v<version> and :latest, and creates
+    # collects the binaries the matrix built, assembles and pushes the server
+    # image as ghcr.io/robbiebyrd/clued-server:v<version> and :latest from
+    # the Linux ones (nothing is compiled again), and creates
     # the release v<version> with the binaries and SHA256SUMS, which also
     # creates the tag at this commit. scripts/clued downloads that release
     # and `mind-palace server init` pins that image. A push whose version is
@@ -153,13 +180,15 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.version.outputs.publish == 'true'
-        uses: actions/setup-go@v5
+        name: Collect the binaries the matrix built
+        uses: actions/download-artifact@v4
         with:
-          go-version-file: mind-palace/go.mod
-          cache-dependency-path: mind-palace/go.sum
+          pattern: mind-palace-binary-*
+          merge-multiple: true
+          path: release-assets
       - if: steps.version.outputs.publish == 'true'
-        name: Build every platform
-        run: scripts/build-binaries.sh release-assets
+        name: Write SHA256SUMS
+        run: scripts/build-binaries.sh --sums release-assets
       - if: steps.version.outputs.publish == 'true'
         uses: docker/setup-qemu-action@v3
       - if: steps.version.outputs.publish == 'true'
@@ -178,11 +207,10 @@ jobs:
           file: Dockerfile.server
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: BINARIES=release-assets
           tags: |
             ghcr.io/robbiebyrd/clued-server:${{ steps.version.outputs.tag }}
             ghcr.io/robbiebyrd/clued-server:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
       - if: steps.version.outputs.publish == 'true'
         name: Create the release and its tag, or complete its assets
         # `gh release create` creates the tag at --target when it does not
