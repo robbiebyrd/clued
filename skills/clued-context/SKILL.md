@@ -122,4 +122,5 @@ A probe called with too few arguments prints `[FALLBACK: <probe> <args>]`.
 8. **STORIES**: active stories as `id [type/status] title`, one per line.
 9. **PLANS**: active plans in the same form, followed by the first 100 lines of the top plan.
 10. **SESSION**: the last captured session (`session`, `started`, `last seen`, `commands:`), or `none` / `store disabled` / `store unavailable`.
-11. **BUILD**: the build system and toolchain versions, or `no build tool detected`.
+11. **MEMORY**: the five newest claude-remember notes captured for this project (`search_memory` finds the rest), each as `<kind> <day> [<time>] (<branch>)` followed by its text indented and cut to eight lines, or `none` / `store disabled` / `store unavailable`.
+12. **BUILD**: the build system and toolchain versions, or `no build tool detected`.

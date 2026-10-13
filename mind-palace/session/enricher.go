@@ -10,7 +10,11 @@ import (
 // selects the documents it applies to; Enrich computes the result stored under
 // enrichments.<Name>.
 type Enricher struct {
-	Name       string
+	Name string
+	// Group, when set, is a second name the enricher answers to in the
+	// enabled and disabled lists, so one name switches a family on or off
+	// (privacy-redact covers the transcript and memory redactors).
+	Group      string
 	Collection string
 	Enabled    bool
 	BatchLimit int
@@ -37,7 +41,8 @@ func Register(e Enricher) {
 // Active returns a new slice of the enrichers that will run, sorted by name:
 // those enabled by default plus the names in enabled (which switches on
 // enrichers that ship disabled, such as privacy-redact), minus the names in
-// disabled. A name in both lists stays off.
+// disabled. A name in both lists stays off. A name matches an enricher's
+// Name or its Group.
 func Active(disabled, enabled []string) []Enricher {
 	skip := make(map[string]bool, len(disabled))
 	for _, name := range disabled {
@@ -51,7 +56,8 @@ func Active(disabled, enabled []string) []Enricher {
 	defer registryMu.Unlock()
 	active := []Enricher{}
 	for _, e := range registry {
-		if (e.Enabled || on[e.Name]) && !skip[e.Name] {
+		listed := func(set map[string]bool) bool { return set[e.Name] || (e.Group != "" && set[e.Group]) }
+		if (e.Enabled || listed(on)) && !listed(skip) {
 			active = append(active, e)
 		}
 	}

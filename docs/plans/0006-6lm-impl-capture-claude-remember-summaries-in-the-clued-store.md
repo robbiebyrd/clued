@@ -2,11 +2,12 @@
 id: 0006-6lm
 title: Capture claude-remember summaries in the clued store
 type: impl
-status: in_progress
+status: complete
 priority: "2"
 effort: L
 created: "2026-10-12T22:07:26.861Z"
-updated: "2026-10-12T22:21:27.457Z"
+updated: "2026-10-13T16:33:15.989Z"
+completed: "2026-10-13T16:33:15.989Z"
 tags:
   - feature
   - sessions

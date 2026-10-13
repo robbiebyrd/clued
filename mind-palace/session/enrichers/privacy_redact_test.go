@@ -118,3 +118,59 @@ func TestPrivacyRedactJSONEncodingMatchesJavaScript(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestPrivacyRedactMemoryMetadata(t *testing.T) {
+	if PrivacyRedactMemory.Name != "privacy-redact-memory" || PrivacyRedactMemory.Group != "privacy-redact" || PrivacyRedactMemory.Collection != "hook_events" || PrivacyRedactMemory.Enabled {
+		t.Fatalf("metadata = %+v", PrivacyRedactMemory)
+	}
+}
+
+func TestPrivacyRedactMemoryMatchesMemorySavedEventsWithText(t *testing.T) {
+	if !PrivacyRedactMemory.Matches(session.Doc{"hook_event_name": session.MemoryEventName, "memory": map[string]any{"text": "x"}}) {
+		t.Error("a MemorySaved event with text should match")
+	}
+	for name, doc := range map[string]session.Doc{
+		"other event":  {"hook_event_name": "PostToolUse", "memory": map[string]any{"text": "x"}},
+		"no text":      {"hook_event_name": session.MemoryEventName, "memory": map[string]any{"kind": "entry"}},
+		"text not str": {"hook_event_name": session.MemoryEventName, "memory": map[string]any{"text": 7}},
+		"no memory":    {"hook_event_name": session.MemoryEventName},
+	} {
+		if PrivacyRedactMemory.Matches(doc) {
+			t.Errorf("%s should not match", name)
+		}
+	}
+}
+
+func TestPrivacyRedactMemoryMasksTheText(t *testing.T) {
+	doc := session.Doc{"hook_event_name": session.MemoryEventName, "memory": map[string]any{
+		"text": "## 09:15 | main\nMailed user@example.com the key sk-abc123DEF456ghi789JKL012 and AKIAIOSFODNN7EXAMPLE",
+	}}
+	r, err := PrivacyRedactMemory.Enrich(context.Background(), doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := r.(privacyRedactMemoryResult).RedactedText
+	if got != "## 09:15 | main\nMailed [REDACTED:email] the key [REDACTED:api-key] and [REDACTED:aws-key]" {
+		t.Errorf("got %q", got)
+	}
+	if doc.Map("memory")["text"] != "## 09:15 | main\nMailed user@example.com the key sk-abc123DEF456ghi789JKL012 and AKIAIOSFODNN7EXAMPLE" {
+		t.Error("the raw text was changed in place")
+	}
+}
+
+func TestPrivacyRedactGroupSwitchesBothOn(t *testing.T) {
+	var got []string
+	for _, e := range session.Active(nil, []string{"privacy-redact"}) {
+		if strings.HasPrefix(e.Name, "privacy-redact") {
+			got = append(got, e.Name)
+		}
+	}
+	if len(got) != 2 || got[0] != "privacy-redact" || got[1] != "privacy-redact-memory" {
+		t.Errorf("enabled with privacy-redact: %v", got)
+	}
+	for _, e := range session.Active([]string{"privacy-redact"}, []string{"privacy-redact-memory"}) {
+		if strings.HasPrefix(e.Name, "privacy-redact") {
+			t.Errorf("%s is on although the group is disabled", e.Name)
+		}
+	}
+}

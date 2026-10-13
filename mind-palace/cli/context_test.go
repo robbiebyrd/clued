@@ -322,18 +322,19 @@ func TestContextPrime(t *testing.T) {
 		"=== STORIES ===\nno plans dir",
 		"=== PLANS ===\nno plans dir",
 		"=== SESSION ===\nsession: s-prime",
+		"=== MEMORY ===\nnone",
 		"=== BUILD ===\n=== Node Project ===",
 	} {
 		if !strings.Contains(report, want) {
 			t.Errorf("prime lacks %q:\n%s", want, report)
 		}
 	}
-	if strings.Count(report, "\n\n=== ") != 10 {
-		t.Errorf("prime should have 11 sections:\n%s", report)
+	if strings.Count(report, "\n\n=== ") != 11 {
+		t.Errorf("prime should have 12 sections:\n%s", report)
 	}
 
 	report = answerOf(t, runContext(t, root, "prime", "--no-store", "--no-docs"))
-	if !strings.Contains(report, "=== SESSION ===\nstore disabled") {
+	if !strings.Contains(report, "=== SESSION ===\nstore disabled") || !strings.Contains(report, "=== MEMORY ===\nstore disabled") {
 		t.Errorf("--no-store: %s", report)
 	}
 

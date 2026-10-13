@@ -7,7 +7,7 @@ status: in_progress
 priority: "1"
 effort: S
 created: "2026-10-13T16:23:40.886Z"
-updated: "2026-10-13T16:23:56.048Z"
+updated: "2026-10-13T16:50:02.513Z"
 started: "2026-10-13T16:23:40.886Z"
 tags:
   - ci
@@ -48,3 +48,7 @@ README, CLAUDE.md, docs/server.md and the module README describe the automatic r
 - [ ] [MANUAL] The first push to main after this change creates release v1.1.0 with the seven binaries, SHA256SUMS and the image tags `v1.1.0` and `latest`; a later push without a version bump creates nothing
 
 ## Work Log
+
+### 2026-10-13T16:47:25.894Z - scripts/build-binaries.sh now compiles the seven targets concurrently (BUILD_JOBS caps the parallelism; SHA256SUMS keeps the declared order): 20 s to 10 s on a warm cache with four cores, identical hashes. The release job on main for v1.1.0 spent 5m39 in the sequential build.
+
+### 2026-10-13T16:50:02.513Z - The first automatic run created v1.1.0 and pushed the image, but the release got only SHA256SUMS with empty hashes: scripts/build-binaries.sh ran go build from mind-palace/, so a relative output directory (release-assets) landed under the module while the checksums and the upload looked in the repository root. The script now makes the directory absolute and fails on a missing binary, and the release job completes a release that exists with fewer assets than the build produces, so the next push to main repairs v1.1.0.

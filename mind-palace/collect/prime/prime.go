@@ -57,6 +57,7 @@ type Collector struct {
 	Env *envprobe.Probe
 
 	Sessions SessionSource // nil prints "store disabled"
+	Memory   MemorySource  // nil prints "store disabled"
 	Docs     DocSource     // nil prints "no plans dir"
 
 	Host      func() session.HostInfo // nil omits the host line
@@ -134,6 +135,7 @@ func (c *Collector) CollectResult(ctx context.Context, opts Options) Result {
 			found.Unlock()
 			return "SESSION", body
 		}},
+		{"MEMORY", func(ctx context.Context) (string, string) { return "MEMORY", c.memory(ctx, root, opts) }},
 		{"BUILD", func(ctx context.Context) (string, string) { return "BUILD", c.build(ctx) }},
 	}
 	var report collect.Report
@@ -422,6 +424,70 @@ func SessionBody(snap *SessionSnapshot) string {
 		lines = append(lines, "commands:")
 		for _, cmd := range snap.TopCommands {
 			lines = append(lines, "  "+cmd)
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// The MEMORY section shows this many records, each cut to memoryTextLines.
+const (
+	memoryCount     = 5
+	memoryTextLines = 8
+)
+
+// memory renders the MEMORY section: the newest records claude-remember
+// wrote for the project (captured by `session memory-ingest`), so a session
+// starts with what the previous ones concluded.
+func (c *Collector) memory(ctx context.Context, root string, opts Options) string {
+	if c.Memory == nil || opts.NoStore {
+		return collect.StoreDisabled
+	}
+	ctx, cancel := context.WithTimeout(ctx, StoreTimeout)
+	defer cancel()
+	notes, err := c.Memory.Recent(ctx, filepath.ToSlash(root), memoryCount)
+	if err != nil {
+		return collect.StoreUnavailable
+	}
+	return MemoryBody(notes)
+}
+
+// MemoryBody renders memory notes as the MEMORY section does: a header
+// line per note (kind, day, time and branch) and its text indented, cut
+// to memoryTextLines lines; no notes is "none".
+func MemoryBody(notes []MemoryNote) string {
+	if len(notes) == 0 {
+		return collect.None
+	}
+	var lines []string
+	for _, n := range notes {
+		head := n.Kind
+		if head == "" {
+			head = "memory"
+		}
+		day := n.Day
+		if day == "" && !n.CreatedAt.IsZero() {
+			day = n.CreatedAt.UTC().Format("2006-01-02")
+		}
+		if day != "" {
+			head += " " + day
+		}
+		if n.Time != "" {
+			head += " " + n.Time
+		}
+		if n.Branch != "" {
+			head += " (" + n.Branch + ")"
+		}
+		lines = append(lines, head)
+		text := strings.Split(strings.TrimRight(n.Text, "\n"), "\n")
+		shown := text
+		if len(text) > memoryTextLines {
+			shown = text[:memoryTextLines]
+		}
+		for _, l := range shown {
+			lines = append(lines, "  "+l)
+		}
+		if more := len(text) - memoryTextLines; more > 0 {
+			lines = append(lines, fmt.Sprintf("  ... (%d more lines)", more))
 		}
 	}
 	return strings.Join(lines, "\n")

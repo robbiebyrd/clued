@@ -3,12 +3,19 @@ id: 0002-fve
 title: WebDAV storage plugin for plans and stories
 purpose: Let a user keep plans and stories in a WebDAV folder (Nextcloud, ownCloud, Apache mod_dav, Synology) as a secondary or primary mind-palace store.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-12T19:49:11.161Z"
-updated: "2026-10-12T19:56:57.488Z"
+updated: "2026-10-13T16:33:15.888Z"
 started: "2026-10-12T19:49:11.161Z"
+completed: "2026-10-13T16:33:15.888Z"
+tags: []
+milestone: ""
+due_date: ""
+planned_start: ""
+planned_end: ""
+order: 0
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git

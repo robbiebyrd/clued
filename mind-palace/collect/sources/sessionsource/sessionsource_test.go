@@ -46,7 +46,51 @@ func seedSessions(t *testing.T) session.Store {
 			"tool_input": map[string]any{"command": c}, "created_at": t0.Add(time.Duration(i) * time.Minute),
 		}))
 	}
+	// Memory records: two for alpha (the handoff newer), one for beta and
+	// one of another account's session.
+	for i, m := range []struct{ sid, acct, kind, text, hash string }{
+		{"a-new", testAccount, "entry", "## 09:15 | main\nFixed the restart", "h1"},
+		{"a-new", testAccount, "handoff", "Next: wire the listener", "h2"},
+		{"b", testAccount, "entry", "beta note", "h3"},
+		{"other", "acct-2", "entry", "delta note", "h4"},
+	} {
+		must(st.InsertHookEvent(ctx, session.Doc{
+			"session_id": m.sid, "account_id": m.acct, "hook_event_name": session.MemoryEventName, "cwd": "/work/x",
+			"memory":     map[string]any{"kind": m.kind, "file": "now.md", "text": m.text, "hash": m.hash, "branch": "main", "day": "2026-09-09"},
+			"created_at": t0.Add(time.Duration(i) * time.Minute),
+		}))
+	}
 	return st
+}
+
+func TestRecentReturnsTheProjectsMemoryNewestFirst(t *testing.T) {
+	ctx := context.Background()
+	src := New(connectTo(seedSessions(t)), testAccount)
+	defer src.Close(ctx)
+	notes, err := src.Recent(ctx, "/work/alpha", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(notes) != 2 || notes[0].Kind != "handoff" || notes[0].Text != "Next: wire the listener" || notes[1].Text != "## 09:15 | main\nFixed the restart" {
+		t.Fatalf("notes = %+v", notes)
+	}
+	if notes[0].Branch != "main" || notes[0].Day != "2026-09-09" || !notes[0].CreatedAt.Equal(t0.Add(time.Minute)) {
+		t.Errorf("note fields = %+v", notes[0])
+	}
+	if notes, _ := src.Recent(ctx, "/work/alpha", 1); len(notes) != 1 || notes[0].Kind != "handoff" {
+		t.Errorf("limit 1 = %+v", notes)
+	}
+	if notes, _ := src.Recent(ctx, "/work/nowhere", 5); len(notes) != 0 {
+		t.Errorf("unknown project = %+v", notes)
+	}
+	if notes, err := src.Recent(ctx, "", 5); err != nil || len(notes) != 0 {
+		t.Errorf("empty cwd = %+v, %v", notes, err)
+	}
+	other := New(connectTo(seedSessions(t)), "acct-2")
+	defer other.Close(ctx)
+	if notes, _ := other.Recent(ctx, "/work/alpha", 5); len(notes) != 0 {
+		t.Errorf("another account sees alpha's memory: %+v", notes)
+	}
 }
 
 func connectTo(st session.Store) func(context.Context) (session.Store, error) {

@@ -20,10 +20,34 @@ var PrivacyRedact = session.Enricher{
 	Enrich:     enrichPrivacyRedact,
 }
 
-func init() { session.Register(PrivacyRedact) }
+// PrivacyRedactMemory masks the same patterns in the text of the memory
+// records ingested from claude-remember (MemorySaved hook events). It
+// belongs to the privacy-redact group, so enabling "privacy-redact" switches
+// both redactors on.
+var PrivacyRedactMemory = session.Enricher{
+	Name:       "privacy-redact-memory",
+	Group:      PrivacyRedact.Name,
+	Collection: "hook_events",
+	Enabled:    false,
+	Matches: func(doc session.Doc) bool {
+		name, _ := doc.String("hook_event_name")
+		_, isText := doc.Map("memory")["text"].(string)
+		return name == session.MemoryEventName && isText
+	},
+	Enrich: enrichPrivacyRedactMemory,
+}
+
+func init() {
+	session.Register(PrivacyRedact)
+	session.Register(PrivacyRedactMemory)
+}
 
 type privacyRedactResult struct {
 	RedactedLine string `json:"redacted_line" bson:"redacted_line"`
+}
+
+type privacyRedactMemoryResult struct {
+	RedactedText string `json:"redacted_text" bson:"redacted_text"`
 }
 
 // The patterns are applied in order. RE2's \b is ASCII-only like JavaScript's
@@ -46,10 +70,20 @@ func enrichPrivacyRedact(_ context.Context, doc session.Doc, _ session.Lookup) (
 	if err != nil {
 		return nil, err
 	}
+	return privacyRedactResult{RedactedLine: redact(raw)}, nil
+}
+
+func enrichPrivacyRedactMemory(_ context.Context, doc session.Doc, _ session.Lookup) (any, error) {
+	text, _ := doc.Map("memory")["text"].(string)
+	return privacyRedactMemoryResult{RedactedText: redact(text)}, nil
+}
+
+// redact applies the redaction patterns in order.
+func redact(text string) string {
 	for _, p := range redactionPatterns {
-		raw = p.re.ReplaceAllLiteralString(raw, "[REDACTED:"+p.label+"]")
+		text = p.re.ReplaceAllLiteralString(text, "[REDACTED:"+p.label+"]")
 	}
-	return privacyRedactResult{RedactedLine: raw}, nil
+	return text
 }
 
 // lineText is the line itself when it is a string, else its compact JSON

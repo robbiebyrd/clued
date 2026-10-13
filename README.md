@@ -179,8 +179,9 @@ under `enrichments.<name>` on each matching document. Documents an enricher
 does not apply to are marked skipped so they leave its queue; transient write
 failures are retried; a panicking enricher is recorded, not fatal. Disable
 any of them with `disabledEnrichers` in the config; switch on the ones that
-ship disabled (only `privacy-redact`) with `enabledEnrichers`. A name in both
-lists stays off.
+ship disabled (`privacy-redact`, which also switches on its sibling
+`privacy-redact-memory`) with `enabledEnrichers`. A name in both lists stays
+off.
 
 | Enricher | Collection | Records |
 |---|---|---|
@@ -202,6 +203,7 @@ lists stays off.
 | `thinking-stats` | `transcript_lines` | Size of the thinking and text of an assistant line |
 | `tool-use-summary` | `transcript_lines` | The tools an assistant line calls and whether it thinks |
 | `privacy-redact` | `transcript_lines` | A copy of the raw line with four patterns masked (`sk-…` API keys, e-mail addresses, `AKIA…` AWS access key ids and JWTs), stored under `enrichments.privacy-redact.redacted_line`; the raw line itself is kept unchanged. **Off by default**: add it to `enabledEnrichers` to run it |
+| `privacy-redact-memory` | `hook_events` | The same masked copy of the text of each claude-remember record (`MemorySaved` event); switched on and off together with `privacy-redact` |
 
 ### MCP tools (`clued` server)
 
