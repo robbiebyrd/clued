@@ -577,6 +577,18 @@ func (s *Store) SetEnrichmentSkipped(ctx context.Context, collection string, id 
 	return s.update(ctx, collection, key("_id", objectID(id)), key("enrichments."+enricher+"_skipped", true))
 }
 
+func (s *Store) RequeueSkipped(ctx context.Context, collection, accountID, enricher string) (int64, error) {
+	if accountID == "" {
+		return 0, session.ErrNoAccount
+	}
+	field := "enrichments." + enricher + "_skipped"
+	res, err := s.coll(collection).UpdateMany(ctx, key("account_id", accountID, field, key("$exists", true)), key("$unset", key(field, "")))
+	if err != nil {
+		return 0, err
+	}
+	return res.ModifiedCount, nil
+}
+
 func (s *Store) SetEnrichmentFailure(ctx context.Context, collection string, id any, enricher, message string, at time.Time) error {
 	failure := key("message", message, "at", at)
 	return s.update(ctx, collection, key("_id", objectID(id)), key("enrichments."+enricher+"_failed", failure))

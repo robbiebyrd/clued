@@ -626,6 +626,24 @@ func (s *Store) SetEnrichmentSkipped(_ context.Context, collection string, id an
 	return s.setEnrichmentField(collection, id, enricher+"_skipped", true)
 }
 
+func (s *Store) RequeueSkipped(_ context.Context, collection, accountID, enricher string) (int64, error) {
+	if accountID == "" {
+		return 0, session.ErrNoAccount
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var n int64
+	for _, d := range s.cols[collection] {
+		if e := d.Map("enrichments"); owned(d, accountID) && e != nil {
+			if _, ok := e[enricher+"_skipped"]; ok {
+				delete(e, enricher+"_skipped")
+				n++
+			}
+		}
+	}
+	return n, nil
+}
+
 // setEnrichmentField writes enrichments.<field> on the document with _id id;
 // a missing document is ignored, as an update that matches nothing is.
 func (s *Store) setEnrichmentField(collection string, id any, field string, value any) error {
