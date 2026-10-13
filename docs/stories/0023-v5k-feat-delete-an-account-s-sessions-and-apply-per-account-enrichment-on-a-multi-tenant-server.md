@@ -2,12 +2,13 @@
 id: 0023-v5k
 title: Delete an account's sessions and apply per-account enrichment on a multi-tenant server
 type: feat
-status: in_progress
+status: complete
 priority: "1"
 effort: S
 created: "2026-10-13T18:49:06.353Z"
-updated: "2026-10-13T18:49:06.353Z"
+updated: "2026-10-13T19:23:01.122Z"
 started: "2026-10-13T18:49:06.353Z"
+completed: "2026-10-13T19:23:01.122Z"
 tags:
   - sessions
   - enrichment
@@ -45,6 +46,8 @@ A multi-tenant server built on this module (the clued cloud) cannot delete one a
 ## Acceptance Criteria
 
 - [x] VERIFY: cd mind-palace && go test -race ./session/... ./server/
-- [ ] VERIFY: MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./session/mongosession/ (CI)
+- [x] VERIFY: MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./session/mongosession/ (CI)
 
 ## Work Log
+
+### 2026-10-13T19:23:01.078Z - CI on robbiebyrd/clued#26 ran the conformance suite against MongoDB (mongo:7 service) with DeleteAccount: green. The clued cloud uses both hooks since robbiebyrd/clued-cloud#3.
