@@ -53,13 +53,17 @@ for the plan and story service in depth.
 
 3. Reload if prompted: `/reload-plugins`
 4. Configure: `/clued-setup`. The wizard detects your platform and asks
-   where the data goes: a local MongoDB or a clued server. For a MongoDB it
-   asks how to run it (local binary, Docker or remote), installs and starts
-   it, installs `mind-palace`, writes
-   `~/.claude/plugins/data/clued/config.json` and starts the daemon. For a
-   server it asks for the URL and the token, writes the config at `0600`,
-   checks the token with `mind-palace session whoami`, registers the hooks
-   and starts nothing.
+   where the data goes: a local MongoDB, a clued server in Docker on this
+   machine, or a clued server someone else runs. For a MongoDB it asks how
+   to run it (local binary, Docker or remote), installs and starts it,
+   installs `mind-palace`, writes `~/.claude/plugins/data/clued/config.json`
+   and starts the daemon. For the Docker server it runs
+   `mind-palace server init` (the server, its MongoDB and an nginx HTTPS
+   front-end under `~/.clued-server`, with a private CA and a first token),
+   starts the stack and fills the config from the result. For a server
+   elsewhere it asks for the URL and the token. In both server modes the
+   config is written at `0600`, the token is checked with `mind-palace
+   session whoami`, the hooks are registered and no daemon starts.
 5. Start a new Claude Code session so the MCP servers connect.
 
 Verify (local mode; in remote mode `scripts/clued session whoami` instead of
@@ -71,9 +75,10 @@ mind-palace session find --limit 3
 ```
 
 Remove it again with `/clued-uninstall`, which detects what is present and
-asks before stopping the daemon (local mode only), removing the config and
-downloaded binary, the relay's catch-up state and log, and (optionally) the
-MongoDB binaries, the Docker container and volume, and the data.
+asks before stopping the daemon (local mode only) or the server stack,
+removing the config and downloaded binary, the relay's catch-up state and
+log, and (optionally) the MongoDB binaries, the Docker containers and
+volumes, and the data.
 
 ## What the plugin installs
 
@@ -310,8 +315,11 @@ revoke or extend (`token revoke`, `token grant`) without a restart. Sessions
 are stored under the token's account in the server's MongoDB; plans and
 stories are namespaced per project, a slug derived from the repository's git
 origin (`github.com__owner__repo`), and the token lists the projects it may
-use (`*` for all). Enrichment runs on the server. Running the server (from
-the binary or the Docker image), TLS and reverse-proxy setups, token
+use (`*` for all). Enrichment runs on the server. The server is hosted on a
+machine of your own with the Compose stack `mind-palace server init`
+generates (the server, `mongo:8` and an nginx front-end that terminates
+TLS with a generated CA, or `--proxy none` for a terminator of your own) or
+from the binary; running it either way, TLS and reverse-proxy setups, token
 management and the HTTPS `/mcp` endpoint are described in
 [`docs/server.md`](docs/server.md).
 

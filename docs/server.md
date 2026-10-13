@@ -82,35 +82,77 @@ variables above and from read-only mounts:
 | `/etc/clued/mind-palace.config.yaml` | The plan and story storage (`MIND_PALACE_CONFIG` must point at it) |
 | `/etc/clued/tls/` | `cert.pem` and `key.pem` when the server terminates TLS itself |
 
-`docker-compose.server.yml` at the repository root starts the server with a
-`mongo:8` service on a named volume, pulling `:latest` by default (`docker
-compose -f docker-compose.server.yml build` builds from the checkout instead).
-It serves plain HTTP with `CLUED_SERVER_BEHIND_PROXY=true` and publishes the
-port on `127.0.0.1:8443` only, for a reverse proxy on the host; the comments
-in the file show the TLS alternative. Before the first start mint a token
-into the directory the compose file mounts:
+The distroless image has no shell or HTTP client, so it carries no
+`HEALTHCHECK`; probe `/health` from the host or the proxy. Without a host
+binary, the token commands run from the image (`server run` is the
+entrypoint, so it is replaced):
 
 ```bash
-mkdir -p clued-server/tls
-mind-palace server token create --tokens clued-server/tokens.json --name laptop --project '*'
-docker compose -f docker-compose.server.yml up -d
-curl -s http://127.0.0.1:8443/health
-```
-
-Without a host binary, run the token command from the image (`server run`
-is the entrypoint, so it is replaced):
-
-```bash
-docker run --rm -v "$PWD/clued-server:/etc/clued" --user "$(id -u):$(id -g)" \
+docker run --rm -v "$HOME/.clued-server:/etc/clued" --user "$(id -u):$(id -g)" \
   --entrypoint mind-palace ghcr.io/robbiebyrd/clued-server:latest \
   server token create --tokens /etc/clued/tokens.json --name laptop --project '*'
 ```
 
-The token file is written with mode 0600 by whoever minted it. The compose
-file runs the container as `CLUED_SERVER_USER` (default `1000:1000`) so it can
-read a file owned by the usual first host user; set the variable to your own
-`uid:gid` when it differs. The distroless image has no shell or HTTP client,
-so it carries no `HEALTHCHECK`; probe `/health` from the host or the proxy.
+### The Docker stack: `mind-palace server init`
+
+The way to run the server on a machine of your own is the Compose stack that
+`mind-palace server init` generates and `/clued-setup` starts for you (its
+"clued server in Docker on this machine" option):
+
+```bash
+mind-palace server init --name laptop            # ~/.clued-server, prints the token once
+docker compose -f ~/.clued-server/docker-compose.yml up -d
+curl --cacert ~/.clued-server/tls/ca.pem https://localhost:8443/health
+```
+
+The directory holds everything the stack needs and is the server's home:
+
+| File | What it is |
+|---|---|
+| `docker-compose.yml` | Three services: `nginx` (publishes `${CLUED_PUBLIC_PORT:-8443}` over HTTPS and forwards to the server), `clued-server` (plain HTTP inside the compose network, `CLUED_SERVER_BEHIND_PROXY=true`, runs as your uid so it can read the token file) and `mongo` (`mongo:8` on the named volume `clued_mongo_data`, not published). The server image is the release of the plugin that ran `init` (`ghcr.io/robbiebyrd/clued-server:v<version>`, `:latest` from a bare binary); `CLUED_SERVER_IMAGE` overrides it without regenerating |
+| `nginx/clued.conf` | The front-end: TLS 1.2+, the `Authorization` header and WebSocket upgrades passed through, bodies up to the server's 16 MiB cap, hour-long reads for `/ws` |
+| `mind-palace.config.yaml` | The plan and story storage: MongoDB alone, namespaced per project (see [Storage on the server](#storage-on-the-server)) |
+| `tls/ca.pem`, `tls/ca-key.pem` | A private CA, valid ten years; clients put `ca.pem` in `serverCaFile` |
+| `tls/cert.pem`, `tls/key.pem` | The server certificate signed by that CA, valid two years, covering `localhost`, `127.0.0.1`, `::1`, this host's name and every `--host` |
+| `tokens.json` | The token file; `init` mints one token named after the host (`--name`, `--project`, `--account` as for `server token create`) and `mind-palace server token …` finds the file here by default |
+
+`init` is safe to rerun: the compose, nginx and storage files are
+regenerated (so a plugin upgrade re-pins the image with another `init`,
+followed by `docker compose … up -d`), `tls/` and `tokens.json` are kept, and
+a token whose name exists is not minted again (`notes` says so). `--force`
+renews the CA and the certificate, which is how a name is added later:
+
+```bash
+mind-palace server init --host clued.home.arpa --host 192.168.1.20 --force --no-token
+docker compose -f ~/.clued-server/docker-compose.yml up -d --force-recreate nginx
+```
+
+**Other machines** connect through the same nginx: their `serverUrl` is
+`https://<name>:8443` for a name the certificate covers, their `serverCaFile`
+a copy of `tls/ca.pem`, and each gets its own token
+(`mind-palace server token create --name desktop --project '*'`, with
+`--account` to share one session history). A cloud container does the same
+with the `CLUED_SERVER_*` variables.
+
+**Other front-ends.** nginx is a default, not a requirement:
+
+- `--no-tls` keeps the nginx service but generates no CA: put a certificate
+  the clients already trust in `tls/cert.pem` and `tls/key.pem` (one from
+  [mkcert](https://github.com/FiloSottile/mkcert) for a LAN, or a real CA for
+  a public name) and leave `serverCaFile` unset.
+- `--proxy none` leaves nginx out and publishes the server itself as plain
+  HTTP on `127.0.0.1:${CLUED_PUBLIC_PORT:-8443}`, for a terminator you run on
+  the host: Caddy or nginx as in [Behind a reverse proxy](#behind-a-reverse-proxy),
+  Traefik, or an ingress when the same three services run under Kubernetes.
+  A client on that machine may use `http://127.0.0.1:8443` directly (loopback
+  needs no TLS); every other client goes through the terminator.
+- Without Docker at all, run the binary as in [From the binary](#from-the-binary)
+  behind any of those.
+
+`/clued-uninstall` (and `hooks/uninstall`) stops the stack with
+`docker compose down`; the MongoDB volume and `~/.clued-server` stay unless
+`--purge-server` is given, so a reinstall finds the data, the tokens and the
+CA where they were.
 
 ## Tokens
 
@@ -215,9 +257,8 @@ header read at 10 s, independently of the proxy's own limits.
 The server reads the same configuration file as a repository checkout
 (`--config`, `MIND_PALACE_CONFIG`), but only its `storage` list matters and,
 unlike the client, it does not need a file store: `server run` validates
-with `AllowNoFileStore`, so a database alone is accepted. The repository's
-`mind-palace.config.server.yaml` is the example `docker-compose.server.yml`
-mounts:
+with `AllowNoFileStore`, so a database alone is accepted. The
+`mind-palace.config.yaml` that `server init` writes is the example:
 
 ```yaml
 storage:
@@ -245,8 +286,9 @@ MongoDB named by `CLUED_MONGO_URL` and `CLUED_DB_NAME` (or by `mongoUrl` and
 `dbName` in the `--session-config` file). It can be the same instance as the
 document store, in another database. The enrichers run on the server with
 the `enabledEnrichers` and `disabledEnrichers` of the session config file;
-with the compose file, mount a `config.json` holding them and add
-`--session-config /etc/clued/config.json` through `command:`.
+with the generated compose file, mount a `config.json` holding them into
+`clued-server` and add `--session-config /etc/clued/config.json` through
+`command:`.
 
 ## Client setup
 
@@ -278,9 +320,12 @@ while `serverUrl` is set (no MongoDB is opened on the client). The environment v
 override the file, which is how a cloud container is configured without a
 file at all.
 
-`/clued-setup` asks first whether to use a local MongoDB or a clued server;
-the server path asks for the URL and token, writes the file, checks the
-connection and registers the hooks, and starts nothing. The check is:
+`/clued-setup` asks first whether to use a local MongoDB, a clued server in
+Docker on this machine, or a clued server someone else runs. The Docker
+option runs `server init` and `docker compose up` and fills the file from
+the result; the last asks for the URL and token. Both then write the file,
+check the connection and register the hooks, and start no daemon. The
+check is:
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/clued" session whoami
@@ -427,7 +472,7 @@ deployment; the Go test `TestRemoteEndToEnd` in `mind-palace/cli` runs the
 same loop in-process.
 
 1. **Server.** On a host reachable as `https://clued.example.com`, run the
-   server (binary or compose) and mint a token:
+   server (the binary, or the stack from `server init`) and mint a token:
 
    ```bash
    mind-palace server token create --name cloud --project '*'

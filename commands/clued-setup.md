@@ -16,17 +16,21 @@ You are helping the user configure the `clued` Claude Code plugin for the first 
 
 ## Step 2 — Ask where clued stores its data
 
-First question. Present the user with two options. **Local MongoDB is the default.**
+First question. Present the user with three options. **Local MongoDB is the default.**
 
 > "Where should clued keep your sessions, plans and stories?
 >
 > 1. **Local MongoDB** (recommended for one machine) — a MongoDB this machine can reach and a capture daemon that runs on this machine
-> 2. **clued server** — a `mind-palace server run` that someone operates for you over HTTPS; nothing runs on this machine between hooks, and no MongoDB is installed here. You need its URL and a bearer token minted with `mind-palace server token create` (see `docs/server.md` in the plugin repository)"
+> 2. **clued server in Docker on this machine** — the clued server, its MongoDB and an nginx HTTPS front-end run as containers here (Docker required); other machines and cloud containers can connect to it with a token. Plans and stories stay as Markdown in each repository and are copied to the server
+> 3. **clued server someone else runs** — a `mind-palace server run` operated for you over HTTPS; nothing runs on this machine between hooks, and no MongoDB is installed here. You need its URL and a bearer token minted with `mind-palace server token create` (see `docs/server.md` in the plugin repository)"
 
 Wait for their answer before continuing.
 
-- **clued server**: skip Steps 3 and 4 entirely; continue with Step 5. Nothing in Step 3 is installed, started or touched.
+- **clued server someone else runs**: skip Steps 3 and 4 entirely; continue with Step 5. Nothing in Step 3 is installed, started or touched.
+- **clued server in Docker on this machine**: skip Step 4; do Step 5 first (the binary generates the stack), then the "clued server in Docker" part of Step 3, then Step 6.
 - **Local MongoDB**: ask the second question below, then continue with Step 3.
+
+Both server options are "server mode" below: the config file names a server, the hooks relay to it, and the daemon is never started.
 
 ### Local MongoDB — ask how to run it
 
@@ -40,7 +44,41 @@ Present three options. **Local binary is the default.**
 
 Wait for their answer before continuing.
 
-## Step 3 — Install and start MongoDB (local MongoDB only)
+## Step 3 — Install and start MongoDB (local MongoDB), or the server stack (clued server in Docker)
+
+### clued server in Docker on this machine — generate and start the stack
+
+Do this after Step 5 (it needs the binary). Check Docker and Compose:
+
+```bash
+docker info 2>&1 | head -1 && docker compose version
+```
+
+If Docker is not running, ask the user to start Docker Desktop (or the daemon) and confirm before continuing. Then generate the stack directory, `~/.clued-server`:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" server init --name "$(hostname -s 2>/dev/null || hostname)"
+```
+
+It writes `docker-compose.yml` (services `nginx`, `clued-server`, `mongo`), `nginx/clued.conf`, `mind-palace.config.yaml`, a private CA with a certificate for `localhost` and this host's name under `tls/`, and mints the first token into `tokens.json`. The JSON result carries what the next steps need:
+
+- `server_url` (`https://localhost:8443`), `ca_file` (`~/.clued-server/tls/ca.pem`), `token.token` (printed once; never echo it, never put it on a command line), `up` and `health`.
+- If `token` is absent and `notes` says the name already exists, this machine was set up before: reuse the token already in `config.json`, or mint another with `"${CLAUDE_PLUGIN_ROOT}/scripts/clued" server token create --tokens ~/.clued-server/tokens.json --name <another name> --project '*'` and use its `token`.
+
+Options to offer only when the user asks: `--port <n>` for another public port; `--host <name>` (repeatable) for every other name or address other machines will use in the URL (the certificate must cover it; rerun with `--force` to add one later); `--proxy none` to leave nginx out and publish the server as plain HTTP on `127.0.0.1:8443` for a terminator the user runs (Caddy, Traefik, their own nginx; the local client then uses `http://127.0.0.1:8443` and other machines go through their terminator); `--no-tls` to use certificates they supply as `~/.clued-server/tls/cert.pem` and `key.pem` (mkcert, a real CA; then no `serverCaFile` is written).
+
+Start it and wait for the health check (the first start pulls the images):
+
+```bash
+docker compose -f ~/.clued-server/docker-compose.yml up -d
+for i in $(seq 1 60); do curl -sf --cacert ~/.clued-server/tls/ca.pem https://localhost:8443/health && break; sleep 2; done
+```
+
+(`--proxy none`: `curl -sf http://127.0.0.1:8443/health`; `--no-tls`: without `--cacert`.) If it never answers, show `docker compose -f ~/.clued-server/docker-compose.yml logs clued-server nginx` to the user; the usual causes are a port already in use (rerun `server init --port <other>`) and the image tag not yet published (the result's compose file pins the plugin's release; `CLUED_SERVER_IMAGE=ghcr.io/robbiebyrd/clued-server:latest docker compose ... up -d` works around it).
+
+Then continue with Step 6, "clued server", using `server_url`, the token and `ca_file`.
+
+---
 
 ### Option A: Local binary
 
@@ -225,7 +263,7 @@ EOF
 
 ### clued server
 
-Ask the user for, in this order:
+For the Docker stack of Step 3 nothing is asked: the URL is the `server_url` `server init` printed (`https://localhost:8443`), the token is `token.token`, and the CA file is `ca_file` (omit it with `--no-tls` or `--proxy none`). Otherwise ask the user for, in this order:
 
 1. **The server URL**, e.g. `https://clued.example.com` (no trailing path). It must be `https://`: the binary refuses a plain `http://` URL unless the host is `localhost`, `127.0.0.1` or `::1`. If the user gives `http://` for another host, stop and explain that the token and the transcripts would cross the network in clear; only on a private network they trust may they add `"serverInsecure": true` to the file by hand.
 2. **The token** the server operator minted (`mind-palace server token create --name <name> --project <slug>`; it is printed once). Never echo it back, never put it on a command line, never log it.
@@ -338,7 +376,9 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/register-hooks"
 - mind-palace binary location as printed by `scripts/clued --locate` (the downloaded release under `~/.claude/plugins/data/clued/bin/releases/`, on PATH, or `~/.claude/plugins/data/clued/bin/mind-palace`)
 - MCP servers (`clued` session tools, `mind-palace` plan and story tools) provided by the plugin's `.mcp.json` over stdio — start a new session to load them
 - Local MongoDB: daemon on port 8085 — running or failed with error
-- clued server: nothing runs on this machine; each hook relays to the server, failures are logged to `~/.claude/plugins/data/clued/relay.log` and buffered in the WAL until the server answers; if the project was not covered, the `server token grant` command the operator must run
+- clued server: nothing runs on this machine between hooks; each hook relays to the server, failures are logged to `~/.claude/plugins/data/clued/relay.log` and buffered in the WAL until the server answers; if the project was not covered, the `server token grant` command the operator must run
+- clued server in Docker: the stack lives in `~/.clued-server` (compose file, `tokens.json`, `tls/`); it restarts with Docker and stops with `docker compose -f ~/.clued-server/docker-compose.yml down` (or `/clued-uninstall`). Another machine connects with `https://<this host's name>:8443` (add the name with `server init --host <name> --force` if it was not covered), a copy of `~/.clued-server/tls/ca.pem` as its `serverCaFile`, and its own token from `scripts/clued server token create --tokens ~/.clued-server/tokens.json --name <machine> --project '*'`
+- In both server modes plans and stories keep their Markdown files under `docs/plans` and `docs/stories` in each repository (the primary store) and every write is also sent to the server; `mind-palace sync --from file --to clued-server` catches the server up after an outage
 - macOS tarball: launchd plist at `~/Library/LaunchAgents/org.mongodb.mongod.plist` auto-restarts mongod at login
 - Hooks registered automatically via `hooks.json` (and mirrored into `~/.claude/settings.json` by `register-hooks` on every session start) — no manual settings edit needed. Three of them run the binary directly: `scripts/clued hook write-guard` on PreToolUse (plans and stories change only through mind-palace), `scripts/clued hook stop-guard` on Stop and `scripts/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit; in server mode `hooks/event-relay` runs `scripts/clued hook relay` for every other event
 - If the claude-remember plugin is installed, `session-start` installs clued's listener into it so its summaries are captured too (`search_memory` finds them)

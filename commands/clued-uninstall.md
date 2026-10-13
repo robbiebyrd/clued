@@ -1,6 +1,6 @@
 ---
 name: clued-uninstall
-description: Stop the clued daemon (local mode), remove the MongoDB launchd plist, and clean up config, catch-up state and logs
+description: Stop the clued daemon (local mode) or the server stack this machine hosts, remove the MongoDB launchd plist, and clean up config, catch-up state and logs
 ---
 
 You are helping the user uninstall or clean up the clued Claude Code plugin.
@@ -20,6 +20,7 @@ Run these checks to discover what exists on this machine:
 !`test -f ~/.claude/plugins/data/clued/relay.log && echo "relay log: present" || echo "relay log: absent"`
 !`test -d ~/mongodb && echo "mongodb tarball: present at ~/mongodb" || echo "mongodb tarball: absent"`
 !`docker ps -a --filter name=transcripts-mongo --format '{{.Names}} {{.Status}}' 2>/dev/null | grep -q . && echo "docker mongodb: container present" || echo "docker mongodb: absent"`
+!`test -f ~/.clued-server/docker-compose.yml && echo "server stack: present at ~/.clued-server ($(docker compose -f ~/.clued-server/docker-compose.yml ps --status running -q 2>/dev/null | wc -l | tr -d ' ') containers running)" || echo "server stack: absent"`
 
 `CLUED_SERVER_URL` in the environment also puts the plugin in server mode, whatever `config.json` says.
 
@@ -36,6 +37,7 @@ Use AskUserQuestion to confirm scope before touching anything. Example options:
   - Note: MongoDB data at `~/data/db/` contains session transcripts — offer to keep or remove separately
 - **MongoDB data** (only if `~/data/db/` exists): remove `~/data/db/` — warn that this deletes all captured session transcripts
 - **Docker MongoDB** (only if the `transcripts-mongo` container is present): stop and remove the container; separately offer to remove its `transcripts_data` volume — warn that the volume holds all captured session transcripts
+- **Server stack** (only if `~/.clued-server/docker-compose.yml` is present): stop its containers (`nginx`, `clued-server`, `mongo`); separately offer to remove its `clued_mongo_data` volume and the `~/.clued-server` directory (tokens, CA, certificates) — warn that the volume holds every session, plan and story the server received from every machine, and that other machines using this server lose it
 
 In clued server mode the sessions, plans and stories on the server are not touched by anything here; revoking the token is the operator's `mind-palace server token revoke <name>`.
 
@@ -78,7 +80,7 @@ rm -f ~/.claude/plugins/data/clued/relay.log
 echo "catch-up state and relay log removed"
 ```
 
-The non-interactive `hooks/uninstall` does the same: it stops the daemon only in local mode and only when one answers, removes the plist only when present, always removes `catchup/` and `relay.log`, and removes the config directory unless `--keep-config` is given.
+The non-interactive `hooks/uninstall` does the same: it stops the daemon only in local mode and only when one answers, stops the server stack when `~/.clued-server/docker-compose.yml` exists (unless `--keep-server`; `--purge-server` also removes its volume and directory), removes the plist only when present, always removes `catchup/` and `relay.log`, and removes the config directory unless `--keep-config` is given.
 
 ## Step 6 — Remove MongoDB binaries (if confirmed)
 
@@ -109,6 +111,22 @@ Only if the user confirmed deleting the data too (re-confirm first: "This will p
 ```bash
 docker volume rm $(docker volume ls -q --filter name=transcripts_data) 2>/dev/null && echo "volume removed"
 ```
+
+## Step 7c — Stop the server stack (if present and confirmed)
+
+Stop the containers `mind-palace server init` set up; the data volume and the directory stay:
+
+```bash
+docker compose -f ~/.clued-server/docker-compose.yml down && echo "server stack stopped"
+```
+
+Only if the user confirmed deleting the server's data too (re-confirm first: "This will permanently delete every session, plan and story on this server, for every machine that uses it. Are you sure?"):
+
+```bash
+docker compose -f ~/.clued-server/docker-compose.yml down --volumes && rm -rf ~/.clued-server && echo "server stack and its data removed"
+```
+
+Plans and stories keep their Markdown files in each repository either way.
 
 ## Step 8 — Confirm to user
 

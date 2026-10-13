@@ -141,3 +141,109 @@ func TestUninstallWithNothingInstalled(t *testing.T) {
 		t.Errorf("stdout = %q, want only the completion line", r.stdout)
 	}
 }
+
+// fakeDocker puts a `docker` on PATH that records its arguments, one call
+// per line, in the returned log file and exits with the given code.
+func fakeDocker(t *testing.T, exit int) (binDir, logFile string) {
+	t.Helper()
+	binDir = t.TempDir()
+	logFile = filepath.Join(t.TempDir(), "docker.log")
+	writeExecutable(t, binDir, "docker", "#!/bin/sh\necho \"$*\" >> "+logFile+"\nexit "+strconv.Itoa(exit)+"\n")
+	return binDir, logFile
+}
+
+// writeStack creates the compose file `mind-palace server init` leaves under
+// ~/.clued-server, with a token file beside it.
+func writeStack(t *testing.T, home string) string {
+	t.Helper()
+	dir := filepath.Join(home, ".clued-server")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{"docker-compose.yml": "services: {}\n", "tokens.json": "{}\n"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func TestUninstallStopsTheServerStack(t *testing.T) {
+	requireJq(t)
+	port := closedPort(t)
+
+	t.Run("stops the containers and keeps the data", func(t *testing.T) {
+		home := remoteHome(t, "https://localhost:8443", remoteToken)
+		stack := writeStack(t, home)
+		binDir, logFile := fakeDocker(t, 0)
+		env := []string{"HOME=" + home, "PATH=" + binDir + ":/usr/bin:/bin", "CLUED_PORT=" + port}
+		r := runScript(t, hook(t, "uninstall"), "", env, "--keep-config")
+		if r.code != 0 || !strings.Contains(r.stdout, "server stack stopped") || strings.Contains(r.stdout, "removed with its data") {
+			t.Fatalf("got %+v", r)
+		}
+		calls, _ := os.ReadFile(logFile)
+		if want := "compose -f " + filepath.Join(stack, "docker-compose.yml") + " down\n"; string(calls) != want {
+			t.Errorf("docker calls = %q, want %q", calls, want)
+		}
+		if _, err := os.Stat(filepath.Join(stack, "tokens.json")); err != nil {
+			t.Errorf("the stack directory should be kept: %v", err)
+		}
+	})
+
+	t.Run("--purge-server removes the volume and the directory", func(t *testing.T) {
+		home := remoteHome(t, "https://localhost:8443", remoteToken)
+		stack := writeStack(t, home)
+		binDir, logFile := fakeDocker(t, 0)
+		env := []string{"HOME=" + home, "PATH=" + binDir + ":/usr/bin:/bin", "CLUED_PORT=" + port}
+		r := runScript(t, hook(t, "uninstall"), "", env, "--purge-server")
+		if r.code != 0 || !strings.Contains(r.stdout, "removed with its data") {
+			t.Fatalf("got %+v", r)
+		}
+		calls, _ := os.ReadFile(logFile)
+		if !strings.Contains(string(calls), " down --volumes\n") {
+			t.Errorf("docker calls = %q, want down --volumes", calls)
+		}
+		mustNotExist(t, stack, "stack directory")
+	})
+
+	t.Run("--keep-server leaves it running", func(t *testing.T) {
+		home := remoteHome(t, "https://localhost:8443", remoteToken)
+		writeStack(t, home)
+		binDir, logFile := fakeDocker(t, 0)
+		env := []string{"HOME=" + home, "PATH=" + binDir + ":/usr/bin:/bin", "CLUED_PORT=" + port}
+		r := runScript(t, hook(t, "uninstall"), "", env, "--keep-server", "--keep-config")
+		if r.code != 0 || strings.Contains(r.stdout, "server stack") {
+			t.Fatalf("got %+v", r)
+		}
+		if _, err := os.Stat(logFile); !os.IsNotExist(err) {
+			t.Errorf("docker was called with --keep-server")
+		}
+	})
+
+	t.Run("a failing docker is reported and nothing is removed", func(t *testing.T) {
+		home := remoteHome(t, "https://localhost:8443", remoteToken)
+		stack := writeStack(t, home)
+		binDir, _ := fakeDocker(t, 1)
+		env := []string{"HOME=" + home, "PATH=" + binDir + ":/usr/bin:/bin", "CLUED_PORT=" + port}
+		r := runScript(t, hook(t, "uninstall"), "", env, "--purge-server", "--keep-config")
+		if r.code != 0 || !strings.Contains(r.stderr, "could not stop the server stack") {
+			t.Fatalf("got %+v", r)
+		}
+		if _, err := os.Stat(filepath.Join(stack, "tokens.json")); err != nil {
+			t.Errorf("a stack that could not be stopped must not be removed: %v", err)
+		}
+	})
+
+	t.Run("no stack, no docker call", func(t *testing.T) {
+		home := remoteHome(t, "https://localhost:8443", remoteToken)
+		binDir, logFile := fakeDocker(t, 0)
+		env := []string{"HOME=" + home, "PATH=" + binDir + ":/usr/bin:/bin", "CLUED_PORT=" + port}
+		r := runScript(t, hook(t, "uninstall"), "", env, "--keep-config")
+		if r.code != 0 || strings.Contains(r.stdout, "server stack") {
+			t.Fatalf("got %+v", r)
+		}
+		if _, err := os.Stat(logFile); !os.IsNotExist(err) {
+			t.Errorf("docker was called without a stack")
+		}
+	})
+}
