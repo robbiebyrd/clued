@@ -204,7 +204,7 @@ func TestSessionLoginDeniedAndNotACloud(t *testing.T) {
 
 	stub.plain = true
 	r = execStdin(t, "", "session", "--config", configPath, "login", "--server", stub.srv.URL, "--name", "laptop")
-	if r.code == 0 || !strings.Contains(r.stderr, "not a clued cloud") {
+	if r.code == 0 || !strings.Contains(r.stderr, "no device login") {
 		t.Errorf("login against a plain server: %+v", r)
 	}
 }

@@ -61,18 +61,19 @@ func (a *App) sessionLoginCmd() *cobra.Command {
 	)
 	c := &cobra.Command{
 		Use:   "login --server URL [--name NAME] [--ca-file PEM] [--wait 15m]",
-		Short: "Link this machine to a clued cloud: open the printed link, approve, and the token lands in config.json",
-		Long: `Starts the device flow on the cloud at --server (POST /api/v1/device/code),
-prints the link and the code to approve on stderr, polls until the user
-approves in a browser, then writes serverUrl and serverToken (and
-serverCaFile or serverInsecure when given) into the config file, keeping
-every other key, with mode 0600, and checks the token with /api/v1/whoami.
-The link may be opened from any browser: a terminal prints it, the Claude
-Code app renders it. A denied or expired request fails the command.`,
+		Short: "Link this machine to a clued server: show a code, have it approved, and the token lands in config.json",
+		Long: `Starts the device flow on the server at --server (POST /api/v1/device/code),
+prints the code to approve on stderr, polls until it is approved, then
+writes serverUrl and serverToken (and serverCaFile or serverInsecure when
+given) into the config file, keeping every other key, with mode 0600, and
+checks the token with /api/v1/whoami. On a self-hosted clued server the
+code is approved from a machine already linked to it ("server device
+approve <code>"); the clued cloud approves it in a browser at the printed
+link. A denied or expired request fails the command.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if strings.TrimSpace(serverURL) == "" {
-				return a.sessionBadRequest("--server is required (the cloud's URL, e.g. https://cloud.example.com)")
+				return a.sessionBadRequest("--server is required (the server's URL, e.g. https://clued.example.com:8443)")
 			}
 			cfg := session.Config{ServerURL: serverURL, ServerCAFile: caFile, ServerInsecure: insecure}
 			client, err := remote.New(cfg)
@@ -86,13 +87,16 @@ Code app renders it. A denied or expired request fails the command.`,
 			var start deviceStart
 			err = client.Do(ctx, http.MethodPost, deviceCodePath, map[string]any{"client_name": name, "client_info": clientInfo()}, &start)
 			if err != nil {
-				if remote.IsNotFound(err) {
-					return a.sessionBadRequest(fmt.Sprintf("%s is not a clued cloud (no %s); for a plain clued server put its token in %s by hand", client.BaseURL(), deviceCodePath, a.sess.configPath))
+				// An older server has no device routes: the path is unknown
+				// (404) or, since it sits behind the bearer check there,
+				// refused for want of a token (401).
+				if remote.IsNotFound(err) || errors.Is(err, remote.ErrUnauthorized) {
+					return a.sessionBadRequest(fmt.Sprintf("%s offers no device login (no %s; an older clued server); put its token in %s by hand", client.BaseURL(), deviceCodePath, a.sess.configPath))
 				}
 				return a.sessionFail(err)
 			}
-			fmt.Fprintf(a.Stderr, "clued: open %s in a browser and approve the code %s (expires in %d minutes)\n",
-				start.VerificationURIComplete, start.UserCode, max(start.ExpiresIn/60, 1))
+			fmt.Fprintf(a.Stderr, "clued: approve the code %s from a machine linked to %s (`server device approve %s`), or open %s (expires in %d minutes)\n",
+				start.UserCode, client.BaseURL(), start.UserCode, start.VerificationURIComplete, max(start.ExpiresIn/60, 1))
 
 			link, err := pollDeviceLink(ctx, client, start, wait)
 			if err != nil {

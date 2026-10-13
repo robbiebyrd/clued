@@ -113,10 +113,14 @@ func (f *TokenFile) Lookup(raw string) (Principal, bool) {
 	return Principal{Name: t.Name, AccountID: t.AccountID, Projects: slices.Clone(t.Projects)}, true
 }
 
+// ErrTokenExists is returned (wrapped, naming the token) by Create for a
+// name the file already holds.
+var ErrTokenExists = errors.New("auth: token already exists")
+
 // Create mints a token: 32 random bytes, base64url without padding, returned
 // exactly once. The file keeps its SHA-256 digest with the name, the account
 // (a fresh random id when accountID is empty) and the projects. Names are
-// unique within the file.
+// unique within the file: a taken name is ErrTokenExists.
 func (f *TokenFile) Create(name, accountID string, projects []string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -129,7 +133,7 @@ func (f *TokenFile) Create(name, accountID string, projects []string) (string, e
 	}
 	for _, t := range f.tokens {
 		if t.Name == name {
-			return "", fmt.Errorf("auth: token %q already exists", name)
+			return "", fmt.Errorf("%w: %q", ErrTokenExists, name)
 		}
 	}
 	rawBytes := make([]byte, 32)

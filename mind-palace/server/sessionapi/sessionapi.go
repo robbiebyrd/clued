@@ -27,9 +27,11 @@
 //	POST /memory-events                  MemoryEvents           body: session.MemoryQuery
 //	GET  /sessions/{id}/full             FullSession
 //
-// The query structs (SessionQuery, LineQuery, CommandQuery, MemoryQuery) carry no JSON
-// tags, so their keys are the Go field names ("ProjectPathRe", "SessionID",
-// …); their AccountID is ignored. Writes answer with a small acknowledgement
+// The query structs (SessionQuery, LineQuery, CommandQuery, MemoryQuery) use
+// camel-case keys ("projectPathRe", "sessionId", "patternRe", "sessionIds",
+// …); the Go field names older clients sent ("ProjectPathRe", "SessionID")
+// still decode, since keys match case-insensitively. Their AccountID is
+// never read. Writes answer with a small acknowledgement
 // ({"session_id"}, {"inserted"}, {"upserted"}); reads answer with exactly
 // what the port returns, times encoded as RFC3339Nano strings and empty lists
 // as []. A hook event's created_at may be sent as an RFC3339Nano string and is
@@ -480,7 +482,7 @@ func (a *api) countTranscriptLines(w http.ResponseWriter, r *http.Request, accou
 
 func (a *api) transcriptLines(w http.ResponseWriter, r *http.Request, account string) {
 	var q session.LineQuery
-	if !a.decode(w, r, &q) || !idOrInvalid(w, "SessionID", q.SessionID) {
+	if !a.decode(w, r, &q) || !idOrInvalid(w, "sessionId", q.SessionID) {
 		return
 	}
 	q.AccountID = account

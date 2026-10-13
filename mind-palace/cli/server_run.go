@@ -18,6 +18,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/server"
 	"github.com/robbiebyrd/clued/mind-palace/server/auth"
+	"github.com/robbiebyrd/clued/mind-palace/server/device"
 	"github.com/robbiebyrd/clued/mind-palace/server/projects"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 	"github.com/robbiebyrd/clued/mind-palace/session"
@@ -193,19 +194,38 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 		}
 	}()
 
+	tokens := auth.OpenTokenFile(o.Tokens)
 	srv := server.NewClued(server.CluedOptions{
-		Version:   o.Version,
-		Tokens:    auth.OpenTokenFile(o.Tokens),
-		Sessions:  sessions,
-		Open:      opener.Open,
-		Config:    cfg,
-		Enrichers: session.Active(sessionCfg.DisabledEnrichers, sessionCfg.EnabledEnrichers),
-		Logger:    logger,
+		Version:      o.Version,
+		Tokens:       tokens,
+		Sessions:     sessions,
+		Open:         opener.Open,
+		Config:       cfg,
+		Enrichers:    session.Active(sessionCfg.DisabledEnrichers, sessionCfg.EnabledEnrichers),
+		Logger:       logger,
+		Device:       device.New(device.Options{Tokens: tokens}),
+		ClientConfig: clientConfigFrom(sessionCfg, o.SessionConfig, time.Now()),
 	})
 	if err := srv.Serve(ctx, listen, o.Ready); err != nil {
 		return a.fail(&service.Error{Kind: service.KindStorage, Message: err.Error(), Cause: err})
 	}
 	return nil
+}
+
+// clientConfigFrom serves the enricher settings of the server's session
+// config as the client settings of GET /api/v1/me/config, dated by the
+// config file's modification time (the start time without a file).
+func clientConfigFrom(cfg session.Config, path string, started time.Time) func() (map[string]any, time.Time) {
+	return func() (map[string]any, time.Time) {
+		at := started
+		if fi, err := os.Stat(path); err == nil {
+			at = fi.ModTime()
+		}
+		return map[string]any{
+			"enabledEnrichers":  cfg.EnabledEnrichers,
+			"disabledEnrichers": cfg.DisabledEnrichers,
+		}, at
+	}
 }
 
 // serverDocumentConfig is the plan and story configuration the server

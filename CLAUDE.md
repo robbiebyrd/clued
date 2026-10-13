@@ -25,6 +25,7 @@ binary.
 | `mind-palace/remote/` | The HTTP client every remote adapter shares: base URL, bearer token, CA file, the rule that refuses plain `http://` off loopback, envelope decoding into typed errors |
 | `mind-palace/clientcfg/` | Opens the plan and story services the way the client does: the repository's config plus, in remote mode, the `clued-server` store appended as a secondary store; `remote.project` overrides the project slug |
 | `mind-palace/server/auth/` | Bearer-token authentication for the clued server: hashed token file (`server token create|list|revoke|grant`), constant-time compare, mtime reload, principal on the context |
+| `mind-palace/server/device/` | The device login of the clued server (`session login` on a new machine, `server device approve` on a linked one): pending codes in memory, approval mints a token in the token file under the approver's account; the routes are in `server/device_routes.go` |
 | `mind-palace/server/sessionapi/` | The `session.Store` port over HTTP under `/api/v1/session`, scoped to the token's account |
 | `mind-palace/server/storeapi/` | The `store.Store` port over HTTP under `/api/v1/projects/{project}/store/` |
 | `mind-palace/server/projects/` | Project slugs (`github.com__owner__repo`) and one store per project built from the server's storage definitions |

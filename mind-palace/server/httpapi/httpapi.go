@@ -98,6 +98,12 @@ func ResolvingHandler(resolve Resolver, regs ops.Registries) http.Handler {
 
 	mux.HandleFunc("GET "+Prefix+"/config", a.op("getConfig", nil))
 	mux.HandleFunc("GET "+Prefix+"/events", a.events)
+	// Anything else under the prefix answers the envelope, as the other
+	// transports do, so a client can tell "no such route" from a proxy's
+	// error page.
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		WriteError(w, http.StatusNotFound, "not_found", fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))
+	})
 	return mux
 }
 
