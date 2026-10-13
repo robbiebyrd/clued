@@ -7,7 +7,7 @@ status: in_progress
 priority: "2"
 effort: S
 created: "2026-10-13T16:37:58.815Z"
-updated: "2026-10-13T16:47:09.970Z"
+updated: "2026-10-13T16:50:45.694Z"
 started: "2026-10-13T16:37:58.815Z"
 tags:
   - memory
@@ -51,6 +51,6 @@ Prime, sessionsource, enricher registry and enricher tests; the context skill, p
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: `cd mind-palace && go test -race ./collect/... ./session/... ./cli/` passes with the MEMORY section in the report and both redactors active when `privacy-redact` is enabled
+- [x] VERIFY: `cd mind-palace && go test -race ./collect/... ./session/... ./cli/` passes with the MEMORY section in the report and both redactors active when `privacy-redact` is enabled
 
 ## Work Log
