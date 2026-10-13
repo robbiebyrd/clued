@@ -116,7 +116,7 @@ func TestInitWritesTheStack(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"  nginx:\n", "image: " + DefaultNginxImage, `"${CLUED_PUBLIC_PORT:-8443}:443"`,
+		"name: clued\n", "  nginx:\n", "image: " + DefaultNginxImage, `"${CLUED_PUBLIC_PORT:-8443}:443"`,
 		"./nginx/clued.conf:/etc/nginx/conf.d/default.conf:ro", "./tls:/etc/nginx/tls:ro",
 		"  clued-server:\n", "image: ${CLUED_SERVER_IMAGE:-ghcr.io/robbiebyrd/clued-server:v9.9.9}",
 		`user: "${CLUED_SERVER_USER:-1234:5678}"`, `CLUED_SERVER_BEHIND_PROXY: "true"`,
