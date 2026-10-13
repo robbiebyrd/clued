@@ -77,8 +77,17 @@ type CluedOptions struct {
 	Sessions session.Store
 	// Open returns a project's document store, served by storeapi and, as
 	// a palace, by the service API, the WebSocket and the MCP endpoint.
-	// Required.
+	// Required. It receives the key Namespace derives for the request's
+	// principal and project (the project itself without a Namespace).
 	Open func(ctx context.Context, project string) (store.Store, error)
+	// Namespace maps a principal's project to the key its store and palace
+	// are opened and cached under; nil keeps the project slug itself. A
+	// multi-tenant server returns a key that includes the account, so two
+	// accounts' repositories with the same slug never share a store. The
+	// key must satisfy projects.ValidSlug when Open is a projects.Opener.
+	// Project checks (auth.AllowProject) still see the slug the request
+	// named.
+	Namespace func(p auth.Principal, project string) string
 	// Config is the plan and story configuration (kinds, workflows,
 	// schemas) every project's palace is built with; config.Default when nil.
 	Config *config.Config
@@ -128,6 +137,9 @@ func NewClued(opts CluedOptions) *Clued {
 	if opts.Config == nil {
 		opts.Config = config.Default()
 	}
+	if opts.Namespace == nil {
+		opts.Namespace = func(_ auth.Principal, project string) string { return project }
+	}
 	c := &Clued{opts: opts, palaces: NewPalaces(opts.Config, opts.Open)}
 
 	sessionTools := sessionmcp.New(session.Config{}, func(context.Context) (session.Store, error) { return opts.Sessions, nil }, "").Subset(true)
@@ -157,7 +169,10 @@ func NewClued(opts CluedOptions) *Clued {
 		},
 	}))
 	protected.Handle(storeapi.Prefix+"/", storeapi.Handler(storeapi.Options{
-		Open: opts.Open,
+		Open: func(ctx context.Context, project string) (store.Store, error) {
+			p, _ := auth.FromContext(ctx)
+			return opts.Open(ctx, opts.Namespace(p, project))
+		},
 		Allow: func(r *http.Request, project string) bool {
 			p, ok := auth.FromContext(r.Context())
 			return ok && auth.AllowProject(p, project)
@@ -202,7 +217,7 @@ func withProject(next http.Handler) http.Handler {
 // resolve is the Options.Resolve of the project-scoped entrypoints: the
 // project named by RequestProject, validated (projects.ValidSlug), allowed
 // for the request's principal (auth.AllowProject) and opened once per
-// project through Palaces.
+// namespaced key through Palaces.
 func (c *Clued) resolve(r *http.Request) (*service.Palace, error) {
 	project := RequestProject(r)
 	if project == "" {
@@ -215,7 +230,7 @@ func (c *Clued) resolve(r *http.Request) (*service.Palace, error) {
 	if !ok || !auth.AllowProject(p, project) {
 		return nil, fmt.Errorf("%w: %q", ErrProjectForbidden, project)
 	}
-	return c.palaces.Get(r.Context(), project)
+	return c.palaces.Get(r.Context(), c.opts.Namespace(p, project))
 }
 
 // Close stops the project-scoped entrypoints (the per-project MCP servers
