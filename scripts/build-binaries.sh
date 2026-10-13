@@ -22,12 +22,16 @@
 # from (the `version` in .claude-plugin/plugin.json names that release).
 # Builds are reproducible (CGO off, -trimpath, no VCS stamp, the Go toolchain
 # pinned to the version in go.mod), so the same source always gives the same
-# hashes. The targets compile concurrently (BUILD_JOBS limits how many at
-# once).
+# hashes. The version from the manifest (or VERSION in the environment) is
+# stamped into the binary as remote.Version, which the server reports from
+# /health and the client sends in its User-Agent. The targets compile
+# concurrently (BUILD_JOBS limits how many at once).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODULE="${ROOT}/mind-palace"
+VERSION="${VERSION:-$(sed -nE 's/^ *"version": *"([^"]+)".*/\1/p' "${ROOT}/.claude-plugin/plugin.json" | head -n 1)}"
+LDFLAGS="-s -w -X github.com/robbiebyrd/clued/mind-palace/remote.Version=${VERSION:-dev}"
 
 # GOOS/GOARCH pairs. Go has no windows/arm (32-bit) target, and Claude Code
 # does not run on 32-bit x86, so neither is built. linux/arm is built for
@@ -154,7 +158,7 @@ for target in "${BUILD[@]}"; do
   done
   echo "building ${name}" >&2
   (cd "$MODULE" && GOOS="$goos" GOARCH="$goarch" \
-    go build -trimpath -buildvcs=false -ldflags '-s -w' -o "${OUT}/${name}" ./cmd/mind-palace) &
+    go build -trimpath -buildvcs=false -ldflags "$LDFLAGS" -o "${OUT}/${name}" ./cmd/mind-palace) &
   pids["$name"]=$!
 done
 for name in "${!pids[@]}"; do
@@ -171,4 +175,4 @@ if (( ${#ONLY[@]} > 0 )); then
 fi
 # SHA256SUMS lists the targets in their declared order whatever finished first.
 write_sums
-echo "wrote ${#TARGETS[@]} binaries and SHA256SUMS to ${OUT}" >&2
+echo "wrote ${#TARGETS[@]} binaries (v${VERSION:-dev}) and SHA256SUMS to ${OUT}" >&2

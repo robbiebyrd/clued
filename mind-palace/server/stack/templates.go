@@ -89,6 +89,7 @@ func composeYAML(opts Options) string {
 	}
 	w("#\n# CLUED_SERVER_IMAGE, CLUED_PUBLIC_PORT and CLUED_SERVER_USER override the\n")
 	w("# image, the published port and the user without regenerating.\n")
+	w("name: clued\n\n")
 	w("services:\n")
 
 	if opts.Proxy == ProxyNginx {

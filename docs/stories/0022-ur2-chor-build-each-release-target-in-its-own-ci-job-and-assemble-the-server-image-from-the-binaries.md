@@ -6,7 +6,7 @@ status: in_progress
 priority: "1"
 effort: S
 created: "2026-10-13T18:21:11.717Z"
-updated: "2026-10-13T18:21:11.717Z"
+updated: "2026-10-13T18:37:13.201Z"
 started: "2026-10-13T18:21:11.717Z"
 tags:
   - ci
@@ -53,3 +53,5 @@ The `binaries` job is a matrix over the targets (a step checks it matches the sc
 - [ ] [MANUAL] The next push runs seven `binaries` jobs side by side, `image` assembles both platforms from their artifacts, and a release carries the same bytes in the image and in the assets
 
 ## Work Log
+
+### 2026-10-13T18:37:13.201Z - Merged main's automatic patch releases (robbiebyrd/clued#25). scripts/release-plan.sh now holds the release decision: a version job runs it before the matrix so the binaries are stamped with the version the release will carry, and the release job runs it again on the latest main and publishes the collected binaries only when main's code is still the pushed commit's and the version agrees; otherwise a later push's run releases. The bump, superseded and mismatch paths were simulated against a scratch repository and a fake gh.

@@ -77,9 +77,10 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   script's targets; a step checks it), and keeps each as a workflow
   artifact that the `image` and `release` jobs reuse; the binaries users
   run come from GitHub releases. A change the binary compiles in reaches
-  plugin installs only through a release: bump `version` in
-  `.claude-plugin/plugin.json`; once merged, CI releases it (next bullet
-  under Conventions).
+  plugin installs only through a release, and every push to main is one:
+  CI bumps the patch version itself (next bullet under Conventions). Bump
+  `version` in `.claude-plugin/plugin.json` and `marketplace.json` by hand
+  only for a new minor or major.
 
 ## Conventions
 
@@ -123,12 +124,24 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   MCP tools (or `mind-palace plan create`), stories with `story_*`, and both
   change through the setters (`plan_setStatus`, `story_setCriterion`, …) or
   `plan_update` / `story_update` for the content.
-- Releases are automatic; never push a `v*` tag by hand. The `release` job
-  of `.github/workflows/mind-palace.yml` runs on every push to main after
-  `test`, `binaries` and `image` passed: when `.claude-plugin/plugin.json`
-  names a version with no GitHub release yet, it collects the matrix's
-  binaries (`scripts/build-binaries.sh --sums`), assembles and pushes
+- Releases are automatic; never push a `v*` tag or edit the version for a
+  patch by hand. `scripts/release-plan.sh` decides what a run releases: a
+  version in `.claude-plugin/plugin.json` with no release yet (a minor or
+  major bumped by hand) as it is; on a push to main whose version is
+  already released, the next patch version; a release with missing assets
+  is completed. The `version` job runs it first so the `binaries` matrix
+  stamps that version into the binaries as `remote.Version`. The `release`
+  job of `.github/workflows/mind-palace.yml` runs on every push to main
+  after `test`, `binaries` and `image` passed, on the latest main: it skips
+  when main's code moved past the pushed commit (the later push's run
+  releases it) or the plan changed since the builds, otherwise bumps the
+  patch version in `plugin.json` and `marketplace.json` (both must agree;
+  `go test ./plugin/` checks it) and commits that to main as
+  `Release v<next> [skip ci]`, collects the matrix's binaries
+  (`scripts/build-binaries.sh --sums`), assembles and pushes
   `ghcr.io/robbiebyrd/clued-server:v<version>` (and `:latest`) from the
-  Linux ones and creates the release `v<version>`, tag included, with
-  the `mind-palace_<os>_<arch>` assets and `SHA256SUMS` that `scripts/clued`
-  downloads on first use. Bumping the version is the whole procedure.
+  Linux ones and creates the release `v<version>`, tag included, with the
+  `mind-palace_<os>_<arch>` assets and `SHA256SUMS` that `scripts/clued`
+  downloads on first use. A manual run of the workflow completes a release
+  with missing assets but bumps nothing. The job pushes to main with the
+  workflow's token, so a branch rule that blocks it fails the release.

@@ -535,18 +535,23 @@ scripts/build-binaries.sh --target linux/amd64 --target linux/arm64 dist
 docker build -f Dockerfile.server -t ghcr.io/robbiebyrd/clued-server:dev .
 ```
 
-Releasing is CI's job and needs no tag pushed by hand: bump `version` in
-`.claude-plugin/plugin.json` and merge. The `release` job of
-`.github/workflows/mind-palace.yml` runs on every push to main after the
-tests and builds passed; when the manifest's version has no GitHub release
-yet it collects the binaries the matrix built (`--sums` writes their
+Releasing is CI's job and needs no tag pushed by hand: every push to main
+is a release. The `release` job of `.github/workflows/mind-palace.yml` runs
+after the tests and builds passed; when the version in
+`.claude-plugin/plugin.json` is already released it bumps the patch version
+in `plugin.json` and `marketplace.json`, commits `Release v<next> [skip ci]`
+to main and releases that commit, and a version with no release yet (a
+minor or major bumped by hand before merging) is released as it is
+(`scripts/release-plan.sh` makes that decision, once before the builds so
+they stamp the right version and again in the release job). The release
+collects the binaries the matrix built with the version stamped in
+(`/health` and the client's `User-Agent` report it; `--sums` writes their
 `SHA256SUMS`), assembles and pushes the server image from the Linux ones as
 `ghcr.io/robbiebyrd/clued-server:v<version>` and `:latest`, and creates the
 release `v<version>` (which creates the tag at that commit) with the
-binaries and `SHA256SUMS`. A push whose version is already released
-publishes nothing. `scripts/clued` on every machine then downloads the asset
-of exactly that release, so the binary a plugin install runs always matches
-the hooks it shipped with.
+binaries and `SHA256SUMS`. `scripts/clued` on every machine then downloads
+the asset of exactly that release, so the binary a plugin install runs
+always matches the hooks it shipped with.
 
 To run the plugin against your own checkout, add `"devRepoPath": "/path/to/clued"`
 to the config file: `scripts/clued` rebuilds the binary when sources change and
