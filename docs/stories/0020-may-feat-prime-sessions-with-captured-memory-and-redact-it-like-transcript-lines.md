@@ -3,12 +3,13 @@ id: 0020-may
 title: Prime sessions with captured memory and redact it like transcript lines
 purpose: 'The two follow-ups of plan 0006-6lm: prime_context shows the newest claude-remember notes of the project, and privacy-redact also masks the captured memory text.'
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: S
 created: "2026-10-13T16:37:58.815Z"
-updated: "2026-10-13T16:50:45.694Z"
+updated: "2026-10-13T18:18:01.109Z"
 started: "2026-10-13T16:37:58.815Z"
+completed: "2026-10-13T18:18:01.109Z"
 tags:
   - memory
   - prime
