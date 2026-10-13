@@ -1,16 +1,19 @@
 package plugin_test
 
 import (
-	"bytes"
-	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -19,53 +22,90 @@ const fakeBinary = "#!/bin/sh\necho \"%s $*\"\n"
 
 type shimEnv struct {
 	home, pathDir string
-	// dist stands in for the plugin's dist; it starts empty so the
-	// archives committed in the repository never leak into a test.
-	dist string
+	// releaseURL is where scripts/clued downloads the pinned release from;
+	// "off" keeps the real GitHub release out of every test.
+	releaseURL string
 }
 
 func newShimEnv(t *testing.T) shimEnv {
 	t.Helper()
-	return shimEnv{home: t.TempDir(), pathDir: t.TempDir(), dist: t.TempDir()}
+	return shimEnv{home: t.TempDir(), pathDir: t.TempDir(), releaseURL: "off"}
 }
 
-// bundledAssetName is the archive name scripts/clued looks for on this machine.
-func bundledAssetName(t *testing.T) string {
+// releaseAssetName is the release asset scripts/clued looks for on this machine.
+func releaseAssetName(t *testing.T) string {
 	t.Helper()
 	switch runtime.GOOS {
 	case "linux", "darwin":
 	default:
-		t.Skipf("no bundled binary naming for %s", runtime.GOOS)
+		t.Skipf("no release asset naming for %s", runtime.GOOS)
 	}
 	switch runtime.GOARCH {
 	case "amd64", "arm64", "arm":
 	default:
-		t.Skipf("no bundled binary naming for %s", runtime.GOARCH)
+		t.Skipf("no release asset naming for %s", runtime.GOARCH)
 	}
 	return "mind-palace_" + runtime.GOOS + "_" + runtime.GOARCH
 }
 
-// writeDist fills dir like scripts/build-binaries.sh does, with a fake binary
-// for this platform that prints label and its arguments. It returns the sha256
-// recorded in SHA256SUMS, or the one given in override instead.
-func writeDist(t *testing.T, dir, label string, override string) string {
+// pluginVersion is the release the plugin manifest pins.
+func pluginVersion(t *testing.T) string {
 	t.Helper()
-	name := bundledAssetName(t)
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), ".claude-plugin", "plugin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Version == "" {
+		t.Fatal("plugin.json has no version")
+	}
+	return manifest.Version
+}
+
+// releaseServer stands in for GitHub's release downloads: it serves a
+// directory of v<version>/ folders over HTTP and counts the requests.
+type releaseServer struct {
+	dir  string
+	url  string
+	hits atomic.Int32
+}
+
+func newReleaseServer(t *testing.T) *releaseServer {
+	t.Helper()
+	s := &releaseServer{dir: t.TempDir()}
+	files := http.FileServer(http.Dir(s.dir))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.hits.Add(1)
+		files.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	s.url = srv.URL
+	return s
+}
+
+// publish writes release v<version> like scripts/build-binaries.sh does,
+// with a fake binary for this platform that prints label and its arguments.
+// It returns the sha256 recorded in SHA256SUMS, or the one given in override
+// instead.
+func (s *releaseServer) publish(t *testing.T, version, label, override string) string {
+	t.Helper()
+	name := releaseAssetName(t)
 	body := []byte(strings.Replace(fakeBinary, "%s", label, 1))
 	digest := sha256.Sum256(body)
 	sum := hex.EncodeToString(digest[:])
 	if override != "" {
 		sum = override
 	}
-	var gz bytes.Buffer
-	w := gzip.NewWriter(&gz)
-	if _, err := w.Write(body); err != nil {
+	dir := filepath.Join(s.dir, "v"+version)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, name+".gz"), gz.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, name), body, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	sums := fmt.Sprintf("%s  mind-palace_other_arch\n%s  %s\n", strings.Repeat("0", 64), sum, name)
@@ -75,16 +115,17 @@ func writeDist(t *testing.T, dir, label string, override string) string {
 	return sum
 }
 
-// fakeDist returns a dist directory holding a fake bundled binary that prints label.
-func fakeDist(t *testing.T, label string) string {
+// pinnedRelease returns a release server that publishes the version the
+// plugin pins, with a fake binary printing label.
+func pinnedRelease(t *testing.T, label string) *releaseServer {
 	t.Helper()
-	dir := t.TempDir()
-	writeDist(t, dir, label, "")
-	return dir
+	s := newReleaseServer(t)
+	s.publish(t, pluginVersion(t), label, "")
+	return s
 }
 
-func (e shimEnv) bundledBinary(sum string) string {
-	return filepath.Join(e.dataDir(), "bin", "bundled", sum, "mind-palace")
+func (e shimEnv) releaseBinary(version string) string {
+	return filepath.Join(e.dataDir(), "bin", "releases", "v"+version, "mind-palace")
 }
 
 func (e shimEnv) dataDir() string { return filepath.Join(e.home, ".claude/plugins/data/clued") }
@@ -116,7 +157,7 @@ func (e shimEnv) run(t *testing.T, extraPath string, args ...string) result {
 	if extraPath != "" {
 		path += ":" + extraPath
 	}
-	env := []string{"HOME=" + e.home, "PATH=" + path, "GOCACHE=" + goCache(t), "GOFLAGS=-mod=mod", "GOTOOLCHAIN=local", "TMPDIR=" + os.TempDir(), "CLUED_DIST_DIR=" + e.dist}
+	env := []string{"HOME=" + e.home, "PATH=" + path, "GOCACHE=" + goCache(t), "GOFLAGS=-mod=mod", "GOTOOLCHAIN=local", "TMPDIR=" + os.TempDir(), "CLUED_RELEASE_URL=" + e.releaseURL}
 	return runScript(t, filepath.Join(repoRoot(t), "scripts/clued"), "", env, args...)
 }
 
@@ -127,7 +168,7 @@ func goCache(t *testing.T) string {
 	return filepath.Join(t.TempDir(), "gocache")
 }
 
-func TestShimPrefersMindPalaceOnPathWhenNothingIsBundled(t *testing.T) {
+func TestShimPrefersMindPalaceOnPathWhenNoReleaseIsReachable(t *testing.T) {
 	e := newShimEnv(t)
 	writeExecutable(t, e.pathDir, "mind-palace", strings.Replace(fakeBinary, "%s", "path", 1))
 	e.writeDownloaded(t, "downloaded")
@@ -137,7 +178,7 @@ func TestShimPrefersMindPalaceOnPathWhenNothingIsBundled(t *testing.T) {
 	}
 }
 
-func TestShimFallsBackToDownloadedBinary(t *testing.T) {
+func TestShimFallsBackToAManuallyInstalledBinary(t *testing.T) {
 	e := newShimEnv(t)
 	e.writeDownloaded(t, "downloaded")
 	r := e.run(t, "", "session", "mcp")
@@ -152,8 +193,8 @@ func TestShimErrorsClearlyWhenNothingResolves(t *testing.T) {
 	if r.code != 1 {
 		t.Errorf("code = %d, want 1", r.code)
 	}
-	if !strings.Contains(r.stderr, "mind-palace") || !strings.Contains(r.stderr, "/clued-setup") {
-		t.Errorf("stderr should name the binary and /clued-setup: %q", r.stderr)
+	if !strings.Contains(r.stderr, "mind-palace") || !strings.Contains(r.stderr, "/clued-setup") || !strings.Contains(r.stderr, "v"+pluginVersion(t)) {
+		t.Errorf("stderr should name the binary, /clued-setup and the pinned release: %q", r.stderr)
 	}
 	if r.stdout != "" {
 		t.Errorf("stdout = %q", r.stdout)
@@ -264,36 +305,43 @@ func TestShimDevBuildOutranksPathWhenDevRepoPathIsSet(t *testing.T) {
 	}
 }
 
-func TestShimUnpacksBundledBinaryOnceAndVerifiesIt(t *testing.T) {
+func TestShimDownloadsThePinnedReleaseOnceAndVerifiesIt(t *testing.T) {
 	e := newShimEnv(t)
-	sum := writeDist(t, e.dist, "bundled", "")
+	rel := pinnedRelease(t, "release")
+	e.releaseURL = rel.url
 	writeExecutable(t, e.pathDir, "mind-palace", strings.Replace(fakeBinary, "%s", "path", 1))
 	e.writeDownloaded(t, "downloaded")
 
 	r := e.run(t, "", "session", "mcp")
-	if r.code != 0 || strings.TrimSpace(r.stdout) != "bundled session mcp" {
-		t.Fatalf("bundled binary should win over PATH and the download: %+v", r)
+	if r.code != 0 || strings.TrimSpace(r.stdout) != "release session mcp" {
+		t.Fatalf("the pinned release should win over PATH and the manual install: %+v", r)
 	}
-	if _, err := os.Stat(e.bundledBinary(sum)); err != nil {
-		t.Fatalf("unpacked binary missing: %v", err)
+	if !strings.Contains(r.stderr, "downloading mind-palace v"+pluginVersion(t)) {
+		t.Errorf("stderr should announce the download: %q", r.stderr)
+	}
+	if info, err := os.Stat(e.releaseBinary(pluginVersion(t))); err != nil || info.Mode()&0o111 == 0 {
+		t.Fatalf("downloaded binary: err = %v, mode = %v, want an executable", err, info)
+	}
+	if n := rel.hits.Load(); n != 2 {
+		t.Errorf("server saw %d requests, want 2 (SHA256SUMS and the asset)", n)
 	}
 
-	// The archive is only needed once: the unpacked copy is reused afterwards.
-	if err := os.Remove(filepath.Join(e.dist, bundledAssetName(t)+".gz")); err != nil {
-		t.Fatal(err)
-	}
+	// The download happens once: later runs use the installed copy.
 	r = e.run(t, "", "again")
-	if r.code != 0 || strings.TrimSpace(r.stdout) != "bundled again" {
-		t.Errorf("second run should use the unpacked copy: %+v", r)
+	if r.code != 0 || strings.TrimSpace(r.stdout) != "release again" || r.stderr != "" {
+		t.Errorf("second run should use the installed copy silently: %+v", r)
+	}
+	if n := rel.hits.Load(); n != 2 {
+		t.Errorf("server saw %d requests after the second run, want still 2", n)
 	}
 }
 
 func TestShimLocatePrintsTheResolvedBinary(t *testing.T) {
 	e := newShimEnv(t)
-	sum := writeDist(t, e.dist, "bundled", "")
+	e.releaseURL = pinnedRelease(t, "release").url
 	r := e.run(t, "", "--locate")
-	if r.code != 0 || strings.TrimSpace(r.stdout) != e.bundledBinary(sum) {
-		t.Errorf("got %+v, want the unpacked path", r)
+	if r.code != 0 || strings.TrimSpace(r.stdout) != e.releaseBinary(pluginVersion(t)) {
+		t.Errorf("got %+v, want the downloaded path", r)
 	}
 	empty := newShimEnv(t)
 	r = empty.run(t, "", "--locate")
@@ -302,29 +350,28 @@ func TestShimLocatePrintsTheResolvedBinary(t *testing.T) {
 	}
 }
 
-func TestShimReplacesUnpackedCopyWhenThePluginUpdates(t *testing.T) {
+func TestShimReplacesTheCopyOfAnOlderRelease(t *testing.T) {
 	e := newShimEnv(t)
-	oldSum := writeDist(t, e.dist, "v1", "")
-	if r := e.run(t, "", "x"); strings.TrimSpace(r.stdout) != "v1 x" {
-		t.Fatalf("got %+v", r)
+	e.releaseURL = pinnedRelease(t, "new").url
+	old := e.releaseBinary("0.0.0")
+	if err := os.MkdirAll(filepath.Dir(old), 0o755); err != nil {
+		t.Fatal(err)
 	}
-	newSum := writeDist(t, e.dist, "v2", "")
+	writeExecutable(t, filepath.Dir(old), "mind-palace", strings.Replace(fakeBinary, "%s", "old", 1))
 	r := e.run(t, "", "y")
-	if r.code != 0 || strings.TrimSpace(r.stdout) != "v2 y" {
-		t.Fatalf("new archive should be unpacked: %+v", r)
+	if r.code != 0 || strings.TrimSpace(r.stdout) != "new y" {
+		t.Fatalf("the pinned release should be downloaded: %+v", r)
 	}
-	if _, err := os.Stat(e.bundledBinary(newSum)); err != nil {
-		t.Errorf("new copy missing: %v", err)
-	}
-	if _, err := os.Stat(e.bundledBinary(oldSum)); !os.IsNotExist(err) {
-		t.Errorf("old copy should be removed, stat err = %v", err)
+	if _, err := os.Stat(filepath.Dir(old)); !os.IsNotExist(err) {
+		t.Errorf("the older release should be removed, stat err = %v", err)
 	}
 }
 
-func TestShimRefusesBundledBinaryWithWrongHash(t *testing.T) {
+func TestShimRefusesAReleaseBinaryWithWrongHash(t *testing.T) {
 	e := newShimEnv(t)
-	bad := strings.Repeat("ab", 32)
-	writeDist(t, e.dist, "bundled", bad)
+	rel := newReleaseServer(t)
+	rel.publish(t, pluginVersion(t), "release", strings.Repeat("ab", 32))
+	e.releaseURL = rel.url
 	writeExecutable(t, e.pathDir, "mind-palace", strings.Replace(fakeBinary, "%s", "path", 1))
 	r := e.run(t, "", "z")
 	if r.code != 0 || strings.TrimSpace(r.stdout) != "path z" {
@@ -333,87 +380,120 @@ func TestShimRefusesBundledBinaryWithWrongHash(t *testing.T) {
 	if !strings.Contains(r.stderr, "SHA256SUMS") {
 		t.Errorf("stderr should explain the mismatch: %q", r.stderr)
 	}
-	if _, err := os.Stat(e.bundledBinary(bad)); !os.IsNotExist(err) {
+	if _, err := os.Stat(e.releaseBinary(pluginVersion(t))); !os.IsNotExist(err) {
 		t.Errorf("mismatched binary must not be kept, stat err = %v", err)
 	}
 }
 
-func TestShimDevBuildOutranksBundledBinary(t *testing.T) {
+func TestShimDoesNotRetryAFailedDownloadOnEveryHook(t *testing.T) {
+	e := newShimEnv(t)
+	rel := newReleaseServer(t) // publishes nothing: every request is a 404
+	e.releaseURL = rel.url
+	writeExecutable(t, e.pathDir, "mind-palace", strings.Replace(fakeBinary, "%s", "path", 1))
+	r := e.run(t, "", "a")
+	if r.code != 0 || strings.TrimSpace(r.stdout) != "path a" {
+		t.Fatalf("should fall back to PATH: %+v", r)
+	}
+	if !strings.Contains(r.stderr, "v"+pluginVersion(t)) || !strings.Contains(r.stderr, "SHA256SUMS") {
+		t.Errorf("stderr should say which release could not be fetched: %q", r.stderr)
+	}
+	first := rel.hits.Load()
+	if first == 0 {
+		t.Fatal("the server saw no request")
+	}
+	r = e.run(t, "", "b")
+	if r.code != 0 || strings.TrimSpace(r.stdout) != "path b" || r.stderr != "" {
+		t.Errorf("the second run should fall back silently: %+v", r)
+	}
+	if n := rel.hits.Load(); n != first {
+		t.Errorf("the failed download was retried at once: %d requests, want %d", n, first)
+	}
+	// Once the retry delay has passed the download is attempted again.
+	failed := filepath.Join(filepath.Dir(e.releaseBinary(pluginVersion(t))), ".download-failed")
+	old := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(failed, old, old); err != nil {
+		t.Fatal(err)
+	}
+	rel.publish(t, pluginVersion(t), "release", "")
+	r = e.run(t, "", "c")
+	if r.code != 0 || strings.TrimSpace(r.stdout) != "release c" {
+		t.Errorf("the download should be retried after the delay: %+v", r)
+	}
+}
+
+func TestShimConcurrentHooksDownloadOnce(t *testing.T) {
+	e := newShimEnv(t)
+	rel := pinnedRelease(t, "release")
+	e.releaseURL = rel.url
+	var wg sync.WaitGroup
+	results := make([]result, 4)
+	for i := range results {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			results[i] = e.run(t, "", "n", fmt.Sprint(i))
+		}(i)
+	}
+	wg.Wait()
+	for i, r := range results {
+		if r.code != 0 || strings.TrimSpace(r.stdout) != fmt.Sprintf("release n %d", i) {
+			t.Errorf("run %d: %+v", i, r)
+		}
+	}
+	if n := rel.hits.Load(); n != 2 {
+		t.Errorf("server saw %d requests, want 2: one hook downloads, the others wait for it", n)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(e.releaseBinary(pluginVersion(t))), ".lock")); !os.IsNotExist(err) {
+		t.Errorf("the lock should be released, stat err = %v", err)
+	}
+}
+
+func TestShimDevBuildOutranksTheRelease(t *testing.T) {
 	goBin, err := exec.LookPath("go")
 	if err != nil {
 		t.Skip("go not installed")
 	}
 	e := newShimEnv(t)
-	writeDist(t, e.dist, "bundled", "")
+	rel := pinnedRelease(t, "release")
+	e.releaseURL = rel.url
 	e.writeConfig(t, `{"devRepoPath":"`+fakeDevRepo(t, "dev")+`"}`)
 	r := e.run(t, filepath.Dir(goBin), "x")
 	if r.code != 0 || strings.TrimSpace(r.stdout) != "dev x" {
-		t.Errorf("got %+v, want the dev build to win over the bundled binary", r)
+		t.Errorf("got %+v, want the dev build to win over the release", r)
+	}
+	if n := rel.hits.Load(); n != 0 {
+		t.Errorf("a developer's shim should not download: %d requests", n)
 	}
 }
 
-// TestShimDefaultsToTheCommittedDist runs the shim without CLUED_DIST_DIR, so
-// it must find the archives where the plugin ships them (dist/ next to
-// scripts/) and unpack the one for this machine.
-func TestShimDefaultsToTheCommittedDist(t *testing.T) {
-	name := bundledAssetName(t)
-	sums, err := os.ReadFile(filepath.Join(repoRoot(t), "dist", "SHA256SUMS"))
+// TestPluginManifestPinsARelease checks that .claude-plugin/plugin.json
+// names the release scripts/clued downloads and that the shim, without an
+// override, fetches it from this repository's GitHub releases.
+func TestPluginManifestPinsARelease(t *testing.T) {
+	version := pluginVersion(t)
+	parts := strings.Split(version, ".")
+	if len(parts) != 3 {
+		t.Errorf("version %q is not MAJOR.MINOR.PATCH", version)
+	}
+	for _, p := range parts {
+		if p == "" || strings.Trim(p, "0123456789") != "" {
+			t.Errorf("version %q is not MAJOR.MINOR.PATCH", version)
+		}
+	}
+	shim, err := os.ReadFile(filepath.Join(repoRoot(t), "scripts", "clued"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var sum string
-	for _, line := range strings.Split(string(sums), "\n") {
-		if fields := strings.Fields(line); len(fields) == 2 && fields[1] == name {
-			sum = fields[0]
-		}
+	if !strings.Contains(string(shim), "https://github.com/robbiebyrd/clued/releases/download") {
+		t.Error("scripts/clued should download from this repository's GitHub releases by default")
 	}
-	if sum == "" {
-		t.Fatalf("%s missing from dist/SHA256SUMS", name)
-	}
-	home := t.TempDir()
-	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin", "TMPDIR=" + os.TempDir()}
-	r := runScript(t, filepath.Join(repoRoot(t), "scripts/clued"), "", env, "--locate")
-	want := filepath.Join(home, ".claude/plugins/data/clued/bin/bundled", sum, "mind-palace")
-	if r.code != 0 || strings.TrimSpace(r.stdout) != want {
-		t.Fatalf("got %+v, want the bundled %s unpacked to %s", r, name, want)
-	}
-	if info, err := os.Stat(want); err != nil || info.Mode()&0o111 == 0 {
-		t.Errorf("unpacked binary: err = %v, mode = %v, want an executable", err, info)
-	}
-}
-
-// TestDistShipsEveryTarget checks the committed dist against the target
-// list in scripts/build-binaries.sh; the hashes themselves are verified by
-// `scripts/build-binaries.sh --check` in CI.
-func TestDistShipsEveryTarget(t *testing.T) {
-	dist := filepath.Join(repoRoot(t), "dist")
-	sums, err := os.ReadFile(filepath.Join(dist, "SHA256SUMS"))
+	script, err := os.ReadFile(filepath.Join(repoRoot(t), "scripts", "build-binaries.sh"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{
-		"mind-palace_darwin_amd64", "mind-palace_darwin_arm64",
-		"mind-palace_linux_amd64", "mind-palace_linux_arm64", "mind-palace_linux_arm",
-		"mind-palace_windows_amd64.exe", "mind-palace_windows_arm64.exe",
-	}
-	listed := map[string]bool{}
-	for _, line := range strings.Split(strings.TrimSpace(string(sums)), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) != 2 || len(fields[0]) != 64 {
-			t.Errorf("malformed SHA256SUMS line %q", line)
-			continue
+	for _, target := range []string{"darwin/amd64", "darwin/arm64", "linux/amd64", "linux/arm64", "linux/arm", "windows/amd64", "windows/arm64"} {
+		if !strings.Contains(string(script), "\n  "+target+"\n") {
+			t.Errorf("scripts/build-binaries.sh does not build %s", target)
 		}
-		listed[fields[1]] = true
-	}
-	for _, name := range want {
-		if !listed[name] {
-			t.Errorf("%s missing from SHA256SUMS", name)
-		}
-		if _, err := os.Stat(filepath.Join(dist, name+".gz")); err != nil {
-			t.Errorf("%s.gz missing: %v", name, err)
-		}
-	}
-	if len(listed) != len(want) {
-		t.Errorf("SHA256SUMS lists %d binaries, want %d", len(listed), len(want))
 	}
 }

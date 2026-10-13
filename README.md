@@ -31,12 +31,14 @@ for the plan and story service in depth.
   MongoDB; plans and stories do not need either.
 - `jq` (optional but recommended): the bash hooks use it to read the config
   file and to mirror the hook entries into `settings.json`.
-- Nothing else: the `mind-palace` binary ships with the plugin, pre-built for
-  macOS (Intel and Apple Silicon), Linux (amd64, arm64, 32-bit arm) and Windows
-  (amd64, arm64), so no Go toolchain is needed. On another platform install it
-  with `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`
-  (and put `$(go env GOPATH)/bin` on the PATH Claude Code inherits) or download
-  a release asset; `/clued-setup` covers both.
+- Nothing else: the `mind-palace` binary is downloaded on first use from the
+  GitHub release the plugin pins, pre-built for macOS (Intel and Apple
+  Silicon), Linux (amd64, arm64, 32-bit arm) and Windows (amd64, arm64), so
+  no Go toolchain is needed (`curl` or `wget` fetches it). On another platform,
+  or without access to github.com, install it with
+  `go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest`
+  (and put `$(go env GOPATH)/bin` on the PATH Claude Code inherits) or copy
+  a release asset into place; `/clued-setup` covers both.
 
 ## Install
 
@@ -79,13 +81,15 @@ MongoDB binaries, the Docker container and volume, and the data.
 |---|---|
 | `hooks.json` | Registers the hooks below for every Claude Code hook event; no manual edit of `settings.json` is needed |
 | `hooks/check-setup` | SessionStart: prints one system message when the config file or the `mind-palace` binary is missing; in remote mode also when the server is unreachable, rejects the token, or the token does not cover this repository's project |
-| `hooks/session-start` | SessionStart (async): re-runs `register-hooks`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill`. In remote mode it starts no daemon: the SessionStart event goes through `scripts/clued hook relay` and the backfill runs against the server |
+| `hooks/session-start` | SessionStart (async): re-runs `register-hooks` and `install-remember-listener`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` and a `session memory-ingest`. In remote mode it starts no daemon: the SessionStart event goes through `scripts/clued hook relay` and the backfill runs against the server |
+| `hooks/install-remember-listener` | Run by `session-start`: writes clued's listener into the `hooks.d/after_save` and `hooks.d/after_consolidate` directories of every installed [claude-remember](https://github.com/Digital-Process-Tools/claude-remember) plugin (see [claude-remember summaries](#claude-remember-summaries)); a plugin update that removes it is healed on the next start |
+| `scripts/clued session memory-ingest` | SessionEnd (async), the claude-remember listener, and `session-start`: posts the summaries claude-remember wrote since the last run to the daemon as `MemorySaved` events (in remote mode, to the server through the relay) |
 | `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later. In remote mode it runs `scripts/clued hook relay` instead |
 | `scripts/clued hook relay` | Remote mode, every event: stores the event on the server, pushes the transcript lines and artifact files written since the previous hook, replays the WAL; never fails the hook, logs failures to `relay.log` (see [Remote mode](#remote-mode)) |
 | `scripts/clued hook write-guard` | PreToolUse on `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Bash`, `EnterPlanMode` and `ExitPlanMode`: routes every change to a plan or story through mind-palace (see [Plans and stories are written by mind-palace](#plans-and-stories-are-written-by-mind-palace)) |
 | `scripts/clued hook stop-guard` | Stop: blocks the assistant from stopping when its last message dodges ownership of a failure, defers work to another session or asks whether to continue (see [Hooks served by the binary](#hooks-served-by-the-binary)) |
 | `scripts/clued hook status-review` | SessionStart, and UserPromptSubmit at most every 30 minutes: tells the assistant to ask you about plans whose stories are all complete and stories whose steps and acceptance criteria are all done but still open |
-| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the three `scripts/clued hook` commands) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
+| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the three `scripts/clued hook` commands and the SessionEnd `session memory-ingest`) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
 | `hooks/uninstall` | Non-interactive cleanup used by `/clued-uninstall` |
 | `scripts/clued` | Shim that finds and runs `mind-palace` (resolution order below) |
 | `.mcp.json` | Two stdio MCP servers: `clued` (`scripts/clued session mcp`, the session tools) and `mind-palace` (`scripts/clued mcp --no-session-tools`, the plan and story tools) |
@@ -106,21 +110,25 @@ Events relayed to the daemon: `PreToolUse`, `PostToolUse`,
    `<devRepoPath>/mind-palace`, rebuilt whenever a `.go` file there is newer
    than the binary. This wins over everything below, so plugin developers run
    their own checkout.
-2. The binary bundled with the plugin: `dist/mind-palace_<os>_<arch>[.exe].gz`
-   for the `uname -s` / `uname -m` of this machine, unpacked on first use into
-   `~/.claude/plugins/data/clued/bin/bundled/<sha256>/` and verified against
-   `dist/SHA256SUMS`. A plugin update brings new archives, so a new hash
-   triggers a fresh unpack and the old copy is removed. Needs `gzip` and
-   `sha256sum` or `shasum`.
+2. The release the plugin pins: the `version` in `.claude-plugin/plugin.json`
+   names the GitHub release `v<version>`, whose `mind-palace_<os>_<arch>[.exe]`
+   asset for the `uname -s` / `uname -m` of this machine is downloaded on
+   first use into `~/.claude/plugins/data/clued/bin/releases/v<version>/`
+   and verified against the release's `SHA256SUMS`. A plugin update that
+   bumps the version fetches the new release and removes the old copy. Needs
+   `curl` or `wget` and `sha256sum` or `shasum`; a failed download is retried
+   ten minutes later, not on every hook. `CLUED_RELEASE_URL` points the
+   download at a mirror (`off` disables it).
 3. `mind-palace` on the PATH.
-4. `~/.claude/plugins/data/clued/bin/mind-palace`, the release asset
-   `mind-palace_<os>_<arch>` downloaded by `/clued-setup`.
+4. `~/.claude/plugins/data/clued/bin/mind-palace`, a binary placed there by
+   hand (or by `/clued-setup` when the download is not possible).
 
 `scripts/clued --locate` prints the path that would run; `check-setup` uses it at
 session start and warns when nothing resolves. `session-start` records the
 path the daemon was started from and restarts the daemon when that path
-changes (a plugin update unpacks to a new hash directory) or a dev rebuild
-happened; relaunch Claude Code to reconnect the MCP servers to the new build.
+changes (a plugin update downloads into a new version directory) or a dev
+rebuild happened; relaunch Claude Code to reconnect the MCP servers to the new
+build.
 
 ## Session capture
 
@@ -195,9 +203,10 @@ lists stays off.
 | Tool | Does |
 |---|---|
 | `find_sessions` | Find previous sessions, newest first; regex filters on project path, cwd and git origin |
-| `get_session_context` | Metadata, the most recent distinct Bash commands, and the first and last transcript lines |
+| `get_session_context` | Metadata, the most recent distinct Bash commands, the first and last transcript lines, and the session's latest memory records |
 | `get_full_session` | The complete record: metadata, transcript, subagent lines, blob metadata and hook events |
 | `search_commands` | Search the Bash commands run in previous sessions |
+| `search_memory` | Search the claude-remember summaries, handoffs and identity notes captured as `MemorySaved` events across every session and machine of the account: regex over the text, optional `kind`, `session_id`, `git_origin` or `project_path` scope |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
 | `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |
@@ -213,6 +222,8 @@ prints JSON.
 |---|---|
 | `session find [--project-path re] [--git-origin re] [--query re] [--limit n]` | Find sessions, newest first |
 | `session search-commands <pattern> [--session id] [--git-origin re] [--limit n]` | Search the Bash commands run in sessions |
+| `session search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]` | Search the memory records ingested from claude-remember |
+| `session memory-ingest [--dir d]... [--cwd c] [--session id] [--quiet]` | Post the new records of the working directory's claude-remember store(s) to the daemon (what the hooks run) |
 | `session context <session>` | Metadata, recent commands, first and last transcript lines |
 | `session full <session>` | The session joined with its transcript, subagents, blobs and hook events |
 | `session transcript <session> [--offset n] [--limit n]` | Read transcript lines |
@@ -221,6 +232,33 @@ prints JSON.
 | `session daemon [--addr host:port]` | Run the capture daemon |
 | `session mcp [--mcp-tool-prefix p]` | Serve only the session tools over stdio |
 | `session whoami` | Remote mode: ask the server who the token is (name, account, projects, server version); exit 2 when no server is configured, 10 when it is unreachable or rejects the token |
+
+### claude-remember summaries
+
+If the [claude-remember](https://github.com/Digital-Process-Tools/claude-remember)
+plugin is installed, the memory it writes for a project (the Haiku-written
+`## HH:MM | branch` entries of `now.md` and `today-*.md`, the consolidated
+`recent.md` and `archive.md` and their rotated slices, the `/remember`
+handoff and `identity.md`) is captured into the clued store as well, so other
+sessions and other machines can search it:
+
+- `hooks/install-remember-listener` drops `70-clued-ingest.sh` into every
+  claude-remember plugin's `hooks.d/after_save` and `hooks.d/after_consolidate`
+  (the plugin runs executables there after each save and consolidation, with
+  the store's directory exported). `session-start` re-runs it on every start,
+  so a plugin update that replaces `hooks.d/` heals itself.
+- The listener, the SessionEnd hook and `session-start` run
+  `scripts/clued session memory-ingest`, which reads the project's store
+  (`<project>/.remember/` or `~/.remember/<slug>/`), hashes every record and
+  posts the ones not posted before to the daemon as `MemorySaved` hook events
+  (`memory.kind`, `file`, `time`, `branch`, `text`, `hash`, `slug`,
+  `remember_dir`; the session is the project's newest transcript). State
+  files under `~/.claude/plugins/data/clued/remember/` keep the ingest
+  idempotent, the store drops a record whose hash the account already holds,
+  and an unreachable daemon sends the events to the write-ahead log.
+- `search_memory` (and `session search-memory`) search the records newest
+  first; `get_session_context` lists a session's latest five. Nothing is ever
+  written into claude-remember's own store.
 
 ### Configuration
 
@@ -467,24 +505,24 @@ starts.
 (`.github/workflows/mind-palace.yml`) runs all of this against a MongoDB
 service container.
 
-### Bundled binaries
+### Release binaries
 
-`scripts/build-binaries.sh` cross-compiles `mind-palace` for
-darwin/{amd64,arm64}, linux/{amd64,arm64,arm} and windows/{amd64,arm64}
-(Go has no windows/arm target and Claude Code does not run on 32-bit x86;
-linux/arm is built with `GOARM=6` so it runs on ARMv6 and ARMv7),
-gzips each one into `dist/` and writes `dist/SHA256SUMS` with the
-hashes of the uncompressed binaries. The builds are reproducible (CGO off,
-`-trimpath`, no VCS stamp, the toolchain pinned to `go.mod`), so CI's
-`binaries` job rebuilds them and fails when the committed hashes differ.
-After changing Go code, run the script and commit `dist/` with the change.
-Each rebuild adds about 100 MB of archives to the repository history, so
-rebuild per change set rather than per commit.
+No binary is committed. `scripts/build-binaries.sh [DIR]` cross-compiles
+`mind-palace` for darwin/{amd64,arm64}, linux/{amd64,arm64,arm} and
+windows/{amd64,arm64} (Go has no windows/arm target and Claude Code does not
+run on 32-bit x86; linux/arm is built with `GOARM=6` so it runs on ARMv6 and
+ARMv7) and writes `SHA256SUMS` next to them, into the git-ignored `dist/` by
+default. The builds are reproducible (CGO off, `-trimpath`, no VCS stamp, the
+toolchain pinned to `go.mod`). CI's `binaries` job runs it on every push to
+prove each target compiles and keeps the output as a workflow artifact for a
+week.
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`, which runs the same
-script with `--raw` and attaches the uncompressed `mind-palace_<os>_<arch>`
-binaries and `SHA256SUMS` to the GitHub release that `/clued-setup` falls
-back to on platforms without a bundled binary.
+Releasing is CI's job: bump `version` in `.claude-plugin/plugin.json`, merge,
+and push the matching `v<version>` tag. `.github/workflows/release.yml`
+refuses a tag that does not match the manifest, builds the binaries and
+attaches them with `SHA256SUMS` to the GitHub release. `scripts/clued` on
+every machine then downloads the asset of exactly that release, so the
+binary a plugin install runs always matches the hooks it shipped with.
 
 To run the plugin against your own checkout, add `"devRepoPath": "/path/to/clued"`
 to the config file: `scripts/clued` rebuilds the binary when sources change and

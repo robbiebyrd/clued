@@ -70,6 +70,12 @@ func seedSessions(t *testing.T) session.Store {
 		lines = append(lines, session.TranscriptLine{SessionID: "s1", Seq: i, AccountID: testAccount, Line: map[string]any{"n": i}})
 	}
 	must(st.UpsertTranscriptLines(ctx, lines))
+	for i, m := range []struct{ session, kind, text string }{{"s1", "entry", "## 09:15 | main\nFixed the daemon restart"}, {"s2", "handoff", "Next: wire the listener"}} {
+		must(st.InsertHookEvent(ctx, session.Doc{
+			"session_id": m.session, "account_id": testAccount, "hook_event_name": session.MemoryEventName, "cwd": "/work/" + m.session, "created_at": sessionT0.Add(time.Duration(i) * time.Minute),
+			"memory": map[string]any{"kind": m.kind, "file": "now.md", "text": m.text, "hash": "h-" + m.text},
+		}))
+	}
 	for i, c := range []struct{ session, command string }{{"s1", "go test ./..."}, {"s1", "ls -la"}, {"s2", "go build"}} {
 		must(st.InsertHookEvent(ctx, session.Doc{
 			"session_id": c.session, "account_id": testAccount, "tool_name": "Bash",
@@ -316,7 +322,7 @@ func TestRootGainsOnlySessionGroup(t *testing.T) {
 	if !reflect.DeepEqual(groups["story"], wantStory) {
 		t.Errorf("story group = %v", groups["story"])
 	}
-	wantSession := []string{"backfill", "context", "daemon", "find", "full", "mcp", "restore", "search-commands", "transcript", "whoami"}
+	wantSession := []string{"backfill", "context", "daemon", "find", "full", "mcp", "memory-ingest", "restore", "search-commands", "search-memory", "transcript", "whoami"}
 	if !reflect.DeepEqual(groups["session"], wantSession) {
 		t.Errorf("session group = %v, want %v", groups["session"], wantSession)
 	}
@@ -500,9 +506,9 @@ func toolNames(t *testing.T, ctx context.Context, cs *mcp.ClientSession) []strin
 	return names
 }
 
-var sessionToolNames = []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "read_transcript", "restore_session", "prime_context"}
+var sessionToolNames = []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "search_memory", "read_transcript", "restore_session", "prime_context"}
 
-func TestSessionMCPListsTheSevenTools(t *testing.T) {
+func TestSessionMCPListsTheEightTools(t *testing.T) {
 	sessionEnv(t, seedSessions(t))
 	rc, cs, ctx := startStdioCommand(t, "session", "--config", filepath.Join(t.TempDir(), "none.json"), "mcp")
 
@@ -548,6 +554,76 @@ func TestSessionOutputTimestampsHaveExactlyThreeFractionalDigits(t *testing.T) {
 
 	if r.code != 0 || !strings.Contains(r.stdout, `"2026-10-11T17:29:21.760Z"`) {
 		t.Fatalf("stdout = %q (code %d, stderr %q)", r.stdout, r.code, r.stderr)
+	}
+}
+
+func TestSessionSearchMemory(t *testing.T) {
+	sessionEnv(t, seedSessions(t))
+	texts := func(args ...string) []string {
+		var out []string
+		for _, h := range sessionResult(t, runSession(t, args...)).([]any) {
+			out = append(out, h.(map[string]any)["text"].(string))
+		}
+		return out
+	}
+	if got := texts("search-memory"); !reflect.DeepEqual(got, []string{"Next: wire the listener", "## 09:15 | main\nFixed the daemon restart"}) {
+		t.Errorf("all records newest first = %v", got)
+	}
+	if got := texts("search-memory", "daemon"); !reflect.DeepEqual(got, []string{"## 09:15 | main\nFixed the daemon restart"}) {
+		t.Errorf("pattern = %v", got)
+	}
+	if got := texts("search-memory", "--kind", "handoff"); !reflect.DeepEqual(got, []string{"Next: wire the listener"}) {
+		t.Errorf("kind = %v", got)
+	}
+	if got := texts("search-memory", "--git-origin", "org/alpha"); !reflect.DeepEqual(got, []string{"## 09:15 | main\nFixed the daemon restart"}) {
+		t.Errorf("git origin = %v", got)
+	}
+	hit := sessionResult(t, runSession(t, "search-memory", "--session", "s2")).([]any)[0].(map[string]any)
+	if hit["project_path"] != "/work/beta" || hit["kind"] != "handoff" || hit["cwd"] != "/work/s2" || hit["file"] != "now.md" {
+		t.Errorf("hit = %v", hit)
+	}
+	if r := runSession(t, "search-memory", "("); r.code == 0 {
+		t.Errorf("invalid regex accepted: %+v", r)
+	}
+}
+
+func TestSessionMemoryIngest(t *testing.T) {
+	sessionEnv(t, seedSessions(t))
+	var posted []map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var doc map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&doc); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		posted = append(posted, doc)
+		w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+	t.Setenv("CLUED_PORT", strings.TrimPrefix(srv.URL, "http://127.0.0.1:"))
+
+	store := t.TempDir()
+	if err := os.WriteFile(filepath.Join(store, "now.md"), []byte("## 10:00 | main\nShipped the ingest.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(store, "remember.md"), []byte("Handoff text.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res := sessionResult(t, runSession(t, "memory-ingest", "--dir", store, "--cwd", "/work/alpha", "--session", "s1")).(map[string]any)
+	if res["posted"] != float64(2) || res["scanned"] != float64(2) || res["session_id"] != "s1" || len(posted) != 2 {
+		t.Fatalf("result = %v, posted %d", res, len(posted))
+	}
+	if posted[0]["hook_event_name"] != "MemorySaved" || posted[0]["session_id"] != "s1" || posted[0]["cwd"] != "/work/alpha" {
+		t.Errorf("event = %v", posted[0])
+	}
+	// --quiet prints nothing; the state file keeps the second run idempotent.
+	r := runSession(t, "memory-ingest", "--dir", store, "--cwd", "/work/alpha", "--quiet")
+	if r.code != 0 || r.stdout != "" || len(posted) != 2 {
+		t.Errorf("quiet rerun: %+v, posted %d", r, len(posted))
+	}
+	stateDir := filepath.Join(filepath.Dir(os.Getenv("CLUED_WAL_PATH")), "remember")
+	if entries, err := os.ReadDir(stateDir); err != nil || len(entries) != 1 {
+		t.Errorf("state dir %s: %v %v", stateDir, entries, err)
 	}
 }
 
@@ -630,5 +706,26 @@ func TestSessionRemoteRefusesPlainHTTPOffLoopback(t *testing.T) {
 	r := runSession(t, "find")
 	if r.code == 0 || r.stdout != "" || !strings.Contains(r.stderr, remote.ErrInsecureURL.Error()) {
 		t.Errorf("find = %+v, want a failure naming ErrInsecureURL", r)
+	}
+}
+
+func TestSessionMemoryIngestStoresOnTheServerInRemoteMode(t *testing.T) {
+	requests := remoteEnv(t, memsession.New())
+	t.Setenv("CLUED_PORT", "1") // no daemon listens here, and none must be needed
+
+	store := t.TempDir()
+	if err := os.WriteFile(filepath.Join(store, "now.md"), []byte("## 10:00 | main\nStored on the server.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res := sessionResult(t, runSession(t, "memory-ingest", "--dir", store, "--cwd", "/work/alpha", "--session", "s9")).(map[string]any)
+	if res["posted"] != float64(1) || requests() == 0 {
+		t.Fatalf("result = %v, requests %d", res, requests())
+	}
+	if data, err := os.ReadFile(os.Getenv("CLUED_WAL_PATH")); err == nil && len(data) != 0 {
+		t.Errorf("the event went to the WAL instead of the server: %s", data)
+	}
+	hits := sessionResult(t, runSession(t, "search-memory", "server")).([]any)
+	if len(hits) != 1 || hits[0].(map[string]any)["session_id"] != "s9" || hits[0].(map[string]any)["cwd"] != "/work/alpha" {
+		t.Errorf("search-memory over the server = %v", hits)
 	}
 }

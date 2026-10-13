@@ -190,6 +190,7 @@ func TestRegisterHooksMirrorsTheBinaryHooks(t *testing.T) {
 	h := registerHooks(t, t.TempDir(), "{}", 2).hooks(t)
 	clued := filepath.Join(repoRoot(t), "scripts", "clued")
 	want := map[string]string{
+		"SessionEnd":       clued + " session memory-ingest --quiet",
 		"Stop":             clued + " hook stop-guard",
 		"PreToolUse":       clued + " hook write-guard",
 		"UserPromptSubmit": clued + " hook status-review --every 30m",

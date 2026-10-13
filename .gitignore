@@ -8,3 +8,5 @@ mind-palace/story
 mind-palace/cmd/mind-palace/mind-palace
 mind-palace/cmd/plan/plan
 mind-palace/cmd/story/story
+# Cross-compiled binaries from scripts/build-binaries.sh; releases are built in CI
+dist/

@@ -55,6 +55,14 @@ func seedLines(t *testing.T, st session.Store, acc, id string, n int) {
 	must(t, st.UpsertTranscriptLines(context.Background(), lines))
 }
 
+func seedMemory(t *testing.T, st session.Store, acc, id, kind, text string, at time.Time) {
+	t.Helper()
+	must(t, st.InsertHookEvent(context.Background(), session.Doc{
+		"session_id": id, "account_id": acc, "hook_event_name": session.MemoryEventName, "cwd": "/cwd/" + id, "created_at": at,
+		"memory": session.Doc{"kind": kind, "file": "now.md", "text": text, "hash": "h-" + acc + "-" + text},
+	}))
+}
+
 func seedBash(t *testing.T, st session.Store, acc, id, command string, at time.Time) {
 	t.Helper()
 	must(t, st.InsertHookEvent(context.Background(), session.Doc{
@@ -90,6 +98,9 @@ func seeded(t *testing.T) session.Store {
 	seedBash(t, st, account, "sess-1", "git status", t0.Add(-time.Second))
 	seedBash(t, st, account, "sess-2", "cargo build", t0)
 	seedBash(t, st, foreign, "sess-acct-2", "echo hello", t0)
+	seedMemory(t, st, account, "sess-1", "entry", "Fixed the daemon restart", t0.Add(-time.Second))
+	seedMemory(t, st, account, "sess-2", "handoff", "Next: daemon listener", t0)
+	seedMemory(t, st, foreign, "sess-acct-2", "entry", "foreign daemon note", t0)
 	seedLines(t, st, account, "sess-1", 25)
 	seedLines(t, st, account, "sess-3", 120)
 	seedLines(t, st, foreign, "sess-acct-2", 1)
@@ -217,6 +228,14 @@ const toolSchemas = `{
       "session_id":{"type":"string","description":"Restrict to one session"},
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
       "limit":{"type":"number","description":"Max commands to return (default 20, max 500)"}},"required":["pattern"]}},
+  "search_memory": {"description": "Search the summaries, handoffs and identity notes that claude-remember wrote and clued captured (MemorySaved events), across every session and machine of the account, newest first.",
+    "inputSchema": {"type":"object","properties":{
+      "pattern":{"type":"string","description":"Case-insensitive regex matched against the record text (default: every record)"},
+      "kind":{"type":"string","enum":["entry","day","recent","archive","handoff","identity"],"description":"Restrict to one kind of record"},
+      "session_id":{"type":"string","description":"Restrict to one session"},
+      "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
+      "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
+      "limit":{"type":"number","description":"Max records to return (default 20, max 500)"}}}},
   "read_transcript": {"description": "Read transcript lines of a session in order, paginated by offset/limit.",
     "inputSchema": {"type":"object","properties":{
       "session_id":{"type":"string"},
@@ -235,7 +254,7 @@ const toolSchemas = `{
       "no_snapshot":{"type":"boolean","description":"Do not post the report to the daemon as a ContextCollected event"}}}}
 }`
 
-func TestToolListHasTheSevenToolsWithTheProtocolSchemas(t *testing.T) {
+func TestToolListHasTheEightToolsWithTheProtocolSchemas(t *testing.T) {
 	eachStore(t, func(t *testing.T) {
 		var want map[string]struct {
 			Description string `json:"description"`
@@ -367,6 +386,26 @@ func TestSearchCommandsAccountIsolation(t *testing.T) {
 	})
 }
 
+func TestSearchMemory(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		cs := client(t)
+		hits := okJSON[[]obj](t, call(t, cs, "search_memory", obj{"pattern": "daemon"}))
+		if len(hits) != 2 || hits[0]["text"] != "Next: daemon listener" || hits[0]["kind"] != "handoff" || hits[0]["session_id"] != "sess-2" || hits[0]["project_path"] != "/home/user/other" {
+			t.Fatalf("hits = %v", hits)
+		}
+		scoped := okJSON[[]obj](t, call(t, cs, "search_memory", obj{"kind": "entry", "git_origin": "user/myrepo"}))
+		if len(scoped) != 1 || scoped[0]["session_id"] != "sess-1" || scoped[0]["cwd"] != "/cwd/sess-1" {
+			t.Fatalf("scoped hits = %v", scoped)
+		}
+		if got := text(t, call(t, cs, "search_memory", obj{"pattern": "foreign"})); got != "[]" {
+			t.Fatalf("foreign memory leaked: %s", got)
+		}
+		if got := text(t, call(t, cs, "search_memory", obj{"session_id": "sess-acct-2"})); got != "[]" {
+			t.Fatalf("foreign session leaked: %s", got)
+		}
+	})
+}
+
 func TestGetSessionContext(t *testing.T) {
 	eachStore(t, func(t *testing.T) {
 		ctx := okJSON[obj](t, call(t, client(t), "get_session_context", obj{"session_id": "sess-1"}))
@@ -412,8 +451,8 @@ func TestGetFullSession(t *testing.T) {
 		if n := len(doc["subagent_lines"].([]any)); n != 2 {
 			t.Fatalf("subagent_lines = %d", n)
 		}
-		if n := len(doc["hook_events"].([]any)); n != 3 {
-			t.Fatalf("hook_events = %d", n)
+		if n := len(doc["hook_events"].([]any)); n != 4 {
+			t.Fatalf("hook_events = %d (three Bash events and one memory record)", n)
 		}
 		blobs := doc["blobs"].([]any)
 		if len(blobs) != 1 {
@@ -565,7 +604,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 7 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] {
+		if len(names) != 8 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {

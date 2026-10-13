@@ -3,13 +3,18 @@
 # Resolution order:
 #   1. When devRepoPath is set in the config, a build of $devRepoPath/mind-palace,
 #      refreshed whenever a .go file there is newer than the binary.
-#   2. The binary bundled with the plugin for this OS and CPU (dist/*.gz),
-#      decompressed once into $BIN_DIR/bundled/<sha256>/ and verified against
-#      dist/SHA256SUMS.
+#   2. The release the plugin pins: the `version` in .claude-plugin/plugin.json
+#      names the GitHub release v<version>, whose mind-palace_<os>_<arch> asset
+#      is downloaded once into $BIN_DIR/releases/v<version>/ and verified
+#      against the release's SHA256SUMS.
 #   3. `mind-palace` on PATH.
-#   4. A downloaded release binary at $BIN_DIR/mind-palace.
+#   4. A manually installed binary at $BIN_DIR/mind-palace.
 # `--build-only` performs the dev build step without running the binary.
 # `--locate` prints the path of the binary that would run (or exits 1).
+#
+# CLUED_RELEASE_URL overrides where releases are fetched from (the directory
+# that holds v<version>/SHA256SUMS and v<version>/mind-palace_<os>_<arch>);
+# `off` disables the download. Both are for tests and mirrors.
 
 DATA_DIR="${HOME}/.claude/plugins/data/clued"
 CONFIG_FILE="${DATA_DIR}/config.json"
@@ -17,7 +22,11 @@ BIN_DIR="${DATA_DIR}/bin"
 BIN="${BIN_DIR}/mind-palace"
 REBUILT_MARKER="${BIN_DIR}/.rebuilt"
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DIST_DIR="${CLUED_DIST_DIR:-${PLUGIN_ROOT}/dist}"
+MANIFEST="${PLUGIN_ROOT}/.claude-plugin/plugin.json"
+RELEASE_URL="${CLUED_RELEASE_URL:-https://github.com/robbiebyrd/clued/releases/download}"
+# A failed download is not retried for this many minutes, so an offline
+# machine does not pay for a download attempt on every hook.
+RETRY_AFTER_MINUTES=10
 
 MODE=run
 case "${1:-}" in
@@ -25,14 +34,19 @@ case "${1:-}" in
   --locate) MODE=locate; shift ;;
 esac
 
-dev_repo_path() {
-  [[ -f "$CONFIG_FILE" ]] || return 0
+json_string() {
+  # json_string FILE KEY prints the string value of the top-level KEY, or nothing.
+  [[ -f "$1" ]] || return 0
   if command -v jq &>/dev/null; then
-    jq -r '.devRepoPath // empty' "$CONFIG_FILE" 2>/dev/null
+    jq -r --arg k "$2" '.[$k] // empty' "$1" 2>/dev/null
   else
-    sed -n 's/.*"devRepoPath"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$CONFIG_FILE" | head -1
+    sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1
   fi
 }
+
+dev_repo_path() { json_string "$CONFIG_FILE" devRepoPath; }
+
+plugin_version() { json_string "$MANIFEST" version; }
 
 # Builds the dev checkout into $BIN when it is missing or any .go file is newer.
 build_from_dev_repo() {
@@ -47,8 +61,8 @@ build_from_dev_repo() {
   touch "$REBUILT_MARKER"
 }
 
-# Prints the name of the bundled asset for this machine (mind-palace_<os>_<arch>[.exe]).
-bundled_asset_name() {
+# Prints the name of the release asset for this machine (mind-palace_<os>_<arch>[.exe]).
+release_asset_name() {
   local os arch
   case "$(uname -s)" in
     Darwin) os=darwin ;;
@@ -75,44 +89,93 @@ sha256_of() {
   fi
 }
 
-# Decompresses the bundled binary into a directory named by its expected
-# hash, verifies it, and prints its path. Already-extracted copies are reused;
-# copies from earlier plugin versions are removed.
-bundled_binary() {
-  local name sum gz dir exe tmp exename
-  name="$(bundled_asset_name)" || return 1
-  gz="${DIST_DIR}/${name}.gz"
-  [[ -f "${DIST_DIR}/SHA256SUMS" ]] || return 1
-  sum="$(awk -v n="$name" '$2 == n {print $1; exit}' "${DIST_DIR}/SHA256SUMS")"
-  [[ -n "$sum" ]] || return 1
+# fetch URL DEST downloads one file with curl or wget.
+fetch() {
+  if command -v curl &>/dev/null; then
+    curl -fsSL --retry 2 --max-time 300 -o "$2" "$1"
+  elif command -v wget &>/dev/null; then
+    wget -q -T 300 -O "$2" "$1"
+  else
+    echo "clued: curl or wget is needed to download the mind-palace binary" >&2
+    return 1
+  fi
+}
+
+# download_release DIR NAME EXE fetches the pinned release's SHA256SUMS and
+# the asset NAME into DIR, verifies the asset and installs it as DIR/EXE.
+download_release() {
+  local dir="$1" name="$2" exe="$3" version="$4"
+  local base="${RELEASE_URL}/v${version}" sums="${dir}/SHA256SUMS" tmp="${dir}/.${name}.$$" sum actual
+  if ! fetch "${base}/SHA256SUMS" "$sums"; then
+    echo "clued: could not download ${base}/SHA256SUMS (is release v${version} published?)" >&2
+    return 1
+  fi
+  sum="$(awk -v n="$name" '$2 == n {print $1; exit}' "$sums")"
+  if [[ -z "$sum" ]]; then
+    echo "clued: release v${version} ships no ${name}" >&2
+    return 1
+  fi
+  echo "clued: downloading mind-palace v${version} (${name})" >&2
+  if ! fetch "${base}/${name}" "$tmp"; then
+    rm -f "$tmp"
+    echo "clued: could not download ${base}/${name}" >&2
+    return 1
+  fi
+  actual="$(sha256_of "$tmp")" || { rm -f "$tmp"; echo "clued: sha256sum or shasum is needed to verify the downloaded binary" >&2; return 1; }
+  if [[ "$actual" != "$sum" ]]; then
+    rm -f "$tmp"
+    echo "clued: downloaded ${name} does not match the release's SHA256SUMS (got ${actual}); not using it" >&2
+    return 1
+  fi
+  chmod +x "$tmp" && mv -f "$tmp" "$exe" || { rm -f "$tmp"; return 1; }
+}
+
+# Prints the path of the binary of the release the plugin pins, downloading
+# it on first use. Copies of other releases are removed once the new one is
+# in place (a running daemon keeps its own copy open; on Windows the removal
+# of an in-use file fails harmlessly).
+release_binary() {
+  local version name exename dir exe failed old i
+  [[ "$RELEASE_URL" != off ]] || return 1
+  version="$(plugin_version)"
+  [[ -n "$version" ]] || return 1
+  name="$(release_asset_name)" || return 1
   exename=mind-palace
   [[ "$name" == *.exe ]] && exename=mind-palace.exe
-  dir="${BIN_DIR}/bundled/${sum}"
+  dir="${BIN_DIR}/releases/v${version}"
   exe="${dir}/${exename}"
   if [[ -x "$exe" ]]; then
     echo "$exe"
     return 0
   fi
-  [[ -f "$gz" ]] || return 1
-  command -v gzip &>/dev/null || { echo "clued: gzip is needed to unpack the bundled mind-palace binary" >&2; return 1; }
+  failed="${dir}/.download-failed"
+  if [[ -f "$failed" ]] && [[ -n "$(find "$failed" -mmin "-${RETRY_AFTER_MINUTES}" 2>/dev/null)" ]]; then
+    return 1
+  fi
   mkdir -p "$dir" || return 1
-  tmp="${dir}/.${exename}.$$"
-  if ! gzip -dc "$gz" > "$tmp"; then
-    rm -f "$tmp"
-    echo "clued: could not unpack ${gz}" >&2
+  # Hooks fire concurrently at session start: one of them downloads, the
+  # others wait for its result.
+  if ! mkdir "${dir}/.lock" 2>/dev/null; then
+    for i in $(seq 1 120); do
+      sleep 0.5
+      if [[ -x "$exe" ]]; then
+        echo "$exe"
+        return 0
+      fi
+      [[ -d "${dir}/.lock" ]] || break
+    done
+    [[ -x "$exe" ]] && { echo "$exe"; return 0; }
+    rmdir "${dir}/.lock" 2>/dev/null
     return 1
   fi
-  local actual
-  actual="$(sha256_of "$tmp")" || { rm -f "$tmp"; echo "clued: sha256sum or shasum is needed to verify the bundled binary" >&2; return 1; }
-  if [[ "$actual" != "$sum" ]]; then
-    rm -f "$tmp"
-    echo "clued: bundled ${name} does not match dist/SHA256SUMS (got ${actual}); not using it" >&2
+  if ! download_release "$dir" "$name" "$exe" "$version"; then
+    touch "$failed"
+    rmdir "${dir}/.lock" 2>/dev/null
     return 1
   fi
-  chmod +x "$tmp" && mv -f "$tmp" "$exe" || { rm -f "$tmp"; return 1; }
-  # Drop extracted copies of other plugin versions (a running daemon keeps its
-  # own copy open; on Windows the removal of an in-use file fails harmlessly).
-  for old in "${BIN_DIR}"/bundled/*/; do
+  rm -f "$failed"
+  rmdir "${dir}/.lock" 2>/dev/null
+  for old in "${BIN_DIR}"/releases/*/; do
     [[ "${old%/}" == "$dir" ]] || rm -rf "$old" 2>/dev/null
   done
   echo "$exe"
@@ -128,14 +191,14 @@ if [[ "$MODE" == build-only ]]; then
 fi
 
 resolve() {
-  # A developer who set devRepoPath wants their own build, not a bundled or installed release.
+  # A developer who set devRepoPath wants their own build, not a release.
   if [[ -n "$DEV_REPO" ]] && [[ -x "$BIN" ]]; then
     echo "$BIN"
     return 0
   fi
-  local bundled
-  if bundled="$(bundled_binary)"; then
-    echo "$bundled"
+  local release
+  if release="$(release_binary)"; then
+    echo "$release"
     return 0
   fi
   if command -v mind-palace &>/dev/null; then
@@ -157,10 +220,11 @@ if TARGET="$(resolve)"; then
   exec "$TARGET" "$@"
 fi
 
+VERSION="$(plugin_version)"
 cat >&2 <<MSG
-clued: mind-palace binary not found. The plugin ships no binary for $(uname -s)/$(uname -m).
+clued: mind-palace binary not found for $(uname -s)/$(uname -m): release v${VERSION:-?} of robbiebyrd/clued could not be downloaded and none is on PATH.
 Run /clued-setup, or install it with:
   go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest
-or download mind-palace_<os>_<arch> from the latest release of robbiebyrd/clued into ${BIN}
+or download mind-palace_<os>_<arch> from https://github.com/robbiebyrd/clued/releases/tag/v${VERSION:-<version>} to ${BIN}
 MSG
 exit 1

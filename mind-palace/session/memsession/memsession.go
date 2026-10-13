@@ -327,8 +327,61 @@ func (s *Store) FindSessions(_ context.Context, q session.SessionQuery) ([]sessi
 func (s *Store) InsertHookEvent(_ context.Context, ev session.Doc) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if hash := memoryHash(ev); hash != "" {
+		acc := strOf(ev, "account_id")
+		if dup := s.find(hookEvents, func(d session.Doc) bool { return strOf(d, "account_id") == acc && memoryHash(d) == hash }); dup != nil {
+			return nil
+		}
+	}
 	s.insert(hookEvents, copyDoc(ev))
 	return nil
+}
+
+// memoryHash is the hash of a MemorySaved event, empty for anything else.
+func memoryHash(d session.Doc) string {
+	if strOf(d, "hook_event_name") != session.MemoryEventName {
+		return ""
+	}
+	return strOf(d.Map("memory"), "hash")
+}
+
+func (s *Store) MemoryEvents(_ context.Context, q session.MemoryQuery) ([]session.Doc, error) {
+	re, err := compileRe(q.PatternRe)
+	if err != nil {
+		return nil, err
+	}
+	inSessions := map[string]bool{}
+	for _, id := range q.SessionIDs {
+		inSessions[id] = true
+	}
+	inKinds := map[string]bool{}
+	for _, k := range q.Kinds {
+		inKinds[k] = true
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(hookEvents, func(d session.Doc) bool {
+		if strOf(d, "hook_event_name") != session.MemoryEventName || !owned(d, q.AccountID) {
+			return false
+		}
+		if len(inSessions) > 0 && !inSessions[strOf(d, "session_id")] {
+			return false
+		}
+		mem := d.Map("memory")
+		if len(inKinds) > 0 && !inKinds[strOf(mem, "kind")] {
+			return false
+		}
+		text, isString := mem.String("text")
+		return isString && (re == nil || re.MatchString(text))
+	})
+	sort.SliceStable(found, func(i, j int) bool { return timeOf(found[i], "created_at").After(timeOf(found[j], "created_at")) })
+
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		out = append(out, project(d, "session_id", "cwd", "memory", "created_at"))
+	}
+	return out, nil
 }
 
 func (s *Store) HookEventIDsByToolUse(_ context.Context, sessionID string, toolUseIDs []string) ([]string, error) {

@@ -23,7 +23,7 @@ import (
 
 // The remote-mode tests run the real hooks against a clued server started
 // in the test and the mind-palace binary built from this module, which the
-// shim finds on PATH because nothing is bundled (CLUED_DIST_DIR is empty).
+// shim finds on PATH because the release download is switched off.
 
 const (
 	remoteToken   = "plugin-test-token"
@@ -182,7 +182,7 @@ func dataPath(home, name string) string {
 }
 
 // remoteEnv is the environment of a hook run against the built binary:
-// nothing bundled, the binary on PATH, the daemon port closed.
+// no release download, the binary on PATH, the daemon port closed.
 func remoteEnv(t *testing.T, home, port string, extra ...string) []string {
 	t.Helper()
 	env := []string{
@@ -190,7 +190,7 @@ func remoteEnv(t *testing.T, home, port string, extra ...string) []string {
 		"PATH=" + binaryDir(t) + ":/usr/bin:/bin",
 		"CLAUDE_PLUGIN_ROOT=" + repoRoot(t),
 		"CLUED_PORT=" + port,
-		"CLUED_DIST_DIR=" + t.TempDir(),
+		"CLUED_RELEASE_URL=off",
 	}
 	return append(env, extra...)
 }

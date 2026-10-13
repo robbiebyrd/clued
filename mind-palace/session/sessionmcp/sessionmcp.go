@@ -39,7 +39,7 @@ const Instructions = `Session tools query and restore previously captured Claude
 
 // RemoteInstructions describes the remote subset (see Subset): the tools
 // that need no local disk, as the clued server's HTTPS endpoint offers them.
-const RemoteInstructions = `Session tools query previously captured Claude Code sessions: find_sessions, get_session_context, get_full_session, search_commands and read_transcript. Every result is JSON text; a failure is reported as a tool error with its message.`
+const RemoteInstructions = `Session tools query previously captured Claude Code sessions: find_sessions, get_session_context, get_full_session, search_commands, search_memory and read_transcript. Every result is JSON text; a failure is reported as a tool error with its message.`
 
 // localTools are the tools Subset(true) leaves out: restore_session writes
 // the local filesystem and prime_context probes the local repository.
@@ -167,6 +167,16 @@ func (t *Tools) specs() []toolSpec {
 			readOnly:    true,
 			handler: tool(t, func(ctx context.Context, q *query.Service, args query.SearchCommandsArgs, _ *mcp.CallToolRequest) (any, error) {
 				hits, err := q.SearchCommands(ctx, args)
+				return nonNil(hits), err
+			}),
+		},
+		{
+			name:        "search_memory",
+			description: "Search the summaries, handoffs and identity notes that claude-remember wrote and clued captured (MemorySaved events), across every session and machine of the account, newest first.",
+			schema:      `{"type":"object","properties":{"pattern":{"type":"string","description":"Case-insensitive regex matched against the record text (default: every record)"},"kind":{"type":"string","enum":["entry","day","recent","archive","handoff","identity"],"description":"Restrict to one kind of record"},"session_id":{"type":"string","description":"Restrict to one session"},"git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},"project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},"limit":{"type":"number","description":"Max records to return (default 20, max 500)"}}}`,
+			readOnly:    true,
+			handler: tool(t, func(ctx context.Context, q *query.Service, args query.SearchMemoryArgs, _ *mcp.CallToolRequest) (any, error) {
+				hits, err := q.SearchMemory(ctx, args)
 				return nonNil(hits), err
 			}),
 		},

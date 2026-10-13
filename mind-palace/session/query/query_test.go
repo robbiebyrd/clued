@@ -55,6 +55,14 @@ func seedBash(t *testing.T, st session.Store, acc, id, command string, at time.T
 	}))
 }
 
+func seedMemory(t *testing.T, st session.Store, acc, id, kind, text string, at time.Time) {
+	t.Helper()
+	must(t, st.InsertHookEvent(ctx, session.Doc{
+		"session_id": id, "account_id": acc, "hook_event_name": session.MemoryEventName, "cwd": "/cwd/" + id, "created_at": at,
+		"memory": map[string]any{"kind": kind, "file": "now.md", "time": "09:15", "branch": "main", "text": text, "hash": "h-" + acc + "-" + text},
+	}))
+}
+
 // fixture mirrors the mcp.test.ts data: two own sessions in different repos,
 // a third with a long transcript, and one session of another account.
 func fixture(t *testing.T) (*query.Service, session.Store) {
@@ -73,6 +81,10 @@ func fixture(t *testing.T) (*query.Service, session.Store) {
 	seedBash(t, st, account, "sess-2", "cargo build", t0.Add(4*time.Minute))
 	seedBash(t, st, account, "sess-3", "git log", t0.Add(5*time.Minute))
 	seedBash(t, st, foreign, "sess-acct-2", "echo foreign", t0.Add(6*time.Minute))
+	seedMemory(t, st, account, "sess-1", "entry", "Fixed the daemon restart", t0.Add(7*time.Minute))
+	seedMemory(t, st, account, "sess-2", "handoff", "Next: daemon listener", t0.Add(8*time.Minute))
+	seedMemory(t, st, account, "sess-3", "recent", "Week of DAEMON work", t0.Add(9*time.Minute))
+	seedMemory(t, st, foreign, "sess-acct-2", "entry", "foreign daemon", t0.Add(10*time.Minute))
 	return &query.Service{Store: st, AccountID: account}, st
 }
 
@@ -468,5 +480,71 @@ func TestFullSessionNotFound(t *testing.T) {
 		if _, err := svc.FullSession(ctx, id); !errors.Is(err, session.ErrNotFound) {
 			t.Fatalf("%s: err = %v", id, err)
 		}
+	}
+}
+
+func TestSearchMemoryAcrossSessionsNewestFirst(t *testing.T) {
+	svc, _ := fixture(t)
+	got, err := svc.SearchMemory(ctx, query.SearchMemoryArgs{Pattern: "daemon"})
+	must(t, err)
+	if len(got) != 3 || got[0].Text != "Week of DAEMON work" || got[0].SessionID != "sess-3" || got[2].Kind != "entry" {
+		t.Fatalf("got %+v", got)
+	}
+	if got[0].ProjectPath == nil || *got[0].ProjectPath != "/home/user/third" || got[0].GitOrigin != nil || got[0].Cwd != "/cwd/sess-3" {
+		t.Errorf("join: %+v", got[0])
+	}
+	if got[2].Time != "09:15" || got[2].Branch != "main" || got[2].File != "now.md" || !got[2].CreatedAt.Equal(t0.Add(7*time.Minute)) {
+		t.Errorf("record fields: %+v", got[2])
+	}
+}
+
+func TestSearchMemoryScopes(t *testing.T) {
+	svc, _ := fixture(t)
+	byKind, err := svc.SearchMemory(ctx, query.SearchMemoryArgs{Kind: "handoff"})
+	must(t, err)
+	if len(byKind) != 1 || byKind[0].Kind != "handoff" {
+		t.Errorf("kind: %+v", byKind)
+	}
+	byOrigin, err := svc.SearchMemory(ctx, query.SearchMemoryArgs{GitOrigin: "user/other"})
+	must(t, err)
+	if len(byOrigin) != 1 || byOrigin[0].SessionID != "sess-2" {
+		t.Errorf("git origin: %+v", byOrigin)
+	}
+	byProject, err := svc.SearchMemory(ctx, query.SearchMemoryArgs{ProjectPath: "third$"})
+	must(t, err)
+	if len(byProject) != 1 || byProject[0].SessionID != "sess-3" {
+		t.Errorf("project path: %+v", byProject)
+	}
+	bySession, err := svc.SearchMemory(ctx, query.SearchMemoryArgs{SessionID: "sess-1"})
+	must(t, err)
+	if len(bySession) != 1 || bySession[0].SessionID != "sess-1" {
+		t.Errorf("session: %+v", bySession)
+	}
+	foreignSession, err := svc.SearchMemory(ctx, query.SearchMemoryArgs{SessionID: "sess-acct-2"})
+	must(t, err)
+	if len(foreignSession) != 0 {
+		t.Errorf("foreign session leaked: %+v", foreignSession)
+	}
+	limited, err := svc.SearchMemory(ctx, query.SearchMemoryArgs{Limit: 2})
+	must(t, err)
+	if len(limited) != 2 {
+		t.Errorf("limit: %+v", limited)
+	}
+	if _, err := svc.SearchMemory(ctx, query.SearchMemoryArgs{Pattern: "("}); err == nil {
+		t.Error("invalid regex accepted")
+	}
+}
+
+func TestSessionContextIncludesRecentMemory(t *testing.T) {
+	svc, _ := fixture(t)
+	c, err := svc.SessionContext(ctx, "sess-1")
+	must(t, err)
+	if len(c.RecentMemory) != 1 || c.RecentMemory[0].Text != "Fixed the daemon restart" {
+		t.Errorf("recent memory: %+v", c.RecentMemory)
+	}
+	c3, err := svc.SessionContext(ctx, "sess-3")
+	must(t, err)
+	if c3.RecentMemory == nil || len(c3.RecentMemory) != 1 {
+		t.Errorf("sess-3 recent memory: %+v", c3.RecentMemory)
 	}
 }

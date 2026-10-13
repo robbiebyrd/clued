@@ -239,6 +239,10 @@ func (h *harness) BashEvents(ctx context.Context, q session.CommandQuery) ([]ses
 	return h.as(q.AccountID).BashEvents(ctx, q)
 }
 
+func (h *harness) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).MemoryEvents(ctx, q)
+}
+
 func (h *harness) FullSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
 	return h.as(accountID).FullSession(ctx, accountID, sessionID)
 }

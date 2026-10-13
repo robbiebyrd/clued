@@ -128,6 +128,10 @@ func (s *Store) BashEvents(ctx context.Context, q session.CommandQuery) ([]sessi
 	return s.docs(ctx, "POST", prefix+"/bash-events", q)
 }
 
+func (s *Store) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/memory-events", q)
+}
+
 // --- transcript, subagent lines and blobs ---
 
 // UpsertTranscriptLines sends the lines in batches of at most MaxLines, in

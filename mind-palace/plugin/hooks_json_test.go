@@ -114,3 +114,11 @@ func TestHooksJSONRunsStatusReviewOnSessionStartAndThrottledOnPrompts(t *testing
 		t.Errorf("UserPromptSubmit status-review = %+v, want a synchronous throttled hook run from %s", h, shim)
 	}
 }
+
+func TestHooksJSONIngestsMemoryAtSessionEnd(t *testing.T) {
+	hooks := readHooksJSON(t)
+	h := findHook(hooks["SessionEnd"], "/scripts/clued session memory-ingest --quiet")
+	if h == nil || h.Async == nil || !*h.Async {
+		t.Errorf("SessionEnd memory-ingest = %+v, want an async hook", h)
+	}
+}

@@ -34,6 +34,22 @@ type CommandQuery struct {
 	Limit      int
 }
 
+// MemoryQuery selects MemorySaved events (summaries ingested from a
+// claude-remember store), newest first. PatternRe is a case-insensitive
+// regex over memory.text; empty Kinds and SessionIDs mean no filter.
+type MemoryQuery struct {
+	AccountID  string
+	PatternRe  string
+	Kinds      []string
+	SessionIDs []string
+	Limit      int
+}
+
+// MemoryEventName is the hook_event_name of an ingested memory record. Such
+// an event carries the record under "memory" with a "hash" that identifies
+// its text; a store keeps one event per account and hash.
+const MemoryEventName = "MemorySaved"
+
 // ErrNotFound is returned when a session does not exist.
 var ErrNotFound = errors.New("session not found")
 
@@ -65,6 +81,8 @@ type Store interface {
 	// FindSessions projects session_id, project_path, git_origin, cwd,
 	// started_at and last_seen, sorted by last_seen descending.
 	FindSessions(ctx context.Context, q SessionQuery) ([]Doc, error)
+	// InsertHookEvent stores one event as given. A MemorySaved event whose
+	// memory.hash the account already holds is dropped without error.
 	InsertHookEvent(ctx context.Context, ev Doc) error
 	// UpsertTranscriptLines is an unordered bulk upsert on {session_id, seq};
 	// created_at is set on insert only.
@@ -80,6 +98,9 @@ type Store interface {
 	Blobs(ctx context.Context, accountID, sessionID string) ([]Doc, error)
 	// BashEvents projects session_id, tool_input and created_at.
 	BashEvents(ctx context.Context, q CommandQuery) ([]Doc, error)
+	// MemoryEvents projects session_id, cwd, memory and created_at of the
+	// MemorySaved events matching the query, newest first.
+	MemoryEvents(ctx context.Context, q MemoryQuery) ([]Doc, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of

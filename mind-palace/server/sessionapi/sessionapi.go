@@ -24,9 +24,10 @@
 //	PUT  /blobs                          UpsertBlob             body: session.Blob
 //	POST /blobs/query                    Blobs                  body: {"session_id"}
 //	POST /bash-events                    BashEvents             body: session.CommandQuery
+//	POST /memory-events                  MemoryEvents           body: session.MemoryQuery
 //	GET  /sessions/{id}/full             FullSession
 //
-// The query structs (SessionQuery, LineQuery, CommandQuery) carry no JSON
+// The query structs (SessionQuery, LineQuery, CommandQuery, MemoryQuery) carry no JSON
 // tags, so their keys are the Go field names ("ProjectPathRe", "SessionID",
 // …); their AccountID is ignored. Writes answer with a small acknowledgement
 // ({"session_id"}, {"inserted"}, {"upserted"}); reads answer with exactly
@@ -119,6 +120,7 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("PUT", "/blobs", a.upsertBlob)
 	route("POST", "/blobs/query", a.blobs)
 	route("POST", "/bash-events", a.bashEvents)
+	route("POST", "/memory-events", a.memoryEvents)
 	mux.HandleFunc(Prefix+"/", func(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusNotFound, KindNotFound, fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))
 	})
@@ -413,6 +415,25 @@ func (a *api) bashEvents(w http.ResponseWriter, r *http.Request, account string)
 	}
 	q.AccountID = account
 	found, err := a.store.BashEvents(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, docs(found))
+}
+
+func (a *api) memoryEvents(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.MemoryQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	found, err := a.store.MemoryEvents(r.Context(), q)
 	if err != nil {
 		storeError(w, err)
 		return

@@ -49,6 +49,9 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"blobs are ordered by type and name and account scoped", blobsOrdering},
 		{"bash events filter by regex, session and account, newest first", bashEvents},
 		{"bash events reject an invalid regex", bashEventsInvalidRegex},
+		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
+		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
+		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
 		{"full session joins sub-collections and strips redundant fields", fullSessionShape},
 		{"full session of a session with nothing else has empty arrays", fullSessionEmpty},
 		{"full session is not found for a missing or foreign session", fullSessionNotFound},
@@ -875,4 +878,78 @@ func storedInputsAreCopies(t *testing.T, s session.Store) {
 	eq(t, "transcript line nested", stored.Line().Map("nested")["k"], "v")
 	eq(t, "transcript host.hostname", stored.Map("host")["hostname"], "h")
 	eq(t, "subagent line type", ok(s.SubagentLines(ctx, "acc", "s1", "ag"))[0].Line()["type"], "a")
+}
+
+// memoryEvent is a MemorySaved event as the memory ingest posts it, once the
+// daemon has stamped account_id and created_at.
+func memoryEvent(sid, acc, kind, text string, at time.Time) session.Doc {
+	return session.Doc{
+		"session_id": sid, "account_id": acc, "hook_event_name": session.MemoryEventName, "cwd": "/p/" + sid, "created_at": at,
+		"memory": session.Doc{"kind": kind, "file": "now.md", "text": text, "hash": "h-" + acc + "-" + text},
+	}
+}
+
+func memoryEvents(t *testing.T, s session.Store) {
+	for _, ev := range []session.Doc{
+		memoryEvent("s1", "acc", "entry", "## 09:15 | main\nFixed the Daemon restart", t0),
+		memoryEvent("s1", "acc", "handoff", "Next: wire the daemon listener", t0.Add(time.Minute)),
+		memoryEvent("s2", "acc", "recent", "week of DAEMON work", t0.Add(2*time.Minute)),
+		memoryEvent("s3", "other", "entry", "daemon elsewhere", t0.Add(3*time.Minute)),
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": session.Doc{"command": "daemon"}, "created_at": t0},
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": session.MemoryEventName, "memory": session.Doc{"kind": "entry", "text": 7, "hash": "h-odd"}, "created_at": t0},
+	} {
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	texts := func(q session.MemoryQuery) []string {
+		var out []string
+		for _, d := range ok(s.MemoryEvents(ctx, q)) {
+			out = append(out, d.Map("memory")["text"].(string))
+		}
+		return out
+	}
+	eq(t, "regex is case-insensitive, newest first, own account and memory events only",
+		texts(session.MemoryQuery{AccountID: "acc", PatternRe: "daemon", Limit: 10}),
+		[]string{"week of DAEMON work", "Next: wire the daemon listener", "## 09:15 | main\nFixed the Daemon restart"})
+	eq(t, "kind filter", texts(session.MemoryQuery{AccountID: "acc", PatternRe: "daemon", Kinds: []string{"handoff", "recent"}, Limit: 10}),
+		[]string{"week of DAEMON work", "Next: wire the daemon listener"})
+	eq(t, "session scoping", texts(session.MemoryQuery{AccountID: "acc", PatternRe: "daemon", SessionIDs: []string{"s1"}, Limit: 10}),
+		[]string{"Next: wire the daemon listener", "## 09:15 | main\nFixed the Daemon restart"})
+	eq(t, "empty pattern matches every text", len(texts(session.MemoryQuery{AccountID: "acc", Limit: 10})), 3)
+	eq(t, "limit", texts(session.MemoryQuery{AccountID: "acc", Limit: 1}), []string{"week of DAEMON work"})
+	eq(t, "no match", texts(session.MemoryQuery{AccountID: "acc", PatternRe: "zzz", Limit: 10}), []string(nil))
+
+	got := ok(s.MemoryEvents(ctx, session.MemoryQuery{AccountID: "acc", PatternRe: "wire", Limit: 10}))
+	if len(got) != 1 {
+		t.Fatalf("got %d events, want 1", len(got))
+	}
+	eq(t, "projection fields", sortedKeys(got[0]), []string{"created_at", "cwd", "memory", "session_id"})
+	eq(t, "cwd", got[0]["cwd"], "/p/s1")
+	eq(t, "memory.kind", got[0].Map("memory")["kind"], "handoff")
+	if !timeOf(t, got[0], "created_at").Equal(t0.Add(time.Minute)) {
+		t.Errorf("created_at = %v", got[0]["created_at"])
+	}
+}
+
+func memoryEventsInvalidRegex(t *testing.T, s session.Store) {
+	if _, err := s.MemoryEvents(ctx, session.MemoryQuery{AccountID: "acc", PatternRe: "(", Limit: 10}); err == nil {
+		t.Error("invalid regex accepted")
+	}
+}
+
+func memoryEventDedup(t *testing.T, s session.Store) {
+	first := memoryEvent("s1", "acc", "entry", "same text", t0)
+	must(t, s.InsertHookEvent(ctx, first))
+	again := memoryEvent("s2", "acc", "day", "same text", t0.Add(time.Minute)) // same hash: moved into a today file
+	must(t, s.InsertHookEvent(ctx, again))
+	must(t, s.InsertHookEvent(ctx, memoryEvent("s1", "other", "entry", "same text", t0)))
+	plain := session.Doc{"session_id": "s1", "account_id": "acc", "hook_event_name": "Stop"}
+	must(t, s.InsertHookEvent(ctx, plain))
+	must(t, s.InsertHookEvent(ctx, plain))
+
+	mine := ok(s.MemoryEvents(ctx, session.MemoryQuery{AccountID: "acc", Limit: 10}))
+	eq(t, "one record per account and hash", len(mine), 1)
+	eq(t, "the first copy is kept", mine[0]["session_id"], "s1")
+	eq(t, "another account keeps its own copy", len(ok(s.MemoryEvents(ctx, session.MemoryQuery{AccountID: "other", Limit: 10}))), 1)
+	all := ok(s.Unenriched(ctx, "hook_events", "probe", 10))
+	eq(t, "events without a hash are never deduplicated", len(all), 4)
 }
