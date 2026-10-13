@@ -40,8 +40,8 @@ jobs:
 
   image:
     # Publishes the clued server image as ghcr.io/robbiebyrd/clued-server:<tag>
-    # and :latest with the workflow's own token (docker-compose.server.yml
-    # pulls :latest by default).
+    # and :latest with the workflow's own token (the stack `mind-palace
+    # server init` generates pins the plugin's release tag).
     runs-on: ubuntu-latest
     permissions:
       contents: read

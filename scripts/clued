@@ -217,6 +217,10 @@ if TARGET="$(resolve)"; then
     echo "$TARGET"
     exit 0
   fi
+  # The binary learns the plugin's version (the release it came from, and
+  # the server image `server init` pins) from the environment.
+  VERSION="$(plugin_version)"
+  [[ -n "$VERSION" ]] && export CLUED_PLUGIN_VERSION="$VERSION"
   exec "$TARGET" "$@"
 fi
 

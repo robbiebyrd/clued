@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSessionStartSurfacesShimErrorFromDaemonLog(t *testing.T) {
@@ -47,4 +48,20 @@ func TestSessionStartRecordsTheBinaryTheDaemonWasStartedFrom(t *testing.T) {
 	if strings.Contains(r.stderr, "restarted") {
 		t.Errorf("no daemon was running, so no restart expected: %q", r.stderr)
 	}
+	// session-start leaves detached hooks behind (backfill, memory-ingest)
+	// that resolve the binary through the shim; wait until none of them is
+	// still downloading into this home, or the temp dir cleanup races them.
+	waitForReleaseDownloads(t, home)
+}
+
+// waitForReleaseDownloads returns once no shim holds a download lock under
+// home's release directory.
+func waitForReleaseDownloads(t *testing.T, home string) {
+	t.Helper()
+	locks, _ := filepath.Glob(filepath.Join(home, ".claude/plugins/data/clued/bin/releases/*/.lock"))
+	for i := 0; i < 100 && len(locks) > 0; i++ {
+		time.Sleep(50 * time.Millisecond)
+		locks, _ = filepath.Glob(filepath.Join(home, ".claude/plugins/data/clued/bin/releases/*/.lock"))
+	}
+	time.Sleep(100 * time.Millisecond)
 }
