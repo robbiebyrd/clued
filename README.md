@@ -523,8 +523,8 @@ windows/{amd64,arm64} (Go has no windows/arm target and Claude Code does not
 run on 32-bit x86; linux/arm is built with `GOARM=6` so it runs on ARMv6 and
 ARMv7) and writes `SHA256SUMS` next to them, into the git-ignored `dist/` by
 default. The builds are reproducible (CGO off, `-trimpath`, no VCS stamp, the
-toolchain pinned to `go.mod`). CI's `binaries` job runs it on every push as
-one job per target (`--target os/arch`, the jobs run side by side) to prove
+toolchain pinned to `go.mod`). CI's `binaries` job runs it on every pull request and
+push to main as one job per target (`--target os/arch`, the jobs run side by side) to prove
 each target compiles, and keeps each binary as a workflow artifact for a
 week. `Dockerfile.server` compiles nothing: it copies the Linux binary of
 its platform from `dist/` (`BINARIES` names another directory), so build

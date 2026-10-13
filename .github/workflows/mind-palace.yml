@@ -1,7 +1,11 @@
 name: Mind palace
 
 on:
+  # Pushes to main only: a branch with a pull request is checked by the
+  # pull_request trigger below, so pushing to it does not run everything
+  # twice. The release job needs the push to main.
   push:
+    branches: [main]
     paths:
       - 'mind-palace/**'
       - 'hooks/**'
