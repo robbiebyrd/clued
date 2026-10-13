@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,10 +21,24 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/store/memstore"
 )
 
-// testClock is a settable clock for the device flow.
-type testClock struct{ t time.Time }
+// testClock is a settable clock for the device flow; the test advances it
+// between requests while the server's handlers read it, so it is locked.
+type testClock struct {
+	mu sync.Mutex
+	t  time.Time
+}
 
-func (c *testClock) now() time.Time { return c.t }
+func (c *testClock) now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.t
+}
+
+func (c *testClock) advance(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.t = c.t.Add(d)
+}
 
 // newDeviceServer is a clued server over a real token file holding one
 // token, "star", with the device login and client settings served.
@@ -137,7 +152,7 @@ func TestCluedDeviceLoginAndMeRoutes(t *testing.T) {
 	wantEnvelopeError(t, "approve twice", status, env, 409, "conflict")
 
 	// The next poll hands the token over, once.
-	clock.t = clock.t.Add(5 * time.Second)
+	clock.advance(5 * time.Second)
 	var link device.Link
 	status, env = call(t, ts, "POST", PathDeviceToken, `{"device_code": "`+start.DeviceCode+`"}`, "", "")
 	if status != 200 {
@@ -147,7 +162,7 @@ func TestCluedDeviceLoginAndMeRoutes(t *testing.T) {
 	if link.Token == "" || link.Name != "laptop" || link.TokenID != "laptop" || link.AccountID != me.AccountID {
 		t.Errorf("link = %+v", link)
 	}
-	clock.t = clock.t.Add(5 * time.Second)
+	clock.advance(5 * time.Second)
 	status, env = call(t, ts, "POST", PathDeviceToken, `{"device_code": "`+start.DeviceCode+`"}`, "", "")
 	wantEnvelopeError(t, "poll after the hand-over", status, env, 400, "invalid_grant")
 
