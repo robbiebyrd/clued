@@ -1,6 +1,6 @@
 {
   "name": "clued",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "displayName": "clued",
   "description": "Session capture and plan/story storage for Claude Code: a Go daemon mirrors hook events and transcripts into MongoDB with an enricher pipeline, and mind-palace keeps plans and stories as validated Markdown with MCP tools for both",
   "author": {
