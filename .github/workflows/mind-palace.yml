@@ -14,8 +14,9 @@ on:
       - 'Dockerfile.server'
       - '.dockerignore'
       - '.github/workflows/mind-palace.yml'
-  # Re-runs the checks and, on main, the release of the version the plugin
-  # manifest names when it has none yet (see the release job).
+  # Re-runs the checks and, on main, publishes or completes the release of
+  # the version the plugin manifest names; it never bumps the version (see
+  # the release job).
   workflow_dispatch:
   pull_request:
     paths:
@@ -100,16 +101,23 @@ jobs:
           cache-to: type=gha,mode=max
 
   release:
-    # Releases are cut by CI, never by a tag pushed by hand: on a push to
-    # main (or a manual run) whose .claude-plugin/plugin.json names a version
-    # with no GitHub release yet, and once the jobs above passed, this job
-    # builds the binaries, pushes the server image as
-    # ghcr.io/robbiebyrd/clued-server:v<version> and :latest, and creates
-    # the release v<version> with the binaries and SHA256SUMS, which also
-    # creates the tag at this commit. scripts/clued downloads that release
-    # and `mind-palace server init` pins that image. A push whose version is
-    # already released changes nothing here, so bumping the version in the
-    # manifest is the whole release procedure.
+    # Releases are cut by CI, never by a tag pushed by hand, and every push
+    # to main is a release: once the jobs above passed, this job looks at
+    # the version .claude-plugin/plugin.json names on the latest main.
+    #   - no GitHub release yet (a bump merged by hand, say to a new minor):
+    #     it is released as it is;
+    #   - released already and this is a push: the patch version is bumped
+    #     in plugin.json and marketplace.json, committed to main as
+    #     "Release v<next> [skip ci]" (the token's push starts no workflow),
+    #     and that commit is released;
+    #   - released already and the latest commit is such a bump, or this is
+    #     a manual run: nothing to do;
+    #   - released but missing assets (a failed upload): completed.
+    # Releasing builds the binaries with scripts/build-binaries.sh, pushes
+    # the server image as ghcr.io/robbiebyrd/clued-server:v<version> and
+    # :latest, and creates the release v<version> with the binaries and
+    # SHA256SUMS, which also creates the tag. scripts/clued downloads that
+    # release and `mind-palace server init` pins that image.
     needs: [test, binaries, image]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
@@ -123,35 +131,61 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The latest main, not the pushed commit: a bump lands on top of
+          # whatever merged since, and the release is built from it.
+          ref: main
       - id: version
-        name: Is the manifest's version released?
-        # A release counts as published when it carries every asset the
-        # build script produces (its targets plus SHA256SUMS); one that
-        # exists but lacks assets (a failed or partial upload) is completed
-        # by the next run instead of being left broken.
+        name: Which version does this push release?
         run: |
+          set -euo pipefail
+          bump() { awk -F. '{printf "%d.%d.%d", $1, $2, $3 + 1}' <<<"$1"; }
+          assets() { gh release view "v$1" --json assets --jq '.assets | length' 2>/dev/null; }
           version=$(jq -r '.version // empty' .claude-plugin/plugin.json)
           if [ -z "$version" ]; then
             echo "no version in .claude-plugin/plugin.json" >&2
             exit 1
           fi
-          tag="v$version"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          # A release counts as published when it carries every asset the
+          # build script produces (its targets plus SHA256SUMS).
           want=$(( $(grep -cE '^  (darwin|linux|windows)/[a-z0-9]+$' scripts/build-binaries.sh) + 1 ))
-          if assets=$(gh release view "$tag" --json assets --jq '.assets | length' 2>/dev/null); then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            if [ "$assets" -ge "$want" ]; then
-              echo "release $tag exists with $assets assets; nothing to publish"
-              echo "publish=false" >> "$GITHUB_OUTPUT"
+          exists=false
+          publish=false
+          if n=$(assets "$version"); then
+            exists=true
+            if [ "$n" -lt "$want" ]; then
+              echo "release v$version exists with $n of $want assets; completing it"
+              publish=true
+            elif [ "${{ github.event_name }}" != push ]; then
+              echo "release v$version exists with $n assets; a manual run bumps nothing"
+            elif git log -1 --format=%s | grep -q '^Release v'; then
+              echo "main is at the bump of v$version, which is released; nothing to publish"
             else
-              echo "release $tag exists with $assets of $want assets; completing it from $GITHUB_SHA"
-              echo "publish=true" >> "$GITHUB_OUTPUT"
+              next=$(bump "$version")
+              while assets "$next" >/dev/null; do next=$(bump "$next"); done
+              echo "v$version is released; bumping main to v$next"
+              sed -i -E "s/\"version\": \"$version\"/\"version\": \"$next\"/" .claude-plugin/plugin.json .claude-plugin/marketplace.json
+              jq -e --arg v "$next" '.version == $v' .claude-plugin/plugin.json >/dev/null
+              jq -e --arg v "$next" 'all(.plugins[]; .version == $v)' .claude-plugin/marketplace.json >/dev/null
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git commit -am "Release v$next [skip ci]"
+              git push origin HEAD:main
+              version=$next
+              exists=false
+              publish=true
             fi
           else
-            echo "publishing $tag from $GITHUB_SHA"
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "v$version has no release yet; publishing it"
+            publish=true
           fi
+          {
+            echo "version=$version"
+            echo "tag=v$version"
+            echo "sha=$(git rev-parse HEAD)"
+            echo "exists=$exists"
+            echo "publish=$publish"
+          } >> "$GITHUB_OUTPUT"
       - if: steps.version.outputs.publish == 'true'
         uses: actions/setup-go@v5
         with:
@@ -160,6 +194,8 @@ jobs:
       - if: steps.version.outputs.publish == 'true'
         name: Build every platform
         run: scripts/build-binaries.sh release-assets
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
       - if: steps.version.outputs.publish == 'true'
         uses: docker/setup-qemu-action@v3
       - if: steps.version.outputs.publish == 'true'
@@ -178,6 +214,8 @@ jobs:
           file: Dockerfile.server
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
           tags: |
             ghcr.io/robbiebyrd/clued-server:${{ steps.version.outputs.tag }}
             ghcr.io/robbiebyrd/clued-server:latest
@@ -194,6 +232,6 @@ jobs:
           if [ "${{ steps.version.outputs.exists }}" = "true" ]; then
             gh release upload "$tag" release-assets/* --clobber
           else
-            gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --generate-notes release-assets/*
+            gh release create "$tag" --target "${{ steps.version.outputs.sha }}" --title "$tag" --generate-notes release-assets/*
           fi
           gh release view "$tag" --json assets --jq '.assets[].name'

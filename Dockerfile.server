@@ -32,6 +32,9 @@
 # emulation.
 FROM --platform=$BUILDPLATFORM golang:1.26 AS build
 ARG TARGETOS TARGETARCH
+# The plugin version the release job builds (reported by /health); "dev"
+# for a local build.
+ARG VERSION=dev
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=mod
 WORKDIR /src/mind-palace
 COPY mind-palace/go.mod mind-palace/go.sum ./
@@ -39,7 +42,9 @@ RUN go mod download
 COPY mind-palace/ ./
 # The same flags as scripts/build-binaries.sh, so the binary matches a release.
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -buildvcs=false -ldflags '-s -w' -o /out/mind-palace ./cmd/mind-palace
+    go build -trimpath -buildvcs=false \
+    -ldflags "-s -w -X github.com/robbiebyrd/clued/mind-palace/remote.Version=${VERSION}" \
+    -o /out/mind-palace ./cmd/mind-palace
 
 # --- runtime -----------------------------------------------------------------
 FROM gcr.io/distroless/static-debian12:nonroot
