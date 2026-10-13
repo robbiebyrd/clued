@@ -1,6 +1,6 @@
 ---
 name: clued-setup
-description: First-time setup for the clued plugin. Run this after installing clued to configure MongoDB and start the daemon.
+description: First-time setup for the clued plugin. Run this after installing clued to choose where sessions, plans and stories are stored (a local MongoDB or a clued server), write the config, register the hooks and, with a local MongoDB, start the daemon.
 ---
 
 # clued Setup
@@ -23,9 +23,23 @@ Also detect CPU architecture on macOS/Linux — needed for tarball download URLs
 uname -m   # arm64 = Apple Silicon; x86_64 = Intel
 ```
 
-## Step 2 — Ask how to run MongoDB
+## Step 2 — Ask where clued stores its data
 
-Present the user with three options. **Local binary is the default.**
+First question. Present the user with two options. **Local MongoDB is the default.**
+
+> "Where should clued keep your sessions, plans and stories?
+>
+> 1. **Local MongoDB** (recommended for one machine) — a MongoDB this machine can reach and a capture daemon that runs on this machine
+> 2. **clued server** — a `mind-palace server run` that someone operates for you over HTTPS; nothing runs on this machine between hooks, and no MongoDB is installed here. You need its URL and a bearer token minted with `mind-palace server token create` (see `docs/server.md` in the plugin repository)"
+
+Wait for their answer before continuing.
+
+- **clued server**: skip Steps 3 and 4 entirely; continue with Step 5. Nothing in Step 3 is installed, started or touched.
+- **Local MongoDB**: ask the second question below, then continue with Step 3.
+
+### Local MongoDB — ask how to run it
+
+Present three options. **Local binary is the default.**
 
 > "How would you like to run MongoDB for clued?
 >
@@ -35,7 +49,7 @@ Present the user with three options. **Local binary is the default.**
 
 Wait for their answer before continuing.
 
-## Step 3 — Install and start MongoDB
+## Step 3 — Install and start MongoDB (local MongoDB only)
 
 ### Option A: Local binary
 
@@ -221,7 +235,7 @@ No installation or service steps needed — skip straight to Step 4.
 
 ---
 
-## Step 4 — Gather clued config
+## Step 4 — Gather clued config (local MongoDB only)
 
 | Setting | Default (binary) | Default (Docker) | Remote |
 |---------|-----------------|-----------------|--------|
@@ -232,7 +246,7 @@ Accept defaults unless the user overrides. For remote, the URL is required.
 
 ## Step 5 — Check the mind-palace binary
 
-clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP servers. Every release publishes it pre-built for macOS (Intel and Apple Silicon), Linux (amd64, arm64 and 32-bit arm) and Windows (amd64 and arm64), so no Go toolchain is needed. The `scripts/clued` shim downloads the asset for this machine from the release the plugin pins (the `version` in `.claude-plugin/plugin.json`) on first use into `~/.claude/plugins/data/clued/bin/releases/v<version>/` and checks it against the release's `SHA256SUMS`; it needs `curl` or `wget` and `sha256sum` or `shasum`.
+clued runs a single Go binary, `mind-palace`, for the daemon, backfill and MCP servers (in server mode: for the hook relay, backfill and MCP servers). Every release publishes it pre-built for macOS (Intel and Apple Silicon), Linux (amd64, arm64 and 32-bit arm) and Windows (amd64 and arm64), so no Go toolchain is needed. The `scripts/clued` shim downloads the asset for this machine from the release the plugin pins (the `version` in `.claude-plugin/plugin.json`) on first use into `~/.claude/plugins/data/clued/bin/releases/v<version>/` and checks it against the release's `SHA256SUMS`; it needs `curl` or `wget` and `sha256sum` or `shasum`.
 
 Confirm the shim can find a binary (`${CLAUDE_PLUGIN_ROOT}` is the plugin root; see Step 8 if it is not set):
 
@@ -266,6 +280,8 @@ chmod +x ~/.claude/plugins/data/clued/bin/mind-palace
 
 ## Step 6 — Write config file
 
+### Local MongoDB
+
 ```bash
 mkdir -p ~/.claude/plugins/data/clued
 cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
@@ -290,6 +306,36 @@ jq '.devRepoPath = "/path/to/clued"' \
 
 Replace `/path/to/clued` with the actual repo path. Skip this for normal installations.
 
+### clued server
+
+Ask the user for, in this order:
+
+1. **The server URL**, e.g. `https://clued.example.com` (no trailing path). It must be `https://`: the binary refuses a plain `http://` URL unless the host is `localhost`, `127.0.0.1` or `::1`. If the user gives `http://` for another host, stop and explain that the token and the transcripts would cross the network in clear; only on a private network they trust may they add `"serverInsecure": true` to the file by hand.
+2. **The token** the server operator minted (`mind-palace server token create --name <name> --project <slug>`; it is printed once). Never echo it back, never put it on a command line, never log it.
+3. **A CA file** (optional): only when the server uses a certificate from a private CA, the path of its PEM bundle; it is trusted in addition to the system roots. Skip the key otherwise.
+
+Write the file with the heredoc below so the token never appears in a command line, and keep it private: it is the only credential on this machine. `mongoUrl` stays at its default and is ignored while `serverUrl` is set (`dbName` and `port` likewise; they are kept so the file can go back to local mode by removing the two server keys).
+
+```bash
+mkdir -p ~/.claude/plugins/data/clued
+umask 077
+cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
+{
+  "mongoUrl": "mongodb://localhost:27018",
+  "dbName": "claude_sessions",
+  "port": 8085,
+  "projectsDir": "~/.claude/projects",
+  "disabledEnrichers": [],
+  "enabledEnrichers": [],
+  "serverUrl": "<server URL>",
+  "serverToken": "<token>"
+}
+EOF
+chmod 600 ~/.claude/plugins/data/clued/config.json
+```
+
+When a CA file was given, add `"serverCaFile": "<path>"` next to `serverToken` (a leading `~/` is expanded).
+
 ## Step 7 — MCP servers (no action needed)
 
 The plugin ships a `.mcp.json` that tells Claude Code to run two stdio servers:
@@ -302,7 +348,9 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/clued mcp --no-session-tools   # mind-palace: the 
 Claude Code reads this at startup and spawns both as stdio child processes —
 no settings edit is required. **MCP tools appear in the next fresh
 session** (a new Claude Code window or `exit` + reopen); `/reload-plugins` alone
-is not sufficient.
+is not sufficient. In server mode both talk to the server: the session tools
+read from it directly and the plan and story tools keep the files in the
+repository and mirror every write to it.
 
 If an older setup left a `mcpServers.clued` SSE entry in `~/.claude/settings.json`,
 remove it to avoid a conflicting stale connection:
@@ -335,15 +383,16 @@ CLUED_PLUGIN_ROOT=$(ls -dt ~/.claude/plugins/cache/*/clued/*/ 2>/dev/null | head
 
 Confirm the path looks right before continuing.
 
-## Step 9 — Register hooks and start the daemon
+## Step 9 — Register hooks, then start the daemon (local MongoDB) or check the server (clued server)
 
-Register clued's hooks into `~/.claude/settings.json`:
+Register clued's hooks into `~/.claude/settings.json` now rather than at the next
+session start. This is the same in both modes:
 
 ```bash
 bash "${CLUED_PLUGIN_ROOT}/hooks/register-hooks"
 ```
 
-Then start the daemon:
+### Local MongoDB — start the daemon
 
 ```bash
 bash "${CLUED_PLUGIN_ROOT}/hooks/session-start"
@@ -364,17 +413,54 @@ timeout 3 "${CLUED_PLUGIN_ROOT}/scripts/clued" session daemon 2>&1 || true
 Most common failure cause: MongoDB isn't reachable at the configured URL. Confirm
 the port is open with `nc -z <host> <port>` before retrying.
 
+### clued server — check the server
+
+Nothing is started: no daemon, no MongoDB. Every hook runs `scripts/clued hook relay`,
+which sends its event and the transcript delta to the server and exits. Ask the
+server who the token is:
+
+```bash
+"${CLUED_PLUGIN_ROOT}/scripts/clued" session whoami
+```
+
+On success it prints `{"ok": true, "result": {"name", "account_id", "projects", "version", "server"}}`.
+Report the token's `name`, its `projects` (`*` means every project) and the server `version` to the user.
+
+If it fails, the message in the `error` envelope on stderr says why; do not retry blindly:
+
+- exit 2 (`BadRequest`, "no server configured"): the config file was not written where the binary reads it, go back to Step 6
+- exit 10 (`StorageError`) with `unauthorized`: the server rejected the token; ask for it again and rewrite the file
+- exit 10 with `connection refused`, `no such host`, `deadline exceeded`, `certificate` or `TLS`: the server is unreachable or its certificate is not trusted; check the URL, the network and (private CA) `serverCaFile`
+- exit 10 with `plain http://`: see Step 6, the URL must be `https://`
+
+Then check that the token covers the repository you are in. Plans and stories live
+under a project on the server, whose slug the server derives from the git origin:
+host and path lower-cased, `/` written as `__`, a trailing `.git` dropped
+(`git@github.com:Owner/Repo.git` → `github.com__owner__repo`; a repository without an
+origin uses its directory name). `check-setup` does this comparison and prints the
+exact warning, with the command that fixes it, or nothing when all is well:
+
+```bash
+bash "${CLUED_PLUGIN_ROOT}/hooks/check-setup"
+```
+
+When it reports that the token does not cover this project, tell the user: sessions
+are captured regardless, but plans and stories stay local here until the server
+operator runs `mind-palace server token grant <token name> --project <slug>` (both
+names are in the message).
+
 ## Step 10 — Confirm to user
 
 Tell the user:
 
-- MongoDB option chosen and URL configured
-- Config written to `~/.claude/plugins/data/clued/config.json`
-- MCP servers: `clued` (session tools) and `mind-palace` (plan and story tools), provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns them automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
-- Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`. Two of them run the binary directly: `scripts/clued hook stop-guard` on Stop and `scripts/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit
+- Where the data goes: the MongoDB option and URL, or the clued server URL and the token name and projects `session whoami` reported
+- Config written to `~/.claude/plugins/data/clued/config.json` (mode `0600` in server mode, it holds the token)
 - mind-palace binary location as printed by `scripts/clued --locate` (the downloaded release under `~/.claude/plugins/data/clued/bin/releases/`, on PATH, or `~/.claude/plugins/data/clued/bin/mind-palace`)
-- Daemon status: running on port 8085 / failed (show error output)
+- MCP servers: `clued` (session tools) and `mind-palace` (plan and story tools), provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns them automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
+- Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`. Three of them run the binary directly: `scripts/clued hook write-guard` on PreToolUse (plans and stories change only through mind-palace), `scripts/clued hook stop-guard` on Stop and `scripts/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit; in server mode `hooks/event-relay` runs `scripts/clued hook relay` for every other event
+- Local MongoDB: daemon status: running on port 8085 / failed (show error output)
+- clued server: nothing runs on this machine; each hook relays to the server, failures are logged to `~/.claude/plugins/data/clued/relay.log` and buffered in the WAL until the server answers; if the project was not covered, the `server token grant` command the operator must run
 - On macOS tarball install: launchd plist written to `~/Library/LaunchAgents/org.mongodb.mongod.plist` — mongod restarts automatically at login with `KeepAlive: true`
 - Ask the user to run `/reload-plugins` then **start a new session** for all changes (hooks + MCP tools) to take effect
 - If the claude-remember plugin is installed, `session-start` installs clued's listener into it so its summaries are captured too (`search_memory` finds them)
-- To enable the privacy-redact enricher (off by default): add `"privacy-redact"` to `enabledEnrichers` in `config.json` and restart the daemon. It stores a masked copy of each transcript line (`sk-` API keys, e-mail addresses, AWS access key ids, JWTs) under `enrichments.privacy-redact`; the raw line is still stored. `disabledEnrichers` only switches enrichers off.
+- To enable the privacy-redact enricher (off by default): add `"privacy-redact"` to `enabledEnrichers` in `config.json` and restart the daemon (local MongoDB; in server mode enrichers run on the server and are configured there). It stores a masked copy of each transcript line (`sk-` API keys, e-mail addresses, AWS access key ids, JWTs) under `enrichments.privacy-redact`; the raw line is still stored. `disabledEnrichers` only switches enrichers off.
