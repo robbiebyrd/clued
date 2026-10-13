@@ -24,6 +24,7 @@ Report the repository state to the user in at most eight lines, one fact per lin
 - the open pull request, if any (BRANCH `pr:`)
 - active stories and plans (STORIES, PLANS)
 - the last captured session and its top commands (SESSION)
+- what the previous sessions concluded, when claude-remember notes were captured (MEMORY)
 - the build tool and toolchain (BUILD)
 
 Call out sentinels that signal something is off: `store unavailable` (MongoDB unreachable), `not running` on the daemon line, `not a git repo`, `no default branch`, and any `[FALLBACK: ...]` line (a section that failed or timed out).

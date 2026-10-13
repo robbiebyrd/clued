@@ -78,6 +78,7 @@ func (a *App) primeCollector(ctx context.Context, root string, opts prime.Option
 	if !opts.NoStore {
 		src := sessionsource.New(func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }, accountID)
 		c.Sessions = src
+		c.Memory = src
 		closers = append(closers, func() { _ = src.Close(context.Background()) })
 	}
 	if !opts.NoDocs {
@@ -353,7 +354,7 @@ func (a *App) primeCmd() *cobra.Command {
 	var noSnapshot bool
 	c := &cobra.Command{
 		Use:   "prime",
-		Short: "The composite report: ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, BUILD",
+		Short: "The composite report: ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, MEMORY, BUILD",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()

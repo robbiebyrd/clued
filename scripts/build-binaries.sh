@@ -6,11 +6,13 @@
 #                                     (default: dist/, which git ignores)
 #
 # Nothing it produces is committed: CI runs it to prove every target still
-# compiles, and .github/workflows/release.yml runs it on a v* tag and attaches
-# the output to the GitHub release that scripts/clued downloads from (the
-# `version` in .claude-plugin/plugin.json names that release). Builds are
-# reproducible (CGO off, -trimpath, no VCS stamp, the Go toolchain pinned to
-# the version in go.mod), so the same source always gives the same hashes.
+# compiles, and the release job of .github/workflows/mind-palace.yml runs it
+# and attaches the output to the GitHub release that scripts/clued downloads
+# from (the `version` in .claude-plugin/plugin.json names that release).
+# Builds are reproducible (CGO off, -trimpath, no VCS stamp, the Go toolchain
+# pinned to the version in go.mod), so the same source always gives the same
+# hashes. The targets compile concurrently (BUILD_JOBS limits how many at
+# once).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -53,17 +55,49 @@ sha256() {
   fi
 }
 
+# asset_name prints the binary name of a GOOS/GOARCH pair.
+asset_name() {
+  local name="mind-palace_${1}_${2}"
+  [[ "$1" == windows ]] && name+=".exe"
+  echo "$name"
+}
+
 mkdir -p "$OUT"
 rm -f "${OUT}"/mind-palace_* "${OUT}/SHA256SUMS"
-: > "${OUT}/SHA256SUMS"
+
+# The targets build concurrently: each compile is mostly a single-threaded
+# link, so running them side by side uses every core (BUILD_JOBS caps how
+# many run at once; the default is all of them). The Go build cache is safe
+# for concurrent use, and the module download finished during the first
+# `go build` of the warm-up below, so the parallel builds never race on it.
+(cd "$MODULE" && go mod download) >&2
+JOBS="${BUILD_JOBS:-${#TARGETS[@]}}"
+declare -A pids
+failed=0
 for target in "${TARGETS[@]}"; do
   goos="${target%/*}"
   goarch="${target#*/}"
-  name="mind-palace_${goos}_${goarch}"
-  [[ "$goos" == windows ]] && name+=".exe"
+  name="$(asset_name "$goos" "$goarch")"
+  while (( $(jobs -rp | wc -l) >= JOBS )); do
+    sleep 0.2
+  done
   echo "building ${name}" >&2
   (cd "$MODULE" && GOOS="$goos" GOARCH="$goarch" \
-    go build -trimpath -buildvcs=false -ldflags '-s -w' -o "${OUT}/${name}" ./cmd/mind-palace)
+    go build -trimpath -buildvcs=false -ldflags '-s -w' -o "${OUT}/${name}" ./cmd/mind-palace) &
+  pids["$name"]=$!
+done
+for name in "${!pids[@]}"; do
+  if ! wait "${pids[$name]}"; then
+    echo "build-binaries: ${name} failed" >&2
+    failed=1
+  fi
+done
+(( failed == 0 )) || exit 1
+
+# SHA256SUMS lists the targets in their declared order whatever finished first.
+: > "${OUT}/SHA256SUMS"
+for target in "${TARGETS[@]}"; do
+  name="$(asset_name "${target%/*}" "${target#*/}")"
   printf '%s  %s\n' "$(sha256 "${OUT}/${name}")" "$name" >> "${OUT}/SHA256SUMS"
 done
 echo "wrote ${#TARGETS[@]} binaries and SHA256SUMS to ${OUT}" >&2

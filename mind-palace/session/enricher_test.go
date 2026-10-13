@@ -79,6 +79,24 @@ func TestActiveIsSortedByNameAndFresh(t *testing.T) {
 	}
 }
 
+func TestActiveMatchesGroups(t *testing.T) {
+	isolateRegistry(t)
+	member := named("family-member", false)
+	member.Group = "family"
+	Register(member)
+	Register(named("family", false))
+	Register(named("always", true))
+	if got := names(Active(nil, []string{"family"})); !reflect.DeepEqual(got, []string{"always", "family", "family-member"}) {
+		t.Fatalf("enabling the group = %v", got)
+	}
+	if got := names(Active(nil, []string{"family-member"})); !reflect.DeepEqual(got, []string{"always", "family-member"}) {
+		t.Fatalf("enabling one member = %v", got)
+	}
+	if got := names(Active([]string{"family"}, []string{"family", "family-member"})); !reflect.DeepEqual(got, []string{"always"}) {
+		t.Fatalf("disabling the group = %v", got)
+	}
+}
+
 func TestRegisterPanicsOnDuplicateName(t *testing.T) {
 	isolateRegistry(t)
 	Register(named("dup", true))

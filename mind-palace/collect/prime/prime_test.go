@@ -48,6 +48,19 @@ func (f *fakeSessions) Current(ctx context.Context, cwd string) (*SessionSnapsho
 	return f.snap, f.err
 }
 
+// fakeMemory is an in-test MemorySource.
+type fakeMemory struct {
+	notes []MemoryNote
+	err   error
+	cwd   string
+	limit int
+}
+
+func (f *fakeMemory) Recent(_ context.Context, cwd string, limit int) ([]MemoryNote, error) {
+	f.cwd, f.limit = cwd, limit
+	return f.notes, f.err
+}
+
 // fakeDocs is an in-test DocSource.
 type fakeDocs struct {
 	stories, plans []DocSummary
@@ -170,7 +183,7 @@ func TestCollectSectionsInOrder(t *testing.T) {
 	for _, s := range r.Sections {
 		names = append(names, s.Name)
 	}
-	want := []string{"ENV", "CLUED", "FILES", "BRANCH", "LOG:main", "LOG:HEAD", "DIFF-STAT", "STORIES", "PLANS", "SESSION", "BUILD"}
+	want := []string{"ENV", "CLUED", "FILES", "BRANCH", "LOG:main", "LOG:HEAD", "DIFF-STAT", "STORIES", "PLANS", "SESSION", "MEMORY", "BUILD"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("sections = %v, want %v", names, want)
 	}
@@ -383,6 +396,46 @@ func TestSessionSection(t *testing.T) {
 	}
 }
 
+func TestMemorySection(t *testing.T) {
+	root := repo(t)
+	c := collector(t, root)
+	long := strings.Repeat("line\n", memoryTextLines+3)
+	mem := &fakeMemory{notes: []MemoryNote{
+		{Kind: "handoff", Branch: "main", Text: "Next: wire the listener\n", CreatedAt: t0},
+		{Kind: "entry", Day: "2026-03-03", Time: "09:15", Branch: "feat/x", Text: "Fixed the daemon restart"},
+		{Kind: "identity", Text: long},
+		{Text: "bare"},
+	}}
+	c.Memory = mem
+	got := sectionMap(t, c.Collect(context.Background(), Options{}))["MEMORY"]
+	want := "handoff 2026-03-04 (main)\n  Next: wire the listener\n" +
+		"entry 2026-03-03 09:15 (feat/x)\n  Fixed the daemon restart\n" +
+		"identity\n" + strings.Repeat("  line\n", memoryTextLines) + "  ... (3 more lines)\n" +
+		"memory\n  bare"
+	if got != want {
+		t.Errorf("MEMORY =\n%q\nwant\n%q", got, want)
+	}
+	if mem.cwd != filepath.ToSlash(root) || mem.limit != memoryCount {
+		t.Errorf("memory looked up for %q limit %d, want the absolute root %q and %d", mem.cwd, mem.limit, root, memoryCount)
+	}
+
+	c.Memory = &fakeMemory{err: errors.New("mongo down")}
+	if got := sectionMap(t, c.Collect(context.Background(), Options{}))["MEMORY"]; got != collect.StoreUnavailable {
+		t.Errorf("failing store: %q", got)
+	}
+	c.Memory = &fakeMemory{}
+	if got := sectionMap(t, c.Collect(context.Background(), Options{}))["MEMORY"]; got != collect.None {
+		t.Errorf("no notes: %q", got)
+	}
+	if got := sectionMap(t, c.Collect(context.Background(), Options{NoStore: true}))["MEMORY"]; got != collect.StoreDisabled {
+		t.Errorf("NoStore: %q", got)
+	}
+	c.Memory = nil
+	if got := sectionMap(t, c.Collect(context.Background(), Options{}))["MEMORY"]; got != collect.StoreDisabled {
+		t.Errorf("nil source: %q", got)
+	}
+}
+
 func TestCollectResultCarriesTheSessionID(t *testing.T) {
 	root := repo(t)
 	c := collector(t, root)
@@ -425,8 +478,8 @@ func TestBudgetFallsBackButRendersTheRest(t *testing.T) {
 	if !strings.Contains(m["ENV"], "cwd: ") || m["BRANCH"] != "main (clean)" {
 		t.Errorf("earlier sections must still render: ENV=%q BRANCH=%q", m["ENV"], m["BRANCH"])
 	}
-	if len(m) != 11 {
-		t.Errorf("report has %d sections, want 11", len(m))
+	if len(m) != 12 {
+		t.Errorf("report has %d sections, want 12", len(m))
 	}
 }
 
@@ -457,10 +510,10 @@ func TestPanickingSectionFallsBack(t *testing.T) {
 func TestNilProbes(t *testing.T) {
 	c := &Collector{Root: t.TempDir()}
 	m := sectionMap(t, c.Collect(context.Background(), Options{}))
-	if len(m) != 11 {
+	if len(m) != 12 {
 		t.Fatalf("sections = %d", len(m))
 	}
-	if m["FILES"] != "[FALLBACK: FILES]" || m["BRANCH"] != collect.NotGitRepo || m["SESSION"] != collect.StoreDisabled {
+	if m["FILES"] != "[FALLBACK: FILES]" || m["BRANCH"] != collect.NotGitRepo || m["SESSION"] != collect.StoreDisabled || m["MEMORY"] != collect.StoreDisabled {
 		t.Errorf("nil probes: %v", m)
 	}
 	if strings.Contains(m["ENV"], "account_id") || strings.Contains(m["ENV"], "host:") {
