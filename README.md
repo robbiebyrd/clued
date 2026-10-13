@@ -546,7 +546,8 @@ minor or major bumped by hand before merging) is released as it is
 they stamp the right version and again in the release job). The release
 collects the binaries the matrix built with the version stamped in
 (`/health` and the client's `User-Agent` report it; `--sums` writes their
-`SHA256SUMS`), assembles and pushes the server image from the Linux ones as
+`SHA256SUMS`), or rebuilds them in the job when a release that finished
+in between took the version they carry, assembles and pushes the server image from the Linux ones as
 `ghcr.io/robbiebyrd/clued-server:v<version>` and `:latest`, and creates the
 release `v<version>` (which creates the tag at that commit) with the
 binaries and `SHA256SUMS`. `scripts/clued` on every machine then downloads

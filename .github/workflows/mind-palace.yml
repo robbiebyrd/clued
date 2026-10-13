@@ -170,10 +170,15 @@ jobs:
     #
     # The binaries were built by the matrix from the pushed commit, stamped
     # with the version the version job chose, so this job publishes them as
-    # they are only when that still holds on the latest main: main's code
+    # they are when that still holds on the latest main: main's code
     # (everything outside .claude-plugin/) is the pushed commit's, and the
-    # plan gives the same version. Otherwise a later push's run releases
-    # the newer code and this run publishes nothing.
+    # plan gives the same version. When main's code moved past the pushed
+    # commit, a later push's run releases the newer code and this run
+    # publishes nothing. When only the plan changed (a release that was
+    # still running when the version job looked finished in between, so
+    # the version it stamped is taken), this job rebuilds the binaries
+    # here with the version it releases instead of leaving the push
+    # unreleased.
     #
     # Publishing writes SHA256SUMS over the collected binaries, assembles
     # and pushes ghcr.io/robbiebyrd/clued-server:v<version> and :latest from
@@ -215,9 +220,10 @@ jobs:
           version=$(sed -n 's/^version=//p' <<<"$plan")
           action=$(sed -n 's/^action=//p' <<<"$plan")
           exists=$(sed -n 's/^exists=//p' <<<"$plan")
+          rebuild=false
           if [ "$action" != none ] && [ "$version" != "${{ needs.version.outputs.version }}" ]; then
-            echo "::warning::the binaries carry v${{ needs.version.outputs.version }} but main now releases v$version; the next push releases it"
-            action=none
+            echo "::notice::the matrix's binaries carry v${{ needs.version.outputs.version }} but this run releases v$version; rebuilding them"
+            rebuild=true
           fi
           if [ "$action" = bump ]; then
             current=$(jq -r .version .claude-plugin/plugin.json)
@@ -237,17 +243,31 @@ jobs:
             echo "sha=$(git rev-parse HEAD)"
             echo "exists=$exists"
             echo "publish=$publish"
+            echo "rebuild=$rebuild"
           } >> "$GITHUB_OUTPUT"
-      - if: steps.version.outputs.publish == 'true'
+      - if: steps.version.outputs.publish == 'true' && steps.version.outputs.rebuild != 'true'
         name: Collect the binaries the matrix built
         uses: actions/download-artifact@v4
         with:
           pattern: mind-palace-binary-*
           merge-multiple: true
           path: release-assets
-      - if: steps.version.outputs.publish == 'true'
+      - if: steps.version.outputs.publish == 'true' && steps.version.outputs.rebuild != 'true'
         name: Write SHA256SUMS
         run: scripts/build-binaries.sh --sums release-assets
+      - if: steps.version.outputs.rebuild == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: mind-palace/go.mod
+          cache-dependency-path: mind-palace/go.sum
+      - if: steps.version.outputs.rebuild == 'true'
+        name: Rebuild the binaries with the version released
+        # main's code is the pushed commit's (checked above), so this is
+        # the matrix's build again with the right version stamped in;
+        # SHA256SUMS is written with it.
+        run: scripts/build-binaries.sh release-assets
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
       - if: steps.version.outputs.publish == 'true'
         uses: docker/setup-qemu-action@v3
       - if: steps.version.outputs.publish == 'true'

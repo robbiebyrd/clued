@@ -134,11 +134,13 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   job of `.github/workflows/mind-palace.yml` runs on every push to main
   after `test`, `binaries` and `image` passed, on the latest main: it skips
   when main's code moved past the pushed commit (the later push's run
-  releases it) or the plan changed since the builds, otherwise bumps the
+  releases it), otherwise bumps the
   patch version in `plugin.json` and `marketplace.json` (both must agree;
   `go test ./plugin/` checks it) and commits that to main as
   `Release v<next> [skip ci]`, collects the matrix's binaries
-  (`scripts/build-binaries.sh --sums`), assembles and pushes
+  (`scripts/build-binaries.sh --sums`), or rebuilds them in the job when
+  the plan changed since the builds (a release finished in between took
+  the version they carry), assembles and pushes
   `ghcr.io/robbiebyrd/clued-server:v<version>` (and `:latest`) from the
   Linux ones and creates the release `v<version>`, tag included, with the
   `mind-palace_<os>_<arch>` assets and `SHA256SUMS` that `scripts/clued`
