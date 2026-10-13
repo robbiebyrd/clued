@@ -136,6 +136,8 @@ type request struct {
 	created, expires, lastPoll       time.Time
 	state                            state
 	link                             Link
+	// seq orders requests started at the same instant.
+	seq uint64
 }
 
 // Flow holds the requests of one server.
@@ -145,6 +147,7 @@ type Flow struct {
 	mu       sync.Mutex
 	byDevice map[string]*request
 	byUser   map[string]*request
+	started  uint64
 }
 
 // New returns a Flow. It panics without Tokens.
@@ -195,9 +198,10 @@ func (f *Flow) Start(clientName string, info map[string]string) (Start, error) {
 			break
 		}
 	}
+	f.started++
 	req := &request{
 		deviceCode: deviceCode, userCode: userCode, clientName: clientName,
-		info: cloneInfo(info), created: now, expires: now.Add(f.opts.TTL),
+		info: cloneInfo(info), created: now, expires: now.Add(f.opts.TTL), seq: f.started,
 	}
 	f.byDevice[deviceCode] = req
 	f.byUser[userCode] = req
@@ -290,14 +294,23 @@ func (f *Flow) Pending() []Request {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.prune(f.opts.Now())
-	out := make([]Request, 0, len(f.byDevice))
+	reqs := make([]*request, 0, len(f.byDevice))
 	for _, r := range f.byDevice {
+		reqs = append(reqs, r)
+	}
+	sort.Slice(reqs, func(i, j int) bool {
+		if !reqs[i].created.Equal(reqs[j].created) {
+			return reqs[i].created.Before(reqs[j].created)
+		}
+		return reqs[i].seq < reqs[j].seq
+	})
+	out := make([]Request, 0, len(reqs))
+	for _, r := range reqs {
 		out = append(out, Request{
 			UserCode: Format(r.userCode), ClientName: r.clientName, ClientInfo: cloneInfo(r.info),
 			Created: r.created, Expires: r.expires, State: r.state.String(),
 		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Created.Before(out[j].Created) })
 	return out
 }
 
