@@ -65,8 +65,9 @@ MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./...   # p
 Requires Go 1.26 (the toolchain is downloaded automatically by `go`). The
 `plugin` package tests execute the Claude Code plugin's bash hooks and shim
 from the repository root, so they need `bash`, `jq` and `curl`. Release
-binaries for darwin/linux on amd64/arm64 are built by the `Release` workflow
-when a `v*` tag is pushed.
+binaries for darwin, linux and windows are built by the `release` job of the
+`Mind palace` workflow when a push to main carries a new `version` in
+`.claude-plugin/plugin.json`; no tag is pushed by hand.
 
 ## Quick start
 

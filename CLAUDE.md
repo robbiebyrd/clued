@@ -75,8 +75,8 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   on each push (and keeps them as a workflow artifact); the binaries users
   run come from GitHub releases. A change the binary compiles in reaches
   plugin installs only through a release: bump `version` in
-  `.claude-plugin/plugin.json` and, once merged, push the matching
-  `v<version>` tag.
+  `.claude-plugin/plugin.json`; once merged, CI releases it (next bullet
+  under Conventions).
 
 ## Conventions
 
@@ -120,7 +120,11 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   MCP tools (or `mind-palace plan create`), stories with `story_*`, and both
   change through the setters (`plan_setStatus`, `story_setCriterion`, …) or
   `plan_update` / `story_update` for the content.
-- Releases: push the `v<version>` tag that matches `.claude-plugin/plugin.json`;
-  `.github/workflows/release.yml` checks that, runs `scripts/build-binaries.sh`
-  and uploads the `mind-palace_<os>_<arch>` assets and `SHA256SUMS` that
-  `scripts/clued` downloads on first use.
+- Releases are automatic; never push a `v*` tag by hand. The `release` job
+  of `.github/workflows/mind-palace.yml` runs on every push to main after
+  `test`, `binaries` and `image` passed: when `.claude-plugin/plugin.json`
+  names a version with no GitHub release yet, it runs
+  `scripts/build-binaries.sh`, pushes `ghcr.io/robbiebyrd/clued-server:v<version>`
+  (and `:latest`) and creates the release `v<version>`, tag included, with
+  the `mind-palace_<os>_<arch>` assets and `SHA256SUMS` that `scripts/clued`
+  downloads on first use. Bumping the version is the whole procedure.

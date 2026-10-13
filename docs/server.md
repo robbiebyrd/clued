@@ -68,9 +68,10 @@ says otherwise):
 
 ### From the image
 
-Each `v*` release publishes `ghcr.io/robbiebyrd/clued-server:<tag>` and
-`:latest` (linux/amd64 and linux/arm64, built by `.github/workflows/release.yml`
-from `Dockerfile.server`). The image runs `mind-palace server run` as a
+Each release publishes `ghcr.io/robbiebyrd/clued-server:v<version>` and
+`:latest` (linux/amd64 and linux/arm64, built from `Dockerfile.server` by the
+`release` job of `.github/workflows/mind-palace.yml`, which cuts the release
+when a push to main carries a new version in `.claude-plugin/plugin.json`). The image runs `mind-palace server run` as a
 non-root user on a distroless base, listens on `0.0.0.0:8443` and reads the
 token file from `/etc/clued/tokens.json`; everything else comes from the
 `CLUED_SERVER_*`, `MIND_PALACE_CONFIG`, `CLUED_MONGO_URL` and `CLUED_DB_NAME`
