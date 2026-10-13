@@ -1,7 +1,11 @@
 name: Mind palace
 
 on:
+  # Pushes to main only: a branch with a pull request is checked by the
+  # pull_request trigger below, so pushing to it does not run everything
+  # twice. The release job needs the push to main.
   push:
+    branches: [main]
     paths:
       - 'mind-palace/**'
       - 'hooks/**'
@@ -64,11 +68,50 @@ jobs:
         env:
           MIND_PALACE_TEST_MONGODB_URI: mongodb://127.0.0.1:27017
 
-  binaries:
-    # Every platform the plugin supports must still compile; the binaries
-    # are kept as a workflow artifact for a week (the release job publishes
-    # the ones scripts/clued downloads) and never committed.
+  version:
+    # What this run would release (scripts/release-plan.sh), decided before
+    # the builds so the matrix stamps that version into the binaries the
+    # release job then publishes as they are. Off main nothing is released
+    # and the binaries carry the manifest's version.
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      action: ${{ steps.plan.outputs.action }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: |
+          event=other
+          if [ "${{ github.ref }}" = refs/heads/main ]; then
+            case "${{ github.event_name }}" in
+              push) event=push ;;
+              workflow_dispatch) event=dispatch ;;
+            esac
+          fi
+          scripts/release-plan.sh "$event" | tee -a "$GITHUB_OUTPUT"
+
+  binaries:
+    # Every platform the plugin supports must still compile. One job per
+    # target (the matrix mirrors TARGETS in scripts/build-binaries.sh) so
+    # they build side by side, each stamped with the version the version
+    # job chose; each uploads its binary as an artifact (kept a week, never
+    # committed) that the image and release jobs reuse, so a release never
+    # compiles twice.
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - darwin/amd64
+          - darwin/arm64
+          - linux/amd64
+          - linux/arm64
+          - linux/arm
+          - windows/amd64
+          - windows/arm64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -77,48 +120,67 @@ jobs:
           cache-dependency-path: mind-palace/go.sum
       - name: The plugin manifest pins a release
         run: jq -e '.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")' .claude-plugin/plugin.json
-      - run: scripts/build-binaries.sh "$RUNNER_TEMP/binaries"
+      - name: The matrix lists every target of the build script
+        run: diff <(scripts/build-binaries.sh --targets) <(python3 -c 'import yaml; print("\n".join(yaml.safe_load(open(".github/workflows/mind-palace.yml"))["jobs"]["binaries"]["strategy"]["matrix"]["target"]))')
+      - id: build
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          scripts/build-binaries.sh --target "${{ matrix.target }}" "$RUNNER_TEMP/binaries"
+          echo "name=mind-palace-binary-${{ matrix.target }}" | tr '/' '-' >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: mind-palace-binaries
-          path: ${{ runner.temp }}/binaries
+          name: ${{ steps.build.outputs.name }}
+          path: ${{ runner.temp }}/binaries/mind-palace_*
           retention-days: 7
+          if-no-files-found: error
 
   image:
-    # Dockerfile.server must keep building from the current source; the
-    # image is not pushed here (the release job publishes it).
+    # Dockerfile.server must keep assembling from the Linux binaries the
+    # matrix built (it compiles nothing itself); the image is not pushed
+    # here (the release job publishes it).
+    needs: binaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mind-palace-binary-linux-*
+          merge-multiple: true
+          path: dist
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.server
+          platforms: linux/amd64,linux/arm64
           push: false
           tags: ghcr.io/robbiebyrd/clued-server:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   release:
     # Releases are cut by CI, never by a tag pushed by hand, and every push
-    # to main is a release: once the jobs above passed, this job looks at
-    # the version .claude-plugin/plugin.json names on the latest main.
-    #   - no GitHub release yet (a bump merged by hand, say to a new minor):
-    #     it is released as it is;
-    #   - released already and this is a push: the patch version is bumped
-    #     in plugin.json and marketplace.json, committed to main as
-    #     "Release v<next> [skip ci]" (the token's push starts no workflow),
-    #     and that commit is released;
-    #   - released already and the latest commit is such a bump, or this is
-    #     a manual run: nothing to do;
-    #   - released but missing assets (a failed upload): completed.
-    # Releasing builds the binaries with scripts/build-binaries.sh, pushes
-    # the server image as ghcr.io/robbiebyrd/clued-server:v<version> and
-    # :latest, and creates the release v<version> with the binaries and
-    # SHA256SUMS, which also creates the tag. scripts/clued downloads that
-    # release and `mind-palace server init` pins that image.
-    needs: [test, binaries, image]
+    # to main is a release. scripts/release-plan.sh decides what: a version
+    # in .claude-plugin/plugin.json with no GitHub release yet (a minor or
+    # major bumped by hand) is released as it is; on a push whose version is
+    # released, the next patch version is (bumped in plugin.json and
+    # marketplace.json, committed to main as "Release v<next> [skip ci]";
+    # the token's push starts no workflow); a release missing assets is
+    # completed; a manual run or a "Release v" HEAD bumps nothing.
+    #
+    # The binaries were built by the matrix from the pushed commit, stamped
+    # with the version the version job chose, so this job publishes them as
+    # they are only when that still holds on the latest main: main's code
+    # (everything outside .claude-plugin/) is the pushed commit's, and the
+    # plan gives the same version. Otherwise a later push's run releases
+    # the newer code and this run publishes nothing.
+    #
+    # Publishing writes SHA256SUMS over the collected binaries, assembles
+    # and pushes ghcr.io/robbiebyrd/clued-server:v<version> and :latest from
+    # the Linux ones and creates the release v<version> with every binary,
+    # which also creates the tag at the commit released. scripts/clued
+    # downloads that release and `mind-palace server init` pins that image.
+    needs: [version, test, binaries, image]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     concurrency:
@@ -133,52 +195,42 @@ jobs:
       - uses: actions/checkout@v4
         with:
           # The latest main, not the pushed commit: a bump lands on top of
-          # whatever merged since, and the release is built from it.
+          # whatever merged since. Full history, to compare with the
+          # pushed commit.
           ref: main
+          fetch-depth: 0
       - id: version
-        name: Which version does this push release?
+        name: Which version does this run release?
         run: |
           set -euo pipefail
-          bump() { awk -F. '{printf "%d.%d.%d", $1, $2, $3 + 1}' <<<"$1"; }
-          assets() { gh release view "v$1" --json assets --jq '.assets | length' 2>/dev/null; }
-          version=$(jq -r '.version // empty' .claude-plugin/plugin.json)
-          if [ -z "$version" ]; then
-            echo "no version in .claude-plugin/plugin.json" >&2
-            exit 1
-          fi
-          # A release counts as published when it carries every asset the
-          # build script produces (its targets plus SHA256SUMS).
-          want=$(( $(grep -cE '^  (darwin|linux|windows)/[a-z0-9]+$' scripts/build-binaries.sh) + 1 ))
-          exists=false
           publish=false
-          if n=$(assets "$version"); then
-            exists=true
-            if [ "$n" -lt "$want" ]; then
-              echo "release v$version exists with $n of $want assets; completing it"
-              publish=true
-            elif [ "${{ github.event_name }}" != push ]; then
-              echo "release v$version exists with $n assets; a manual run bumps nothing"
-            elif git log -1 --format=%s | grep -q '^Release v'; then
-              echo "main is at the bump of v$version, which is released; nothing to publish"
-            else
-              next=$(bump "$version")
-              while assets "$next" >/dev/null; do next=$(bump "$next"); done
-              echo "v$version is released; bumping main to v$next"
-              sed -i -E "s/\"version\": \"$version\"/\"version\": \"$next\"/" .claude-plugin/plugin.json .claude-plugin/marketplace.json
-              jq -e --arg v "$next" '.version == $v' .claude-plugin/plugin.json >/dev/null
-              jq -e --arg v "$next" 'all(.plugins[]; .version == $v)' .claude-plugin/marketplace.json >/dev/null
-              git config user.name "github-actions[bot]"
-              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-              git commit -am "Release v$next [skip ci]"
-              git push origin HEAD:main
-              version=$next
-              exists=false
-              publish=true
-            fi
+          if ! git diff --quiet "$GITHUB_SHA" HEAD -- . ':(exclude).claude-plugin'; then
+            echo "::notice::main's code moved past $GITHUB_SHA; the later push's run releases it"
+            plan="version=${{ needs.version.outputs.version }}"$'\n'"action=none"$'\n'"exists=false"
           else
-            echo "v$version has no release yet; publishing it"
-            publish=true
+            event=push
+            [ "${{ github.event_name }}" = push ] || event=dispatch
+            plan=$(scripts/release-plan.sh "$event")
           fi
+          version=$(sed -n 's/^version=//p' <<<"$plan")
+          action=$(sed -n 's/^action=//p' <<<"$plan")
+          exists=$(sed -n 's/^exists=//p' <<<"$plan")
+          if [ "$action" != none ] && [ "$version" != "${{ needs.version.outputs.version }}" ]; then
+            echo "::warning::the binaries carry v${{ needs.version.outputs.version }} but main now releases v$version; the next push releases it"
+            action=none
+          fi
+          if [ "$action" = bump ]; then
+            current=$(jq -r .version .claude-plugin/plugin.json)
+            echo "v$current is released; bumping main to v$version"
+            sed -i -E "s/\"version\": \"$current\"/\"version\": \"$version\"/" .claude-plugin/plugin.json .claude-plugin/marketplace.json
+            jq -e --arg v "$version" '.version == $v' .claude-plugin/plugin.json >/dev/null
+            jq -e --arg v "$version" 'all(.plugins[]; .version == $v)' .claude-plugin/marketplace.json >/dev/null
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "Release v$version [skip ci]"
+            git push origin HEAD:main
+          fi
+          [ "$action" = none ] || publish=true
           {
             echo "version=$version"
             echo "tag=v$version"
@@ -187,15 +239,15 @@ jobs:
             echo "publish=$publish"
           } >> "$GITHUB_OUTPUT"
       - if: steps.version.outputs.publish == 'true'
-        uses: actions/setup-go@v5
+        name: Collect the binaries the matrix built
+        uses: actions/download-artifact@v4
         with:
-          go-version-file: mind-palace/go.mod
-          cache-dependency-path: mind-palace/go.sum
+          pattern: mind-palace-binary-*
+          merge-multiple: true
+          path: release-assets
       - if: steps.version.outputs.publish == 'true'
-        name: Build every platform
-        run: scripts/build-binaries.sh release-assets
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
+        name: Write SHA256SUMS
+        run: scripts/build-binaries.sh --sums release-assets
       - if: steps.version.outputs.publish == 'true'
         uses: docker/setup-qemu-action@v3
       - if: steps.version.outputs.publish == 'true'
@@ -214,13 +266,10 @@ jobs:
           file: Dockerfile.server
           platforms: linux/amd64,linux/arm64
           push: true
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}
+          build-args: BINARIES=release-assets
           tags: |
             ghcr.io/robbiebyrd/clued-server:${{ steps.version.outputs.tag }}
             ghcr.io/robbiebyrd/clued-server:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
       - if: steps.version.outputs.publish == 'true'
         name: Create the release and its tag, or complete its assets
         # `gh release create` creates the tag at --target when it does not

@@ -1,20 +1,5 @@
-# Dockerfile.server builds only mind-palace/; keep the rest out of the context.
-.git
-.claude
-.claude-plugin
-.github
-.worktrees
-dist
-docs
-commands
-hooks
-skills
-scripts
-*.md
-# Local builds of the binaries inside the module.
-mind-palace/mind-palace
-mind-palace/plan
-mind-palace/story
-mind-palace/cmd/mind-palace/mind-palace
-mind-palace/cmd/plan/plan
-mind-palace/cmd/story/story
+# Dockerfile.server copies pre-built binaries (BINARIES, dist/ by default,
+# release-assets/ in the release job); nothing else enters the context.
+*
+!dist
+!release-assets

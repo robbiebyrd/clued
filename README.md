@@ -523,9 +523,17 @@ windows/{amd64,arm64} (Go has no windows/arm target and Claude Code does not
 run on 32-bit x86; linux/arm is built with `GOARM=6` so it runs on ARMv6 and
 ARMv7) and writes `SHA256SUMS` next to them, into the git-ignored `dist/` by
 default. The builds are reproducible (CGO off, `-trimpath`, no VCS stamp, the
-toolchain pinned to `go.mod`). CI's `binaries` job runs it on every push to
-prove each target compiles and keeps the output as a workflow artifact for a
-week.
+toolchain pinned to `go.mod`). CI's `binaries` job runs it on every pull request and
+push to main as one job per target (`--target os/arch`, the jobs run side by side) to prove
+each target compiles, and keeps each binary as a workflow artifact for a
+week. `Dockerfile.server` compiles nothing: it copies the Linux binary of
+its platform from `dist/` (`BINARIES` names another directory), so build
+them first:
+
+```bash
+scripts/build-binaries.sh --target linux/amd64 --target linux/arm64 dist
+docker build -f Dockerfile.server -t ghcr.io/robbiebyrd/clued-server:dev .
+```
 
 Releasing is CI's job and needs no tag pushed by hand: every push to main
 is a release. The `release` job of `.github/workflows/mind-palace.yml` runs
@@ -533,9 +541,12 @@ after the tests and builds passed; when the version in
 `.claude-plugin/plugin.json` is already released it bumps the patch version
 in `plugin.json` and `marketplace.json`, commits `Release v<next> [skip ci]`
 to main and releases that commit, and a version with no release yet (a
-minor or major bumped by hand before merging) is released as it is. The
-release builds the binaries with the version stamped in (`/health` and the
-client's `User-Agent` report it), pushes the server image as
+minor or major bumped by hand before merging) is released as it is
+(`scripts/release-plan.sh` makes that decision, once before the builds so
+they stamp the right version and again in the release job). The release
+collects the binaries the matrix built with the version stamped in
+(`/health` and the client's `User-Agent` report it; `--sums` writes their
+`SHA256SUMS`), assembles and pushes the server image from the Linux ones as
 `ghcr.io/robbiebyrd/clued-server:v<version>` and `:latest`, and creates the
 release `v<version>` (which creates the tag at that commit) with the
 binaries and `SHA256SUMS`. `scripts/clued` on every machine then downloads

@@ -322,7 +322,7 @@ func TestRootGainsOnlySessionGroup(t *testing.T) {
 	if !reflect.DeepEqual(groups["story"], wantStory) {
 		t.Errorf("story group = %v", groups["story"])
 	}
-	wantSession := []string{"backfill", "context", "daemon", "find", "full", "mcp", "memory-ingest", "restore", "search-commands", "search-memory", "transcript", "whoami"}
+	wantSession := []string{"backfill", "config-pull", "context", "daemon", "find", "full", "login", "logout", "mcp", "memory-ingest", "restore", "search-commands", "search-memory", "transcript", "whoami"}
 	if !reflect.DeepEqual(groups["session"], wantSession) {
 		t.Errorf("session group = %v, want %v", groups["session"], wantSession)
 	}

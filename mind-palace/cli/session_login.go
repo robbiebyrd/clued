@@ -1,0 +1,303 @@
+package cli
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"os"
+	"os/user"
+	"runtime"
+	"strings"
+	"time"
+
+	"github.com/spf13/cobra"
+
+	"github.com/robbiebyrd/clued/mind-palace/collect/prime"
+	"github.com/robbiebyrd/clued/mind-palace/remote"
+	"github.com/robbiebyrd/clued/mind-palace/session"
+)
+
+// Routes of the clued cloud the client commands use; a plain clued server
+// answers 404 on them, which the commands treat as "not a cloud".
+const (
+	deviceCodePath   = "/api/v1/device/code"
+	deviceTokenPath  = "/api/v1/device/token"
+	meConfigPath     = "/api/v1/me/config"
+	meCurrentToken   = "/api/v1/me/tokens/current"
+	minPollInterval  = time.Second
+	defaultLoginWait = 15 * time.Minute
+)
+
+// Config keys the server's client settings may set (the same names as in
+// config.json); nothing else from the server reaches the file.
+var pulledConfigKeys = []string{"enabledEnrichers", "disabledEnrichers", "projectsDir", "fileHistoryDir"}
+
+// deviceStart is the body of POST /api/v1/device/code.
+type deviceStart struct {
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURIComplete string `json:"verification_uri_complete"`
+	ExpiresIn               int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
+}
+
+// deviceLink is the body of POST /api/v1/device/token once approved.
+type deviceLink struct {
+	Token     string `json:"token"`
+	TokenID   string `json:"token_id"`
+	Name      string `json:"name"`
+	AccountID string `json:"account_id"`
+}
+
+// sessionLoginCmd is `session login`: link this machine to a clued cloud
+// through the device flow and write the token into config.json.
+func (a *App) sessionLoginCmd() *cobra.Command {
+	var (
+		serverURL, name, caFile string
+		insecure                bool
+		wait                    time.Duration
+	)
+	c := &cobra.Command{
+		Use:   "login --server URL [--name NAME] [--ca-file PEM] [--wait 15m]",
+		Short: "Link this machine to a clued cloud: open the printed link, approve, and the token lands in config.json",
+		Long: `Starts the device flow on the cloud at --server (POST /api/v1/device/code),
+prints the link and the code to approve on stderr, polls until the user
+approves in a browser, then writes serverUrl and serverToken (and
+serverCaFile or serverInsecure when given) into the config file, keeping
+every other key, with mode 0600, and checks the token with /api/v1/whoami.
+The link may be opened from any browser: a terminal prints it, the Claude
+Code app renders it. A denied or expired request fails the command.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if strings.TrimSpace(serverURL) == "" {
+				return a.sessionBadRequest("--server is required (the cloud's URL, e.g. https://cloud.example.com)")
+			}
+			cfg := session.Config{ServerURL: serverURL, ServerCAFile: caFile, ServerInsecure: insecure}
+			client, err := remote.New(cfg)
+			if err != nil {
+				return a.sessionFail(err)
+			}
+			if name == "" {
+				name = clientName()
+			}
+			ctx := cmd.Context()
+			var start deviceStart
+			err = client.Do(ctx, http.MethodPost, deviceCodePath, map[string]any{"client_name": name, "client_info": clientInfo()}, &start)
+			if err != nil {
+				if remote.IsNotFound(err) {
+					return a.sessionBadRequest(fmt.Sprintf("%s is not a clued cloud (no %s); for a plain clued server put its token in %s by hand", client.BaseURL(), deviceCodePath, a.sess.configPath))
+				}
+				return a.sessionFail(err)
+			}
+			fmt.Fprintf(a.Stderr, "clued: open %s in a browser and approve the code %s (expires in %d minutes)\n",
+				start.VerificationURIComplete, start.UserCode, max(start.ExpiresIn/60, 1))
+
+			link, err := pollDeviceLink(ctx, client, start, wait)
+			if err != nil {
+				return a.sessionFail(err)
+			}
+			set := map[string]any{"serverUrl": client.BaseURL(), "serverToken": link.Token}
+			remove := []string{"serverCaFile", "serverInsecure"}
+			if caFile != "" {
+				set["serverCaFile"] = caFile
+				remove = remove[1:]
+			}
+			if insecure {
+				set["serverInsecure"] = true
+				remove = remove[:1]
+			}
+			if err := session.UpdateConfigFile(a.sess.configPath, set, remove); err != nil {
+				return a.sessionFail(err)
+			}
+			cfg.ServerToken = link.Token
+			linked, err := remote.New(cfg)
+			if err != nil {
+				return a.sessionFail(err)
+			}
+			p, err := prime.Whoami(ctx, linked)
+			if err != nil {
+				return a.sessionFail(fmt.Errorf("the token was written to %s but whoami failed: %w", a.sess.configPath, err))
+			}
+			a.print(a.Stdout, map[string]any{"ok": true, "result": map[string]any{
+				"server": client.BaseURL(), "name": p.Name, "account_id": p.AccountID, "token_id": link.TokenID, "version": p.Version, "config": a.sess.configPath,
+			}})
+			return nil
+		},
+	}
+	c.Flags().StringVar(&serverURL, "server", os.Getenv("CLUED_SERVER_URL"), "the clued cloud's URL (CLUED_SERVER_URL)")
+	c.Flags().StringVar(&name, "name", "", "how this client is listed in the cloud (default: the host name)")
+	c.Flags().StringVar(&caFile, "ca-file", "", "PEM bundle of a private CA to trust, written as serverCaFile")
+	c.Flags().BoolVar(&insecure, "insecure", false, "allow a plain http:// server off loopback (written as serverInsecure)")
+	c.Flags().DurationVar(&wait, "wait", defaultLoginWait, "how long to wait for the approval")
+	return c
+}
+
+// pollDeviceLink polls the token endpoint at the server's interval until
+// the token arrives or a final answer (denied, expired, unknown) comes.
+func pollDeviceLink(ctx context.Context, client *remote.Client, start deviceStart, wait time.Duration) (deviceLink, error) {
+	interval := max(time.Duration(start.Interval)*time.Second, minPollInterval)
+	deadline := time.Now().Add(wait)
+	for {
+		select {
+		case <-ctx.Done():
+			return deviceLink{}, ctx.Err()
+		case <-time.After(interval):
+		}
+		var link deviceLink
+		err := client.Do(ctx, http.MethodPost, deviceTokenPath, map[string]string{"device_code": start.DeviceCode}, &link)
+		if err == nil {
+			if link.Token == "" {
+				return deviceLink{}, errors.New("the cloud delivered an empty token")
+			}
+			return link, nil
+		}
+		var re *remote.Error
+		if errors.As(err, &re) {
+			switch re.Kind {
+			case "authorization_pending":
+			case "slow_down":
+				interval += 5 * time.Second
+			case "access_denied":
+				return deviceLink{}, errors.New("the link was denied in the browser")
+			case "expired_token":
+				return deviceLink{}, errors.New("the code expired before it was approved; run login again")
+			default:
+				return deviceLink{}, err
+			}
+		} else {
+			return deviceLink{}, err
+		}
+		if time.Now().After(deadline) {
+			return deviceLink{}, fmt.Errorf("no approval within %s; run login again", wait)
+		}
+	}
+}
+
+// clientName is the default name a client links under: the short host name.
+func clientName() string {
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		return "clued client"
+	}
+	if i := strings.IndexByte(host, '.'); i > 0 {
+		host = host[:i]
+	}
+	return host
+}
+
+// clientInfo is what the cloud shows next to the code so the user can tell
+// the request is theirs.
+func clientInfo() map[string]string {
+	info := map[string]string{"os": runtime.GOOS, "arch": runtime.GOARCH}
+	if host, err := os.Hostname(); err == nil {
+		info["host"] = host
+	}
+	if u, err := user.Current(); err == nil && u.Username != "" {
+		info["user"] = u.Username
+	}
+	return info
+}
+
+// sessionLogoutCmd is `session logout`: revoke this client's cloud token
+// and take the server keys out of config.json.
+func (a *App) sessionLogoutCmd() *cobra.Command {
+	var keep bool
+	c := &cobra.Command{
+		Use:   "logout [--keep-config]",
+		Short: "Revoke this client's token on the cloud and leave remote mode",
+		Long: `Calls DELETE /api/v1/me/tokens/current on the configured server (a plain
+clued server has no such route and is skipped; a token the server no longer
+knows is fine too) and removes serverUrl, serverToken, serverCaFile and
+serverInsecure from the config file, which puts the plugin back in local
+mode. --keep-config revokes only.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := a.sessionConfig()
+			client, err := remote.FromConfigE(cfg)
+			if err != nil {
+				return a.sessionFail(err)
+			}
+			if client == nil {
+				return a.sessionBadRequest(fmt.Sprintf("no server configured in %s (or CLUED_SERVER_URL)", a.sess.configPath))
+			}
+			revoked := false
+			err = client.Do(cmd.Context(), http.MethodDelete, meCurrentToken, nil, nil)
+			switch {
+			case err == nil:
+				revoked = true
+			case remote.IsNotFound(err), errors.Is(err, remote.ErrUnauthorized):
+			default:
+				return a.sessionFail(err)
+			}
+			if !keep {
+				if err := session.UpdateConfigFile(a.sess.configPath, nil, []string{"serverUrl", "serverToken", "serverCaFile", "serverInsecure"}); err != nil {
+					return a.sessionFail(err)
+				}
+			}
+			a.print(a.Stdout, map[string]any{"ok": true, "result": map[string]any{"server": client.BaseURL(), "revoked": revoked, "config": a.sess.configPath, "config_kept": keep}})
+			return nil
+		},
+	}
+	c.Flags().BoolVar(&keep, "keep-config", false, "revoke the token but leave the config file alone")
+	return c
+}
+
+// sessionConfigPullCmd is `session config-pull`: apply the account's client
+// settings from the cloud to config.json.
+func (a *App) sessionConfigPullCmd() *cobra.Command {
+	var quiet bool
+	c := &cobra.Command{
+		Use:   "config-pull [--quiet]",
+		Short: "Apply the client settings managed in the clued cloud to config.json",
+		Long: `Fetches GET /api/v1/me/config from the configured server and writes the
+keys it carries (enabledEnrichers, disabledEnrichers, projectsDir,
+fileHistoryDir) into the config file, keeping every other key. Keys the
+server does not set are left as they are. Not in remote mode, or against a
+plain clued server (no such route), nothing changes and the command
+succeeds; the session-start hook runs it with --quiet.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := a.sessionConfig()
+			client, err := remote.FromConfigE(cfg)
+			if err != nil {
+				return a.sessionFail(err)
+			}
+			res := map[string]any{"remote": client != nil, "supported": false, "updated": []string{}}
+			if client != nil {
+				var body struct {
+					ClientConfig map[string]any `json:"client_config"`
+					UpdatedAt    string         `json:"updated_at"`
+				}
+				err := client.Do(cmd.Context(), http.MethodGet, meConfigPath, nil, &body)
+				switch {
+				case err == nil:
+					set := map[string]any{}
+					updated := []string{}
+					for _, k := range pulledConfigKeys {
+						if v, ok := body.ClientConfig[k]; ok && v != nil {
+							set[k] = v
+							updated = append(updated, k)
+						}
+					}
+					if len(set) > 0 {
+						if err := session.UpdateConfigFile(a.sess.configPath, set, nil); err != nil {
+							return a.sessionFail(err)
+						}
+					}
+					res["supported"], res["updated"], res["updated_at"] = true, updated, body.UpdatedAt
+				case remote.IsNotFound(err):
+				default:
+					return a.sessionFail(err)
+				}
+			}
+			if !quiet {
+				a.print(a.Stdout, map[string]any{"ok": true, "result": res})
+			}
+			return nil
+		},
+	}
+	c.Flags().BoolVar(&quiet, "quiet", false, "print nothing on success")
+	return c
+}

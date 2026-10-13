@@ -151,7 +151,13 @@ func TestLookupIsConstantTime(t *testing.T) {
 		t.Fatal("equal digests do not match")
 	}
 	h := HashToken(raws[0])
-	if matchHash(h, h[:len(h)-1]+"0") || matchHash(h, h[:len(h)-1]) || matchHash(h, "") {
+	// The near miss differs in the last hex digit only; it must not be the
+	// digit the hash already ends in (one hash in sixteen ends in "0").
+	last := "0"
+	if h[len(h)-1] == '0' {
+		last = "1"
+	}
+	if matchHash(h, h[:len(h)-1]+last) || matchHash(h, h[:len(h)-1]) || matchHash(h, "") {
 		t.Fatal("near-miss digest matched")
 	}
 }
