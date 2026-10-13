@@ -58,6 +58,9 @@ var ErrNotFound = errors.New("session not found")
 // for a 413. Callers record such a refusal instead of retrying it.
 var ErrTooLarge = errors.New("content too large")
 
+// ErrNoAccount is returned by DeleteAccount for an empty account id.
+var ErrNoAccount = errors.New("account id is required")
+
 // ErrUnsupported is returned by a store that cannot perform an operation at
 // all, as the remote adapter does for the enrichment methods (enrichment
 // runs on the server). Callers must not wire such a store to enrich.Loop.
@@ -112,5 +115,10 @@ type Store interface {
 	// SetEnrichmentSkipped marks a document the enricher does not apply to, so
 	// it leaves the queue.
 	SetEnrichmentSkipped(ctx context.Context, collection string, id any, enricher string) error
+	// DeleteAccount removes every document stamped with the account
+	// (sessions, hook events, transcript and subagent lines, blobs) and
+	// returns how many went. An empty accountID is ErrNoAccount: documents
+	// without an account are never deleted wholesale.
+	DeleteAccount(ctx context.Context, accountID string) (int64, error)
 	Close(ctx context.Context) error
 }

@@ -36,6 +36,28 @@ var _ session.Store = (*Store)(nil)
 // New returns an empty store.
 func New() *Store { return &Store{cols: map[string][]session.Doc{}} }
 
+// DeleteAccount drops every document of every collection stamped with the account.
+func (s *Store) DeleteAccount(_ context.Context, accountID string) (int64, error) {
+	if accountID == "" {
+		return 0, session.ErrNoAccount
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var n int64
+	for col, docs := range s.cols {
+		kept := docs[:0]
+		for _, d := range docs {
+			if owned(d, accountID) {
+				n++
+				continue
+			}
+			kept = append(kept, d)
+		}
+		s.cols[col] = kept
+	}
+	return n, nil
+}
+
 // Close is a no-op; the store has nothing to release.
 func (s *Store) Close(context.Context) error { return nil }
 

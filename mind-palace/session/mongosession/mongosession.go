@@ -250,6 +250,23 @@ func objectID(id any) any {
 
 func (s *Store) coll(name string) *mongo.Collection { return s.db.Collection(name) }
 
+// DeleteAccount deletes the account's documents from every collection the
+// store writes (session_full is a view over them).
+func (s *Store) DeleteAccount(ctx context.Context, accountID string) (int64, error) {
+	if accountID == "" {
+		return 0, session.ErrNoAccount
+	}
+	var n int64
+	for _, name := range []string{hookEvents, transcriptLines, subagentLines, blobs, sessions} {
+		res, err := s.coll(name).DeleteMany(ctx, bson.M{"account_id": accountID})
+		if err != nil {
+			return n, fmt.Errorf("delete account from %s: %w", name, err)
+		}
+		n += res.DeletedCount
+	}
+	return n, nil
+}
+
 // find runs a query and returns the documents; a limit of zero or less means no limit.
 func (s *Store) find(ctx context.Context, col string, filter bson.D, projection, sort bson.D, skip, limit int) ([]session.Doc, error) {
 	opts := options.Find()

@@ -95,6 +95,10 @@ type CluedOptions struct {
 	Enrichers []session.Enricher
 	// EnrichInterval is the enrichment period (DefaultEnrichInterval when zero).
 	EnrichInterval time.Duration
+	// EnrichPolicy, when set, decides per document's account whether each
+	// of Enrichers runs (enrich.Policy); a multi-tenant server applies each
+	// account's own settings with it. Nil runs Enrichers for everyone.
+	EnrichPolicy enrich.Policy
 	// Logger receives one line per request and the enrichment log
 	// (slog.Default when nil).
 	Logger *slog.Logger
@@ -382,7 +386,7 @@ func (c *Clued) Serve(ctx context.Context, l Listen, ready chan<- string) error 
 		loop.Add(1)
 		go func() {
 			defer loop.Done()
-			enrich.Loop(loopCtx, c.opts.Sessions, c.opts.Enrichers, c.opts.EnrichInterval, c.opts.Logger)
+			enrich.LoopWithPolicy(loopCtx, c.opts.Sessions, c.opts.Enrichers, c.opts.EnrichPolicy, c.opts.EnrichInterval, c.opts.Logger)
 		}()
 	}
 	stop := func() {
