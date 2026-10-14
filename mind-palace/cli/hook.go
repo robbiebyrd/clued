@@ -26,7 +26,7 @@ func (a *App) hookCmd() *cobra.Command {
 		Use:   "hook",
 		Short: "Claude Code hooks served by the binary (read hook JSON on stdin)",
 	}
-	cmd.AddCommand(a.hookStopGuardCmd(), a.hookWriteGuardCmd(), a.hookStatusReviewCmd(), a.hookRelayCmd(), a.hookPrimeCmd())
+	cmd.AddCommand(a.hookStopGuardCmd(), a.hookWriteGuardCmd(), a.hookStatusReviewCmd(), a.hookRelayCmd(), a.hookPrimeCmd(), a.hookStatusCmd())
 	return cmd
 }
 

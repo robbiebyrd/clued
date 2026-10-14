@@ -79,7 +79,12 @@ type DaemonPoster struct {
 // Post delivers one event. It returns an error only when neither the daemon
 // nor the WAL accepted it.
 func (p DaemonPoster) Post(ctx context.Context, ev Event) error {
-	doc := ev.Doc()
+	return p.PostDoc(ctx, ev.Doc())
+}
+
+// PostDoc delivers any event document the way Post does; the status-line
+// sampler (`hook status`) posts its LimitsSampled events through it.
+func (p DaemonPoster) PostDoc(ctx context.Context, doc session.Doc) error {
 	err := p.send(ctx, doc)
 	if err == nil {
 		return nil

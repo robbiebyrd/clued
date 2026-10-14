@@ -62,4 +62,40 @@ jq \
   replace("SubagentStop";     [relay_hook($relay)])
   ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
 
+# The status line. When config.json sets statusLine (or CLUED_STATUS_LINE is
+# 1/true/yes/on), `clued hook status` becomes Claude Code's status line
+# command, sampling the context window and the usage limits; the command
+# configured before it is kept in statusline.json next to config.json and run
+# after the sample, so the line itself does not change. Otherwise a clued
+# status line is taken out again and that command put back.
+CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
+STATUS_THEN="$(dirname "$CONFIG_FILE")/statusline.json"
+STATUS_CMD="$CLUED hook status"
+want=$(jq -r 'if .statusLine == true then "true" else "false" end' "$CONFIG_FILE" 2>/dev/null || echo false)
+case "${CLUED_STATUS_LINE:-}" in
+  1|true|yes|on) want=true ;;
+  0|false|no|off) want=false ;;
+esac
+current=$(jq -r '.statusLine.command // empty' "$SETTINGS")
+is_clued_status() { [[ "$1" == *"/scripts/clued hook status"* ]]; }
+if [[ "$want" == true ]]; then
+  if [[ -n "$current" ]] && ! is_clued_status "$current"; then
+    mkdir -p "$(dirname "$STATUS_THEN")"
+    jq -n --arg then "$current" '{then: $then}' > "$STATUS_THEN"
+  fi
+  if [[ "$current" != "$STATUS_CMD" ]]; then
+    jq --arg cmd "$STATUS_CMD" '.statusLine = ((.statusLine // {}) + {"type": "command", "command": $cmd})' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
+    echo "clued: status line set to $STATUS_CMD"
+  fi
+elif [[ -n "$current" ]] && is_clued_status "$current"; then
+  then=$(jq -r '.then // empty' "$STATUS_THEN" 2>/dev/null)
+  if [[ -n "$then" ]]; then
+    jq --arg cmd "$then" '.statusLine.command = $cmd' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
+  else
+    jq 'del(.statusLine)' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
+  fi
+  rm -f "$STATUS_THEN"
+  echo "clued: status line restored"
+fi
+
 echo "clued: registered hooks in $SETTINGS"

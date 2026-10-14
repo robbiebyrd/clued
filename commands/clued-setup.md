@@ -385,6 +385,21 @@ Finally register the hooks now rather than at the next session start:
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/register-hooks"
 ```
 
+Then offer the status line, once:
+
+> "Should clued also run Claude Code's status line? It prints your current status line unchanged (or `ctx 37% of 1M · 5h 12% · 7d 40%` when there is none) and records the context window's fill and, on a Pro or Max plan, the five-hour and seven-day usage limits as `LimitsSampled` events you can query with `get_limits`. (yes/no)"
+
+On yes, set `statusLine` in the config file and register again, which keeps the
+status line command configured today to run after each sample:
+
+```bash
+jq '.statusLine = true' "${HOME}/.claude/plugins/data/clued/config.json" > "${HOME}/.claude/plugins/data/clued/config.json.tmp" && mv "${HOME}/.claude/plugins/data/clued/config.json.tmp" "${HOME}/.claude/plugins/data/clued/config.json" && chmod 600 "${HOME}/.claude/plugins/data/clued/config.json"
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/register-hooks"
+```
+
+The status line takes effect on the next Claude Code start. Setting `statusLine`
+back to `false` and registering again puts the previous command back.
+
 ## Step 9 — Confirm to user
 
 - Where the data goes: the MongoDB option and URL, the clued server URL and the token name and projects `session whoami` reported, or the clued cloud URL and the account `session login` linked (its web app manages linked machines and client settings)
