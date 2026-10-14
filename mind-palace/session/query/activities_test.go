@@ -115,3 +115,37 @@ func TestActivitiesCollapsesRepeatedToolCallsAndScopes(t *testing.T) {
 		t.Errorf("since and limit = %+v (%v)", rows(recent), err)
 	}
 }
+
+func TestActivitiesCarryTheToolResultDetail(t *testing.T) {
+	st := memsession.New()
+	seedSession(t, st, "acc", "s1", "/p/one", "", time.Now())
+	seedActivity(t, st, "acc", "s1", 0, session.Doc{"kind": "result", "label": "result", "detail": "ok", "tool_use_id": "t1"})
+	ctx := context.Background()
+	pending, err := st.Unenriched(ctx, "transcript_lines", "tool-result-detail", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range pending {
+		if d["session_id"] == "s1" {
+			detail := session.Doc{"tool": "edit", "summary": "a.go L10-12 +3 -1", "tool_use_id": "t1", "file_path": "/repo/a.go", "span": "L10-12", "lines_added": 3, "lines_removed": 1,
+				"hunks": []any{map[string]any{"old_start": 10}}, "diff": "@@ -10,3 +10,5 @@\n+x"}
+			if err := st.SetEnrichment(ctx, "transcript_lines", d["_id"], "tool-result-detail", detail); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	svc := &query.Service{Store: st, AccountID: "acc"}
+	got, err := svc.Activities(ctx, query.ActivitiesArgs{Kinds: []string{"result"}})
+	if err != nil || len(got) != 1 {
+		t.Fatalf("activities = %+v (%v)", got, err)
+	}
+	a := got[0]
+	if a.Detail != "a.go L10-12 +3 -1" || a.Result["span"] != "L10-12" || a.Result["tool"] != "edit" || a.Result["file_path"] != "/repo/a.go" {
+		t.Errorf("entry = %+v", a)
+	}
+	for _, k := range []string{"diff", "hunks"} {
+		if _, has := a.Result[k]; has {
+			t.Errorf("result carries %s", k)
+		}
+	}
+}

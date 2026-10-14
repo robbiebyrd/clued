@@ -272,7 +272,7 @@ func (a *App) sessionLimitsCmd() *cobra.Command {
 func (a *App) sessionActivitiesCmd() *cobra.Command {
 	var args query.ActivitiesArgs
 	c := &cobra.Command{
-		Use:   "activities [--session id] [--git-origin re] [--project-path re] [--kind k]… [--since t] [--limit n]",
+		Use:   "activities [--session id] [--git-origin re] [--project-path re] [--kind k]… [--since t] [--include-rejected] [--limit n]",
 		Short: "Show what the agent did (prompts, replies, thoughts, commands, edits, reads, tasks, commits), newest first, repeats collapsed",
 		Args:  cobra.NoArgs,
 	}
@@ -294,6 +294,7 @@ func (a *App) sessionActivitiesCmd() *cobra.Command {
 	f.StringVar(&args.ProjectPath, "project-path", "", "only sessions whose project path matches this regular expression")
 	f.StringArrayVar(&args.Kinds, "kind", nil, "only this activity kind (user, response, thinking, bash, commit, edit, read, task, tool, result, other, state); repeatable")
 	f.StringVar(&args.Since, "since", "", "only lines after this RFC 3339 time, or within this duration back from now (e.g. 24h)")
+	f.BoolVar(&args.IncludeRejected, "include-rejected", false, "keep the tool calls the harness refused to run, and their results")
 	f.IntVar(&args.Limit, "limit", 0, "maximum lines read before repeats are collapsed (default 50, at most 500)")
 	return c
 }
@@ -400,7 +401,7 @@ func (a *App) sessionFindCmd() *cobra.Command {
 func (a *App) sessionSearchCommandsCmd() *cobra.Command {
 	var args query.SearchCommandsArgs
 	c := &cobra.Command{
-		Use:   "search-commands <pattern> [--session id] [--git-origin re] [--limit n]",
+		Use:   "search-commands <pattern> [--session id] [--git-origin re] [--include-rejected] [--limit n]",
 		Short: "Search the Bash commands run in sessions, newest first",
 		Args:  cobra.ExactArgs(1),
 	}
@@ -420,6 +421,7 @@ func (a *App) sessionSearchCommandsCmd() *cobra.Command {
 	f := c.Flags()
 	f.StringVar(&args.SessionID, "session", "", "only this session")
 	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
+	f.BoolVar(&args.IncludeRejected, "include-rejected", false, "keep the commands the harness refused to run")
 	f.IntVar(&args.Limit, "limit", 0, "maximum commands (default 20, at most 500)")
 	return c
 }

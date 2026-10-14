@@ -372,6 +372,35 @@ func (s *Store) StateChanges(_ context.Context, q session.ActivityQuery) ([]sess
 	return out, nil
 }
 
+func (s *Store) RejectedToolUses(_ context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	inSessions := setOf(q.SessionIDs)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(transcriptLines, func(d session.Doc) bool {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			return false
+		}
+		if rejected, _ := d.Map("enrichments").Map("error-flag")["rejected"].(bool); !rejected {
+			return false
+		}
+		return q.Since.IsZero() || !timeOf(d, "created_at").Before(q.Since)
+	})
+	sort.SliceStable(found, func(i, j int) bool {
+		ti, tj := timeOf(found[i], "created_at"), timeOf(found[j], "created_at")
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return intOf(found[i], "seq") > intOf(found[j], "seq")
+	})
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		p := project(d, "session_id", "seq", "created_at")
+		p["enrichments"] = session.Doc{"error-flag": deepCopy(d.Map("enrichments")["error-flag"])}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
 func (s *Store) LastModelBefore(_ context.Context, sessionID string, seq int, at time.Time) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -574,7 +603,7 @@ func (s *Store) BashEvents(_ context.Context, q session.CommandQuery) ([]session
 
 	out := []session.Doc{}
 	for _, d := range page(found, 0, q.Limit) {
-		out = append(out, project(d, "session_id", "tool_input", "created_at"))
+		out = append(out, project(d, "session_id", "tool_use_id", "tool_input", "created_at"))
 	}
 	return out, nil
 }
@@ -682,6 +711,9 @@ func (s *Store) Activities(_ context.Context, q session.ActivityQuery) ([]sessio
 			p["line"] = session.Doc{"timestamp": ts}
 		}
 		p["enrichments"] = session.Doc{"activity-kind": deepCopy(d.Map("enrichments")["activity-kind"])}
+		if detail, ok := d.Map("enrichments")["tool-result-detail"]; ok {
+			p["enrichments"].(session.Doc)["tool-result-detail"] = deepCopy(detail)
+		}
 		out = append(out, p)
 	}
 	return out, nil

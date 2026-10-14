@@ -62,11 +62,13 @@ type FindSessionsArgs struct {
 }
 
 // SearchCommandsArgs are the search_commands tool parameters.
+// IncludeRejected keeps the commands the harness refused to run.
 type SearchCommandsArgs struct {
-	Pattern   string `json:"pattern"`
-	SessionID string `json:"session_id,omitempty"`
-	GitOrigin string `json:"git_origin,omitempty"`
-	Limit     int    `json:"limit,omitempty"`
+	IncludeRejected bool   `json:"include_rejected,omitempty"`
+	Pattern         string `json:"pattern"`
+	SessionID       string `json:"session_id,omitempty"`
+	GitOrigin       string `json:"git_origin,omitempty"`
+	Limit           int    `json:"limit,omitempty"`
 }
 
 // SearchMemoryArgs are the search_memory tool parameters. Pattern is a
@@ -231,9 +233,16 @@ func (s *Service) SearchCommands(ctx context.Context, args SearchCommandsArgs) (
 		return nil, err
 	}
 
+	rejected, err := s.rejectedToolUses(ctx, sessionIDs, args.IncludeRejected)
+	if err != nil {
+		return nil, err
+	}
 	sessions := map[string]session.Doc{}
 	hits := make([]CommandHit, 0, len(events))
 	for _, ev := range events {
+		if id, _ := ev.String("tool_use_id"); rejected[id] {
+			continue
+		}
 		id, _ := ev.String("session_id")
 		if _, known := sessions[id]; !known {
 			if sessions[id], err = s.sessionOrNil(ctx, id); err != nil {
@@ -335,6 +344,29 @@ func (s *Service) Limits(ctx context.Context, args LimitsArgs) ([]LimitSample, e
 		})
 	}
 	return out, nil
+}
+
+// rejectedScan bounds the rejected tool calls a query looks up to leave
+// their calls out.
+const rejectedScan = maxLimit
+
+// rejectedToolUses is the set of tool_use ids of the scope's calls the
+// harness refused (the newest 500), empty when the caller wants them kept.
+func (s *Service) rejectedToolUses(ctx context.Context, sessionIDs []string, include bool) (map[string]bool, error) {
+	ids := map[string]bool{}
+	if include {
+		return ids, nil
+	}
+	lines, err := s.Store.RejectedToolUses(ctx, session.ActivityQuery{AccountID: s.AccountID, SessionIDs: sessionIDs, Limit: rejectedScan})
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range lines {
+		if id, _ := l.Map("enrichments").Map("error-flag").String("tool_use_id"); id != "" {
+			ids[id] = true
+		}
+	}
+	return ids, nil
 }
 
 // parseSince reads a lower time bound: empty means none, a duration means

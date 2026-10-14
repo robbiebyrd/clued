@@ -3,11 +3,13 @@ id: 0037-de8
 title: 'Summarise tool results: diff hunks, line spans, output and interruption from toolUseResult'
 purpose: Each tool call's structured result is reduced to the facts a timeline shows (files and line ranges edited with lines added and removed, command output, whether it was interrupted) without re-reading the transcript.
 type: feat
-status: pending
+status: complete
 priority: "2"
 effort: S
 created: "2026-10-14T04:28:51.447Z"
-updated: "2026-10-14T04:28:51.447Z"
+updated: "2026-10-14T05:16:45.733Z"
+started: "2026-10-14T05:07:58.483Z"
+completed: "2026-10-14T05:16:45.733Z"
 tags:
   - sessions
   - enrichment
@@ -19,11 +21,11 @@ planned_end: ""
 order: 0
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
 ---
 
 # Summarise tool results: diff hunks, line spans, output and interruption from toolUseResult
@@ -50,9 +52,9 @@ The result carries the `tool_use_id` and, through the hook-linker, the id of the
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/enrichers/ -run ToolResultDetail
-- [ ] An Edit's line reports its file, `L10-12`, `+3 -1` and the diff; a Bash line reports stdout, stderr and `interrupted: true` when it was; a Read reports its range
-- [ ] PROTOCOL.md documents the enrichment's fields per tool and the caps
+- [x] VERIFY: cd mind-palace && go test -race ./session/enrichers/ -run ToolResultDetail
+- [x] An Edit's line reports its file, `L10-12`, `+3 -1` and the diff; a Bash line reports stdout, stderr and `interrupted: true` when it was; a Read reports its range
+- [x] PROTOCOL.md documents the enrichment's fields per tool and the caps
 
 ## Files
 
@@ -61,3 +63,5 @@ The result carries the `tool_use_id` and, through the hook-linker, the id of the
 - `PROTOCOL.md` - the enrichments list
 
 ## Work Log
+
+### 2026-10-14T05:13:58.218Z - Added session/structpatch (hunks, line counts, span, unified diff from a structuredPatch), the tool-result-detail enricher (edit/write, bash, read, task, text, other by the result's shape, with caps of 16 KB on the diff and 4 KB on texts, a one-line summary and the tool_use_id), file_path and span on edit-diff-stats from the hook's tool_response.structuredPatch (file_history reports them as `spans`), and the detail on get_activities result entries (summary as the detail, the enrichment without its texts). The command itself is not in a Bash result, so it is not stored there (the tool_use line holds it); the hook-linker's link is untouched. Docs in PROTOCOL.md 6.1.3 and the tool tables, README. gofmt, vet and `go test -race ./...` pass.

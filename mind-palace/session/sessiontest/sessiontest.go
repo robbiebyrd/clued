@@ -64,6 +64,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
 		{"usage events filter by session, time and account, newest first", limitSamples},
 		{"activities select labelled lines by kind, session and time, newest first", activities},
+		{"rejected tool uses select the lines error-flag marked rejected, newest first", rejectedToolUses},
 		{"full session joins sub-collections and strips redundant fields", fullSessionShape},
 		{"full session of a session with nothing else has empty arrays", fullSessionEmpty},
 		{"full session is not found for a missing or foreign session", fullSessionNotFound},
@@ -1362,6 +1363,42 @@ func activities(t *testing.T, s session.Store) {
 	eq(t, "detail", got.Map("enrichments").Map("activity-kind")["detail"], "d-response")
 	since := timeOf(t, got, "created_at")
 	eq(t, "since", keys(session.ActivityQuery{AccountID: "acc", Since: since, Limit: 10}), []string{"s2/0/response"})
+}
+
+func rejectedToolUses(t *testing.T, s session.Store) {
+	flag := func(sid string, seq int, acc string, rejected bool) {
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, seq, "user", acc)}))
+		var id any
+		for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "error-flag", 0)) {
+			if d["session_id"] == sid && num(d["seq"]) == seq {
+				id = d["_id"]
+			}
+		}
+		result := session.Doc{"is_error": true, "error_type": "tool_failure"}
+		if rejected {
+			result["rejected"], result["rejection"], result["tool_use_id"] = true, "permission_denied", fmt.Sprintf("tu-%s-%d", sid, seq)
+		}
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "error-flag", result))
+		time.Sleep(5 * time.Millisecond)
+	}
+	flag("s1", 0, "acc", true)
+	flag("s1", 1, "acc", false)
+	flag("s2", 0, "acc", true)
+	flag("s3", 0, "other", true)
+	ids := func(q session.ActivityQuery) []string {
+		var out []string
+		for _, d := range ok(s.RejectedToolUses(ctx, q)) {
+			id, _ := d.Map("enrichments").Map("error-flag").String("tool_use_id")
+			out = append(out, id)
+		}
+		return out
+	}
+	eq(t, "rejected lines of the account, newest first", ids(session.ActivityQuery{AccountID: "acc", Limit: 10}), []string{"tu-s2-0", "tu-s1-0"})
+	eq(t, "session scoping", ids(session.ActivityQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 10}), []string{"tu-s1-0"})
+	eq(t, "limit", ids(session.ActivityQuery{AccountID: "acc", Limit: 1}), []string{"tu-s2-0"})
+	got := ok(s.RejectedToolUses(ctx, session.ActivityQuery{AccountID: "acc", Limit: 1}))[0]
+	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "seq", "session_id"})
+	eq(t, "since", len(ids(session.ActivityQuery{AccountID: "acc", Since: timeOf(t, got, "created_at").Add(time.Second), Limit: 10})), 0)
 }
 
 func searchTranscripts(t *testing.T, s session.Store) {

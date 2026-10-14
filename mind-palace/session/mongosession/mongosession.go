@@ -408,6 +408,18 @@ func (s *Store) StateChanges(ctx context.Context, q session.ActivityQuery) ([]se
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
 }
 
+func (s *Store) RejectedToolUses(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	filter := key("account_id", q.AccountID, "enrichments.error-flag.rejected", true)
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	if !q.Since.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
+	}
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "enrichments.error-flag", 1, "created_at", 1)
+	return s.find(ctx, transcriptLines, filter, projection, key("created_at", -1, "seq", -1), 0, q.Limit)
+}
+
 func (s *Store) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
 	filter := key("session_id", sessionID, "line.type", "assistant",
 		"line.message.model", key("$exists", true, "$nin", bson.A{"", session.SyntheticModel}))
@@ -601,7 +613,7 @@ func (s *Store) BashEvents(ctx context.Context, q session.CommandQuery) ([]sessi
 	if len(q.SessionIDs) > 0 {
 		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
 	}
-	projection := key("_id", 0, "session_id", 1, "tool_input", 1, "created_at", 1)
+	projection := key("_id", 0, "session_id", 1, "tool_use_id", 1, "tool_input", 1, "created_at", 1)
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
 }
 
@@ -735,7 +747,7 @@ func (s *Store) Activities(ctx context.Context, q session.ActivityQuery) ([]sess
 	if !q.Since.IsZero() {
 		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
 	}
-	projection := key("_id", 0, "session_id", 1, "seq", 1, "line.timestamp", 1, "enrichments.activity-kind", 1, "created_at", 1)
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "line.timestamp", 1, "enrichments.activity-kind", 1, "enrichments.tool-result-detail", 1, "created_at", 1)
 	return s.find(ctx, transcriptLines, filter, projection, key("created_at", -1, "seq", -1), 0, q.Limit)
 }
 

@@ -35,6 +35,7 @@
 //	POST /limit-samples                  LimitSamples           body: session.LimitQuery
 //	POST /activities                     Activities             body: session.ActivityQuery
 //	POST /state-changes                  StateChanges           body: session.ActivityQuery
+//	POST /rejected-tool-uses             RejectedToolUses       body: session.ActivityQuery
 //	GET  /sessions/{id}/full             FullSession
 //
 // The query structs (SessionQuery, LineQuery, CommandQuery, MemoryQuery) use
@@ -143,6 +144,7 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/limit-samples", a.limitSamples)
 	route("POST", "/activities", a.activities)
 	route("POST", "/state-changes", a.stateChanges)
+	route("POST", "/rejected-tool-uses", a.rejectedToolUses)
 	mux.HandleFunc(Prefix+"/", func(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusNotFound, KindNotFound, fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))
 	})
@@ -468,6 +470,25 @@ func (a *api) stateChanges(w http.ResponseWriter, r *http.Request, account strin
 	}
 	q.AccountID = account
 	found, err := a.store.StateChanges(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, docs(found))
+}
+
+func (a *api) rejectedToolUses(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.ActivityQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	found, err := a.store.RejectedToolUses(r.Context(), q)
 	if err != nil {
 		storeError(w, err)
 		return

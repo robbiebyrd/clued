@@ -230,6 +230,7 @@ const toolSchemas = `{
       "pattern":{"type":"string","description":"Case-insensitive regex matched against the command"},
       "session_id":{"type":"string","description":"Restrict to one session"},
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
+      "include_rejected":{"type":"boolean","description":"Keep the commands the harness refused to run (left out by default)"},
       "limit":{"type":"number","description":"Max commands to return (default 20, max 500)"}},"required":["pattern"]}},
   "search_memory": {"description": "Search the summaries, handoffs and identity notes that claude-remember wrote and clued captured (MemorySaved events), across every session and machine of the account, newest first.",
     "inputSchema": {"type":"object","properties":{
@@ -255,12 +256,13 @@ const toolSchemas = `{
       "since":{"type":"string","description":"First day to count, YYYY-MM-DD (UTC)"},
       "until":{"type":"string","description":"Last day to count, YYYY-MM-DD (UTC)"},
       "limit":{"type":"number","description":"Max groups to return (default 50, max 500); the total covers every group"}}}},
-  "file_history": {"description": "Which previous sessions touched a file: for each session (most recent first) the matching files, how often it read, edited or wrote them, the lines its edits added and removed, and when it first and last touched them. Built from the file-tracker and edit-diff-stats enrichments.",
+  "file_history": {"description": "Which previous sessions touched a file: for each session (most recent first) the matching files, how often it read, edited or wrote them, the lines its edits added and removed, the spans its edits touched (file and line range), and when it first and last touched them. Built from the file-tracker and edit-diff-stats enrichments.",
     "inputSchema": {"type":"object","properties":{
       "path":{"type":"string","description":"Case-insensitive regex matched against the file path (e.g. \\bauth/session\\.go$)"},
       "session_id":{"type":"string","description":"Restrict to one session"},
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
+      "include_rejected":{"type":"boolean","description":"Count the calls the harness refused to run (left out by default)"},
       "limit":{"type":"number","description":"Max sessions to return (default 10, max 500)"}},"required":["path"]}},
   "find_errors": {"description": "Transcript lines that reported an error (a failed hook, a failed tool result, or error text), newest first, with the start of their text and their session. Built from the error-flag enrichment.",
     "inputSchema": {"type":"object","properties":{
@@ -276,13 +278,14 @@ const toolSchemas = `{
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
       "since":{"type":"string","description":"Only samples after this RFC 3339 time, or within this duration back from now (e.g. 24h)"},
       "limit":{"type":"number","description":"Max samples to return (default 20, max 500)"}}}},
-  "get_activities": {"description": "The timeline of what the agent did in previous sessions, newest first: each transcript line's activity (user, response, thinking, bash, commit, edit, read, task, tool, result or other) with a label (the tool's name) and a detail (the prompt or reply's start, the command, the file's base name, the search pattern, the sub-agent's description, the commit message's first line), and the session's state changes (kind state: the label is the state entered, working, waiting or ended, the detail the hook that set it); consecutive repeats of one tool activity are one entry with a count. Built from the activity-kind enrichment and the SessionStateChanged events.",
+  "get_activities": {"description": "The timeline of what the agent did in previous sessions, newest first: each transcript line's activity (user, response, thinking, bash, commit, edit, read, task, tool, result or other) with a label (the tool's name) and a detail (the prompt or reply's start, the command, the file's base name, the search pattern, the sub-agent's description, the commit message's first line), and the session's state changes (kind state: the label is the state entered, working, waiting or ended, the detail the hook that set it); consecutive repeats of one tool activity are one entry with a count; a result entry carries the tool-result-detail (the edit's file, span and line counts, the command's exit code and interruption, the read's range, the sub-agent's description) and its summary as the detail. Built from the activity-kind and tool-result-detail enrichments and the SessionStateChanged events.",
     "inputSchema": {"type":"object","properties":{
       "session_id":{"type":"string","description":"Restrict to one session"},
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
       "kinds":{"type":"array","items":{"type":"string","enum":["user","response","thinking","bash","commit","edit","read","task","tool","result","other","state"]},"description":"Only these activity kinds"},
       "since":{"type":"string","description":"Only lines after this RFC 3339 time, or within this duration back from now (e.g. 24h)"},
+      "include_rejected":{"type":"boolean","description":"Keep the tool calls the harness refused to run, and their results (left out by default)"},
       "limit":{"type":"number","description":"Max lines to read before collapsing repeats (default 50, max 500)"}}}},
   "read_transcript": {"description": "Read transcript lines of a session in order, paginated by offset/limit.",
     "inputSchema": {"type":"object","properties":{
@@ -771,7 +774,7 @@ func TestFileHistoryAndFindErrors(t *testing.T) {
 			{"session_id": "sess-1", "account_id": account, "hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": session.Doc{"file_path": "/home/user/myrepo/auth.go"}, "created_at": t0,
 				"enrichments": session.Doc{"file-tracker": session.Doc{"file_path": "/home/user/myrepo/auth.go", "operation": "edit"}}},
 			{"session_id": "sess-1", "account_id": account, "hook_event_name": "PostToolUse", "tool_name": "Edit", "tool_input": session.Doc{"file_path": "/home/user/myrepo/auth.go"}, "created_at": t0.Add(time.Second),
-				"enrichments": session.Doc{"edit-diff-stats": session.Doc{"lines_added": 3, "lines_removed": 1, "net_change": 2}}},
+				"enrichments": session.Doc{"edit-diff-stats": session.Doc{"lines_added": 3, "lines_removed": 1, "net_change": 2, "file_path": "/home/user/myrepo/auth.go", "span": "L10-12"}}},
 			{"session_id": "sess-3", "account_id": account, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": session.Doc{"file_path": "/home/user/myrepo/auth.go"}, "created_at": t0.Add(time.Hour),
 				"enrichments": session.Doc{"file-tracker": session.Doc{"file_path": "/home/user/myrepo/auth.go", "operation": "read"}}},
 		} {
@@ -786,6 +789,12 @@ func TestFileHistoryAndFindErrors(t *testing.T) {
 		}
 		if ops := hist[1]["operations"].(map[string]any); ops["edit"] != float64(1) || hist[1]["lines_added"] != float64(3) || hist[1]["lines_removed"] != float64(1) {
 			t.Errorf("sess-1 entry = %v", hist[1])
+		}
+		if spans, _ := hist[1]["spans"].([]any); len(spans) != 1 || spans[0] != "/home/user/myrepo/auth.go L10-12" {
+			t.Errorf("sess-1 spans = %v", hist[1]["spans"])
+		}
+		if spans, _ := hist[0]["spans"].([]any); spans == nil || len(spans) != 0 {
+			t.Errorf("sess-3 spans = %v, want an empty list", hist[0]["spans"])
 		}
 		if hist[1]["git_origin"] != "https://github.com/user/myrepo.git" {
 			t.Errorf("git_origin = %v", hist[1]["git_origin"])

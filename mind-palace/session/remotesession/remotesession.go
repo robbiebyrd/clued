@@ -122,6 +122,10 @@ func (s *Store) StateChanges(ctx context.Context, q session.ActivityQuery) ([]se
 	return s.docs(ctx, "POST", prefix+"/state-changes", q)
 }
 
+func (s *Store) RejectedToolUses(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/rejected-tool-uses", q)
+}
+
 func (s *Store) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
 	var model string
 	body := map[string]any{"session_id": sessionID, "seq": seq}

@@ -12,14 +12,16 @@ const defaultActivityLimit = 50
 
 // ActivitiesArgs are the get_activities tool parameters. Kinds keeps only
 // those activity kinds; Since is an RFC 3339 time or a duration back from
-// now ("24h"); empty means no lower bound.
+// now ("24h"); empty means no lower bound. IncludeRejected keeps the tool
+// calls the harness refused to run, and their results.
 type ActivitiesArgs struct {
-	SessionID   string   `json:"session_id,omitempty"`
-	GitOrigin   string   `json:"git_origin,omitempty"`
-	ProjectPath string   `json:"project_path,omitempty"`
-	Kinds       []string `json:"kinds,omitempty"`
-	Since       string   `json:"since,omitempty"`
-	Limit       int      `json:"limit,omitempty"`
+	SessionID       string   `json:"session_id,omitempty"`
+	GitOrigin       string   `json:"git_origin,omitempty"`
+	ProjectPath     string   `json:"project_path,omitempty"`
+	Kinds           []string `json:"kinds,omitempty"`
+	Since           string   `json:"since,omitempty"`
+	IncludeRejected bool     `json:"include_rejected,omitempty"`
+	Limit           int      `json:"limit,omitempty"`
 }
 
 // ActivityState is the kind of the entries made from SessionStateChanged
@@ -33,20 +35,26 @@ const ActivityState = "state"
 // and detail in one session) the entry stands for; Seq is the newest of
 // them (-1 for a state change, which is no line).
 type Activity struct {
-	SessionID   string    `json:"session_id"`
-	Seq         int       `json:"seq"`
-	Kind        string    `json:"kind"`
-	Label       string    `json:"label"`
-	Detail      string    `json:"detail"`
-	ToolName    string    `json:"tool_name,omitempty"`
-	ToolUseID   string    `json:"tool_use_id,omitempty"`
-	IsError     bool      `json:"is_error,omitempty"`
-	Blocks      []string  `json:"blocks,omitempty"`
-	Count       int       `json:"count"`
-	Timestamp   string    `json:"timestamp,omitempty"`
-	ProjectPath *string   `json:"project_path"`
-	GitOrigin   *string   `json:"git_origin"`
-	CreatedAt   time.Time `json:"created_at"`
+	SessionID string   `json:"session_id"`
+	Seq       int      `json:"seq"`
+	Kind      string   `json:"kind"`
+	Label     string   `json:"label"`
+	Detail    string   `json:"detail"`
+	ToolName  string   `json:"tool_name,omitempty"`
+	ToolUseID string   `json:"tool_use_id,omitempty"`
+	IsError   bool     `json:"is_error,omitempty"`
+	Blocks    []string `json:"blocks,omitempty"`
+	// Result is the tool-result-detail enrichment of a result line (the
+	// tool its shape revealed, the file, span and line counts of an edit,
+	// the exit code and interruption of a command, the range of a read,
+	// the sub-agent's description) without its diff, output and result
+	// texts; the entry's Detail is then that enrichment's summary.
+	Result      session.Doc `json:"result,omitempty"`
+	Count       int         `json:"count"`
+	Timestamp   string      `json:"timestamp,omitempty"`
+	ProjectPath *string     `json:"project_path"`
+	GitOrigin   *string     `json:"git_origin"`
+	CreatedAt   time.Time   `json:"created_at"`
 }
 
 // collapsibleKinds are the activities a timeline folds when they repeat
@@ -108,9 +116,16 @@ func (s *Service) Activities(ctx context.Context, args ActivitiesArgs) ([]Activi
 			slices.SortStableFunc(entries, func(a, b Activity) int { return b.CreatedAt.Compare(a.CreatedAt) })
 		}
 	}
+	rejected, err := s.rejectedToolUses(ctx, sessionIDs, args.IncludeRejected)
+	if err != nil {
+		return nil, err
+	}
 	sessions := map[string]session.Doc{}
 	out := make([]Activity, 0, len(entries))
 	for _, a := range entries {
+		if rejected[a.ToolUseID] {
+			continue
+		}
 		if _, known := sessions[a.SessionID]; !known {
 			if sessions[a.SessionID], err = s.sessionOrNil(ctx, a.SessionID); err != nil {
 				return nil, err
@@ -151,12 +166,28 @@ func activityOf(l session.Doc) Activity {
 	isErr, _ := e["is_error"].(bool)
 	ts, _ := l.Line().String("timestamp")
 	createdAt, _ := l["created_at"].(time.Time)
-	return Activity{
+	a := Activity{
 		SessionID: id, Seq: toInt(l["seq"]), Kind: kind, Label: label, Detail: detail,
 		ToolName: toolName, ToolUseID: toolUseID, IsError: isErr, Blocks: stringList(e["blocks"]),
 		Count: 1, Timestamp: ts, CreatedAt: createdAt,
 	}
+	if result := l.Map("enrichments").Map("tool-result-detail"); result != nil {
+		a.Result = session.Doc{}
+		for k, v := range result {
+			if !resultTexts[k] {
+				a.Result[k] = v
+			}
+		}
+		if summary, _ := result.String("summary"); summary != "" {
+			a.Detail = summary
+		}
+	}
+	return a
 }
+
+// resultTexts are the fields of a tool-result-detail a timeline entry
+// leaves out: the bodies get_full_session returns with the line.
+var resultTexts = map[string]bool{"diff": true, "stdout": true, "stderr": true, "result": true, "text": true, "hunks": true}
 
 // sameActivity reports whether b repeats a: the same tool activity in the
 // same session.

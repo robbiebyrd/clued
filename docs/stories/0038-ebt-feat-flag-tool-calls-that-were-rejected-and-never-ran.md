@@ -3,11 +3,13 @@ id: 0038-ebt
 title: Flag tool calls that were rejected and never ran
 purpose: A tool call that Claude Code refused (a denied permission, a blocked path, a validation error) is marked as never executed, so counts and timelines do not report it as work done.
 type: feat
-status: pending
+status: complete
 priority: "3"
 effort: XS
 created: "2026-10-14T04:28:51.481Z"
-updated: "2026-10-14T04:28:51.481Z"
+updated: "2026-10-14T05:22:00.795Z"
+started: "2026-10-14T05:21:00.650Z"
+completed: "2026-10-14T05:22:00.795Z"
 tags:
   - sessions
   - enrichment
@@ -19,9 +21,9 @@ planned_end: ""
 order: 0
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
 ---
 
 # Flag tool calls that were rejected and never ran
@@ -44,9 +46,9 @@ Extend `error-flag` on transcript lines with `rejected: true` and `rejection: pe
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/enrichers/ ./session/query/
-- [ ] A denied Edit is flagged `rejected: true, rejection: permission_denied` on its result line and its hook event, and `file_history` does not count it unless asked
-- [ ] PROTOCOL.md lists the rejection markers and the `include_rejected` parameter
+- [x] VERIFY: cd mind-palace && go test -race ./session/enrichers/ ./session/query/
+- [x] A denied Edit is flagged `rejected: true, rejection: permission_denied` on its result line and its hook event, and `file_history` does not count it unless asked
+- [x] PROTOCOL.md lists the rejection markers and the `include_rejected` parameter
 
 ## Files
 
@@ -56,3 +58,5 @@ Extend `error-flag` on transcript lines with `rejected: true` and `rejection: pe
 - `PROTOCOL.md` - the enrichments list and the tool parameters
 
 ## Work Log
+
+### 2026-10-14T05:21:40.253Z - Added session/enrichers/rejections.go (the seven refusal markers, "Blocked:" matched at the start only) and `rejected`, `rejection`, `tool_use_id` on error-flag; Store.RejectedToolUses (memory, Mongo, remote with POST /rejected-tool-uses, conformance case) with tool_use_id now projected by BashEvents; search_commands, file_history and get_activities (and `session search-commands`, `session activities`) look the scope's rejected tool_use ids up and leave those calls and their results out unless include_rejected. The hook event is not flagged: it is written before the refusal exists and an enricher writes only its own document, so queries join on the tool_use_id instead (noted in PROTOCOL.md 6.1.4). gofmt, vet and `go test -race ./...` pass.

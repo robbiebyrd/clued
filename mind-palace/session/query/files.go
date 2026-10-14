@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
@@ -17,19 +18,23 @@ const (
 )
 
 // FileHistoryArgs are the file_history tool parameters. Path is a
-// case-insensitive regex over the file path; Limit counts sessions.
+// case-insensitive regex over the file path; Limit counts sessions;
+// IncludeRejected keeps the calls the harness refused to run.
 type FileHistoryArgs struct {
-	Path        string `json:"path"`
-	SessionID   string `json:"session_id,omitempty"`
-	GitOrigin   string `json:"git_origin,omitempty"`
-	ProjectPath string `json:"project_path,omitempty"`
-	Limit       int    `json:"limit,omitempty"`
+	Path            string `json:"path"`
+	IncludeRejected bool   `json:"include_rejected,omitempty"`
+	SessionID       string `json:"session_id,omitempty"`
+	GitOrigin       string `json:"git_origin,omitempty"`
+	ProjectPath     string `json:"project_path,omitempty"`
+	Limit           int    `json:"limit,omitempty"`
 }
 
 // FileSession is one session that touched the matching files: which files
 // (at most ten), how often each operation ran, the lines its edits and
-// writes added and removed (from edit-diff-stats), and when it first and
-// last touched them.
+// writes added and removed (from edit-diff-stats), the spans its edits
+// touched ("<file> L10-12", newest first, at most twenty, from the
+// structured patches the hooks carried), and when it first and last
+// touched them.
 type FileSession struct {
 	SessionID    string         `json:"session_id"`
 	ProjectPath  *string        `json:"project_path"`
@@ -38,9 +43,13 @@ type FileSession struct {
 	Operations   map[string]int `json:"operations"`
 	LinesAdded   int            `json:"lines_added"`
 	LinesRemoved int            `json:"lines_removed"`
+	Spans        []string       `json:"spans"`
 	FirstTouch   time.Time      `json:"first_touch"`
 	LastTouch    time.Time      `json:"last_touch"`
 }
+
+// spansPerSession bounds FileSession.Spans.
+const spansPerSession = 20
 
 // FileHistory returns the sessions that touched files matching the path,
 // the one that touched them most recently first, from the newest 500 file
@@ -57,17 +66,24 @@ func (s *Service) FileHistory(ctx context.Context, args FileHistoryArgs) ([]File
 	if err != nil {
 		return nil, err
 	}
+	rejected, err := s.rejectedToolUses(ctx, sessionIDs, args.IncludeRejected)
+	if err != nil {
+		return nil, err
+	}
 	limit := withDefault(args.Limit, defaultFileSessionLimit)
 	bySession := map[string]*FileSession{}
 	order := []string{}
 	for _, ev := range events {
+		if id, _ := ev.String("tool_use_id"); rejected[id] {
+			continue
+		}
 		id, _ := ev.String("session_id")
 		fs := bySession[id]
 		if fs == nil {
 			if len(order) == limit {
 				continue
 			}
-			fs = &FileSession{SessionID: id, Files: []string{}, Operations: map[string]int{}}
+			fs = &FileSession{SessionID: id, Files: []string{}, Operations: map[string]int{}, Spans: []string{}}
 			bySession[id] = fs
 			order = append(order, id)
 		}
@@ -91,6 +107,12 @@ func (s *Service) FileHistory(ctx context.Context, args FileHistoryArgs) ([]File
 		if stats := e.Map("edit-diff-stats"); stats != nil {
 			fs.LinesAdded += toInt(stats["lines_added"])
 			fs.LinesRemoved += toInt(stats["lines_removed"])
+			if p, ok := stats.String("file_path"); ok && p != "" && path == "" {
+				path = p
+			}
+			if span, ok := stats.String("span"); ok && span != "" && len(fs.Spans) < spansPerSession {
+				fs.Spans = append(fs.Spans, strings.TrimSpace(path+" "+span))
+			}
 		}
 		if path != "" && len(fs.Files) < filesPerSession && !contains(fs.Files, path) {
 			fs.Files = append(fs.Files, path)

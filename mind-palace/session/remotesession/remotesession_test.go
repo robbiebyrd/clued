@@ -180,6 +180,10 @@ func (h *harness) StateChanges(ctx context.Context, q session.ActivityQuery) ([]
 	return h.as(q.AccountID).StateChanges(ctx, q)
 }
 
+func (h *harness) RejectedToolUses(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).RejectedToolUses(ctx, q)
+}
+
 func (h *harness) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
 	return h.as("").LastModelBefore(ctx, sessionID, seq, at)
 }

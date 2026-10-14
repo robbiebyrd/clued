@@ -236,13 +236,19 @@ type Store interface {
 	// events matching the query, newest first.
 	LimitSamples(ctx context.Context, q LimitQuery) ([]Doc, error)
 	// Activities projects session_id, seq, line.timestamp,
-	// enrichments.activity-kind and created_at of the lines ActivityQuery
-	// selects, newest first (created_at, then seq, descending).
+	// enrichments.activity-kind, enrichments.tool-result-detail (when
+	// present) and created_at of the lines ActivityQuery selects, newest
+	// first (created_at, then seq, descending).
 	Activities(ctx context.Context, q ActivityQuery) ([]Doc, error)
 	// StateChanges projects session_id, from, to, reason, at and
 	// created_at of the SessionStateChanged events the query's SessionIDs,
 	// Since and Limit select (Kinds is ignored), newest first.
 	StateChanges(ctx context.Context, q ActivityQuery) ([]Doc, error)
+	// RejectedToolUses projects session_id, seq, enrichments.error-flag
+	// and created_at of the transcript lines the error-flag enricher marked
+	// rejected (a tool call the harness refused), selected by the query's
+	// SessionIDs, Since and Limit (Kinds is ignored), newest first.
+	RejectedToolUses(ctx context.Context, q ActivityQuery) ([]Doc, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of
