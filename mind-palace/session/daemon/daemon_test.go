@@ -818,3 +818,31 @@ func TestSessionEndSendsTheTrace(t *testing.T) {
 		}
 	})
 }
+
+func TestDaemonServesOTLPLogsForItsSessions(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		f := newFixture(t)
+		f.post(t, `{"session_id":"otel-1","hook_event_name":"UserPromptSubmit","cwd":"/tmp"}`)
+		eventually(t, "session doc", func() bool { return sessionDoc(f.store, "otel-1") != nil })
+		export := `{"resourceLogs":[{"scopeLogs":[{"logRecords":[{"eventName":"claude_code.api_request","timeUnixNano":"1760436000000000000","attributes":[` +
+			`{"key":"session.id","value":{"stringValue":"otel-1"}},{"key":"model","value":{"stringValue":"claude-opus-5-5"}},{"key":"input_tokens","value":{"stringValue":"10"}}]}]}]}]}`
+		res, err := http.Post(f.srv.URL+"/v1/logs", "application/json", strings.NewReader(export))
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != 200 {
+			t.Fatalf("POST /v1/logs: %d", res.StatusCode)
+		}
+		events, err := f.store.OtelEvents(context.Background(), session.OtelQuery{AccountID: testAccount, SessionIDs: []string{"otel-1"}})
+		if err != nil || len(events) != 1 {
+			t.Fatalf("stored %d events (%v), want 1 under the daemon's account", len(events), err)
+		}
+		req, _ := http.NewRequest(http.MethodPost, f.srv.URL+"/v1/logs", strings.NewReader(export))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", "https://evil.example")
+		if res, err := http.DefaultClient.Do(req); err != nil || res.StatusCode != http.StatusForbidden {
+			t.Fatalf("a browser's POST: %v %v", res, err)
+		}
+	})
+}

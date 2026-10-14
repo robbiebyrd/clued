@@ -23,6 +23,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 	"github.com/robbiebyrd/clued/mind-palace/session/modeltrack"
 	"github.com/robbiebyrd/clued/mind-palace/session/otel"
+	"github.com/robbiebyrd/clued/mind-palace/session/otlp"
 	"github.com/robbiebyrd/clued/mind-palace/session/sidecar"
 	"github.com/robbiebyrd/clued/mind-palace/session/tail"
 )
@@ -112,8 +113,16 @@ func New(opts Options) *Daemon {
 	return d
 }
 
-// Handler serves GET /health and POST /event.
+// Handler serves GET /health, POST /event, and Claude Code's OTLP/HTTP logs
+// and metrics at otlp.PathLogs and otlp.PathMetrics (OTEL_EXPORTER_OTLP_ENDPOINT
+// http://127.0.0.1:<port>), stored for the sessions the daemon captured.
 func (d *Daemon) Handler() http.Handler {
+	accountID := d.opts.AccountID
+	telemetry := otlp.Handler(otlp.Options{
+		Store:   d.opts.Store,
+		Logger:  d.log,
+		Account: func(*http.Request) (string, bool) { return accountID, true },
+	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Browsers always send Origin on cross-origin POSTs; the hook's curl never does.
 		if r.Header.Get("Origin") != "" {
@@ -126,6 +135,8 @@ func (d *Daemon) Handler() http.Handler {
 			_, _ = w.Write([]byte("ok"))
 		case r.Method == http.MethodPost && r.URL.Path == "/event":
 			d.handleEvent(w, r)
+		case r.URL.Path == otlp.PathLogs || r.URL.Path == otlp.PathMetrics:
+			telemetry.ServeHTTP(w, r)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}

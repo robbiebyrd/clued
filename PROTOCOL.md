@@ -328,6 +328,7 @@ and exits 0.
 |---|---|---|
 | `GET /health` | | `200` with body `ok` |
 | `POST /event` | one JSON object, at most 16 MiB | `200` with body `ok`; `400` for invalid JSON or a non-object; `413` when oversized |
+| `POST /v1/logs`, `POST /v1/metrics` | an OTLP/HTTP export from Claude Code | as on the clued server (section 7.10), without authentication: events are stored under the daemon's account |
 | anything else | | `404` |
 
 `POST /event` answers 200 even when the store rejected the write, because
@@ -587,7 +588,7 @@ malformed one, is an error.
 | Tool | Parameters | Returns |
 |---|---|---|
 | `find_sessions` | `project_path` (regex), `git_origin` (regex), `query` (regex against project path or cwd), `title` (regex), `live_state` (`working`, `waiting`, `ended`), `hotness` (`hot`, `warm`, `cool`, `cold`), `limit` (default 10, max 500) | sessions, newest first: `session_id`, `project_path`, `git_origin`, `cwd`, `model` (when known, section 4.5), `live_state`, `live_state_at`, `live_state_reason` (when known, section 4.6), `hotness`, `title`, `title_kind`, `slug`, `permission_mode`, `pr_link`, `worktree`, `entrypoint`, `claude_version` (when set, section 4.7), `started_at`, `last_seen`, `event_count` |
-| `get_session_context` | `session_id` (required) | metadata (`session` with `model` and `model_changed_at` once known, `live_state`, `live_state_at` and `live_state_reason` once known, `hotness`, and the section 4.7 fields once set), `turns` (`turns`, `total_ms`, `mean_ms`, `longest_ms` from the `turn_duration` records; `null` without any), the most recent distinct Bash commands, first and last transcript lines, the latest memory records, and `usage` (the session's group of the `usage` tool, with its per-model breakdown; `null` when no usage is recorded) |
+| `get_session_context` | `session_id` (required) | metadata (`session` with `model` and `model_changed_at` once known, `live_state`, `live_state_at` and `live_state_reason` once known, `hotness`, and the section 4.7 fields once set), `turns` (`turns`, `total_ms`, `mean_ms`, `longest_ms` from the `turn_duration` records; `null` without any), `telemetry` (the session's OpenTelemetry events of section 7.10 summed: `events`, `prompts`, `api_requests`, `api_errors`, `cost_usd`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_creation_tokens`, `api_ms`, `models`, `tools` (`name`, `calls`, `failures`, `total_ms`, most calls first, at most 10), `last_error` (`model`, `status_code`, `error`, `timestamp`) and `truncated` past 10 000 events; `null` without any, or against a server that has no telemetry), the most recent distinct Bash commands, first and last transcript lines, the latest memory records, and `usage` (the session's group of the `usage` tool, with its per-model breakdown; `null` when no usage is recorded) |
 | `get_full_session` | `session_id` (required), `sections` (`transcript`, `subagents`, `blobs`, `hook_events`; default all), `max_tokens`, `cursor` | metadata and the sections asked for: transcript and subagent lines, blob metadata without content, hook events |
 | `search_commands` | `pattern` (required regex), `session_id`, `git_origin` (regex), `include_rejected` (keep the commands the harness refused to run, section 6.1.5), `limit` (default 20, max 500) | Bash commands, newest first |
 | `search_memory` | `pattern` (regex), `kind` (`entry`, `day`, `recent`, `archive`, `handoff`, `identity`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | `MemorySaved` records across the account, newest first |
@@ -937,6 +938,8 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 | `POST /state-changes` | `{"sessionIds", "since" (RFC 3339, zero for none), "limit"}` (`kinds` is ignored) | `SessionStateChanged` events (section 4.6), newest first, projected to `session_id`, `from`, `to`, `reason`, `at`, `created_at` |
 | `POST /rejected-tool-uses` | `{"sessionIds", "since" (RFC 3339, zero for none), "limit"}` (`kinds` is ignored) | transcript lines with `enrichments.error-flag.rejected` (section 6.1.5), newest first, projected to `session_id`, `seq`, `enrichments.error-flag`, `created_at` |
 | `POST /transcript-search` | `{"query", "sessionIds", "limit"}` | transcript lines whose `enrichments.search-text` matches, best first, with `score`; only `session_id`, `seq`, `score`, `created_at` and `enrichments.search-text` are returned |
+| `POST /otel-events` | `[{"session_id", "prompt_id", "name", "sequence", "timestamp", "attributes", "redacted"}, …]` (at most `MaxLines`; a session id that is not a single path element, or an event without `name`, is 400) | `{"inserted"}`: the events new under the token's account (one per account, session, name, sequence and timestamp) |
+| `POST /otel-events/query` | `{"sessionIds", "promptId", "names", "since" (RFC 3339, zero for none), "limit"}` | OpenTelemetry events (section 7.10), newest first (`timestamp`, then `sequence`), projected to `session_id`, `prompt_id`, `name`, `sequence`, `timestamp`, `attributes`, `redacted`, `created_at` |
 
 The query bodies use the camel-case keys above. The server decodes keys
 case-insensitively, so the Go field names an older client sent
@@ -1104,6 +1107,56 @@ into the config file when the server sets them; the self-hosted server
 serves the enricher lists of its own session config. The clued cloud, a
 hosted multi-tenant clued, speaks the same routes and approves the code in
 a browser at `verification_uri`.
+
+### 7.10 Claude Code telemetry: `/v1/logs` and `/v1/metrics`
+
+Claude Code's own OpenTelemetry export (`CLAUDE_CODE_ENABLE_TELEMETRY=1`,
+`OTEL_LOGS_EXPORTER=otlp`, `OTEL_EXPORTER_OTLP_PROTOCOL=http/json` or
+`http/protobuf`, `OTEL_EXPORTER_OTLP_ENDPOINT` the server's URL and
+`OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer <token>"`) is received
+behind the bearer token as OTLP/HTTP (`session/otlp`):
+
+| Route | Request | Response |
+|---|---|---|
+| `POST /v1/logs` | `ExportLogsServiceRequest` as `application/json` or `application/x-protobuf`, optionally `Content-Encoding: gzip`, at most 8 MiB decompressed | `200` with an empty `ExportLogsServiceResponse` in the request's encoding |
+| `POST /v1/metrics` | `ExportMetricsServiceRequest`, the same encodings | `200` with an empty `ExportMetricsServiceResponse`; the data points are decoded and not stored |
+
+Errors carry a `google.rpc.Status` (`code`, `message`) in the request's
+encoding (JSON for an unknown content type): `400` for a body that does not
+decode or an unknown `Content-Encoding`, `401` without a token, `405` for
+another method, `413` above the limit, `415` for a content type other than
+those two, `503` when the store fails (an exporter retries it).
+
+A log record is an event when its name, the `event_name` field, else the
+`event.name` attribute, else the string body, with any `claude_code.`
+prefix removed, is `api_request`, `api_error` or `tool_result`; every other
+record is accepted and dropped. Its session is the `session.id` attribute
+(of the record, else of the resource), which must be a single path element
+of at most 128 bytes, and the token's account must already hold that
+session: telemetry never creates a session, so the events of a session
+excluded at capture (`excludePaths`) or never sent are dropped. The event
+stored (`session.OtelEvent`, collection `otel_events`) has `session_id`,
+`prompt_id` (`prompt.id`), `name`, `sequence` (`event.sequence`),
+`timestamp` (`event.timestamp`, else the record's time, else its observed
+time, else the time received; UTC, milliseconds) and `attributes`, an
+allow-list with dots turned into underscores:
+
+| Event | Attributes kept |
+|---|---|
+| `api_request` | `model`, `cost_usd`, `cost_usd_micros`, `duration_ms`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_creation_tokens`, `request_id`, `speed`, `query_source`, `effort`, `agent_name`, `skill_name`, `plugin_name`, `marketplace_name`, `mcp_server_name`, `mcp_tool_name` |
+| `api_error` | `model`, `error` (at most 2048 bytes), `status_code`, `duration_ms`, `attempt`, `request_id`, `speed`, `query_source`, `effort`, `agent_name`, `skill_name`, `plugin_name`, `marketplace_name`, `mcp_server_name`, `mcp_tool_name` |
+| `tool_result` | `tool_name`, `tool_use_id`, `success`, `duration_ms`, `error_type`, `decision_type`, `decision_source`, `tool_input_size_bytes`, `tool_result_size_bytes`, `mcp_server_scope` |
+| every one | `app_version`, `terminal_type` |
+
+Counts and times are stored as integers, `cost_usd` as a number and
+`success` as a boolean, whether Claude Code sent them as numbers or strings.
+Nothing else is kept: not the prompt, the tool input or parameters, a tool's
+error output, request or response bodies, `user.email`, the account and
+organization ids or `workspace.host_paths`. The kept attributes pass the
+server's capture-time redaction like any other write. An event is stored
+once per account, session, name, sequence and timestamp, so an exporter's
+retry stores nothing new; `DeleteSessions` and `DeleteAccount` remove the
+events with the rest, and `retentionDays` expires them by `created_at`.
 
 ## 8. The remote client
 

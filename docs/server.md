@@ -605,6 +605,42 @@ remote:
 `check-setup` warns at session start when the token does not cover the
 repository's slug and prints the `server token grant` command that fixes it.
 
+## Claude Code telemetry
+
+Claude Code can export its own OpenTelemetry events: one per API request
+(model, cost, tokens, duration), API error and tool result. The clued server
+receives them at `/v1/logs` (and accepts `/v1/metrics` without storing it)
+and `get_session_context` sums them under `telemetry`. Turn it on where
+Claude Code runs, for example in `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_METRICS_EXPORTER": "none",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "https://clued.example.com"
+  },
+  "otelHeadersHelper": "jq -c '{Authorization: (\"Bearer \" + .serverToken)}' ~/.claude/plugins/data/clued/config.json"
+}
+```
+
+The headers helper reads the token from the plugin's `config.json`, so it
+is not copied into `settings.json`; `OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer <token>"`
+works too. `http/protobuf` is accepted as well, gzip or not. Against the
+Docker stack's private CA, Claude Code (a Node program) also needs
+`NODE_EXTRA_CA_CERTS=~/.clued-server/tls/ca.pem`: `server trust` puts the
+CA in the system store, which Node does not read by default. In local mode
+the daemon serves the same routes without a token:
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:8085` and no headers.
+
+Only events of sessions the server (or daemon) already captured are kept,
+with an allow-list of attributes: prompt text, tool input, error output and
+the e-mail and account attributes Claude Code adds are dropped whatever
+its `OTEL_LOG_*` settings let it send. Section 7.10 of
+[`PROTOCOL.md`](../PROTOCOL.md) lists what is stored.
+
 ## The HTTPS MCP endpoint
 
 The server serves MCP over Streamable HTTP at `/mcp` behind the same tokens.

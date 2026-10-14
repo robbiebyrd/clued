@@ -26,6 +26,7 @@ const (
 	transcriptLines = "transcript_lines"
 	subagentLines   = "subagent_lines"
 	blobs           = "blobs"
+	otelEvents      = "otel_events"
 	sessionFull     = "session_full"
 
 	maxSessions = 500
@@ -61,7 +62,7 @@ const retentionIndex = "retention_ttl"
 // retentionFields are the times the TTL indexes expire documents by.
 var retentionFields = []struct{ collection, field string }{
 	{sessions, "last_seen"}, {hookEvents, "created_at"}, {transcriptLines, "created_at"},
-	{subagentLines, "created_at"}, {blobs, "created_at"},
+	{subagentLines, "created_at"}, {blobs, "created_at"}, {otelEvents, "created_at"},
 }
 
 // applyRetention creates the TTL indexes for the retention days, changes
@@ -124,6 +125,8 @@ var indexes = []index{
 	{hookEvents, key("account_id", 1, "enrichments.file-tracker.file_path", 1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.error-flag.is_error", 1, "created_at", -1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.usage.day", 1), false},
+	{otelEvents, key("account_id", 1, "session_id", 1, "name", 1, "sequence", 1, "timestamp", 1), true},
+	{otelEvents, key("account_id", 1, "session_id", 1, "timestamp", -1), false},
 }
 
 // partialIndexes are unique indexes limited to the documents matching a
@@ -303,7 +306,7 @@ func (s *Store) DeleteAccount(ctx context.Context, accountID string) (int64, err
 		return 0, session.ErrNoAccount
 	}
 	var n int64
-	for _, name := range []string{hookEvents, transcriptLines, subagentLines, blobs, sessions} {
+	for _, name := range []string{hookEvents, transcriptLines, subagentLines, blobs, otelEvents, sessions} {
 		res, err := s.coll(name).DeleteMany(ctx, bson.M{"account_id": accountID})
 		if err != nil {
 			return n, fmt.Errorf("delete account from %s: %w", name, err)
@@ -345,7 +348,7 @@ func (s *Store) DeleteSessions(ctx context.Context, q session.ForgetQuery) (sess
 	if len(ids) == 0 {
 		return out, nil
 	}
-	for _, name := range []string{hookEvents, transcriptLines, subagentLines, blobs, sessions} {
+	for _, name := range []string{hookEvents, transcriptLines, subagentLines, blobs, otelEvents, sessions} {
 		res, err := s.coll(name).DeleteMany(ctx, key("account_id", q.AccountID, "session_id", key("$in", ids)))
 		if err != nil {
 			return out, fmt.Errorf("forget sessions in %s: %w", name, err)
@@ -680,6 +683,58 @@ func (s *Store) LimitSamples(ctx context.Context, q session.LimitQuery) ([]sessi
 	}
 	projection := key("_id", 0, "session_id", 1, "cwd", 1, "model", 1, "version", 1, "context_window", 1, "rate_limits", 1, "cost", 1, "live_state", 1, "sampled_at", 1, "created_at", 1)
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
+// accountValue is the account to match: a missing account_id when empty.
+func accountValue(accountID string) any {
+	if accountID == "" {
+		return nil
+	}
+	return accountID
+}
+
+// InsertOtelEvents upserts each event on its account, session, name,
+// sequence and timestamp, writing only on insert, so a resent event changes
+// nothing; the new ones are the upserts.
+func (s *Store) InsertOtelEvents(ctx context.Context, events []session.OtelEvent) (int, error) {
+	if len(events) == 0 {
+		return 0, nil
+	}
+	now := time.Now()
+	models := make([]mongo.WriteModel, len(events))
+	for i, e := range events {
+		at := e.Timestamp.UTC()
+		filter := key("account_id", accountValue(e.AccountID), "session_id", e.SessionID, "name", e.Name, "sequence", e.Sequence, "timestamp", at)
+		attrs := e.Attributes
+		if attrs == nil {
+			attrs = session.Doc{}
+		}
+		insert := withRedacted(setPresent(key("attributes", attrs, "created_at", now), "prompt_id", e.PromptID), e.Redacted)
+		models[i] = mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(key("$setOnInsert", insert)).SetUpsert(true)
+	}
+	res, err := s.coll(otelEvents).BulkWrite(ctx, models, options.BulkWrite().SetOrdered(false))
+	if res == nil {
+		return 0, err
+	}
+	return int(res.UpsertedCount), err
+}
+
+func (s *Store) OtelEvents(ctx context.Context, q session.OtelQuery) ([]session.Doc, error) {
+	filter := key("account_id", accountValue(q.AccountID))
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	if len(q.Names) > 0 {
+		filter = append(filter, bson.E{Key: "name", Value: key("$in", q.Names)})
+	}
+	if q.PromptID != "" {
+		filter = append(filter, bson.E{Key: "prompt_id", Value: q.PromptID})
+	}
+	if !q.Since.IsZero() {
+		filter = append(filter, bson.E{Key: "timestamp", Value: key("$gte", q.Since)})
+	}
+	projection := key("_id", 0, "session_id", 1, "prompt_id", 1, "name", 1, "sequence", 1, "timestamp", 1, "attributes", 1, "redacted", 1, "created_at", 1)
+	return s.find(ctx, otelEvents, filter, projection, key("timestamp", -1, "sequence", -1), 0, q.Limit)
 }
 
 func (s *Store) HookEventIDsByToolUse(ctx context.Context, sessionID string, toolUseIDs []string) ([]string, error) {

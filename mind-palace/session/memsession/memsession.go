@@ -23,6 +23,7 @@ const (
 	transcriptLines = "transcript_lines"
 	subagentLines   = "subagent_lines"
 	blobs           = "blobs"
+	otelEvents      = "otel_events"
 
 	maxSessions = 500
 )
@@ -639,6 +640,61 @@ func (s *Store) LimitSamples(_ context.Context, q session.LimitQuery) ([]session
 	out := []session.Doc{}
 	for _, d := range page(found, 0, q.Limit) {
 		out = append(out, project(d, limitProjection...))
+	}
+	return out, nil
+}
+
+// --- OpenTelemetry events ---
+
+var otelProjection = []string{"session_id", "prompt_id", "name", "sequence", "timestamp", "attributes", "redacted", "created_at"}
+
+// InsertOtelEvents stores each event unless one with the same account,
+// session, name, sequence and timestamp is stored.
+func (s *Store) InsertOtelEvents(_ context.Context, events []session.OtelEvent) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	inserted := 0
+	for _, e := range events {
+		at := e.Timestamp.UTC()
+		if s.find(otelEvents, func(d session.Doc) bool {
+			return owned(d, e.AccountID) && strOf(d, "session_id") == e.SessionID && strOf(d, "name") == e.Name &&
+				numOf(d, "sequence") == e.Sequence && timeOf(d, "timestamp").Equal(at)
+		}) != nil {
+			continue
+		}
+		d := session.Doc{"session_id": e.SessionID, "name": e.Name, "sequence": e.Sequence, "timestamp": at,
+			"attributes": deepCopy(e.Attributes), "created_at": time.Now()}
+		present(d, map[string]string{"account_id": e.AccountID, "prompt_id": e.PromptID})
+		withRedacted(d, e.Redacted)
+		s.insert(otelEvents, d)
+		inserted++
+	}
+	return inserted, nil
+}
+
+func (s *Store) OtelEvents(_ context.Context, q session.OtelQuery) ([]session.Doc, error) {
+	inSessions, names := setOf(q.SessionIDs), setOf(q.Names)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(otelEvents, func(d session.Doc) bool {
+		switch {
+		case !owned(d, q.AccountID),
+			len(inSessions) > 0 && !inSessions[strOf(d, "session_id")],
+			len(names) > 0 && !names[strOf(d, "name")],
+			q.PromptID != "" && strOf(d, "prompt_id") != q.PromptID:
+			return false
+		}
+		return q.Since.IsZero() || !timeOf(d, "timestamp").Before(q.Since)
+	})
+	sort.SliceStable(found, func(i, j int) bool {
+		if a, b := timeOf(found[i], "timestamp"), timeOf(found[j], "timestamp"); !a.Equal(b) {
+			return a.After(b)
+		}
+		return numOf(found[i], "sequence") > numOf(found[j], "sequence")
+	})
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		out = append(out, project(d, otelProjection...))
 	}
 	return out, nil
 }

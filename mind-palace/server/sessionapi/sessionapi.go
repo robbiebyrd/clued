@@ -35,6 +35,8 @@
 //	POST /usage-totals                   UsageTotals            body: session.UsageQuery
 //	POST /sessions/delete                DeleteSessions         body: session.ForgetQuery
 //	POST /limit-samples                  LimitSamples           body: session.LimitQuery
+//	POST /otel-events                    InsertOtelEvents       body: [session.OtelEvent, …] (≤ MaxLines) → {"inserted"}
+//	POST /otel-events/query              OtelEvents             body: session.OtelQuery
 //	POST /activities                     Activities             body: session.ActivityQuery
 //	POST /state-changes                  StateChanges           body: session.ActivityQuery
 //	POST /rejected-tool-uses             RejectedToolUses       body: session.ActivityQuery
@@ -146,6 +148,8 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/usage-totals", a.usageTotals)
 	route("POST", "/sessions/delete", a.deleteSessions)
 	route("POST", "/limit-samples", a.limitSamples)
+	route("POST", "/otel-events", a.insertOtelEvents)
+	route("POST", "/otel-events/query", a.otelEvents)
 	route("POST", "/activities", a.activities)
 	route("POST", "/state-changes", a.stateChanges)
 	route("POST", "/rejected-tool-uses", a.rejectedToolUses)
@@ -598,6 +602,53 @@ func (a *api) limitSamples(w http.ResponseWriter, r *http.Request, account strin
 	}
 	q.AccountID = account
 	found, err := a.store.LimitSamples(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, docs(found))
+}
+
+func (a *api) insertOtelEvents(w http.ResponseWriter, r *http.Request, account string) {
+	var events []session.OtelEvent
+	if !a.decode(w, r, &events) {
+		return
+	}
+	if len(events) > a.opts.MaxLines {
+		invalid(w, fmt.Sprintf("%d OpenTelemetry events exceed the batch limit of %d", len(events), a.opts.MaxLines))
+		return
+	}
+	for i := range events {
+		if !validID(events[i].SessionID) {
+			invalid(w, fmt.Sprintf("OpenTelemetry event %d: session_id %q is not a single safe path element", i, events[i].SessionID))
+			return
+		}
+		if events[i].Name == "" {
+			invalid(w, fmt.Sprintf("OpenTelemetry event %d has no name", i))
+			return
+		}
+		events[i].AccountID = account
+	}
+	n, err := a.store.InsertOtelEvents(writeCtx(r), events)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, map[string]any{"inserted": n})
+}
+
+func (a *api) otelEvents(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.OtelQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	found, err := a.store.OtelEvents(r.Context(), q)
 	if err != nil {
 		storeError(w, err)
 		return

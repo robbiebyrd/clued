@@ -445,6 +445,7 @@ expose them next to the plan and story tools.
 | `clientcfg` | Opens the plan and story services as the client does: the repository's config plus, in remote mode, the `clued-server` store as a secondary store; resolves the project slug (`remote.project`, git origin, directory name) |
 | `session`, `session/*` | Claude Code session capture: config (local and remote mode), MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
 | `session/otel` | A session as an OpenTelemetry trace (GenAI conventions) sent as OTLP/HTTP JSON to `otelEndpoint` when it ends; each span at most once |
+| `session/otlp` | Claude Code's own OpenTelemetry logs received at `/v1/logs` (server and daemon; `/v1/metrics` accepted, not stored): the `api_request`, `api_error` and `tool_result` events of known sessions, with an allow-list of attributes, as `session.OtelEvent` |
 | `session/render` | A session as Markdown or a self-contained HTML page (header, turns, tool calls summarised, results folded, errors marked) |
 | `session/export` | `session export` / `export_session` (Markdown, HTML, JSONL, zip; redacted by default) and `session import` |
 | `session/redact` | Capture-time redaction (`redactAtCapture`, `redactPatterns`) and exclusion (`excludePaths`) as a `session.Store` decorator every client store is wrapped in, so no write path stores a secret |

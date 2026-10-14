@@ -2,11 +2,12 @@
 id: 0008-vvc
 title: Capture-time privacy, token-capped results, export and OpenTelemetry
 type: dsgn
-status: in_progress
+status: complete
 priority: "2"
 effort: XL
 created: "2026-10-14T03:12:18.334Z"
-updated: "2026-10-14T04:52:53.398Z"
+updated: "2026-10-14T14:46:28.948Z"
+completed: "2026-10-14T14:46:28.948Z"
 tags:
   - session
   - privacy
@@ -28,19 +29,19 @@ links:
     - ["0007-w5t", "depends"]
 progress:
   "7":
-    status: pending
+    status: complete
     stories:
       - 0030-cy1
   "8":
-    status: pending
+    status: complete
     stories:
       - 0033-zmt
   "9":
-    status: pending
+    status: complete
     stories:
       - 0031-nwf
   "10":
-    status: pending
+    status: complete
     stories:
       - 0032-fj6
       - 0034-chs

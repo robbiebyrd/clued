@@ -64,6 +64,26 @@ type Blob struct {
 	Redacted []string `json:"redacted,omitempty" bson:"redacted,omitempty"`
 }
 
+// OtelEvent is one OpenTelemetry log event Claude Code exported about a
+// session (CLAUDE_CODE_ENABLE_TELEMETRY with an OTLP logs exporter): Name
+// is its event.name (api_request, api_error, tool_result), Sequence its
+// event.sequence and Timestamp its event.timestamp (the record's time when
+// absent). Attributes holds the event's attributes the ingest keeps (see
+// session/otlp), never the prompt or tool input text. An event is stored
+// once per account, session, name, sequence and timestamp, so an exporter's
+// retry stores nothing new.
+type OtelEvent struct {
+	AccountID  string    `json:"account_id,omitempty" bson:"account_id,omitempty"`
+	SessionID  string    `json:"session_id" bson:"session_id"`
+	PromptID   string    `json:"prompt_id,omitempty" bson:"prompt_id,omitempty"`
+	Name       string    `json:"name" bson:"name"`
+	Sequence   int64     `json:"sequence" bson:"sequence"`
+	Timestamp  time.Time `json:"timestamp" bson:"timestamp"`
+	Attributes Doc       `json:"attributes" bson:"attributes"`
+	// Redacted names the redaction rules that masked part of Attributes.
+	Redacted []string `json:"redacted,omitempty" bson:"redacted,omitempty"`
+}
+
 // SyntheticModel is the model Claude Code writes on the lines it makes up
 // itself (a local notice, not an answer); it names no model.
 const SyntheticModel = "<synthetic>"

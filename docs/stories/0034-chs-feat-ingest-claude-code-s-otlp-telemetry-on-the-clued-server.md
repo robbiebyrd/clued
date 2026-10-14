@@ -2,11 +2,13 @@
 id: 0034-chs
 title: Ingest Claude Code's OTLP telemetry on the clued server
 type: feat
-status: pending
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-14T04:52:38.573Z"
-updated: "2026-10-14T04:52:38.573Z"
+updated: "2026-10-14T14:46:18.090Z"
+started: "2026-10-14T14:46:17.995Z"
+completed: "2026-10-14T14:46:18.090Z"
 tags:
   - otel
   - server
@@ -23,9 +25,9 @@ links:
     - ["0008-vvc", "included"]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
 ---
 
 # Ingest Claude Code's OTLP telemetry on the clued server
@@ -46,6 +48,8 @@ Keep api_request and tool_result events in an otel_events collection keyed by se
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: An OTLP log export from a client stub is stored under the token's account and shows in get_session_context
+- [x] VERIFY: An OTLP log export from a client stub is stored under the token's account and shows in get_session_context
 
 ## Work Log
+
+### 2026-10-14T14:46:06.863Z - OTLP/HTTP ingest at /v1/logs and /v1/metrics on the clued server (behind the token) and the local daemon: session/otlp decodes JSON and protobuf (gzip or not), keeps api_request, api_error and tool_result events of sessions the account holds with an allow-list of attributes (no prompt, tool input, e-mail or account ids), stored once per account/session/name/sequence/timestamp in otel_events through the new store methods (mem, Mongo, remote, sessionapi, redact; sessiontest cases). get_session_context reports the sum under telemetry. Verified with the official OpenTelemetry Go SDK exporter (http/protobuf with gzip, and http/json) against mind-palace server run, and a server test over the MCP endpoint.

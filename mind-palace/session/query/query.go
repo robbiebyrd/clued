@@ -159,6 +159,9 @@ type Context struct {
 	// Turns is the session's pace from its turn_duration records; null
 	// when none is recorded.
 	Turns *TurnStats `json:"turns"`
+	// Telemetry sums the OpenTelemetry events Claude Code exported for the
+	// session (API requests, errors, tool calls); null when none arrived.
+	Telemetry *Telemetry `json:"telemetry"`
 }
 
 // TurnStats sums the turn_duration records of a session: how many turns,
@@ -532,9 +535,13 @@ func (s *Service) SessionContext(ctx context.Context, sessionID string) (Context
 	if err != nil {
 		return Context{}, err
 	}
+	telemetry, err := s.telemetry(ctx, sessionID)
+	if err != nil {
+		return Context{}, err
+	}
 	summary := sessionSummary(stored)
 	addHotness(summary, s.now())
-	c := Context{Session: summary, TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent, Turns: turns}
+	c := Context{Session: summary, TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent, Turns: turns, Telemetry: telemetry}
 	if len(usage.Groups) > 0 {
 		c.Usage = &usage.Groups[0]
 	}
