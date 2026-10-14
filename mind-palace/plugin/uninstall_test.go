@@ -137,8 +137,9 @@ func TestUninstallWithNothingInstalled(t *testing.T) {
 	if r.code != 0 || r.stderr != "" {
 		t.Fatalf("got %+v, want exit 0 and no stderr", r)
 	}
-	if strings.TrimSpace(r.stdout) != "clued: uninstall complete" {
-		t.Errorf("stdout = %q, want only the completion line", r.stdout)
+	want := "clued: the plugin is still installed; remove it with `/plugin uninstall clued@clued` in Claude Code (or `claude plugin uninstall clued@clued`), then /reload-plugins\nclued: uninstall complete"
+	if strings.TrimSpace(r.stdout) != want {
+		t.Errorf("stdout = %q, want only the plugin reminder and the completion line", r.stdout)
 	}
 }
 
@@ -204,6 +205,52 @@ func TestUninstallStopsTheServerStack(t *testing.T) {
 			t.Errorf("docker calls = %q, want down --volumes", calls)
 		}
 		mustNotExist(t, stack, "stack directory")
+	})
+
+	// --purge-server takes the stack's CA out of the trust stores through
+	// the shim (a fake mind-palace on PATH here) before the directory goes.
+	purgeWithCA := func(t *testing.T, binary string) (result, string) {
+		t.Helper()
+		home := remoteHome(t, "https://localhost:8443", remoteToken)
+		stack := writeStack(t, home)
+		if err := os.MkdirAll(filepath.Join(stack, "tls"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(stack, "tls", "ca.pem"), []byte("CA"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		binDir, _ := fakeDocker(t, 0)
+		writeExecutable(t, binDir, "mind-palace", binary)
+		env := []string{"HOME=" + home, "PATH=" + binDir + ":/usr/bin:/bin", "CLUED_PORT=" + port, "CLUED_RELEASE_URL=off"}
+		r := runScript(t, hook(t, "uninstall"), "", env, "--purge-server", "--keep-config")
+		mustNotExist(t, stack, "stack directory")
+		return r, home
+	}
+	t.Run("--purge-server untrusts the CA", func(t *testing.T) {
+		r, home := purgeWithCA(t, "#!/bin/sh\necho \"$*\" > \"$HOME/trust.args\"\necho '{\"ok\":true,\"result\":{\"pending\":[]}}'\n")
+		args, _ := os.ReadFile(filepath.Join(home, "trust.args"))
+		if !strings.Contains(string(args), "server trust --remove --dir "+filepath.Join(home, ".clued-server")) || !strings.Contains(r.stdout, "removed the server CA") {
+			t.Errorf("args %q, got %+v", args, r)
+		}
+		mustNotExist(t, filepath.Join(home, "clued-server-ca.pem"), "kept CA")
+	})
+	t.Run("--purge-server keeps the CA for what still needs root", func(t *testing.T) {
+		r, home := purgeWithCA(t, "#!/bin/sh\necho '{\"ok\":true,\"result\":{\"pending\":[\"sudo rm -f /usr/local/share/ca-certificates/clued-server-ca-1.crt && sudo update-ca-certificates\"]}}'\n")
+		if !strings.Contains(r.stdout, "sudo update-ca-certificates") || !strings.Contains(r.stdout, "clued-server-ca.pem") {
+			t.Errorf("got %+v", r)
+		}
+		if _, err := os.Stat(filepath.Join(home, "clued-server-ca.pem")); err != nil {
+			t.Errorf("the CA was not kept: %v", err)
+		}
+	})
+	t.Run("--purge-server reports a failed untrust", func(t *testing.T) {
+		r, home := purgeWithCA(t, "#!/bin/sh\nexit 3\n")
+		if r.code != 0 || !strings.Contains(r.stderr, "could not take the server CA out") {
+			t.Errorf("got %+v", r)
+		}
+		if _, err := os.Stat(filepath.Join(home, "clued-server-ca.pem")); err != nil {
+			t.Errorf("the CA was not kept: %v", err)
+		}
 	})
 
 	t.Run("--keep-server leaves it running", func(t *testing.T) {

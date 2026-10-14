@@ -116,7 +116,7 @@ The directory holds everything the stack needs and is the server's home:
 | `docker-compose.yml` | Three services: `nginx` (publishes `${CLUED_PUBLIC_PORT:-8443}` over HTTPS and forwards to the server), `clued-server` (plain HTTP inside the compose network, `CLUED_SERVER_BEHIND_PROXY=true`, runs as your uid so it can read the token file) and `mongo` (`mongo:8` on the named volume `clued_mongo_data`, not published). The server image is the release of the plugin that ran `init` (`ghcr.io/robbiebyrd/clued-server:v<version>`, `:latest` from a bare binary); `CLUED_SERVER_IMAGE` overrides it without regenerating |
 | `nginx/clued.conf` | The front-end: TLS 1.2+, the `Authorization` header and WebSocket upgrades passed through, bodies up to the server's 16 MiB cap, hour-long reads for `/ws` |
 | `mind-palace.config.yaml` | The plan and story storage: MongoDB alone, namespaced per project (see [Storage on the server](#storage-on-the-server)) |
-| `tls/ca.pem`, `tls/ca-key.pem` | A private CA, valid ten years; clients put `ca.pem` in `serverCaFile` |
+| `tls/ca.pem`, `tls/ca-key.pem` | A private CA, valid ten years and name-constrained to the hosts below (it can sign for this server and nothing else); clients put `ca.pem` in `serverCaFile`, or this machine trusts it with [`server trust`](#trusting-the-ca-on-this-machine) |
 | `tls/cert.pem`, `tls/key.pem` | The server certificate signed by that CA, valid two years, covering `localhost`, `127.0.0.1`, `::1`, this host's name and every `--host` |
 | `tokens.json` | The token file; `init` mints one token named after the host (`--name`, `--project`, `--account` as for `server token create`) and `mind-palace server token …` finds the file here by default |
 
@@ -124,12 +124,54 @@ The directory holds everything the stack needs and is the server's home:
 regenerated (so a plugin upgrade re-pins the image with another `init`,
 followed by `docker compose … up -d`), `tls/` and `tokens.json` are kept, and
 a token whose name exists is not minted again (`notes` says so). `--force`
-renews the CA and the certificate, which is how a name is added later:
+reissues the server certificate, which is how a name is added later. The CA
+is kept while it covers every host and has more than 30 days left, so the
+machines that already trust it keep working; a host outside its name
+constraints needs a new CA, and `--new-ca` asks for one outright. Either way
+`notes` says when the CA changed, and every machine that trusted the old one
+must trust the new one (`server trust` again here, a new `ca.pem` in
+`serverCaFile` elsewhere). The result names the CA file and its SHA-256
+fingerprint (`ca`, `ca_fingerprint`):
 
 ```bash
 mind-palace server init --host clued.home.arpa --host 192.168.1.20 --force --no-token
 docker compose -f ~/.clued-server/docker-compose.yml up -d --force-recreate nginx
 ```
+
+#### Trusting the CA on this machine
+
+Clients of the plugin read the CA from `serverCaFile`, but a browser (the
+HTTPS `/mcp` endpoint, `/health`), `curl` without `--cacert` or any other
+tool reads only the machine's trust stores. `mind-palace server trust`
+(`scripts/clued server trust` from the plugin; `/clued-setup` offers it)
+puts `tls/ca.pem` there:
+
+| Platform | Stores | Root |
+|---|---|---|
+| macOS | The login keychain, as a trusted root (`security add-trusted-cert`); Safari, Chrome, Firefox, curl and Go read it | No; macOS may ask for the account password |
+| Linux | The system store: `update-ca-certificates` (Debian, Ubuntu, Alpine, openSUSE), `update-ca-trust` (Fedora, RHEL) or p11-kit's `trust anchor` (Arch); the file is `clued-server-ca-<fingerprint>.crt` | Yes |
+| Linux | The NSS databases Chrome and Chromium (`~/.pki/nssdb`) and each Firefox profile (including the snap one) read, with `certutil` (`libnss3-tools`, `nss-tools`), when they exist | No |
+| Windows | The current user's Root store (`certutil -user -addstore Root`) | No; Windows asks to confirm |
+
+```bash
+mind-palace server trust --dry-run   # lists the steps and changes nothing
+mind-palace server trust             # installs; prints pending root steps
+mind-palace server trust --remove    # takes the CA out of the same stores
+```
+
+A step that needs root runs when the command runs as root or `sudo -n`
+works; otherwise it is left in `pending` as the exact shell line to run. When
+nothing is pending the command checks `--url` (by default the stack's
+`https://localhost:<port>`) with the system roots alone and reports
+`verified`. `--dir` names another stack directory and `--ca` any other CA
+file. The name constraints are what make this safe: even with its key, the
+CA cannot vouch for any host but the stack's. A CA from an older `init` has
+none; `init --new-ca` replaces it with one that does.
+
+When `/clued-uninstall` deletes the stack's data (or `hooks/uninstall
+--purge-server` does), it runs `server trust --remove` before it deletes the
+directory; root steps it could not run are printed, with the CA copied to
+`~/clued-server-ca.pem` for them.
 
 **Other machines** connect through the same nginx: their `serverUrl` is
 `https://<name>:8443` for a name the certificate covers and their
@@ -155,6 +197,47 @@ with the `CLUED_SERVER_*` variables.
   needs no TLS); every other client goes through the terminator.
 - Without Docker at all, run the binary as in [From the binary](#from-the-binary)
   behind any of those.
+
+#### From a source checkout
+
+Someone working on the server runs it from their checkout with the stack's
+certificates and token file, and no Docker (stop the stack first, or pick
+another port):
+
+```bash
+mind-palace server init --name dev     # certificates and a token; nothing starts
+mind-palace server trust               # optional
+cd <checkout>/mind-palace
+go run ./cmd/mind-palace server run --addr 127.0.0.1:8443 \
+  --tls-cert ~/.clued-server/tls/cert.pem --tls-key ~/.clued-server/tls/key.pem \
+  --tokens ~/.clued-server/tokens.json --store memory
+```
+
+Drop `--store memory` to keep data: sessions go to `CLUED_MONGO_URL` and
+`CLUED_DB_NAME`, plans and stories to the storage of `--config` (a copy of
+`~/.clued-server/mind-palace.config.yaml` pointed at a MongoDB on the host).
+Give it databases of its own, apart from a local-mode daemon's
+`claude_sessions` and a local clued cloud's. `server run` ignores
+`serverUrl`, `serverToken` and `serverCaFile` in the machine's `config.json`,
+so a machine whose client points at this server does not make the server
+relay to itself. Clients then use it exactly as they use the stack.
+
+#### Next to a local clued cloud
+
+A clued cloud run on the same machine (`clued-cloud serve`, or its
+`docker compose up`) does not collide with the stack:
+
+| | Server stack | clued cloud |
+|---|---|---|
+| Port | `8443` (`CLUED_PUBLIC_PORT`) | `8080` (`--addr`) |
+| Compose project | `clued` (containers `clued-nginx`, `clued-server`, `clued-mongo`) | `clued-cloud` |
+| MongoDB | the volume `clued_clued_mongo_data`, not published | its own volume, not published |
+
+The local daemon of local mode listens on `8085`. A client's `config.json`
+names one server at a time: `/clued-setup` asks before it replaces a
+`serverUrl` and keeps a copy of the file, and `CLUED_SERVER_URL`,
+`CLUED_SERVER_TOKEN` and `CLUED_SERVER_CA_FILE` point one shell at the other
+server without touching the file.
 
 `/clued-uninstall` (and `hooks/uninstall`) stops the stack with
 `docker compose down`; the MongoDB volume and `~/.clued-server` stay unless

@@ -12,7 +12,8 @@
 # Server stack (`mind-palace server init`, ~/.clued-server/docker-compose.yml
 #          or $CLUED_SERVER_DIR): stops its containers with `docker compose
 #          down`; the MongoDB volume and the directory (tokens, certificates)
-#          stay unless --purge-server
+#          stay unless --purge-server, which also takes the stack's CA out of
+#          this machine's trust stores (`server trust --remove`)
 # Flags:
 #   --keep-config          skip removing ~/.claude/plugins/data/clued/
 #   --keep-mongo-binary    skip removing ~/mongodb/ (tarball install only)
@@ -21,7 +22,9 @@
 #                          session, plan and story on the server) and its
 #                          directory
 #
-# Every step is skipped silently when the thing it removes is absent.
+# Every step is skipped silently when the thing it removes is absent. The
+# plugin itself stays installed (only Claude Code can remove it); the last
+# lines say how.
 
 KEEP_CONFIG=0
 KEEP_MONGO_BINARY=0
@@ -57,11 +60,36 @@ if [[ -z "$SERVER_URL" ]] && command -v curl &>/dev/null \
 fi
 
 # --- The server stack this machine hosts (docker compose, from `server init`) ---
+# untrust_stack_ca takes the stack's CA out of this machine's trust stores
+# (`server trust --remove`) before its directory goes. What it cannot do
+# (root, a keychain dialog) is printed, and the CA is kept as
+# ~/clued-server-ca.pem so those commands still find it.
+untrust_stack_ca() {
+  local ca="${STACK_DIR}/tls/ca.pem" shim out pending
+  [[ -f "$ca" ]] || return 0
+  shim="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/clued"
+  if out=$("$shim" server trust --remove --dir "$STACK_DIR" 2>/dev/null); then
+    pending=""
+    command -v jq &>/dev/null && pending=$(jq -r '.result.pending[]?' <<<"$out" 2>/dev/null)
+    if [[ -z "$pending" ]]; then
+      echo "clued: removed the server CA from this machine's trust stores"
+      return 0
+    fi
+    cp "$ca" "${HOME}/clued-server-ca.pem"
+    echo "clued: to finish removing the server CA from the trust stores, run (it was kept as ~/clued-server-ca.pem):"
+    printf '  %s\n' "${pending//${ca}/${HOME}/clued-server-ca.pem}"
+  else
+    cp "$ca" "${HOME}/clued-server-ca.pem"
+    echo "clued: could not take the server CA out of the trust stores; it was kept as ~/clued-server-ca.pem: run \`scripts/clued server trust --remove --ca ~/clued-server-ca.pem\`" >&2
+  fi
+}
+
 STACK_DIR="${CLUED_SERVER_DIR:-${HOME}/.clued-server}"
 STACK_COMPOSE="${STACK_DIR}/docker-compose.yml"
 if [[ $KEEP_SERVER -eq 0 && -f "$STACK_COMPOSE" ]] && command -v docker &>/dev/null; then
   if [[ $PURGE_SERVER -eq 1 ]]; then
     if docker compose -f "$STACK_COMPOSE" down --volumes &>/dev/null; then
+      untrust_stack_ca
       rm -rf "$STACK_DIR"
       echo "clued: server stack stopped and removed with its data (${STACK_DIR})"
     else
@@ -123,4 +151,6 @@ if [[ $KEEP_MONGO_BINARY -eq 0 && -d "${HOME}/mongodb" ]]; then
   echo "clued: removed mongodb binaries (~/mongodb)"
 fi
 
+# --- The plugin itself: only Claude Code can remove it ---
+echo "clued: the plugin is still installed; remove it with \`/plugin uninstall clued@clued\` in Claude Code (or \`claude plugin uninstall clued@clued\`), then /reload-plugins"
 echo "clued: uninstall complete"

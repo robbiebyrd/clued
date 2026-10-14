@@ -1,6 +1,6 @@
 ---
 name: clued-uninstall
-description: Stop the clued daemon (local mode) or the server stack this machine hosts, remove the MongoDB launchd plist, and clean up config, catch-up state and logs
+description: Stop the clued daemon (local mode) or the server stack this machine hosts, remove the MongoDB launchd plist, clean up config, catch-up state and logs, and tell you how to uninstall the plugin itself
 ---
 
 You are helping the user uninstall or clean up the clued Claude Code plugin.
@@ -37,7 +37,7 @@ Use AskUserQuestion to confirm scope before touching anything. Example options:
   - Note: MongoDB data at `~/data/db/` contains session transcripts — offer to keep or remove separately
 - **MongoDB data** (only if `~/data/db/` exists): remove `~/data/db/` — warn that this deletes all captured session transcripts
 - **Docker MongoDB** (only if the `transcripts-mongo` container is present): stop and remove the container; separately offer to remove its `transcripts_data` volume — warn that the volume holds all captured session transcripts
-- **Server stack** (only if `~/.clued-server/docker-compose.yml` is present): stop its containers (`nginx`, `clued-server`, `mongo`); separately offer to remove its `clued_mongo_data` volume and the `~/.clued-server` directory (tokens, CA, certificates) — warn that the volume holds every session, plan and story the server received from every machine, and that other machines using this server lose it
+- **Server stack** (only if `~/.clued-server/docker-compose.yml` is present): stop its containers (`nginx`, `clued-server`, `mongo`); separately offer to remove its `clued_mongo_data` volume and the `~/.clued-server` directory (tokens, CA, certificates), which also takes the CA out of this machine's trust stores — warn that the volume holds every session, plan and story the server received from every machine, and that other machines using this server lose it
 
 In clued server mode the sessions, plans and stories on the server are not touched by anything here; revoking the token is the operator's `mind-palace server token revoke <name>`.
 
@@ -80,7 +80,7 @@ rm -f ~/.claude/plugins/data/clued/relay.log
 echo "catch-up state and relay log removed"
 ```
 
-The non-interactive `hooks/uninstall` does the same: it stops the daemon only in local mode and only when one answers, stops the server stack when `~/.clued-server/docker-compose.yml` exists (unless `--keep-server`; `--purge-server` also removes its volume and directory), removes the plist only when present, always removes `catchup/` and `relay.log`, and removes the config directory unless `--keep-config` is given.
+The non-interactive `hooks/uninstall` does the same: it stops the daemon only in local mode and only when one answers, stops the server stack when `~/.clued-server/docker-compose.yml` exists (unless `--keep-server`; `--purge-server` also removes its volume and directory, after `server trust --remove`, printing the commands that still need root and keeping the CA as `~/clued-server-ca.pem` for them), removes the plist only when present, always removes `catchup/` and `relay.log`, and removes the config directory unless `--keep-config` is given.
 
 ## Step 6 — Remove MongoDB binaries (if confirmed)
 
@@ -120,7 +120,13 @@ Stop the containers `mind-palace server init` set up; the data volume and the di
 docker compose -f ~/.clued-server/docker-compose.yml down && echo "server stack stopped"
 ```
 
-Only if the user confirmed deleting the server's data too (re-confirm first: "This will permanently delete every session, plan and story on this server, for every machine that uses it. Are you sure?"):
+Only if the user confirmed deleting the server's data too (re-confirm first: "This will permanently delete every session, plan and story on this server, for every machine that uses it. Are you sure?"), first take its CA out of this machine's trust stores (it is harmless when it was never trusted), while `~/.clued-server/tls/ca.pem` still exists:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" server trust --remove
+```
+
+If its result lists `pending` commands (the Linux system store needs root, or the macOS keychain could not show its dialog), show them to the user and ask them to run them in their own terminal, or in this prompt prefixed with `!`, before you continue; once the directory is gone the commands cannot find the CA. Then:
 
 ```bash
 docker compose -f ~/.clued-server/docker-compose.yml down --volumes && rm -rf ~/.clued-server && echo "server stack and its data removed"
@@ -130,4 +136,14 @@ Plans and stories keep their Markdown files in each repository either way.
 
 ## Step 8 — Confirm to user
 
-Summarise what was removed and what was kept (in clued server mode: that the data on the server is untouched and the token is still valid until the operator revokes it). Remind them to run `/plugin` and then uninstall clued from the plugin manager to complete the removal.
+Summarise what was removed and what was kept (in clued server mode: that the data on the server is untouched and the token is still valid until the operator revokes it).
+
+## Step 9 — Tell the user to uninstall the Claude Code plugin
+
+Nothing above removes the plugin itself: its hooks, the `/clued-*` commands and the `clued` and `mind-palace` MCP servers stay registered until the plugin is uninstalled, and you cannot uninstall it from here. End by telling the user, in so many words, that the cleanup is not complete until they do this themselves:
+
+1. Uninstall the plugin: `/plugin uninstall clued@clued` in this prompt (or open `/plugin`, pick clued under **Installed** and choose **Uninstall**), or `claude plugin uninstall clued@clued` in a terminal. Uninstall it from the scope it was installed in; a project-scope install is listed in the repository's `.claude/settings.json` and goes for every collaborator once that change is committed.
+2. Optionally remove the marketplace too: `/plugin marketplace remove clued`.
+3. Run `/reload-plugins`, or start a new session.
+
+Until the plugin is uninstalled its hooks keep firing in this session. In local mode a hook that finds no daemon writes the event to `~/.claude/plugins/data/clued/events.wal`, so the config directory removed in Step 5 can reappear; if it does after the plugin is gone, remove it again with `rm -rf ~/.claude/plugins/data/clued`.
