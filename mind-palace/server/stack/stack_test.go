@@ -1,12 +1,18 @@
 package stack
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -191,14 +197,82 @@ func TestInitIsIdempotentAndForceRenewsTheCertificates(t *testing.T) {
 		t.Errorf("third token = %+v", third.Token)
 	}
 
+	// --force reissues the server certificate under the same CA, so a
+	// machine that trusts the CA keeps trusting the server.
+	certBefore := readPEMCert(t, filepath.Join(opts.Dir, CertFile))
 	opts.Force = true
 	opts.NoToken = true
 	forced, err := Init(opts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if forced.TLS != TLSGenerated || readPEMCert(t, forced.CAFile).Equal(caBefore) || forced.Token != nil {
-		t.Errorf("--force did not renew the CA: tls %q", forced.TLS)
+	if forced.TLS != TLSGenerated || forced.CA != CAKept || !readPEMCert(t, forced.CAFile).Equal(caBefore) || forced.Token != nil {
+		t.Errorf("--force: tls %q, ca %q, CA replaced %v", forced.TLS, forced.CA, !readPEMCert(t, forced.CAFile).Equal(caBefore))
+	}
+	if readPEMCert(t, filepath.Join(opts.Dir, CertFile)).Equal(certBefore) {
+		t.Error("--force did not reissue the server certificate")
+	}
+	if forced.CAFingerprint != Fingerprint(caBefore) {
+		t.Errorf("fingerprint = %s", forced.CAFingerprint)
+	}
+
+	// A host the CA does not cover needs a new CA, and says so.
+	opts.Hosts = []string{"clued.lan"}
+	widened, err := Init(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if widened.CA != CAGenerated || readPEMCert(t, widened.CAFile).Equal(caBefore) || !strings.Contains(strings.Join(widened.Notes, " "), "the CA changed") {
+		t.Errorf("a new host: ca %q, notes %v", widened.CA, widened.Notes)
+	}
+
+	// --new-ca replaces it on demand.
+	caWidened := readPEMCert(t, widened.CAFile)
+	opts.NewCA = true
+	renewed, err := Init(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renewed.CA != CAGenerated || readPEMCert(t, renewed.CAFile).Equal(caWidened) {
+		t.Errorf("--new-ca kept the CA: %q", renewed.CA)
+	}
+}
+
+func TestTheCAIsNameConstrainedToTheStacksHosts(t *testing.T) {
+	opts := testOptions(t)
+	res, err := Init(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ca := readPEMCert(t, res.CAFile)
+	if !ca.PermittedDNSDomainsCritical || !slices.Contains(ca.PermittedDNSDomains, "localhost") || len(ca.PermittedIPRanges) != 3 {
+		t.Fatalf("constraints = %v %v", ca.PermittedDNSDomains, ca.PermittedIPRanges)
+	}
+	roots := x509.NewCertPool()
+	roots.AddCert(ca)
+	leaf := readPEMCert(t, filepath.Join(opts.Dir, CertFile))
+	for _, name := range []string{"localhost", "127.0.0.1", "laptop.example"} {
+		if _, err := leaf.Verify(x509.VerifyOptions{Roots: roots, DNSName: name}); err != nil {
+			t.Errorf("the server certificate does not verify for %s: %v", name, err)
+		}
+	}
+	// A certificate for another name, signed with the stack's CA key, is
+	// refused: trusting the CA trusts nothing but this server.
+	authority, err := loadCA(opts.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	der, err := x509.CreateCertificate(rand.Reader, &x509.Certificate{
+		SerialNumber: big.NewInt(7), Subject: pkix.Name{CommonName: "bank"}, DNSNames: []string{"bank.example.com"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}, authority.cert, &key.PublicKey, authority.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, _ := x509.ParseCertificate(der)
+	if _, err := other.Verify(x509.VerifyOptions{Roots: roots, DNSName: "bank.example.com"}); err == nil {
+		t.Error("the CA vouched for a name outside the stack")
 	}
 }
 

@@ -169,9 +169,13 @@ Idempotent, always exits 0.
 `uninstall [--keep-config] [--keep-mongo-binary] [--keep-server] [--purge-server]`
 stops the daemon in local mode, stops the Docker stack under
 `${CLUED_SERVER_DIR:-~/.clued-server}` (`--purge-server` also removes its
-volume and directory), removes the macOS launchd plist when present, always
-removes `catchup/` and `relay.log` from the config directory, and removes the
-config directory unless `--keep-config` is given.
+volume and directory, after `server trust --remove`; root steps it could not
+run are printed and the CA is copied to `~/clued-server-ca.pem` for them),
+removes the macOS launchd plist when present, always removes `catchup/` and
+`relay.log` from the config directory, and removes the config directory
+unless `--keep-config` is given. Its last two lines say that the plugin
+itself is still installed (`/plugin uninstall clued@clued`) and
+`clued: uninstall complete`; it always exits 0.
 
 ### 2.6 Hooks the binary serves
 
@@ -952,7 +956,8 @@ run [--addr host:port] [--tls-cert file --tls-key file | --behind-proxy] [--toke
 token create --name <name> [--project <slug>]… [--account <id>] [--tokens file]
 token list | token revoke <name> | token grant <name> --project <slug>…
 device list | device approve <code> [--name n] [--project slug]… | device deny <code>   (each takes --server, --token, --ca-file, --insecure; defaults from the clued config)
-init [--dir ~/.clued-server] [--proxy nginx|none] [--port 8443] [--host name]… [--name token] [--no-tls] [--force] [--no-token] [--account id] [--image ref] [--nginx-image ref] [--mongo-image ref]
+init [--dir ~/.clued-server] [--proxy nginx|none] [--port 8443] [--host name]… [--name token] [--no-tls] [--force] [--new-ca] [--no-token] [--account id] [--image ref] [--nginx-image ref] [--mongo-image ref]
+trust [--dir ~/.clued-server] [--ca file] [--url https://localhost:8443] [--remove] [--dry-run]
 ```
 
 `token create` prints the raw token once in
@@ -962,9 +967,41 @@ tokens). `device …` acts on a server's device login over its API (section
 7.9) as a machine already linked to it. `init` writes the Compose stack (`docker-compose.yml` with the
 top-level project name `clued`, `nginx/clued.conf`,
 `mind-palace.config.yaml`, a private CA and certificate under `tls/`, the
-first token in `tokens.json`) and prints `{"dir", "composeFile", "proxy",
-"port", "serverUrl", "caFile", "hosts", "tls", "token", "up", "health",
-"written", "kept", "notes"}`; `up` is the command that starts the stack.
+first token in `tokens.json`) and prints `{"dir", "compose_file", "proxy",
+"port", "server_url", "ca_file", "hosts", "tls", "ca", "ca_fingerprint",
+"token", "up", "health", "written", "kept", "notes"}`; `up` is the command
+that starts the stack. `tls` is `generated`, `kept`, `supplied` (`--no-tls`)
+or `none` (`--proxy none`) for the certificates; `ca` is `generated` or `kept` for the CA and `ca_fingerprint`
+its SHA-256 (hex). The CA is name-constrained to `hosts` (critical DNS name
+constraints, one `/32` or `/128` per address). Without `--force` existing
+certificates are kept; `--force` reissues the server certificate and keeps
+the CA while it covers every host and has more than 30 days left; `--new-ca`
+replaces the CA too. A replaced CA adds a note that every machine trusting
+the old one must trust the new one.
+
+`trust` installs the CA (`<dir>/tls/ca.pem`, or `--ca`) in this machine's
+trust stores, or takes it out with `--remove`: the macOS login keychain
+(`security add-trusted-cert -r trustRoot`), the Windows user Root store
+(`certutil -user -addstore Root`), on Linux the system store
+(`update-ca-certificates`, `update-ca-trust` or `trust anchor`, the file named
+`clued-server-ca-<first 12 hex of the fingerprint>.crt`) and every NSS
+database of Chrome (`~/.pki/nssdb`) and Firefox (`cert9.db` profiles,
+nickname `clued server CA <12 hex>`). It prints
+`{"ca", "subject", "fingerprint", "removed", "steps": [{"store", "commands",
+"needs_root", "done", "error"}], "pending", "notes", "url", "verified",
+"verify_error"}`. A step with `needs_root` runs when the process is root or
+`sudo -n true` succeeds (then each command runs as `sudo -n …`); otherwise,
+like a user step that failed, its shell line is added to `pending` (always an
+array). `notes` names stores it cannot reach (no `certutil`, no system tool,
+an unknown OS). When nothing is pending and it did not remove, it GETs
+`<url>/health` (default the stack's `https://localhost:<port>`) with the
+system roots alone and sets `verified` (and `verify_error`). `--dry-run`
+lists the steps and runs nothing. Exit 0 with pending steps; a CA file that
+cannot be read or is not a CA is `NotFound` (exit 4).
+
+`run` reads the machine's plugin config for capture settings but clears its
+`serverUrl`, `serverToken` and `serverCaFile`: the server stores what it
+receives itself and never relays to another server (or to itself).
 
 Hooks (`mind-palace hook write-guard|stop-guard|status-review|prime|relay`)
 and the status line command (`mind-palace hook status`) are section 2.6.

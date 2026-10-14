@@ -650,3 +650,29 @@ func TestIsLoopbackAddr(t *testing.T) {
 		t.Errorf("TLS off loopback refused: %v", err)
 	}
 }
+
+func TestServerRunStoresSessionsItselfEvenWhenItsConfigNamesAServer(t *testing.T) {
+	clearServerEnv(t)
+	tokens, _, _ := tokenFile(t, "t")
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(cfgPath, []byte(`{"serverUrl":"https://localhost:8443","serverToken":"client-token","mongoUrl":"mongodb://127.0.0.1:1"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var opened session.Config
+	saved := openSessionStore
+	openSessionStore = func(_ context.Context, cfg session.Config) (session.Store, error) {
+		opened = cfg
+		return memsession.New(), nil
+	}
+	defer func() { openSessionStore = saved }()
+	r := startServer(t, serverRunOptions{Addr: "127.0.0.1:0", Tokens: tokens, Store: "mongo", SessionConfig: cfgPath}, nil)
+	if err := r.wait(t); err != nil {
+		t.Fatal(err)
+	}
+	if opened.ServerURL != "" || opened.ServerToken != "" || opened.Remote() {
+		t.Errorf("the server opened its sessions in remote mode: %+v", opened)
+	}
+	if opened.MongoURL != "mongodb://127.0.0.1:1" {
+		t.Errorf("the config's other keys were lost: %q", opened.MongoURL)
+	}
+}

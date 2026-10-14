@@ -75,8 +75,13 @@ type Options struct {
 	// NoTLS skips the CA and certificate: tls/cert.pem and tls/key.pem are
 	// supplied by the operator (a certificate from mkcert or a real CA).
 	NoTLS bool
-	// Force regenerates the CA and certificate even when they exist.
+	// Force reissues the server certificate even when it exists; the CA is
+	// kept while it covers every host and is not about to expire, so a
+	// machine that trusts it keeps trusting the server.
 	Force bool
+	// NewCA replaces the CA too (with Force, or when there is none yet);
+	// every machine that trusted the old one must trust the new one.
+	NewCA bool
 	// NoToken skips minting a token.
 	NoToken bool
 	// TokenName names the token; "" means Hostname.
@@ -122,6 +127,11 @@ type Result struct {
 	// TLS says what happened to the certificates: "generated", "kept",
 	// "supplied" or "none".
 	TLS string `json:"tls"`
+	// CA says what happened to the CA when certificates were generated:
+	// "generated" (machines must trust it anew, see `server trust`) or
+	// "kept"; CAFingerprint is its SHA-256.
+	CA            string `json:"ca,omitempty"`
+	CAFingerprint string `json:"ca_fingerprint,omitempty"`
 	// Token is the minted token, or nil with NoToken or when TokenName
 	// already exists (see Notes).
 	Token *Token `json:"token,omitempty"`
@@ -187,16 +197,25 @@ func Init(opts Options) (Result, error) {
 				have = false
 			}
 		}
-		if have && !opts.Force {
+		if have && !opts.Force && !opts.NewCA {
 			res.TLS = TLSKept
 			res.Kept = append(res.Kept, filepath.Join(opts.Dir, CAFile), filepath.Join(opts.Dir, CertFile), filepath.Join(opts.Dir, KeyFile))
 		} else {
-			written, err := writeCertificates(opts.Dir, hosts, opts.Hostname, opts.Now())
+			_, hadCA := loadCA(opts.Dir)
+			written, outcome, err := writeCertificates(opts.Dir, hosts, opts.Hostname, opts.Now(), opts.NewCA)
 			if err != nil {
 				return Result{}, err
 			}
-			res.TLS = TLSGenerated
+			res.TLS, res.CA = TLSGenerated, outcome
 			res.Written = append(res.Written, written...)
+			if outcome == CAKept {
+				res.Kept = append(res.Kept, filepath.Join(opts.Dir, CAFile))
+			} else if hadCA == nil {
+				res.Notes = append(res.Notes, fmt.Sprintf("the CA changed: run `mind-palace server trust` again on this machine and give every other client the new %s", filepath.Join(opts.Dir, CAFile)))
+			}
+		}
+		if cert, err := ReadCA(filepath.Join(opts.Dir, CAFile)); err == nil {
+			res.CAFingerprint = Fingerprint(cert)
 		}
 	}
 
