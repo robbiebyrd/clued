@@ -54,6 +54,8 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"error lines select flagged lines by type and session, newest first", errorLines},
 		{"search transcripts ranks lines by their indexed words, scoped to the account", searchTranscripts},
 		{"usage totals count each message once, by session, model or day", usageTotals},
+		{"delete sessions forgets the selected sessions and what was captured for them", deleteSessions},
+		{"redacted rule names are stored with lines and blobs", redactedField},
 		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
@@ -1192,4 +1194,64 @@ func usageTotals(t *testing.T, s session.Store) {
 	long.LongPrompt = true
 	eq(t, "split by prompt length", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", GroupBy: session.UsageByModel, LongPromptTokens: 1000})),
 		[]session.UsageTotal{keyed(s1Haiku, haiku), keyed(s2Sonnet, sonnet), long})
+}
+
+func deleteSessions(t *testing.T, s session.Store) {
+	seed := func(sid, acc, project string, lastSeen time.Time) {
+		must(t, s.UpsertSession(ctx, session.Session{SessionID: sid, AccountID: acc, ProjectPath: project, LastSeen: lastSeen}))
+		must(t, s.InsertHookEvent(ctx, bash(sid, acc, "make "+sid, lastSeen)))
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, 1, "user", acc)}))
+		must(t, s.UpsertSubagentLine(ctx, sub(sid, "agent", 1, acc)))
+		must(t, s.UpsertBlob(ctx, blob(sid, "tool-result", "r", "x", acc)))
+	}
+	seed("old", "acc", "/work/secret", t0)
+	seed("new", "acc", "/work/secret", t0.Add(48*time.Hour))
+	seed("keep", "acc", "/work/open", t0)
+	seed("other", "other", "/work/secret", t0)
+	gone := func(sid, acc string) bool {
+		_, err := s.GetSession(ctx, acc, sid)
+		return errors.Is(err, session.ErrNotFound) && ok(s.CountTranscriptLines(ctx, acc, sid)) == 0 &&
+			len(ok(s.Blobs(ctx, acc, sid))) == 0 && len(ok(s.SubagentIDs(ctx, acc, sid))) == 0
+	}
+	if _, err := s.DeleteSessions(ctx, session.ForgetQuery{SessionIDs: []string{"old"}}); !errors.Is(err, session.ErrNoAccount) {
+		t.Fatalf("DeleteSessions without an account = %v, want ErrNoAccount", err)
+	}
+	eq(t, "no criterion deletes nothing", ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc"})).Sessions, []string{})
+
+	got := ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", ProjectPathRe: "SECRET", Before: t0.Add(time.Hour)}))
+	eq(t, "project and age", got.Sessions, []string{"old"})
+	eq(t, "documents of the session", got.Documents, int64(5))
+	eq(t, "old is gone", gone("old", "acc"), true)
+	eq(t, "new stays (too recent)", gone("new", "acc"), false)
+	eq(t, "keep stays (another project)", gone("keep", "acc"), false)
+	eq(t, "another account's session stays", gone("other", "other"), false)
+
+	// By id: another account's id deletes nothing; lines without a session
+	// record go too.
+	eq(t, "another account's id", ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", SessionIDs: []string{"other"}})).Documents, int64(0))
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("orphan", 1, "user", "acc")}))
+	got = ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", SessionIDs: []string{"new", "orphan"}}))
+	eq(t, "by id", got.Documents, int64(6))
+	eq(t, "new is gone", gone("new", "acc"), true)
+	eq(t, "orphan lines are gone", ok(s.CountTranscriptLines(ctx, "acc", "orphan")), 0)
+	if _, err := s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", ProjectPathRe: "("}); err == nil {
+		t.Error("DeleteSessions accepted an invalid regex")
+	}
+}
+
+func redactedField(t *testing.T, s session.Store) {
+	l := tl("r", 1, "user", "acc")
+	l.Redacted = []string{"api-key", "private"}
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{l, tl("r", 2, "user", "acc")}))
+	lines := ok(s.TranscriptLines(ctx, session.LineQuery{AccountID: "acc", SessionID: "r", Limit: 10}))
+	eq(t, "redacted line", strList(lines[0]["redacted"]), []string{"api-key", "private"})
+	eq(t, "clean line has no redacted field", hasKey(lines[1], "redacted"), false)
+	sl := sub("r", "agent", 1, "acc")
+	sl.Redacted = []string{"jwt"}
+	must(t, s.UpsertSubagentLine(ctx, sl))
+	eq(t, "redacted subagent line", strList(ok(s.SubagentLines(ctx, "acc", "r", "agent"))[0]["redacted"]), []string{"jwt"})
+	b := blob("r", "tool-result", "x", "masked", "acc")
+	b.Redacted = []string{"aws-key"}
+	must(t, s.UpsertBlob(ctx, b))
+	eq(t, "redacted blob", strList(ok(s.Blobs(ctx, "acc", "r"))[0]["redacted"]), []string{"aws-key"})
 }

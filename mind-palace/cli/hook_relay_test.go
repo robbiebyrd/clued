@@ -407,3 +407,67 @@ func TestSessionWhoamiFailsWithoutAServer(t *testing.T) {
 		t.Errorf("whoami without a server = %+v, want BadRequest", r)
 	}
 }
+
+// withConfig merges keys into the relay's config file.
+func withConfig(t *testing.T, configPath string, keys map[string]any) {
+	t.Helper()
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := map[string]any{}
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	for k, v := range keys {
+		cfg[k] = v
+	}
+	raw, _ = json.Marshal(cfg)
+	if err := os.WriteFile(configPath, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHookRelayRedactsBeforeSending(t *testing.T) {
+	const secret = "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123"
+	backing := memsession.New()
+	srv := newRelayServer(t, backing)
+	configPath, projectsDir := relayConfig(t, srv.srv.URL, relayToken)
+	withConfig(t, configPath, map[string]any{"redactAtCapture": true})
+	tp := transcript(t, projectsDir, "sid-r", `{"type":"user","cwd":"/work/alpha","message":{"role":"user","content":"key `+secret+`"}}`)
+	ev := map[string]any{"hook_event_name": "PreToolUse", "session_id": "sid-r", "cwd": "/work/alpha", "transcript_path": tp,
+		"tool_name": "Bash", "tool_input": map[string]any{"command": "export ANTHROPIC_API_KEY=" + secret}}
+	raw, _ := json.Marshal(ev)
+	runRelay(t, configPath, string(raw))
+
+	full, err := backing.FullSession(context.Background(), testAccount, "sid-r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, _ := json.Marshal(session.JSONTimes(full))
+	if strings.Contains(string(stored), secret) {
+		t.Errorf("the server received the secret: %s", stored)
+	}
+	if !strings.Contains(string(stored), "[REDACTED:api-key]") || len(full["transcript_lines"].([]session.Doc)) != 1 {
+		t.Errorf("the masked event and line did not arrive: %s", stored)
+	}
+}
+
+func TestHookRelayDropsAnExcludedSession(t *testing.T) {
+	backing := memsession.New()
+	srv := newRelayServer(t, backing)
+	configPath, projectsDir := relayConfig(t, srv.srv.URL, relayToken)
+	withConfig(t, configPath, map[string]any{"excludePaths": []string{"/work/alpha"}})
+	tp := transcript(t, projectsDir, "sid-x", `{"type":"user","cwd":"/work/alpha","n":1}`)
+	runRelay(t, configPath, hookEvent("PostToolUse", "sid-x", tp))
+
+	if _, err := backing.FullSession(context.Background(), testAccount, "sid-x"); err == nil {
+		t.Error("an excluded session was stored")
+	}
+	for _, route := range []string{"/hook-events", "/transcript-lines", "/sessions"} {
+		method := map[string]string{"/hook-events": "POST", "/transcript-lines": "PUT", "/sessions": "PUT"}[route]
+		if n := srv.count(method, sessionapi.Prefix+route); n != 0 {
+			t.Errorf("%s %s was called %d times for an excluded session", method, route, n)
+		}
+	}
+}

@@ -399,6 +399,7 @@ read-only.
 | `usage` | `group_by` (`session`, the default, `model` or `day`), `session_id`, `git_origin` (regex), `project_path` (regex), `since` and `until` (inclusive UTC days, `YYYY-MM-DD`), `limit` (groups, default 50, max 500) | `{"group_by", "groups", "total", "unpriced_models"}`. Each group has `key` (the session id, model or day), `messages`, `input_tokens`, `cache_creation_input_tokens`, `cache_creation_1h_tokens`, `cache_read_input_tokens`, `output_tokens`, `peak_context_tokens` (the largest input context of one message), `cost_usd` and, unless grouped by model, `models` (the same counters per model). Every assistant message counts once (the lines of one message repeat its usage). `cost_usd` is an estimate at list prices (cache writes 1.25× the input price, 2× for the one-hour cache; cache reads at the model's cache-read price, 0.1× the input price unless the table says otherwise; a message whose prompt, input plus cache tokens, is over 100,000 tokens at the model's long-prompt price when it has one, as Claude Haiku 5.5 does) from the built-in table (the models and prices on Anthropic's pricing page; batch, fast-mode and US-only prices are not applied) and the config's `modelPrices`, rounded to 0.0001; it covers the priced models only and is `null` when none is priced; the others are listed in `unpriced_models`. Groups come costliest first, or in day order by day; `total` covers every group |
 | `read_transcript` | `session_id` (required), `offset` (default 0), `limit` (default 200, max 500) | transcript lines in order |
 | `restore_session` | `session_id` (required), `project_path` (override), `projects_dir` (override) | rebuilds the JSONL, subagent files, tool-result blobs and file-history backups on the local disk |
+| `forget_session` | `session_id`, `session_ids`, `project_path` (regex), `before` (a day, `YYYY-MM-DD` UTC, or an RFC 3339 time); at least one, all must hold | `{"sessions": [ids], "documents": n}`: the sessions deleted from the store with their hook events, transcript and subagent lines and blobs; marked destructive, not offered by the server's `/mcp` |
 | `prime_context` | `cwd`, `no_store`, `no_docs`, `no_snapshot` | the plain-text report with the sections ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, MEMORY, BUILD |
 
 The clued server's `/mcp` endpoint offers the same tools minus
@@ -608,6 +609,7 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 | `POST /memory-events` | `{"patternRe", "kinds", "sessionIds", "limit"}` | `MemorySaved` events |
 | `POST /file-events` | `{"pathRe", "sessionIds", "limit"}` | hook events with `enrichments.file-tracker.file_path` or PostToolUse `edit-diff-stats` matching the path |
 | `POST /error-lines` | `{"types", "sessionIds", "limit"}` | transcript lines with `enrichments.error-flag.is_error` |
+| `POST /sessions/delete` | `{"sessionIds", "projectPathRe", "before"}` (at least one, else 400) | `{"sessions", "documents"}`: the token's account's sessions forgotten (see `forget_session`) |
 | `POST /usage-totals` | `{"groupBy", "sessionIds", "since", "until", "longPromptTokens"}` | `[{"key", "model", "messages", "input_tokens", "cache_creation_input_tokens", "cache_creation_1h_tokens", "cache_read_input_tokens", "output_tokens", "peak_context_tokens", "long_prompt"}]`, one per group and model (and, when `longPromptTokens` is positive, per whether a message's context tokens are over it), sorted by key, model and `long_prompt`; a `groupBy` other than `session`, `model`, `day` or empty is 400 |
 | `POST /transcript-search` | `{"query", "sessionIds", "limit"}` | transcript lines whose `enrichments.search-text` matches, best first, with `score`; only `session_id`, `seq`, `score`, `created_at` and `enrichments.search-text` are returned |
 
@@ -845,6 +847,9 @@ daemon [--addr host:port]                 mcp [--mcp-tool-prefix p]             
 find [--project-path re] [--git-origin re] [--query re] [--limit n]
 search-commands <pattern> [--session id] [--git-origin re] [--limit n]
 search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]
+search <words…> [--session id] [--git-origin re] [--project re] [--limit n]
+usage [--by session|model|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]
+forget [--session id]… [--project re] [--before day|time]
 context <session>                         full <session>                         transcript <session> [--offset n] [--limit n]
 restore <session> [--project-path p] [--projects-dir d]                          backfill
 memory-ingest [--dir d]… [--cwd c] [--session id] [--quiet]
@@ -948,6 +953,10 @@ the environment:
 | `serverCaFile` | `CLUED_SERVER_CA_FILE` | | extra CA certificate (PEM) |
 | `serverInsecure` | `CLUED_SERVER_INSECURE` | `false` | allow `http://` off loopback |
 | `primeOnStart` | `CLUED_PRIME_ON_START` | `true` | `hook prime` adds the prime report to every session start |
+| `redactAtCapture` | `CLUED_REDACT_AT_CAPTURE` | off (absent); `/clued-setup` writes `true` | Mask secrets before anything captured is written (the local store, or the request to the server): the rules `private-key` (PEM private keys), `api-key` (`sk-…`), `aws-key` (`AKIA…`), `jwt`, `github-token` (`ghp_…`, `github_pat_…`), `slack-token` (`xox?-…`), each match replaced by `[REDACTED:<rule>]`, and `<private>…</private>` spans (an unclosed one to the end of its line) by `[PRIVATE]`. Every string of a hook event, transcript and subagent line and text blob is masked; a masked document records the rules that fired under `redacted`. `server run` applies its own config's setting to what clients send |
+| `redactPatterns` | | `[]` | Extra regular expressions masked with `redactAtCapture` (`[REDACTED:pattern-<n>]`); one that does not compile is logged and skipped |
+| `excludePaths` | | `[]` | Globs (`filepath.Match`, `~` for the home directory) over a session's cwd and project path; a session in a matching directory, or below one, is never stored: its session record, hook events, lines and blobs are dropped |
+| `retentionDays` | | `0` (keep) | MongoDB deletes captured documents that many days after they were stored (TTL indexes `retention_ttl` on `created_at`, and on `last_seen` for sessions); `0` drops the indexes |
 | `modelPrices` | | | Prices for the `usage` estimates, by model id prefix, in US dollars per million tokens: `{"<prefix>": {"input": n, "output": n, "cacheRead": n, "longPrompt": {"input": n, "output": n, "cacheRead": n}}}` (`cacheRead` defaults to 0.1× `input`; `longPrompt` prices messages whose prompt is over 100,000 tokens). The longest matching prefix wins and these come before the built-in table, whose entries match only their own model ids and those ids' dated or platform forms (`claude-opus-4-1-20250805`, `anthropic.claude-sonnet-4-5-20250929-v1:0`), never a newer model whose id starts with them |
 | `devRepoPath` | | | read by the shim and `session-start` only: build from this checkout |
 

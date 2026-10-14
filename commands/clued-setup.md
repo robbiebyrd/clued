@@ -258,7 +258,8 @@ cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
   "port": 8085,
   "projectsDir": "~/.claude/projects",
   "disabledEnrichers": [],
-  "enabledEnrichers": []
+  "enabledEnrichers": [],
+  "redactAtCapture": true
 }
 EOF
 ```
@@ -284,6 +285,7 @@ cat > ~/.claude/plugins/data/clued/config.json << 'EOF'
   "projectsDir": "~/.claude/projects",
   "disabledEnrichers": [],
   "enabledEnrichers": [],
+  "redactAtCapture": true,
   "serverUrl": "<server URL>",
   "serverToken": "<token>"
 }
@@ -398,4 +400,5 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/register-hooks"
 - macOS tarball: launchd plist at `~/Library/LaunchAgents/org.mongodb.mongod.plist` auto-restarts mongod at login
 - Hooks registered automatically via `hooks.json` (and mirrored into `~/.claude/settings.json` by `register-hooks` on every session start) — no manual settings edit needed. Three of them run the binary directly: `scripts/clued hook write-guard` on PreToolUse (plans and stories change only through mind-palace), `scripts/clued hook stop-guard` on Stop and `scripts/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit; in server mode `hooks/event-relay` runs `scripts/clued hook relay` for every other event
 - If the claude-remember plugin is installed, `session-start` installs clued's listener into it so its summaries are captured too (`search_memory` finds them)
+- Capture-time redaction is on (`"redactAtCapture": true`): API keys, AWS access key ids, JWTs, GitHub and Slack tokens, PEM private keys and `<private>…</private>` spans are masked before anything is written to MongoDB or sent to the server. Add regular expressions to `redactPatterns` to mask more (e-mail addresses, internal host names), and globs to `excludePaths` (`["~/work/client-*"]`) to keep whole directories out; `mind-palace session forget --session <id>` (or `--project <re>`, `--before <day>`) deletes what was captured, and `retentionDays` lets MongoDB expire it.
 - To enable the privacy-redact enricher (off by default): add `"privacy-redact"` to `enabledEnrichers` in `config.json` and restart the daemon (local MongoDB; in server mode enrichers run on the server and are configured there). It stores a masked copy of each transcript line (`sk-` API keys, e-mail addresses, AWS access key ids, JWTs) under `enrichments.privacy-redact`, and of each captured claude-remember record under `enrichments.privacy-redact-memory`; the raw text is still stored. `disabledEnrichers` only switches enrichers off.

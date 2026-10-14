@@ -2,11 +2,11 @@
 id: 0008-vvc
 title: Capture-time privacy, token-capped results, export and OpenTelemetry
 type: dsgn
-status: pending
+status: in_progress
 priority: "2"
 effort: XL
 created: "2026-10-14T03:12:18.334Z"
-updated: "2026-10-14T03:12:18.334Z"
+updated: "2026-10-14T04:30:18.197Z"
 tags:
   - session
   - privacy
@@ -26,6 +26,11 @@ links:
     - docs/superpowers/specs/2026-09-23-session-portability-design.md
   plans:
     - ["0007-w5t", "depends"]
+progress:
+  "7":
+    status: pending
+    stories:
+      - 0030-cy1
 ---
 
 # Capture-time privacy, token-capped results, export and OpenTelemetry
@@ -120,5 +125,5 @@ Golden-file tests for the renderer; ingest tests that no stored document contain
 
 ## Open Questions
 
-- [ ] Should `redactAtCapture` also default to true for existing configs on upgrade, with a one-time notice? — robbiebyrd
-- [ ] Which OpenTelemetry semantic conventions should spans follow: GenAI (`gen_ai.*`) or OpenInference, which Phoenix expects? — robbiebyrd
+- [x] Should `redactAtCapture` also default to true for existing configs on upgrade, with a one-time notice? — robbiebyrd. Decided for now (2026-10-14): no. An absent key means off, so existing configs keep their behaviour; `/clued-setup` writes `true`. No notice; revisit if you want upgrades switched on.
+- [x] Which OpenTelemetry semantic conventions should spans follow: GenAI (`gen_ai.*`) or OpenInference, which Phoenix expects? — robbiebyrd. Decided for now (2026-10-14): GenAI, the OpenTelemetry standard that Grafana and Langfuse read; OpenInference attributes can be added beside them later.

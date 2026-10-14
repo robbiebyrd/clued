@@ -183,6 +183,9 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 			return a.fail(&service.Error{Kind: kindConnect, Message: err.Error()})
 		}
 	}
+	// What clients send is redacted and excluded as the server's own config
+	// says too, for clients that do not redact themselves.
+	sessions = capturing(sessions, sessionCfg)
 	defer func() {
 		closeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

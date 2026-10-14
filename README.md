@@ -173,6 +173,13 @@ Collections in `dbName` (default `claude_sessions`): `sessions`,
 hold tool results and subagent meta files as UTF-8 and file-history backups
 as base64.
 
+With `redactAtCapture` on, every write is masked first (see
+[Configuration](#configuration)): the store, the server and every backup
+hold `[REDACTED:<rule>]` where the secret was, and the document lists the
+rules under `redacted`. Sessions under `excludePaths` are not written at
+all; `session forget` takes back what was, and `retentionDays` bounds how
+long MongoDB keeps the rest.
+
 ### Enrichers
 
 An enrichment loop runs inside the daemon every 5 seconds and stores results
@@ -223,6 +230,7 @@ off.
 | `usage` | Token usage and estimated cost (US dollars at list prices) by session, model or day, each message counted once, optionally scoped to a session, repository, project or range of days; built from the `usage` enrichment. The built-in prices are the ones on Anthropic's pricing page (Claude 5.x, 4.x and Haiku 3.5, with each model's cache-read price and Claude Haiku 5.5's price for prompts over 100,000 tokens); other models have no cost until `modelPrices` names them |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
+| `forget_session` | Delete captured sessions (by id, project path or last seen before a day) with everything stored for them; not offered by the server's `/mcp` |
 | `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |
 
 ### Session commands
@@ -237,6 +245,7 @@ prints JSON.
 | `session find [--project-path re] [--git-origin re] [--query re] [--limit n]` | Find sessions, newest first |
 | `session search-commands <pattern> [--session id] [--git-origin re] [--limit n]` | Search the Bash commands run in sessions |
 | `session search <words…> [--session id] [--git-origin re] [--project re] [--limit n]` | Ranked search over the text of transcript lines (what `search_transcripts` does) |
+| `session forget [--session id]... [--project re] [--before day]` | Delete captured sessions from the store (local MongoDB or the server) with everything stored for them; at least one criterion |
 | `session usage [--by session\|model\|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]` | Token usage and estimated cost (what `usage` does) |
 | `session search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]` | Search the memory records ingested from claude-remember |
 | `session memory-ingest [--dir d]... [--cwd c] [--session id] [--quiet]` | Post the new records of the working directory's claude-remember store(s) to the daemon (what the hooks run) |
@@ -308,6 +317,10 @@ sessions and other machines can search it:
 | `serverToken` | | `CLUED_SERVER_TOKEN` | The bearer token the server minted; the file is written `0600` because of it |
 | `serverCaFile` | | `CLUED_SERVER_CA_FILE` | PEM bundle trusted in addition to the system roots (a private CA) |
 | `serverInsecure` | `false` | `CLUED_SERVER_INSECURE` | Allow a plain `http://` server URL off loopback; never set it outside a network you trust |
+| `redactAtCapture` | off; `/clued-setup` writes `true` | `CLUED_REDACT_AT_CAPTURE` | Mask API keys, AWS access key ids, JWTs, GitHub and Slack tokens, PEM private keys and `<private>…</private>` spans in everything captured before it is written or sent to the server |
+| `redactPatterns` | `[]` | | More regular expressions to mask with `redactAtCapture` (e-mail addresses, internal host names) |
+| `excludePaths` | `[]` | | Globs over the session's directory (`["~/work/client-*"]`): sessions in or below a match are never stored |
+| `retentionDays` | `0` | | MongoDB deletes captured documents after this many days |
 | `modelPrices` | (none) | | Prices for the `usage` cost estimates by model id prefix, in US dollars per million tokens: `{"<model id prefix>": {"input": 3, "output": 15}}`, optionally with `cacheRead` (default 0.1× `input`) and `longPrompt` (`{"input", "output", "cacheRead"}` for messages whose prompt is over 100,000 tokens). They come before the built-in table, so they also correct it |
 | `primeOnStart` | `true` | `CLUED_PRIME_ON_START` | Start every session (and every session after compaction) with the prime report as context; `false` leaves it to `/clued-prime` |
 

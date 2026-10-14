@@ -2,11 +2,11 @@
 id: 0031-nwf
 title: Export sessions as Markdown, HTML, JSONL or a zip
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-14T03:13:00.821Z"
-updated: "2026-10-14T03:13:00.821Z"
+updated: "2026-10-14T04:30:06.940Z"
 tags:
   - export
   - session

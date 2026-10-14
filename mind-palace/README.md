@@ -405,7 +405,7 @@ order may differ from the original file.
 
 **MCP tools.** `find_sessions`, `get_session_context`, `get_full_session`,
 `search_commands`, `search_memory`, `file_history`, `find_errors`,
-`search_transcripts`, `usage`, `read_transcript`, `restore_session` and `prime_context`
+`search_transcripts`, `usage`, `read_transcript`, `restore_session`, `forget_session` and `prime_context`
 (the context collector's report for a `cwd`; see `mind-palace context --help`).
 `session mcp` serves just these; `mind-palace mcp` and `mind-palace serve`
 expose them next to the plan and story tools.
@@ -442,6 +442,7 @@ expose them next to the plan and story tools.
 | `remote` | The HTTP client the remote adapters share: base URL, bearer token, CA file, the plain-`http://`-off-loopback refusal, envelope decoding into typed errors |
 | `clientcfg` | Opens the plan and story services as the client does: the repository's config plus, in remote mode, the `clued-server` store as a secondary store; resolves the project slug (`remote.project`, git origin, directory name) |
 | `session`, `session/*` | Claude Code session capture: config (local and remote mode), MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
+| `session/redact` | Capture-time redaction (`redactAtCapture`, `redactPatterns`) and exclusion (`excludePaths`) as a `session.Store` decorator every client store is wrapped in, so no write path stores a secret |
 | `session/ingest` | Hook-event bookkeeping shared by the daemon and `hook relay`: session tracking, stamping, store write, WAL fallback |
 | `session/catchup` | One-shot replacement for the tailers: pushes a session's transcript delta and changed artifact files, with state and lock files per session |
 | `session/remotesession` | `session.Store` over a clued server (one HTTP call per port method to `server/sessionapi`); the query service, restore, backfill and the MCP tools run unchanged on it |

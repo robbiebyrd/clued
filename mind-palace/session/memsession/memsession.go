@@ -40,6 +40,64 @@ var _ session.Store = (*Store)(nil)
 func New() *Store { return &Store{cols: map[string][]session.Doc{}} }
 
 // DeleteAccount drops every document of every collection stamped with the account.
+func (s *Store) DeleteSessions(_ context.Context, q session.ForgetQuery) (session.Forgotten, error) {
+	out := session.Forgotten{Sessions: []string{}}
+	if q.AccountID == "" {
+		return out, session.ErrNoAccount
+	}
+	if q.Empty() {
+		return out, nil
+	}
+	var re *regexp.Regexp
+	if q.ProjectPathRe != "" {
+		var err error
+		if re, err = regexp.Compile("(?i)" + q.ProjectPathRe); err != nil {
+			return out, err
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ids := map[string]bool{}
+	if re == nil && q.Before.IsZero() {
+		for _, id := range q.SessionIDs {
+			ids[id] = true
+		}
+	} else {
+		inSessions := setOf(q.SessionIDs)
+		for _, d := range s.cols[sessions] {
+			if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+				continue
+			}
+			if re != nil && !re.MatchString(strOf(d, "project_path")) {
+				continue
+			}
+			if !q.Before.IsZero() && !timeOf(d, "last_seen").Before(q.Before) {
+				continue
+			}
+			ids[strOf(d, "session_id")] = true
+		}
+	}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	for name, docs := range s.cols {
+		kept := docs[:0]
+		for _, d := range docs {
+			if owned(d, q.AccountID) && ids[strOf(d, "session_id")] {
+				out.Documents++
+				continue
+			}
+			kept = append(kept, d)
+		}
+		s.cols[name] = kept
+	}
+	for id := range ids {
+		out.Sessions = append(out.Sessions, id)
+	}
+	sort.Strings(out.Sessions)
+	return out, nil
+}
+
 func (s *Store) DeleteAccount(_ context.Context, accountID string) (int64, error) {
 	if accountID == "" {
 		return 0, session.ErrNoAccount
@@ -563,6 +621,7 @@ func (s *Store) UpsertTranscriptLines(_ context.Context, lines []session.Transcr
 		if l.Host != nil {
 			set["host"] = hostDoc(l.Host)
 		}
+		withRedacted(set, l.Redacted)
 		s.upsert(transcriptLines, session.Doc{"session_id": l.SessionID, "seq": l.Seq}, set, session.Doc{"created_at": now})
 	}
 	return nil
@@ -599,6 +658,7 @@ func (s *Store) UpsertSubagentLine(_ context.Context, l session.SubagentLine) er
 	if l.Host != nil {
 		set["host"] = hostDoc(l.Host)
 	}
+	withRedacted(set, l.Redacted)
 	key := session.Doc{"session_id": l.SessionID, "subagent_id": l.SubagentID, "seq": l.Seq}
 	s.upsert(subagentLines, key, set, session.Doc{"created_at": time.Now()})
 	return nil
@@ -645,11 +705,24 @@ func (s *Store) SubagentLines(_ context.Context, accountID, sessionID, subagentI
 	return copies(found, "_id"), nil
 }
 
+// withRedacted records the redaction rules that fired, as a list of
+// strings like the one MongoDB stores.
+func withRedacted(set session.Doc, rules []string) {
+	if len(rules) > 0 {
+		list := make([]any, len(rules))
+		for i, r := range rules {
+			list[i] = r
+		}
+		set["redacted"] = list
+	}
+}
+
 func (s *Store) UpsertBlob(_ context.Context, b session.Blob) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	set := session.Doc{"session_id": b.SessionID, "blob_type": b.BlobType, "name": b.Name, "content": b.Content, "encoding": b.Encoding}
 	present(set, map[string]string{"account_id": b.AccountID})
+	withRedacted(set, b.Redacted)
 	key := session.Doc{"session_id": b.SessionID, "blob_type": b.BlobType, "name": b.Name}
 	s.upsert(blobs, key, set, session.Doc{"created_at": time.Now()})
 	return nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -27,6 +28,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 	"github.com/robbiebyrd/clued/mind-palace/session/mongosession"
 	"github.com/robbiebyrd/clued/mind-palace/session/query"
+	"github.com/robbiebyrd/clued/mind-palace/session/redact"
 	"github.com/robbiebyrd/clued/mind-palace/session/remotesession"
 	"github.com/robbiebyrd/clued/mind-palace/session/restore"
 	"github.com/robbiebyrd/clued/mind-palace/session/sessionmcp"
@@ -76,23 +78,41 @@ func (a *App) sessionConfig() session.Config {
 	return *a.sess.cfg
 }
 
-// sessionStore connects the session store once per process.
+// sessionStore connects the session store once per process, wrapped so
+// that what is captured is redacted and excluded as the config says.
 func (a *App) sessionStore(ctx context.Context) (session.Store, error) {
 	if a.sess.store == nil {
 		store, err := openSessionStore(ctx, a.sessionConfig())
 		if err != nil {
 			return nil, err
 		}
-		a.sess.store = store
+		a.sess.store = capturing(store, a.sessionConfig())
 	}
 	return a.sess.store, nil
+}
+
+// capturing wraps store with the config's redaction and exclusion
+// (redact.FromConfig); a pattern that does not compile is reported on the
+// log and skipped.
+func capturing(store session.Store, cfg session.Config) session.Store {
+	wrapped, err := redact.FromConfig(store, cfg)
+	if err != nil {
+		log.Printf("clued: %v", err)
+	}
+	return wrapped
 }
 
 // sessionTools builds the session MCP tools; the store is connected on the
 // first tool call, so serving them never needs the database to be reachable.
 func (a *App) sessionTools() *sessionmcp.Tools {
 	cfg := a.sessionConfig()
-	connect := func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }
+	connect := func(ctx context.Context) (session.Store, error) {
+		store, err := openSessionStore(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		return capturing(store, cfg), nil
+	}
 	tools := sessionmcp.New(cfg, connect, session.ReadAccountID(cfg.ClaudeAppConfigPath))
 	tools.ConfigPath = a.sess.configPath
 	return tools
@@ -121,7 +141,7 @@ func (a *App) sessionCmd() *cobra.Command {
 	}
 	c.PersistentFlags().StringVar(&a.sess.configPath, "config", session.DefaultConfigPath(), "clued config file")
 	c.AddCommand(
-		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
+		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionForgetCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
 		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
 		a.sessionSearchMemoryCmd(), a.sessionMemoryIngestCmd(),
@@ -358,6 +378,39 @@ func (a *App) sessionSearchCommandsCmd() *cobra.Command {
 	f.StringVar(&args.SessionID, "session", "", "only this session")
 	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
 	f.IntVar(&args.Limit, "limit", 0, "maximum commands (default 20, at most 500)")
+	return c
+}
+
+func (a *App) sessionForgetCmd() *cobra.Command {
+	var args query.ForgetArgs
+	c := &cobra.Command{
+		Use:   "forget [--session id]... [--project re] [--before day]",
+		Short: "Delete captured sessions and everything stored for them",
+		Long: `Deletes the account's sessions that match every criterion given (at least
+one is required) from the store, local MongoDB or the clued server, with
+their hook events, transcript and subagent lines and blobs. Claude Code's
+own transcript files are not touched. It cannot be undone.`,
+		Args: cobra.NoArgs,
+	}
+	run := a.sessionAction(func(ctx context.Context, _ session.Store, svc *query.Service) (any, error) {
+		return svc.Forget(ctx, args)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if err := a.validated(checkRegex("--project", args.ProjectPath)); err != nil {
+			return err
+		}
+		if len(args.SessionIDs) == 0 && args.ProjectPath == "" && args.Before == "" {
+			return a.sessionBadRequest(query.ErrNothingToForget.Error())
+		}
+		if _, err := (query.ForgetArgs{Before: args.Before}).BeforeTime(); err != nil {
+			return a.sessionBadRequest(err.Error())
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringSliceVar(&args.SessionIDs, "session", nil, "forget this session (repeatable)")
+	f.StringVar(&args.ProjectPath, "project", "", "forget sessions whose project path matches this regular expression")
+	f.StringVar(&args.Before, "before", "", "forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time")
 	return c
 }
 

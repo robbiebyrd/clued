@@ -272,6 +272,12 @@ const toolSchemas = `{
       "session_id":{"type":"string"},
       "offset":{"type":"number","description":"Line offset (default 0)"},
       "limit":{"type":"number","description":"Lines to return (default 200, max 500)"}},"required":["session_id"]}},
+  "forget_session": {"description": "Delete previously captured sessions from the store, with their transcript, subagent lines, blobs and hook events: by id, by project path, or last seen before a day. Criteria given together must all hold; at least one is required. Claude Code's own transcript files are not touched. This cannot be undone.",
+    "inputSchema": {"type":"object","properties":{
+      "session_id":{"type":"string","description":"Forget this session"},
+      "session_ids":{"type":"array","items":{"type":"string"},"description":"Forget these sessions"},
+      "project_path":{"type":"string","description":"Forget sessions whose project path matches this regex"},
+      "before":{"type":"string","description":"Forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time"}}}},
   "restore_session": {"description": "Restore a session from MongoDB to the local filesystem. Reconstructs the main JSONL, subagent files, tool-result blobs, and file-history backups.",
     "inputSchema": {"type":"object","properties":{
       "session_id":{"type":"string","description":"Session to restore"},
@@ -285,7 +291,7 @@ const toolSchemas = `{
       "no_snapshot":{"type":"boolean","description":"Do not post the report to the daemon as a ContextCollected event"}}}}
 }`
 
-func TestToolListHasTheTwelveToolsWithTheProtocolSchemas(t *testing.T) {
+func TestToolListHasTheThirteenToolsWithTheProtocolSchemas(t *testing.T) {
 	eachStore(t, func(t *testing.T) {
 		var want map[string]struct {
 			Description string `json:"description"`
@@ -313,9 +319,13 @@ func TestToolListHasTheTwelveToolsWithTheProtocolSchemas(t *testing.T) {
 			if !reflect.DeepEqual(got, w.InputSchema) {
 				t.Errorf("%s inputSchema = %s", tool.Name, raw)
 			}
-			readOnly := tool.Name != "restore_session"
+			readOnly := tool.Name != "restore_session" && tool.Name != "forget_session"
 			if tool.Annotations == nil || tool.Annotations.ReadOnlyHint != readOnly {
 				t.Errorf("%s ReadOnlyHint want %v, annotations %+v", tool.Name, readOnly, tool.Annotations)
+			}
+			destructive := tool.Annotations != nil && tool.Annotations.DestructiveHint != nil && *tool.Annotations.DestructiveHint
+			if destructive != (tool.Name == "forget_session") {
+				t.Errorf("%s DestructiveHint = %v", tool.Name, destructive)
 			}
 		}
 	})
@@ -635,7 +645,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 12 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
+		if len(names) != 13 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {

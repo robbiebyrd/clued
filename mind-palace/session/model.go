@@ -35,6 +35,8 @@ type TranscriptLine struct {
 	Line      any       `json:"line" bson:"line"`
 	AccountID string    `json:"account_id,omitempty" bson:"account_id,omitempty"`
 	Host      *HostInfo `json:"host,omitempty" bson:"host,omitempty"`
+	// Redacted names the redaction rules that masked part of Line.
+	Redacted []string `json:"redacted,omitempty" bson:"redacted,omitempty"`
 }
 
 // SubagentLine is one line of a subagent transcript.
@@ -45,6 +47,8 @@ type SubagentLine struct {
 	Line       any       `json:"line" bson:"line"`
 	AccountID  string    `json:"account_id,omitempty" bson:"account_id,omitempty"`
 	Host       *HostInfo `json:"host,omitempty" bson:"host,omitempty"`
+	// Redacted names the redaction rules that masked part of Line.
+	Redacted []string `json:"redacted,omitempty" bson:"redacted,omitempty"`
 }
 
 // Blob is a stored side file of a session. BlobType is subagent-meta,
@@ -56,4 +60,6 @@ type Blob struct {
 	Content   string `json:"content" bson:"content"`
 	Encoding  string `json:"encoding" bson:"encoding"`
 	AccountID string `json:"account_id,omitempty" bson:"account_id,omitempty"`
+	// Redacted names the redaction rules that masked part of Content.
+	Redacted []string `json:"redacted,omitempty" bson:"redacted,omitempty"`
 }

@@ -28,7 +28,7 @@ func TestSubsetDropsTheToolsThatNeedTheLocalDisk(t *testing.T) {
 		remote := newTools(seeded(t), session.Config{}).Subset(true)
 		cs := connectClient(t, remote.Server(), nil)
 		names := toolNames(t, cs)
-		for _, absent := range []string{"restore_session", "prime_context"} {
+		for _, absent := range []string{"restore_session", "prime_context", "forget_session"} {
 			if names[absent] {
 				t.Errorf("remote subset still lists %s", absent)
 			}
@@ -46,8 +46,8 @@ func TestSubsetDropsTheToolsThatNeedTheLocalDisk(t *testing.T) {
 		}
 		// Subset(false) is the full set, and AddTools honours the subset too.
 		full := newTools(seeded(t), session.Config{}).Subset(false)
-		if n := len(toolNames(t, connectClient(t, full.Server(), nil))); n != 12 {
-			t.Errorf("full set has %d tools, want 12", n)
+		if n := len(toolNames(t, connectClient(t, full.Server(), nil))); n != 13 {
+			t.Errorf("full set has %d tools, want 13", n)
 		}
 		shared := mcp.NewServer(&mcp.Implementation{Name: "shared", Version: "1"}, nil)
 		remote.AddTools(shared, "pfx_")
