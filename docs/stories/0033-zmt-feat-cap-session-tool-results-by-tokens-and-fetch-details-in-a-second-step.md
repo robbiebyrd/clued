@@ -2,12 +2,13 @@
 id: 0033-zmt
 title: Cap session tool results by tokens and fetch details in a second step
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-14T03:13:00.945Z"
-updated: "2026-10-14T04:39:48.656Z"
+updated: "2026-10-14T04:54:43.596Z"
 started: "2026-10-14T04:39:48.492Z"
+completed: "2026-10-14T04:54:43.596Z"
 tags:
   - mcp
   - tokens

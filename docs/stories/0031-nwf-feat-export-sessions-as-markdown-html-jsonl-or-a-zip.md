@@ -2,12 +2,13 @@
 id: 0031-nwf
 title: Export sessions as Markdown, HTML, JSONL or a zip
 type: feat
-status: in_progress
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-14T03:13:00.821Z"
-updated: "2026-10-14T04:47:02.293Z"
+updated: "2026-10-14T04:54:43.692Z"
 started: "2026-10-14T04:47:02.110Z"
+completed: "2026-10-14T04:54:43.692Z"
 tags:
   - export
   - session

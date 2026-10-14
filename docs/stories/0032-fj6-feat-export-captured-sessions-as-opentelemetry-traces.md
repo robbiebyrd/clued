@@ -2,12 +2,13 @@
 id: 0032-fj6
 title: Export captured sessions as OpenTelemetry traces
 type: feat
-status: in_progress
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-14T03:13:00.892Z"
-updated: "2026-10-14T04:52:53.314Z"
+updated: "2026-10-14T04:54:43.763Z"
 started: "2026-10-14T04:52:53.105Z"
+completed: "2026-10-14T04:54:43.763Z"
 tags:
   - opentelemetry
   - observability

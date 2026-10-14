@@ -2,12 +2,13 @@
 id: 0030-cy1
 title: Redact secrets and private projects before capture writes
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: L
 created: "2026-10-14T03:13:00.761Z"
-updated: "2026-10-14T04:30:18.148Z"
+updated: "2026-10-14T04:54:43.515Z"
 started: "2026-10-14T04:30:07.249Z"
+completed: "2026-10-14T04:54:43.515Z"
 tags:
   - privacy
   - session
