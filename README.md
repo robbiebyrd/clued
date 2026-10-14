@@ -97,7 +97,7 @@ volumes, and the data.
 | `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the three `scripts/clued hook` commands and the SessionEnd `session memory-ingest`) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
 | `hooks/uninstall` | Non-interactive cleanup used by `/clued-uninstall` |
 | `scripts/clued` | Shim that finds and runs `mind-palace` (resolution order below) |
-| `.mcp.json` | Two stdio MCP servers: `clued` (`scripts/clued session mcp`, the session tools) and `mind-palace` (`scripts/clued mcp --no-session-tools`, the plan and story tools) |
+| `.mcp.json` | Two stdio MCP servers: `clued` (`scripts/clued session mcp`, the session tools) and `mind-palace` (`scripts/clued mcp --no-session-tools --tools core`, the core tier of the plan and story tools) |
 | `commands/clued-setup`, `commands/clued-uninstall` | The `/clued-setup` and `/clued-uninstall` wizards |
 | `skills/clued-setup`, `skills/plan-storage` | The setup walkthrough as a skill, and the skill that routes superpowers plans through mind-palace |
 

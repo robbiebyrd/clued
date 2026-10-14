@@ -6,7 +6,7 @@ status: in_progress
 priority: "1"
 effort: S
 created: "2026-10-14T03:13:00.422Z"
-updated: "2026-10-14T03:13:19.766Z"
+updated: "2026-10-14T03:18:39.722Z"
 started: "2026-10-14T03:13:19.766Z"
 tags:
   - mcp
@@ -24,13 +24,13 @@ links:
     - ["0007-w5t", "included"]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Serve a core tier of the plan and story MCP tools
@@ -59,8 +59,10 @@ Tool lists per tier, the skills check, tools/list size of both tiers in the READ
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test ./server/mcpserver/ ./cli/ ./plugin/
-- [ ] VERIFY: `mind-palace mcp --tools core` lists only core tools and `--tools full` lists all of them
-- [ ] VERIFY: Every mind-palace tool named in skills/ and commands/ is in the core tier
+- [x] VERIFY: cd mind-palace && go test ./server/mcpserver/ ./cli/ ./plugin/
+- [x] VERIFY: `mind-palace mcp --tools core` lists only core tools and `--tools full` lists all of them
+- [x] VERIFY: Every mind-palace tool named in skills/ and commands/ is in the core tier
 
 ## Work Log
+
+### 2026-10-14T03:18:39.721Z - Core tier in ops (coreOps, Op.Core, Op.CompactInputSchema), mcpserver.Options.Tier, mcp --tools core|full and MIND_PALACE_MCP_TOOLS; the plugin serves core. tools/list: full 99 tools / 76,886 bytes, core 49 tools / 26,756 bytes (create's inlined schema is replaced by a pointer to getSchema). Tests: TestCoreTier, TestMCPCoreToolTier, TestPluginServesTheCoreToolTier; ops, mcpserver, cli and plugin pass with -race.

@@ -41,6 +41,11 @@ type Options struct {
 	Tools []ToolProvider
 	// ExtraInstructions is appended to the server instructions after a blank line.
 	ExtraInstructions string
+	// Tier selects the operations served as tools: TierFull (also the
+	// empty value) registers every operation, TierCore only those marked
+	// core (ops.Op.Core), which keeps the tool list a model reads every
+	// turn short. watch and the tool providers are registered in both.
+	Tier string
 	// sessionPrefix, when set by Multi, starts every Streamable HTTP
 	// session id of this server so a session can be told apart from those
 	// of the other palaces.
@@ -64,6 +69,15 @@ type Server struct {
 	resources map[string]bool // "<kind>:<id>"
 	stop      func()
 }
+
+// Tool tiers.
+const (
+	TierFull = "full"
+	TierCore = "core"
+)
+
+// ValidTier reports whether tier names a tool tier ("" is full).
+func ValidTier(tier string) bool { return tier == "" || tier == TierFull || tier == TierCore }
 
 // sharedOps are registered once, without a kind prefix.
 var sharedOps = map[string]bool{"sync": true, "getConfig": true}
@@ -145,6 +159,9 @@ func (s *Server) addTools() {
 		}
 		for _, op := range reg.List() {
 			op := op
+			if s.opts.Tier == TierCore && !op.Core() {
+				continue
+			}
 			if sharedOps[op.Name] {
 				if shared[op.Name] {
 					continue
@@ -152,12 +169,19 @@ func (s *Server) addTools() {
 				shared[op.Name] = true
 			}
 			schema, err := op.InputSchema(svc)
+			description := op.Description
+			if s.opts.Tier == TierCore && op.Compact() {
+				// The core tier leaves the inlined document schema out of
+				// the tool list; getSchema serves it.
+				schema, err = op.CompactInputSchema(svc)
+				description += fmt.Sprintf(" The input's JSON Schema is returned by %s.", s.ToolName(k.Name, "getSchema"))
+			}
 			if err != nil {
 				continue
 			}
 			s.MCP.AddTool(&mcp.Tool{
 				Name:        s.ToolName(k.Name, op.Name),
-				Description: op.Description,
+				Description: description,
 				InputSchema: schema,
 				Annotations: &mcp.ToolAnnotations{ReadOnlyHint: op.ReadOnly, DestructiveHint: boolPtr(op.Destructive), IdempotentHint: op.ReadOnly},
 			}, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {

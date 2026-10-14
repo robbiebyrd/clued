@@ -268,7 +268,7 @@ prints a message starting `clued: mind-palace binary not found for
 
 `.mcp.json` registers two stdio MCP servers through the shim: `clued` runs
 `scripts/clued session mcp` and `mind-palace` runs
-`scripts/clued mcp --no-session-tools`.
+`scripts/clued mcp --no-session-tools --tools core`.
 
 ## 4. The capture daemon (local mode)
 
@@ -388,10 +388,21 @@ The clued server's `/mcp` endpoint offers the same tools minus
 
 ### 6.2 `mind-palace`: the plan and story tools
 
-`mind-palace mcp [--mcp-tool-prefix p] [--no-session-tools]` serves an MCP
-server named `mind-palace` (version `0.2.0`) over stdio; without
-`--no-session-tools` it also carries the session tools of 6.1. Every
-operation of the ops registry (section 6.3) becomes a tool named
+`mind-palace mcp [--mcp-tool-prefix p] [--no-session-tools] [--tools core|full]`
+serves an MCP server named `mind-palace` (version `0.2.0`) over stdio; without
+`--no-session-tools` it also carries the session tools of 6.1. `--tools`
+(default `full`, or `MIND_PALACE_MCP_TOOLS`; anything else exits with a
+`BadRequest`) picks the tier. In `full` every operation of the ops registry
+(section 6.3) becomes a tool; in `core` only the core operations do:
+`create`, `get`, `getContent`, `list`, `update`, `validate`, `setStatus`,
+`getTransitions`, `setTitle`, `setType`, `setPriority`, `patchFrontMatter`,
+`setAssignee`, `addPlanLink`, `addStoryLink`, `addSpec`, `getProgress`,
+`setProgress`, `getCriteria`, `setCriterion`, `addCriterion`,
+`removeCriterion`, `appendWorkLog`, `getTemplate`, `listTemplates`,
+`getSchema`, `ready`, `claim`, `sync` and `getConfig` (those a kind has),
+and `<kind>_create` describes its `input` without inlining the creation
+schema (its description names `<kind>_getSchema`). `watch` and the session
+tools are served in both tiers. The tools are named
 `<prefix><kind>_<operation>`, for example `plan_create` and
 `story_setStatus`; the two shared operations are `<prefix>sync` and
 `<prefix>getConfig`. Read-only operations carry the read-only and idempotent
@@ -786,7 +797,7 @@ Cross-kind: `sync --from <store> --to <store> [--on-conflict error|skip|overwrit
 `call <operation> [--kind plan|story] [--params '{…}'|file|-]`, `ops`,
 `config`, `schema [--kind]`, `stores`, `serve [--addr]` (the plan and story
 service API, WebSocket and MCP over HTTP for one repository, without
-authentication), `mcp [--mcp-tool-prefix] [--no-session-tools]`, `review`
+authentication), `mcp [--mcp-tool-prefix] [--no-session-tools] [--tools core|full]`, `review`
 (what `hook status-review` reports), `context <probe>` and `prime
 [--no-store] [--no-docs] [--no-snapshot]` (the context collector; `prime`
 posts the report to the daemon as a `ContextCollected` event unless told

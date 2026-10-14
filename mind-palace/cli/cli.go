@@ -1158,7 +1158,7 @@ func (a *App) sessionToolProviders(disabled bool) ([]mcpserver.ToolProvider, str
 }
 
 func (a *App) mcpCmd() *cobra.Command {
-	var prefix string
+	var prefix, tier string
 	var noSessionTools bool
 	c := &cobra.Command{
 		Use:   "mcp",
@@ -1168,10 +1168,13 @@ func (a *App) mcpCmd() *cobra.Command {
 			if err := a.init(cmd.Context()); err != nil {
 				return a.fail(err)
 			}
+			if !mcpserver.ValidTier(tier) {
+				return a.fail(&service.Error{Kind: service.KindBadRequest, Message: fmt.Sprintf("--tools must be %s or %s, not %q", mcpserver.TierCore, mcpserver.TierFull, tier)})
+			}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			tools, instructions := a.sessionToolProviders(noSessionTools)
-			srv := mcpserver.New(a.palace, a.regs, &mcpserver.Options{ToolPrefix: prefix, Tools: tools, ExtraInstructions: instructions})
+			srv := mcpserver.New(a.palace, a.regs, &mcpserver.Options{ToolPrefix: prefix, Tools: tools, ExtraInstructions: instructions, Tier: tier})
 			defer srv.Close()
 			if err := srv.MCP.Run(ctx, stdioTransport()); err != nil && !errors.Is(err, context.Canceled) {
 				return a.fail(&service.Error{Kind: service.KindStorage, Message: err.Error()})
@@ -1181,7 +1184,16 @@ func (a *App) mcpCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&prefix, "mcp-tool-prefix", "", "prefix for MCP tool names")
 	c.Flags().BoolVar(&noSessionTools, "no-session-tools", false, "do not add the session tools (they are served by `session mcp`)")
+	c.Flags().StringVar(&tier, "tools", envOr("MIND_PALACE_MCP_TOOLS", mcpserver.TierFull), "plan and story tools to serve: core (the common operations) or full (MIND_PALACE_MCP_TOOLS)")
 	return c
+}
+
+// envOr returns the environment variable's value, or def when it is unset or empty.
+func envOr(name, def string) string {
+	if v := os.Getenv(name); v != "" {
+		return v
+	}
+	return def
 }
 
 func (a *App) callCmd() *cobra.Command {

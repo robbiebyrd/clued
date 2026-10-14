@@ -20,11 +20,16 @@ import (
 
 func connect(t *testing.T, prefix string) (*mcp.ClientSession, *service.Palace, *updates) {
 	t.Helper()
+	return connectWith(t, &Options{ToolPrefix: prefix})
+}
+
+func connectWith(t *testing.T, opts *Options) (*mcp.ClientSession, *service.Palace, *updates) {
+	t.Helper()
 	palace, err := service.NewPalace(config.Default(), memstore.New(""), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := New(palace, ops.All(), &Options{ToolPrefix: prefix})
+	srv := New(palace, ops.All(), opts)
 	t.Cleanup(srv.Close)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
@@ -304,5 +309,62 @@ func TestToolProvidersAndExtraInstructions(t *testing.T) {
 	want := instructions + "\n\nSession tools: find_sessions."
 	if got := sess.InitializeResult().Instructions; got != want {
 		t.Errorf("instructions = %q, want %q", got, want)
+	}
+}
+
+// TestCoreTier: the core tier serves only core operations (plus watch),
+// fewer and smaller than the full tier, and still covers the workflow.
+func TestCoreTier(t *testing.T) {
+	listing := func(tier string) ([]*mcp.Tool, int) {
+		sess, _, _ := connectWith(t, &Options{Tier: tier})
+		res, err := sess.ListTools(t.Context(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, _ := json.Marshal(res.Tools)
+		return res.Tools, len(raw)
+	}
+	full, fullSize := listing(TierFull)
+	core, coreSize := listing(TierCore)
+	t.Logf("tools/list: full %d tools, %d bytes; core %d tools, %d bytes", len(full), fullSize, len(core), coreSize)
+	if len(core) >= len(full) || coreSize >= fullSize {
+		t.Fatalf("core tier (%d tools, %d bytes) is not smaller than full (%d, %d)", len(core), coreSize, len(full), fullSize)
+	}
+	names := map[string]bool{}
+	regs := ops.All()
+	for _, tl := range core {
+		names[tl.Name] = true
+		if tl.Name == "watch" {
+			continue
+		}
+		kindName, opName, found := strings.Cut(tl.Name, "_")
+		if !found {
+			kindName, opName = "plan", tl.Name // sync, getConfig
+		}
+		op, ok := regs[kindName].Get(opName)
+		if !ok || !op.Core() {
+			t.Errorf("core tier serves %s, which is not a core operation", tl.Name)
+		}
+	}
+	for _, want := range []string{"plan_create", "story_setStatus", "story_setCriterion", "story_appendWorkLog", "plan_patchFrontMatter", "sync", "watch"} {
+		if !names[want] {
+			t.Errorf("core tier lacks %s", want)
+		}
+	}
+	if coreSize*10 > fullSize*4 {
+		t.Errorf("core tier is %d bytes, more than 40%% of full (%d)", coreSize, fullSize)
+	}
+	for _, tl := range core {
+		if tl.Name == "plan_create" && !strings.Contains(tl.Description, "plan_getSchema") {
+			t.Errorf("compact plan_create does not point to plan_getSchema: %q", tl.Description)
+		}
+	}
+	for _, gone := range []string{"plan_setTags", "story_createTemplate", "plan_removeWebLink"} {
+		if names[gone] {
+			t.Errorf("core tier serves %s", gone)
+		}
+	}
+	if ValidTier("everything") || !ValidTier("") || !ValidTier(TierCore) {
+		t.Error("ValidTier")
 	}
 }

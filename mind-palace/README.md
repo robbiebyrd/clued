@@ -209,6 +209,13 @@ Claude Code registration example (`.mcp.json`):
 `mcp` and `serve` also expose the session tools; pass `--no-session-tools` when
 another server (for example `session mcp`) already provides them.
 
+`mcp --tools core` (or `MIND_PALACE_MCP_TOOLS=core`) serves only the core
+operations (reading and writing documents, the workflow, criteria, progress,
+links, the ready queue) and leaves the inlined creation schema out of
+`<kind>_create`: 49 tools and about 27 KB of `tools/list`, against 99 tools
+and about 77 KB for `full`, the default. The plugin serves the core tier;
+every operation stays available through the CLI, HTTP and `--tools full`.
+
 ### Review and hooks
 
 ```bash
