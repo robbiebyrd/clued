@@ -6,7 +6,7 @@ status: in_progress
 priority: "2"
 effort: M
 created: "2026-10-14T15:39:27.224Z"
-updated: "2026-10-14T15:39:27.574Z"
+updated: "2026-10-14T15:42:57.504Z"
 started: "2026-10-14T15:39:27.224Z"
 tags:
   - auth
@@ -60,7 +60,7 @@ serverKey / CLUED_SERVER_KEY; remote.Client exchanges on its first request, cach
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: `go test ./server/auth/ ./remote/ ./cli/` passes: keys refused by Lookup, exchange, expiry, prune, cascade revoke, rate limit; one exchange per cache across concurrent clients, renewal, retry, revocation
+- [x] VERIFY: `go test ./server/auth/ ./remote/ ./cli/` passes: keys refused by Lookup, exchange, expiry, prune, cascade revoke, rate limit; one exchange per cache across concurrent clients, renewal, retry, revocation
 - [x] [MANUAL] `server run` with an environment key from `server token create --environment`: `session whoami` with only CLUED_SERVER_URL and CLUED_SERVER_KEY works twice with one exchange, the key gets 401 on /api/v1/whoami, and revoking the key cuts the client off
 
 ## Work Log
