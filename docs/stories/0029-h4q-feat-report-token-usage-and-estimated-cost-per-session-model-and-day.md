@@ -6,7 +6,7 @@ status: complete
 priority: "2"
 effort: M
 created: "2026-10-14T03:13:00.705Z"
-updated: "2026-10-14T04:02:30.255Z"
+updated: "2026-10-14T04:17:27.502Z"
 started: "2026-10-14T03:58:19.396Z"
 completed: "2026-10-14T04:02:30.255Z"
 tags:
@@ -62,3 +62,5 @@ MCP `usage`, `mind-palace session usage`, totals in `get_session_context`.
 ## Work Log
 
 ### 2026-10-14T03:58:19.758Z - Added the usage enricher (token counters, model, message id, UTC day per assistant line; synthetic lines skipped), UsageTotals on the session.Store port (Mongo two-stage $group, in-memory equivalent, POST /usage-totals, remote adapter, sessiontest case), the usage MCP tool, session usage and a usage block in get_session_context. Deviation: the cost is computed when queried, not stored by the enricher, so the config's new modelPrices key (and later price changes) apply to past sessions; models outside the built-in Claude 3/4 table report tokens without cost and are listed in unpriced_models. The enrichment loop covers backfilled lines too. Also fixed: the in-memory store kept enricher result structs as Go values, so file_history and find_errors found nothing under --store memory; it now keeps their JSON document, as MongoDB keeps their BSON. JSONTimes now promotes embedded struct fields as encoding/json does.
+
+### 2026-10-14T04:17:27.501Z - Price table replaced with Anthropic's pricing page (read 2026-10-14): Claude 5.x (Fable, Mythos, Opus, Sonnet, Haiku), Opus 4.5-4.8, Sonnet 4.x, Haiku 4.5 and 3.5; per-model cache-read prices (0.025x on Fable/Mythos 5.1, 0.05x on Opus/Sonnet 5.5) and Haiku 5.5's price for prompts over 100,000 tokens (UsageQuery.LongPromptTokens splits the totals). Built-in entries now match only their own ids and dated or platform forms, so a newer model is reported unpriced instead of priced as an older one.

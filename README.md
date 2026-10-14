@@ -174,6 +174,13 @@ Collections in `dbName` (default `claude_sessions`): `sessions`,
 hold tool results and subagent meta files as UTF-8 and file-history backups
 as base64.
 
+With `redactAtCapture` on, every write is masked first (see
+[Configuration](#configuration)): the store, the server and every backup
+hold `[REDACTED:<rule>]` where the secret was, and the document lists the
+rules under `redacted`. Sessions under `excludePaths` are not written at
+all; `session forget` takes back what was, and `retentionDays` bounds how
+long MongoDB keeps the rest.
+
 ### Enrichers
 
 An enrichment loop runs inside the daemon every 5 seconds and stores results
@@ -220,7 +227,7 @@ off.
 |---|---|
 | `find_sessions` | Find previous sessions, newest first; regex filters on project path, cwd and git origin, or one `live_state` (`working`, `waiting`, `ended`) or `hotness` (`hot`: active in the last 30 minutes, `warm`: the last hour, `cool`: earlier today, `cold`: before); or a `title` regex; each session carries its current `model`, `live_state` and `hotness` once known, and the title, slug, permission mode, pull request link, entrypoint and Claude Code version its transcript's records set |
 | `get_session_context` | Metadata, the most recent distinct Bash commands, the first and last transcript lines, the session's latest memory records, and its token usage and estimated cost; with the session's model, state, title and pull request link once known, and its turns (count, total, mean and longest duration) |
-| `get_full_session` | The complete record: metadata, transcript, subagent lines, blob metadata and hook events |
+| `get_full_session` | The record: metadata, transcript, subagent lines, blob metadata and hook events, or only the `sections` asked for |
 | `search_commands` | Search the Bash commands run in previous sessions; rejected calls left out unless `include_rejected` |
 | `search_memory` | Search the claude-remember summaries, handoffs and identity notes captured as `MemorySaved` events across every session and machine of the account: regex over the text, optional `kind`, `session_id`, `git_origin` or `project_path` scope |
 | `get_limits` | The context-window and usage-limit samples the status line captured (`LimitsSampled` events): used percentage and window size, the five-hour and seven-day limits with their reset times, model and cost, newest first; scoped by `session_id`, `git_origin`, `project_path` or `since` |
@@ -228,11 +235,20 @@ off.
 | `file_history` | Which sessions touched a file (regex over the path): per session the files, how often it read, edited or wrote them, the lines its edits added and removed, the spans they touched, first and last touch; built from the `file-tracker` and `edit-diff-stats` enrichments |
 | `find_errors` | Transcript lines that reported an error (failed hook, failed tool result, error text), newest first, optionally of one type and scoped to a session, repository or project; built from the `error-flag` enrichment |
 | `search_transcripts` | Search what was said in previous sessions (prompts, replies, tool calls and results) by words, best match first, with a snippet of each line: any word matches, `"quoted phrases"` must appear, `-words` are excluded; optionally scoped to a session, repository or project. Built from the `search-text` enrichment and, in MongoDB, its text index |
-| `usage` | Token usage and estimated cost (US dollars at list prices) by session, model or day, each message counted once, optionally scoped to a session, repository, project or range of days; built from the `usage` enrichment. Models the price table does not know have no cost until `modelPrices` names them |
+| `usage` | Token usage and estimated cost (US dollars at list prices) by session, model or day, each message counted once, optionally scoped to a session, repository, project or range of days; built from the `usage` enrichment. The built-in prices are the ones on Anthropic's pricing page (Claude 5.x, 4.x and Haiku 3.5, with each model's cache-read price and Claude Haiku 5.5's price for prompts over 100,000 tokens); other models have no cost until `modelPrices` names them |
 | `get_digest` | The stored retro digest of a day or a range (what `session digest` wrote), with its engine, model and cost; null when none |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
+| `get_lines` | Whole transcript lines by their seq numbers: search first (`search_transcripts`, `find_errors`), then fetch only the lines needed |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
+| `export_session` | Write one session to a redacted Markdown, HTML or JSONL file and return its path; not offered by the server's `/mcp` |
+| `forget_session` | Delete captured sessions (by id, project path or last seen before a day) with everything stored for them; not offered by the server's `/mcp` |
 | `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |
+
+Results are cut to a token budget (`max_tokens`; about 4,000 tokens for
+searches and lists, 8,000 for reads). A list that does not fit comes back
+as `{"items", "truncated": true, "next"}`; pass `next` as `cursor` to
+continue. An item too large for the budget alone is returned with its
+longest strings clipped.
 
 ### Session commands
 
@@ -246,6 +262,10 @@ prints JSON.
 | `session find [--project-path re] [--git-origin re] [--query re] [--title re] [--live-state s] [--hotness h] [--limit n]` | Find sessions, newest first |
 | `session search-commands <pattern> [--session id] [--git-origin re] [--include-rejected] [--limit n]` | Search the Bash commands run in sessions |
 | `session search <words…> [--session id] [--git-origin re] [--project re] [--limit n]` | Ranked search over the text of transcript lines (what `search_transcripts` does) |
+| `session export [--session id]... [--project re] [--since day] [--format md\|html\|jsonl\|zip] [--out path] [--force] [--raw]` | Write sessions to Markdown, a self-contained HTML page, Claude Code's JSONL, or a zip of many (which `session import` reads back); redacted unless `--raw` |
+| `session otel-export [--session id]... [--project re] [--since day]` | Send sessions to `otelEndpoint` as traces (older sessions, or after an outage; spans sent before are skipped) |
+| `session import <file.jsonl\|export.zip>` | Read a JSONL transcript or a zip export back into the store |
+| `session forget [--session id]... [--project re] [--before day]` | Delete captured sessions from the store (local MongoDB or the server) with everything stored for them; at least one criterion |
 | `session usage [--by session\|model\|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]` | Token usage and estimated cost (what `usage` does) |
 | `session limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]` | The status line's context and usage-limit samples (what `get_limits` does) |
 | `session activities [--session id] [--git-origin re] [--project-path re] [--kind k]... [--since t] [--include-rejected] [--limit n]` | What the agent did, newest first, repeats collapsed (what `get_activities` does) |
@@ -321,7 +341,13 @@ sessions and other machines can search it:
 | `serverToken` | | `CLUED_SERVER_TOKEN` | The bearer token the server minted; the file is written `0600` because of it |
 | `serverCaFile` | | `CLUED_SERVER_CA_FILE` | PEM bundle trusted in addition to the system roots (a private CA) |
 | `serverInsecure` | `false` | `CLUED_SERVER_INSECURE` | Allow a plain `http://` server URL off loopback; never set it outside a network you trust |
-| `modelPrices` | (none) | | Prices for the `usage` cost estimates by model id prefix, in US dollars per million tokens: `{"<model id prefix>": {"input": 3, "output": 15}}`. They come before the built-in table (Claude 3 and 4 models), so they also correct it |
+| `redactAtCapture` | off; `/clued-setup` writes `true` | `CLUED_REDACT_AT_CAPTURE` | Mask API keys, AWS access key ids, JWTs, GitHub and Slack tokens, PEM private keys and `<private>…</private>` spans in everything captured before it is written or sent to the server |
+| `redactPatterns` | `[]` | | More regular expressions to mask with `redactAtCapture` (e-mail addresses, internal host names) |
+| `excludePaths` | `[]` | | Globs over the session's directory (`["~/work/client-*"]`): sessions in or below a match are never stored |
+| `retentionDays` | `0` | | MongoDB deletes captured documents after this many days |
+| `otelEndpoint` | (none) | `CLUED_OTEL_ENDPOINT` | An OTLP/HTTP collector (Grafana Alloy, Langfuse, Phoenix, an OpenTelemetry Collector) that receives each session as a trace when it ends: a span per prompt turn, tool use and subagent, with token usage, under the GenAI conventions |
+| `otelHeaders` | `{}` | | Headers for the collector (`Authorization`); never logged |
+| `modelPrices` | (none) | | Prices for the `usage` cost estimates by model id prefix, in US dollars per million tokens: `{"<model id prefix>": {"input": 3, "output": 15}}`, optionally with `cacheRead` (default 0.1× `input`) and `longPrompt` (`{"input", "output", "cacheRead"}` for messages whose prompt is over 100,000 tokens). They come before the built-in table, so they also correct it |
 | `primeOnStart` | `true` | `CLUED_PRIME_ON_START` | Start every session (and every session after compaction) with the prime report as context; `false` leaves it to `/clued-prime` |
 
 A leading `~/` is expanded in every path. Unknown keys are ignored, so a

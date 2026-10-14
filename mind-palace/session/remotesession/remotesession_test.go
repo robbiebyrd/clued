@@ -287,6 +287,15 @@ func (h *harness) UsageTotals(ctx context.Context, q session.UsageQuery) ([]sess
 	return h.as(q.AccountID).UsageTotals(ctx, q)
 }
 
+// DeleteSessions without an account cannot be sent (the token names the
+// account), so that case goes to the backing store.
+func (h *harness) DeleteSessions(ctx context.Context, q session.ForgetQuery) (session.Forgotten, error) {
+	if q.AccountID == "" {
+		return h.server.backing.DeleteSessions(ctx, q)
+	}
+	return h.as(q.AccountID).DeleteSessions(ctx, q)
+}
+
 func (h *harness) LimitSamples(ctx context.Context, q session.LimitQuery) ([]session.Doc, error) {
 	return h.as(q.AccountID).LimitSamples(ctx, q)
 }

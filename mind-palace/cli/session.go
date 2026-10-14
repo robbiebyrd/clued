@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -11,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
@@ -22,11 +24,14 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
 	"github.com/robbiebyrd/clued/mind-palace/session/daemon"
+	"github.com/robbiebyrd/clued/mind-palace/session/export"
 	"github.com/robbiebyrd/clued/mind-palace/session/gitinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 	"github.com/robbiebyrd/clued/mind-palace/session/mongosession"
+	"github.com/robbiebyrd/clued/mind-palace/session/otel"
 	"github.com/robbiebyrd/clued/mind-palace/session/query"
+	"github.com/robbiebyrd/clued/mind-palace/session/redact"
 	"github.com/robbiebyrd/clued/mind-palace/session/remotesession"
 	"github.com/robbiebyrd/clued/mind-palace/session/restore"
 	"github.com/robbiebyrd/clued/mind-palace/session/sessionmcp"
@@ -76,23 +81,41 @@ func (a *App) sessionConfig() session.Config {
 	return *a.sess.cfg
 }
 
-// sessionStore connects the session store once per process.
+// sessionStore connects the session store once per process, wrapped so
+// that what is captured is redacted and excluded as the config says.
 func (a *App) sessionStore(ctx context.Context) (session.Store, error) {
 	if a.sess.store == nil {
 		store, err := openSessionStore(ctx, a.sessionConfig())
 		if err != nil {
 			return nil, err
 		}
-		a.sess.store = store
+		a.sess.store = capturing(store, a.sessionConfig())
 	}
 	return a.sess.store, nil
+}
+
+// capturing wraps store with the config's redaction and exclusion
+// (redact.FromConfig); a pattern that does not compile is reported on the
+// log and skipped.
+func capturing(store session.Store, cfg session.Config) session.Store {
+	wrapped, err := redact.FromConfig(store, cfg)
+	if err != nil {
+		log.Printf("clued: %v", err)
+	}
+	return wrapped
 }
 
 // sessionTools builds the session MCP tools; the store is connected on the
 // first tool call, so serving them never needs the database to be reachable.
 func (a *App) sessionTools() *sessionmcp.Tools {
 	cfg := a.sessionConfig()
-	connect := func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }
+	connect := func(ctx context.Context) (session.Store, error) {
+		store, err := openSessionStore(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		return capturing(store, cfg), nil
+	}
 	tools := sessionmcp.New(cfg, connect, session.ReadAccountID(cfg.ClaudeAppConfigPath))
 	tools.ConfigPath = a.sess.configPath
 	return tools
@@ -121,7 +144,7 @@ func (a *App) sessionCmd() *cobra.Command {
 	}
 	c.PersistentFlags().StringVar(&a.sess.configPath, "config", session.DefaultConfigPath(), "clued config file")
 	c.AddCommand(
-		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
+		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionForgetCmd(), a.sessionExportCmd(), a.sessionImportCmd(), a.sessionOTelExportCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
 		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
 		a.sessionSearchMemoryCmd(), a.sessionLimitsCmd(), a.sessionActivitiesCmd(), a.sessionReportCmd(), a.sessionDigestCmd(), a.sessionMemoryIngestCmd(),
@@ -427,6 +450,168 @@ func (a *App) sessionSearchCommandsCmd() *cobra.Command {
 	return c
 }
 
+func (a *App) sessionExportCmd() *cobra.Command {
+	var o export.Options
+	var since string
+	c := &cobra.Command{
+		Use:   "export [--session id]... [--project re] [--since day] [--format md|html|jsonl|zip] [--out path] [--force] [--raw]",
+		Short: "Write sessions to Markdown, HTML, Claude Code's JSONL or a zip",
+		Long: `Writes the account's sessions to a file: one session as Markdown (md), a
+self-contained HTML page (html) or Claude Code's JSONL (jsonl), or any
+number as a zip holding, per session, session.json (what session import
+reads back), the JSONL and the Markdown. Sessions are named by --session,
+else matched by --project and --since. The export is redacted with the
+capture rules and redactPatterns unless --raw. The file is written with
+mode 0600 and never replaces another unless --force.`,
+		Args: cobra.NoArgs,
+	}
+	run := a.sessionAction(func(ctx context.Context, store session.Store, svc *query.Service) (any, error) {
+		cfg := a.sessionConfig()
+		o.RedactPatterns, o.Prices = cfg.RedactPatterns, cfg.ModelPrices
+		return export.Run(ctx, store, svc.AccountID, o)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if err := a.validated(checkRegex("--project", o.ProjectPathRe)); err != nil {
+			return err
+		}
+		if !export.ValidFormat(o.Format) {
+			return a.sessionBadRequest(fmt.Sprintf("--format %q is not md, html, jsonl or zip", o.Format))
+		}
+		if since != "" {
+			at, err := (query.ForgetArgs{Before: since}).BeforeTime()
+			if err != nil {
+				return a.sessionBadRequest("--since: " + err.Error())
+			}
+			o.Since = at
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringSliceVar(&o.SessionIDs, "session", nil, "export this session (repeatable)")
+	f.StringVar(&o.ProjectPathRe, "project", "", "export sessions whose project path matches this regular expression")
+	f.StringVar(&since, "since", "", "export sessions last seen on or after this day (YYYY-MM-DD, UTC) or RFC 3339 time")
+	f.StringVar(&o.Format, "format", export.Markdown, "md, html, jsonl or zip")
+	f.StringVar(&o.Out, "out", "", "file to write (default <session id>.<format>, or clued-sessions-<day>.zip)")
+	f.BoolVar(&o.Force, "force", false, "replace the file when it exists")
+	f.BoolVar(&o.Raw, "raw", false, "do not redact the export")
+	return c
+}
+
+func (a *App) sessionOTelExportCmd() *cobra.Command {
+	var ids []string
+	var project, since string
+	c := &cobra.Command{
+		Use:   "otel-export [--session id]... [--project re] [--since day]",
+		Short: "Send sessions to the OpenTelemetry collector as traces",
+		Long: `Sends each session's trace (a span for the session, each prompt turn, tool
+use and subagent, with token usage) to otelEndpoint as OTLP/HTTP JSON. The
+daemon and the relay do this when a session ends; this command sends
+older sessions or resends after an outage. Spans sent before are skipped
+(the state is under <config dir>/otel).`,
+		Args: cobra.NoArgs,
+	}
+	run := a.sessionAction(func(ctx context.Context, store session.Store, svc *query.Service) (any, error) {
+		cfg := a.sessionConfig()
+		exp := otel.New(cfg)
+		if exp == nil {
+			return nil, errors.New("no otelEndpoint is configured")
+		}
+		if len(ids) == 0 {
+			found, err := svc.FindSessions(ctx, query.FindSessionsArgs{ProjectPath: project, Limit: 500})
+			if err != nil {
+				return nil, err
+			}
+			cutoff, _ := (query.ForgetArgs{Before: since}).BeforeTime()
+			for _, d := range found {
+				if seen, _ := d["last_seen"].(time.Time); !cutoff.IsZero() && seen.Before(cutoff) {
+					continue
+				}
+				if id, _ := d.String("session_id"); id != "" {
+					ids = append(ids, id)
+				}
+			}
+		}
+		out := []otel.Sent{}
+		for _, id := range ids {
+			sent, err := exp.ExportSession(ctx, store, svc.AccountID, id)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, sent)
+		}
+		return out, nil
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if err := a.validated(checkRegex("--project", project)); err != nil {
+			return err
+		}
+		if _, err := (query.ForgetArgs{Before: since}).BeforeTime(); err != nil {
+			return a.sessionBadRequest("--since: " + err.Error())
+		}
+		if a.sessionConfig().OTelEndpoint == "" {
+			return a.sessionBadRequest("no otelEndpoint is configured (set it in the config file or CLUED_OTEL_ENDPOINT)")
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringSliceVar(&ids, "session", nil, "send this session (repeatable)")
+	f.StringVar(&project, "project", "", "send sessions whose project path matches this regular expression")
+	f.StringVar(&since, "since", "", "send sessions last seen on or after this day (YYYY-MM-DD, UTC) or RFC 3339 time")
+	return c
+}
+
+func (a *App) sessionImportCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "import <file.jsonl|export.zip>",
+		Short: "Read a JSONL transcript or a zip export back into the store",
+		Long: `Reads a Claude Code JSONL transcript (the session id from the file name or
+its lines, the project from their cwd) or a zip written by session export
+into the store, under this machine's account. Lines and blobs are upserted,
+so importing twice changes nothing; hook events are imported only for a
+session the store did not hold. What is imported is redacted and excluded
+as capture is (redactAtCapture, excludePaths).`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return a.sessionAction(func(ctx context.Context, store session.Store, svc *query.Service) (any, error) {
+				return export.Import(ctx, store, svc.AccountID, args[0])
+			})(cmd, args)
+		},
+	}
+}
+
+func (a *App) sessionForgetCmd() *cobra.Command {
+	var args query.ForgetArgs
+	c := &cobra.Command{
+		Use:   "forget [--session id]... [--project re] [--before day]",
+		Short: "Delete captured sessions and everything stored for them",
+		Long: `Deletes the account's sessions that match every criterion given (at least
+one is required) from the store, local MongoDB or the clued server, with
+their hook events, transcript and subagent lines and blobs. Claude Code's
+own transcript files are not touched. It cannot be undone.`,
+		Args: cobra.NoArgs,
+	}
+	run := a.sessionAction(func(ctx context.Context, _ session.Store, svc *query.Service) (any, error) {
+		return svc.Forget(ctx, args)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if err := a.validated(checkRegex("--project", args.ProjectPath)); err != nil {
+			return err
+		}
+		if len(args.SessionIDs) == 0 && args.ProjectPath == "" && args.Before == "" {
+			return a.sessionBadRequest(query.ErrNothingToForget.Error())
+		}
+		if _, err := (query.ForgetArgs{Before: args.Before}).BeforeTime(); err != nil {
+			return a.sessionBadRequest(err.Error())
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringSliceVar(&args.SessionIDs, "session", nil, "forget this session (repeatable)")
+	f.StringVar(&args.ProjectPath, "project", "", "forget sessions whose project path matches this regular expression")
+	f.StringVar(&args.Before, "before", "", "forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time")
+	return c
+}
+
 func (a *App) sessionUsageCmd() *cobra.Command {
 	var args query.UsageArgs
 	c := &cobra.Command{
@@ -638,6 +823,7 @@ func (a *App) sessionDaemonCmd() *cobra.Command {
 					return gitinfo.Origin(ctx, dir), gitinfo.Branch(ctx, dir)
 				},
 				Logger: slog.New(slog.NewTextHandler(a.Stderr, nil)),
+				OTel:   otel.New(cfg),
 			})
 			// daemon.Run does not report the address it bound, so the configured one is printed.
 			fmt.Fprintf(a.Stderr, "clued daemon listening on http://%s\n", addr)

@@ -290,6 +290,23 @@ func (s *Store) RequeueSkipped(context.Context, string, string, string) (int64, 
 	return 0, session.ErrUnsupported
 }
 
+// DeleteSessions asks the server to forget the token's account's sessions.
+// A query with no criterion deletes nothing and is not sent (the server
+// refuses it).
+func (s *Store) DeleteSessions(ctx context.Context, q session.ForgetQuery) (session.Forgotten, error) {
+	var out session.Forgotten
+	if q.Empty() {
+		return session.Forgotten{Sessions: []string{}}, nil
+	}
+	if err := s.do(ctx, "POST", prefix+"/sessions/delete", q, &out); err != nil {
+		return session.Forgotten{Sessions: []string{}}, err
+	}
+	if out.Sessions == nil {
+		out.Sessions = []string{}
+	}
+	return out, nil
+}
+
 // DeleteAccount is the server operator's: the transport offers no way to
 // delete an account's data.
 func (s *Store) DeleteAccount(context.Context, string) (int64, error) {

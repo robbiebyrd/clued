@@ -45,8 +45,10 @@ func LineText(d Doc) string {
 	return strings.Join(parts, "\n")
 }
 
-// resultText is the text of a tool_result's content: a string, or the text
+// ResultText is the text of a tool_result's content: a string, or the text
 // of its blocks.
+func ResultText(v any) string { return resultText(v) }
+
 func resultText(v any) string {
 	switch c := v.(type) {
 	case string:

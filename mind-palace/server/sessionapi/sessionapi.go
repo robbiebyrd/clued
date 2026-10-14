@@ -33,6 +33,7 @@
 //	POST /error-lines                    ErrorLines             body: session.ErrorQuery
 //	POST /transcript-search              SearchTranscripts      body: session.TextQuery
 //	POST /usage-totals                   UsageTotals            body: session.UsageQuery
+//	POST /sessions/delete                DeleteSessions         body: session.ForgetQuery
 //	POST /limit-samples                  LimitSamples           body: session.LimitQuery
 //	POST /activities                     Activities             body: session.ActivityQuery
 //	POST /state-changes                  StateChanges           body: session.ActivityQuery
@@ -143,6 +144,7 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/error-lines", a.errorLines)
 	route("POST", "/transcript-search", a.searchTranscripts)
 	route("POST", "/usage-totals", a.usageTotals)
+	route("POST", "/sessions/delete", a.deleteSessions)
 	route("POST", "/limit-samples", a.limitSamples)
 	route("POST", "/activities", a.activities)
 	route("POST", "/state-changes", a.stateChanges)
@@ -722,6 +724,31 @@ func (a *api) usageTotals(w http.ResponseWriter, r *http.Request, account string
 		totals = []session.UsageTotal{}
 	}
 	ok(w, totals)
+}
+
+// deleteSessions forgets the account's sessions the query selects; a query
+// with no criterion is refused so a mistake cannot ask for everything.
+func (a *api) deleteSessions(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.ForgetQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	if q.Empty() {
+		invalid(w, "name sessionIds, projectPathRe or before")
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	out, err := a.store.DeleteSessions(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, out)
 }
 
 // --- transcript lines ---

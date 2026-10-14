@@ -19,7 +19,11 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session/gitinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
+	"github.com/robbiebyrd/clued/mind-palace/session/otel"
 )
+
+// otelBudget bounds the trace export a SessionEnd relay runs.
+const otelBudget = 3 * time.Second
 
 // relayBudget bounds one hook relay run end to end: the event insert, the
 // catch-up and the WAL flush share it, and whatever is left when it ends is
@@ -129,6 +133,15 @@ func (a *App) relay(parent context.Context) {
 	}
 	if err := svc.FlushWAL(ctx); err != nil {
 		problems.add("WAL flush: " + err.Error())
+	}
+	// The session's trace goes out once its end and last lines are on the
+	// server.
+	if exp := otel.New(cfg); exp != nil && name == "SessionEnd" && tr.SessionID != "" {
+		otelCtx, cancel := context.WithTimeout(ctx, otelBudget)
+		if _, err := exp.ExportSession(otelCtx, store, accountID, tr.SessionID); err != nil {
+			problems.add("OpenTelemetry: " + err.Error())
+		}
+		cancel()
 	}
 	if msg := problems.String(); msg != "" {
 		log.write(fmt.Sprintf("%s session=%s: %s", name, sid, msg))

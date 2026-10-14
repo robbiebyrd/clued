@@ -22,6 +22,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session/enrich"
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 	"github.com/robbiebyrd/clued/mind-palace/session/modeltrack"
+	"github.com/robbiebyrd/clued/mind-palace/session/otel"
 	"github.com/robbiebyrd/clued/mind-palace/session/sidecar"
 	"github.com/robbiebyrd/clued/mind-palace/session/tail"
 )
@@ -32,6 +33,7 @@ const (
 	readHeaderTimeout       = 10 * time.Second
 	shutdownTimeout         = 5 * time.Second
 	defaultStoreTimeout     = 10 * time.Second
+	defaultOTelDelay        = 5 * time.Second
 	maxBodyBytes            = 16 << 20
 )
 
@@ -53,6 +55,11 @@ type Options struct {
 	EnrichInterval   time.Duration
 	WALFlushInterval time.Duration
 	StoreTimeout     time.Duration
+	// OTel, when set, receives each session's trace once its SessionEnd is
+	// stored, OTelDelay later (default 5 s) so the tailer has pushed the
+	// last transcript lines.
+	OTel      *otel.Exporter
+	OTelDelay time.Duration
 }
 
 // Daemon ingests hook events and session files into a session.Store. The
@@ -147,9 +154,38 @@ func (d *Daemon) handleEvent(w http.ResponseWriter, r *http.Request) {
 	tr, _ := d.ingest.Handle(context.WithoutCancel(r.Context()), body)
 	if tr.SessionID != "" {
 		d.trackSession(tr.SessionID, tr.TranscriptPath)
+		if name, _ := body.String("hook_event_name"); name == "SessionEnd" && d.opts.OTel != nil {
+			d.exportTrace(tr.SessionID)
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ok"))
+}
+
+// exportTrace sends the session's trace in the background; a collector that
+// is down costs a line in the log, never a hook.
+func (d *Daemon) exportTrace(sessionID string) {
+	delay := d.opts.OTelDelay
+	if delay <= 0 {
+		delay = defaultOTelDelay
+	}
+	d.bg.Add(1)
+	go func() {
+		defer d.bg.Done()
+		select {
+		case <-time.After(delay):
+		case <-d.ctx.Done():
+			return
+		}
+		ctx, cancel := context.WithTimeout(d.ctx, 30*time.Second)
+		defer cancel()
+		sent, err := d.opts.OTel.ExportSession(ctx, d.opts.Store, d.opts.AccountID, sessionID)
+		if err != nil {
+			d.log.Warn("OpenTelemetry export failed", "session", sessionID, "error", err)
+			return
+		}
+		d.log.Info("OpenTelemetry trace sent", "session", sessionID, "trace", sent.Trace, "spans", sent.Spans)
+	}()
 }
 
 func (d *Daemon) appendWAL(ev session.Doc) error {
