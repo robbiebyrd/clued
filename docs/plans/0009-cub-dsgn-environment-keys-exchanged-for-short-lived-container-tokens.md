@@ -6,7 +6,7 @@ status: in_progress
 priority: "2"
 effort: L
 created: "2026-10-14T15:31:39.678Z"
-updated: "2026-10-14T15:39:27.627Z"
+updated: "2026-10-14T15:51:28.354Z"
 tags:
   - auth
   - cloud
@@ -29,7 +29,7 @@ progress:
   "1.4":
     status: pending
   "2":
-    status: pending
+    status: complete
   "2.1":
     status: pending
   "2.2":
