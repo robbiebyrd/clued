@@ -47,7 +47,34 @@ type Config struct {
 	// input and output tokens, by model id prefix) for the usage cost
 	// estimates; see DefaultModelPrices.
 	ModelPrices map[string]ModelPrice `json:"modelPrices,omitempty"`
+
+	// RedactAtCapture masks credentials and <private>…</private> spans in
+	// everything captured before it is written (session/redact); unset
+	// means off, so configurations written before it keep their behaviour,
+	// and /clued-setup writes it on. CLUED_REDACT_AT_CAPTURE overrides it.
+	// RedactPatterns are extra regular expressions masked with it.
+	RedactAtCapture *bool    `json:"redactAtCapture,omitempty"`
+	RedactPatterns  []string `json:"redactPatterns,omitempty"`
+	// ExcludePaths are globs over a session's cwd and project path (a
+	// directory and everything below it); such sessions are never stored.
+	ExcludePaths []string `json:"excludePaths,omitempty"`
+	// RetentionDays, when positive, has MongoDB delete captured documents
+	// that many days after they were stored (a TTL index on created_at,
+	// last_seen for sessions).
+	RetentionDays int `json:"retentionDays,omitempty"`
+
+	// OTelEndpoint, when set, is the OTLP/HTTP collector (e.g.
+	// http://localhost:4318) each session's trace is sent to when it ends
+	// (session/otel); CLUED_OTEL_ENDPOINT overrides it. OTelHeaders are sent
+	// with every request (an Authorization header); they are secrets and
+	// never logged.
+	OTelEndpoint string            `json:"otelEndpoint,omitempty"`
+	OTelHeaders  map[string]string `json:"otelHeaders,omitempty"`
 }
+
+// RedactsAtCapture reports whether captured data is redacted before it is
+// written.
+func (c Config) RedactsAtCapture() bool { return c.RedactAtCapture != nil && *c.RedactAtCapture }
 
 // PrimesOnStart reports whether sessions start with the prime report.
 func (c Config) PrimesOnStart() bool { return c.PrimeOnStart == nil || *c.PrimeOnStart }
@@ -137,6 +164,12 @@ func LoadConfig(path string) Config {
 	if v := os.Getenv("CLUED_PRIME_ON_START"); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
 			cfg.PrimeOnStart = &b
+		}
+	}
+	setFromEnv(&cfg.OTelEndpoint, "CLUED_OTEL_ENDPOINT")
+	if v := os.Getenv("CLUED_REDACT_AT_CAPTURE"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.RedactAtCapture = &b
 		}
 	}
 

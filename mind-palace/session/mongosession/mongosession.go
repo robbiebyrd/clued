@@ -39,17 +39,50 @@ type Store struct {
 	// Logger receives index warnings; nil means slog.Default().
 	Logger *slog.Logger
 
-	url    string
-	dbName string
-	client *mongo.Client
-	db     *mongo.Database
+	url       string
+	dbName    string
+	retention int
+	client    *mongo.Client
+	db        *mongo.Database
 }
 
 var _ session.Store = (*Store)(nil)
 
-// New prepares a store for cfg.MongoURL and cfg.DBName; the connection is made by Connect.
+// New prepares a store for cfg.MongoURL and cfg.DBName, keeping documents
+// cfg.RetentionDays days when it is positive; the connection is made by
+// Connect.
 func New(cfg session.Config) *Store {
-	return &Store{url: cfg.MongoURL, dbName: cfg.DBName}
+	return &Store{url: cfg.MongoURL, dbName: cfg.DBName, retention: cfg.RetentionDays}
+}
+
+// retentionIndex names the TTL index of each collection.
+const retentionIndex = "retention_ttl"
+
+// retentionFields are the times the TTL indexes expire documents by.
+var retentionFields = []struct{ collection, field string }{
+	{sessions, "last_seen"}, {hookEvents, "created_at"}, {transcriptLines, "created_at"},
+	{subagentLines, "created_at"}, {blobs, "created_at"},
+}
+
+// applyRetention creates the TTL indexes for the retention days, changes
+// their expiry when it moved, or drops them when retention is off.
+func (s *Store) applyRetention(ctx context.Context) {
+	for _, r := range retentionFields {
+		ix := s.db.Collection(r.collection).Indexes()
+		if s.retention <= 0 {
+			_ = ix.DropOne(ctx, retentionIndex) // absent: nothing to drop
+			continue
+		}
+		secs := int32(min(s.retention, 20000) * 86400)
+		model := mongo.IndexModel{Keys: key(r.field, 1), Options: options.Index().SetName(retentionIndex).SetExpireAfterSeconds(secs)}
+		if _, err := ix.CreateOne(ctx, model); err == nil {
+			continue
+		}
+		err := s.db.RunCommand(ctx, key("collMod", r.collection, "index", key("name", retentionIndex, "expireAfterSeconds", secs))).Err()
+		if err != nil {
+			s.logger().Warn("clued: retention index", "collection", r.collection, "error", err)
+		}
+	}
 }
 
 func (s *Store) logger() *slog.Logger {
@@ -166,6 +199,8 @@ func (s *Store) Connect(ctx context.Context) error {
 		}
 	}
 
+	s.applyRetention(ctx)
+
 	err := s.db.CreateView(ctx, sessionFull, sessions, sessionFullPipeline)
 	var cmdErr mongo.CommandError
 	if errors.As(err, &cmdErr) && cmdErr.Code == namespaceExists {
@@ -278,6 +313,49 @@ func (s *Store) DeleteAccount(ctx context.Context, accountID string) (int64, err
 	return n, nil
 }
 
+func (s *Store) DeleteSessions(ctx context.Context, q session.ForgetQuery) (session.Forgotten, error) {
+	out := session.Forgotten{Sessions: []string{}}
+	if q.AccountID == "" {
+		return out, session.ErrNoAccount
+	}
+	if q.Empty() {
+		return out, nil
+	}
+	ids := q.SessionIDs
+	if q.ProjectPathRe != "" || !q.Before.IsZero() {
+		filter := key("account_id", q.AccountID)
+		if len(q.SessionIDs) > 0 {
+			filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+		}
+		if q.ProjectPathRe != "" {
+			re, err := regexFilter(q.ProjectPathRe)
+			if err != nil {
+				return out, err
+			}
+			filter = append(filter, bson.E{Key: "project_path", Value: re})
+		}
+		if !q.Before.IsZero() {
+			filter = append(filter, bson.E{Key: "last_seen", Value: key("$lt", q.Before)})
+		}
+		ids = []string{}
+		if err := s.coll(sessions).Distinct(ctx, "session_id", filter).Decode(&ids); err != nil {
+			return out, err
+		}
+	}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	for _, name := range []string{hookEvents, transcriptLines, subagentLines, blobs, sessions} {
+		res, err := s.coll(name).DeleteMany(ctx, key("account_id", q.AccountID, "session_id", key("$in", ids)))
+		if err != nil {
+			return out, fmt.Errorf("forget sessions in %s: %w", name, err)
+		}
+		out.Documents += res.DeletedCount
+	}
+	out.Sessions = ids
+	return out, nil
+}
+
 // find runs a query and returns the documents; a limit of zero or less means no limit.
 func (s *Store) find(ctx context.Context, col string, filter bson.D, projection, sort bson.D, skip, limit int) ([]session.Doc, error) {
 	opts := options.Find()
@@ -324,6 +402,14 @@ func setPresent(d bson.D, fields ...string) bson.D {
 		if fields[i+1] != "" {
 			d = append(d, bson.E{Key: fields[i], Value: fields[i+1]})
 		}
+	}
+	return d
+}
+
+// withRedacted records the redaction rules that fired.
+func withRedacted(d bson.D, rules []string) bson.D {
+	if len(rules) > 0 {
+		d = append(d, bson.E{Key: "redacted", Value: rules})
 	}
 	return d
 }
@@ -559,7 +645,7 @@ var usageCounters = []string{"input_tokens", "cache_creation_input_tokens", "cac
 
 // UsageTotals groups the lines of each message (session and message id)
 // into one, keeping the largest value of each counter, then sums the
-// messages by group and model.
+// messages by group, model and (with LongPromptTokens) prompt length.
 func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
 	match := key("account_id", q.AccountID, "enrichments.usage.message_id", key("$type", "string"))
 	if len(q.SessionIDs) > 0 {
@@ -579,17 +665,22 @@ func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]sessio
 		"model", key("$max", "$enrichments.usage.model"),
 		"day", key("$min", "$enrichments.usage.day"),
 		"context_tokens", key("$max", "$enrichments.usage.context_tokens"))
-	perGroup := key("_id", key("k", "$_id.s", "model", "$model"),
+	// A bare false would read as projection syntax inside the _id document.
+	long := any(key("$literal", false))
+	if q.LongPromptTokens > 0 {
+		long = key("$gt", bson.A{key("$ifNull", bson.A{"$context_tokens", 0}), q.LongPromptTokens})
+	}
+	perGroup := key("_id", key("k", "$_id.s", "model", "$model", "long", long),
 		"messages", key("$sum", 1),
 		"peak_context_tokens", key("$max", "$context_tokens"))
 	switch q.GroupBy {
 	case session.UsageByModel:
-		perGroup[0].Value = key("k", "$model", "model", "$model")
+		perGroup[0].Value = key("k", "$model", "model", "$model", "long", long)
 	case session.UsageByDay:
-		perGroup[0].Value = key("k", "$day", "model", "$model")
+		perGroup[0].Value = key("k", "$day", "model", "$model", "long", long)
 	}
 	out := key("_id", 0, "key", key("$ifNull", bson.A{"$_id.k", ""}), "model", key("$ifNull", bson.A{"$_id.model", ""}),
-		"messages", 1, "peak_context_tokens", key("$ifNull", bson.A{"$peak_context_tokens", 0}))
+		"messages", 1, "peak_context_tokens", key("$ifNull", bson.A{"$peak_context_tokens", 0}), "long_prompt", "$_id.long")
 	for _, c := range usageCounters {
 		perMessage = append(perMessage, bson.E{Key: c, Value: key("$max", "$enrichments.usage."+c)})
 		perGroup = append(perGroup, bson.E{Key: c, Value: key("$sum", "$"+c)})
@@ -600,7 +691,7 @@ func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]sessio
 		key("$group", perMessage),
 		key("$group", perGroup),
 		key("$project", out),
-		key("$sort", key("key", 1, "model", 1)),
+		key("$sort", key("key", 1, "model", 1, "long_prompt", 1)),
 	}
 	cur, err := s.coll(transcriptLines).Aggregate(ctx, pipeline)
 	if err != nil {
@@ -616,6 +707,7 @@ func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]sessio
 		CacheReadInputTokens     int64  `bson:"cache_read_input_tokens"`
 		OutputTokens             int64  `bson:"output_tokens"`
 		PeakContextTokens        int64  `bson:"peak_context_tokens"`
+		LongPrompt               bool   `bson:"long_prompt"`
 	}
 	if err := cur.All(ctx, &rows); err != nil {
 		return nil, err
@@ -648,7 +740,7 @@ func (s *Store) UpsertTranscriptLines(ctx context.Context, lines []session.Trans
 	now := time.Now()
 	models := make([]mongo.WriteModel, len(lines))
 	for i, l := range lines {
-		set := setPresent(key("session_id", l.SessionID, "seq", l.Seq, "line", l.Line), "account_id", l.AccountID)
+		set := withRedacted(setPresent(key("session_id", l.SessionID, "seq", l.Seq, "line", l.Line), "account_id", l.AccountID), l.Redacted)
 		models[i] = mongo.NewUpdateOneModel().
 			SetFilter(key("session_id", l.SessionID, "seq", l.Seq)).
 			SetUpdate(key("$set", withHost(set, l.Host), "$setOnInsert", key("created_at", now))).
@@ -676,7 +768,7 @@ func (s *Store) TranscriptLines(ctx context.Context, q session.LineQuery) ([]ses
 }
 
 func (s *Store) UpsertSubagentLine(ctx context.Context, l session.SubagentLine) error {
-	set := setPresent(key("session_id", l.SessionID, "subagent_id", l.SubagentID, "seq", l.Seq, "line", l.Line), "account_id", l.AccountID)
+	set := withRedacted(setPresent(key("session_id", l.SessionID, "subagent_id", l.SubagentID, "seq", l.Seq, "line", l.Line), "account_id", l.AccountID), l.Redacted)
 	filter := key("session_id", l.SessionID, "subagent_id", l.SubagentID, "seq", l.Seq)
 	return s.upsert(ctx, subagentLines, filter, withHost(set, l.Host), key("created_at", time.Now()))
 }
@@ -694,8 +786,8 @@ func (s *Store) SubagentLines(ctx context.Context, accountID, sessionID, subagen
 }
 
 func (s *Store) UpsertBlob(ctx context.Context, b session.Blob) error {
-	set := setPresent(key("session_id", b.SessionID, "blob_type", b.BlobType, "name", b.Name, "content", b.Content, "encoding", b.Encoding),
-		"account_id", b.AccountID)
+	set := withRedacted(setPresent(key("session_id", b.SessionID, "blob_type", b.BlobType, "name", b.Name, "content", b.Content, "encoding", b.Encoding),
+		"account_id", b.AccountID), b.Redacted)
 	filter := key("session_id", b.SessionID, "blob_type", b.BlobType, "name", b.Name)
 	return s.upsert(ctx, blobs, filter, set, key("created_at", time.Now()))
 }

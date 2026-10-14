@@ -19,6 +19,9 @@ binary.
 | `mind-palace/` | The Go module (`github.com/robbiebyrd/clued/mind-palace`); see its README for the package map |
 | `mind-palace/session/` | Session capture: config (including the remote-mode keys), Mongo and in-memory stores, daemon, tailing, backfill, enrichers, queries, restore, `sessionmcp` |
 | `mind-palace/memory/` | Reads a claude-remember memory store into hashed records and posts them to the daemon as `MemorySaved` events (`session memory-ingest`); searched with `search_memory` |
+| `mind-palace/session/otel/` | A session as an OpenTelemetry trace sent as OTLP/HTTP JSON to `otelEndpoint` when it ends (daemon, relay, `session otel-export`); state under `<config dir>/otel/` |
+| `mind-palace/session/render/`, `mind-palace/session/export/` | A session as Markdown or self-contained HTML; `session export` / `export_session` (md, html, jsonl, zip; redacted unless `--raw`) and `session import` |
+| `mind-palace/session/redact/` | Capture-time redaction and exclusion: a `session.Store` decorator `cli` wraps around every session store it opens (`redactAtCapture`, `redactPatterns`, `excludePaths`), so neither the store nor the server receives the original secret |
 | `mind-palace/session/limits/` | Turns the JSON Claude Code pipes to its status line into `LimitsSampled` events (context fill, five-hour and seven-day limits, model, cost) and decides which samples are worth storing; the entrypoint is `mind-palace hook status`, installed as the status line by `register-hooks` when the config sets `statusLine: true` |
 | `mind-palace/session/ingest/` | Hook-event bookkeeping shared by the daemon and `hook relay`: session tracking, stamping, store write, WAL fallback |
 | `mind-palace/session/catchup/` | What `hook relay` runs instead of a resident tailer: pushes one session's transcript delta and changed artifact files, state and lock files under `<config dir>/catchup/` |

@@ -65,7 +65,9 @@ type UsageReport struct {
 
 // Usage totals the tokens of the scope's assistant messages, each message
 // once, and estimates their cost from s.Prices over the built-in price
-// table. Lines count once the usage enricher has recorded them.
+// table, pricing messages whose prompt is over session.LongPromptTokens at
+// the model's LongPrompt price when it has one. Lines count once the usage
+// enricher has recorded them.
 func (s *Service) Usage(ctx context.Context, args UsageArgs) (UsageReport, error) {
 	if !session.ValidUsageGroup(args.GroupBy) {
 		return UsageReport{}, fmt.Errorf("group_by %q is not session, model or day", args.GroupBy)
@@ -86,6 +88,7 @@ func (s *Service) Usage(ctx context.Context, args UsageArgs) (UsageReport, error
 	}
 	totals, err := s.Store.UsageTotals(ctx, session.UsageQuery{
 		AccountID: s.AccountID, GroupBy: group, SessionIDs: sessionIDs, Since: args.Since, Until: args.Until,
+		LongPromptTokens: session.LongPromptTokens,
 	})
 	if err != nil {
 		return UsageReport{}, err
@@ -108,7 +111,12 @@ func (s *Service) Usage(ctx context.Context, args UsageArgs) (UsageReport, error
 		g := &report.Groups[i]
 		g.UsageCounts = g.UsageCounts.plus(t, cost, priced)
 		if group != session.UsageByModel {
-			g.Models = append(g.Models, UsageModel{Model: t.Model, UsageCounts: UsageCounts{}.plus(t, cost, priced)})
+			// A model's short and long prompts arrive as two totals.
+			if n := len(g.Models); n > 0 && g.Models[n-1].Model == t.Model {
+				g.Models[n-1].UsageCounts = g.Models[n-1].UsageCounts.plus(t, cost, priced)
+			} else {
+				g.Models = append(g.Models, UsageModel{Model: t.Model, UsageCounts: UsageCounts{}.plus(t, cost, priced)})
+			}
 		}
 		all.Add(t)
 		allCost.add(cost, priced)

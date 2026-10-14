@@ -88,6 +88,31 @@ type TextQuery struct {
 	Limit      int      `json:"limit"`
 }
 
+// ForgetQuery selects the account's sessions to delete with everything
+// captured for them (hook events, transcript and subagent lines, blobs).
+// The criteria are ANDed over the session records: SessionIDs, a regular
+// expression over the project path, and Before (sessions last seen before
+// it). With SessionIDs alone, documents of those ids are deleted even when
+// their session record is gone. A query with no criterion deletes nothing.
+type ForgetQuery struct {
+	AccountID     string    `json:"-"`
+	SessionIDs    []string  `json:"sessionIds"`
+	ProjectPathRe string    `json:"projectPathRe"`
+	Before        time.Time `json:"before"`
+}
+
+// Empty reports whether the query has no criterion.
+func (q ForgetQuery) Empty() bool {
+	return len(q.SessionIDs) == 0 && q.ProjectPathRe == "" && q.Before.IsZero()
+}
+
+// Forgotten is what DeleteSessions deleted: the session ids and the number
+// of documents across every collection.
+type Forgotten struct {
+	Sessions  []string `json:"sessions"`
+	Documents int64    `json:"documents"`
+}
+
 // LimitQuery selects LimitsSampled events (the context-window and
 // usage-limit samples the status line posts), newest first. Empty
 // SessionIDs mean every session; a zero Since means no lower bound on
@@ -178,6 +203,10 @@ type Store interface {
 	// UsageTotals sums enrichments.usage of the lines UsageQuery selects, each
 	// message once: one total per group and model, sorted by key and model.
 	UsageTotals(ctx context.Context, q UsageQuery) ([]UsageTotal, error)
+	// DeleteSessions deletes the sessions ForgetQuery selects and everything
+	// captured for them; an empty AccountID is ErrNoAccount.
+	DeleteSessions(ctx context.Context, q ForgetQuery) (Forgotten, error)
+
 	// LimitSamples projects session_id, cwd, model, version, context_window,
 	// rate_limits, cost, sampled_at and created_at of the LimitsSampled
 	// events matching the query, newest first.

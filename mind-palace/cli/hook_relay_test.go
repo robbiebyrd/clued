@@ -407,3 +407,100 @@ func TestSessionWhoamiFailsWithoutAServer(t *testing.T) {
 		t.Errorf("whoami without a server = %+v, want BadRequest", r)
 	}
 }
+
+// withConfig merges keys into the relay's config file.
+func withConfig(t *testing.T, configPath string, keys map[string]any) {
+	t.Helper()
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := map[string]any{}
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	for k, v := range keys {
+		cfg[k] = v
+	}
+	raw, _ = json.Marshal(cfg)
+	if err := os.WriteFile(configPath, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHookRelayRedactsBeforeSending(t *testing.T) {
+	const secret = "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123"
+	backing := memsession.New()
+	srv := newRelayServer(t, backing)
+	configPath, projectsDir := relayConfig(t, srv.srv.URL, relayToken)
+	withConfig(t, configPath, map[string]any{"redactAtCapture": true})
+	tp := transcript(t, projectsDir, "sid-r", `{"type":"user","cwd":"/work/alpha","message":{"role":"user","content":"key `+secret+`"}}`)
+	ev := map[string]any{"hook_event_name": "PreToolUse", "session_id": "sid-r", "cwd": "/work/alpha", "transcript_path": tp,
+		"tool_name": "Bash", "tool_input": map[string]any{"command": "export ANTHROPIC_API_KEY=" + secret}}
+	raw, _ := json.Marshal(ev)
+	runRelay(t, configPath, string(raw))
+
+	full, err := backing.FullSession(context.Background(), testAccount, "sid-r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, _ := json.Marshal(session.JSONTimes(full))
+	if strings.Contains(string(stored), secret) {
+		t.Errorf("the server received the secret: %s", stored)
+	}
+	if !strings.Contains(string(stored), "[REDACTED:api-key]") || len(full["transcript_lines"].([]session.Doc)) != 1 {
+		t.Errorf("the masked event and line did not arrive: %s", stored)
+	}
+}
+
+func TestHookRelayDropsAnExcludedSession(t *testing.T) {
+	backing := memsession.New()
+	srv := newRelayServer(t, backing)
+	configPath, projectsDir := relayConfig(t, srv.srv.URL, relayToken)
+	withConfig(t, configPath, map[string]any{"excludePaths": []string{"/work/alpha"}})
+	tp := transcript(t, projectsDir, "sid-x", `{"type":"user","cwd":"/work/alpha","n":1}`)
+	runRelay(t, configPath, hookEvent("PostToolUse", "sid-x", tp))
+
+	if _, err := backing.FullSession(context.Background(), testAccount, "sid-x"); err == nil {
+		t.Error("an excluded session was stored")
+	}
+	for _, route := range []string{"/hook-events", "/transcript-lines", "/sessions"} {
+		method := map[string]string{"/hook-events": "POST", "/transcript-lines": "PUT", "/sessions": "PUT"}[route]
+		if n := srv.count(method, sessionapi.Prefix+route); n != 0 {
+			t.Errorf("%s %s was called %d times for an excluded session", method, route, n)
+		}
+	}
+}
+
+func TestHookRelaySendsTheTraceAtSessionEnd(t *testing.T) {
+	var got []map[string]any
+	var auth string
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		got, auth = append(got, body), r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer collector.Close()
+	backing := memsession.New()
+	srv := newRelayServer(t, backing)
+	configPath, projectsDir := relayConfig(t, srv.srv.URL, relayToken)
+	withConfig(t, configPath, map[string]any{"otelEndpoint": collector.URL, "otelHeaders": map[string]string{"Authorization": "Bearer otlp-token"}})
+	tp := transcript(t, projectsDir, "sid-o", `{"type":"user","n":1}`)
+
+	runRelay(t, configPath, hookEvent("PostToolUse", "sid-o", tp))
+	if len(got) != 0 {
+		t.Fatalf("a trace was sent before the session ended")
+	}
+	runRelay(t, configPath, hookEvent("SessionEnd", "sid-o", tp))
+	if len(got) != 1 || auth != "Bearer otlp-token" {
+		t.Fatalf("collector requests = %d, Authorization %q", len(got), auth)
+	}
+	raw, _ := json.Marshal(got[0])
+	if !strings.Contains(string(raw), `"invoke_agent claude-code"`) || !strings.Contains(string(raw), `"sid-o"`) {
+		t.Errorf("the trace does not describe the session: %s", raw)
+	}
+	if log, _ := os.ReadFile(filepath.Join(filepath.Dir(configPath), "relay.log")); strings.Contains(string(log), "otlp-token") {
+		t.Error("the OTLP header reached the log")
+	}
+}

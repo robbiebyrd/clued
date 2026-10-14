@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
+	"github.com/robbiebyrd/clued/mind-palace/session/otel"
 	"github.com/robbiebyrd/clued/mind-palace/session/sessiontest"
 	"github.com/robbiebyrd/clued/mind-palace/session/tail"
 )
@@ -774,6 +775,46 @@ func TestWALFlushDuringStoreOutageDoesNotBlockEvents(t *testing.T) {
 		// Flush and the event's own insert fail on the hung store and are logged.
 		if out := logs.String(); !strings.Contains(out, "WAL flush failed") && !strings.Contains(out, "hook event insert failed") {
 			t.Errorf("expected outage warnings, got:\n%s", out)
+		}
+	})
+}
+
+func TestSessionEndSendsTheTrace(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		got := make(chan []byte, 4)
+		collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, _ := io.ReadAll(r.Body)
+			got <- raw
+		}))
+		defer collector.Close()
+		logs := &syncBuffer{}
+		opts, tmp := newOptions(t, storeUnderTest, logs)
+		opts.OTel = &otel.Exporter{Endpoint: collector.URL, StateDir: filepath.Join(tmp, "otel")}
+		opts.OTelDelay = 10 * time.Millisecond
+		d := New(opts)
+		srv := httptest.NewServer(d.Handler())
+		defer func() { srv.Close(); d.shutdown() }()
+		post := func(body string) {
+			res, err := http.Post(srv.URL+"/event", "application/json", strings.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			res.Body.Close()
+		}
+		post(`{"session_id":"s-otel","hook_event_name":"PreToolUse","tool_name":"Bash","tool_use_id":"t1","cwd":"/repo"}`)
+		select {
+		case <-got:
+			t.Fatal("a trace was sent before the session ended")
+		case <-time.After(50 * time.Millisecond):
+		}
+		post(`{"session_id":"s-otel","hook_event_name":"SessionEnd","cwd":"/repo"}`)
+		select {
+		case raw := <-got:
+			if !strings.Contains(string(raw), `"execute_tool Bash"`) {
+				t.Errorf("the trace lacks the tool span: %s", raw)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("no trace reached the collector; log:\n%s", logs.String())
 		}
 	})
 }

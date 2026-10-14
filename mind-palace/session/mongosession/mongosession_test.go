@@ -245,3 +245,53 @@ func TestFullSessionDoesNotDependOnTheView(t *testing.T) {
 		t.Errorf("session keeps _id")
 	}
 }
+
+func TestRetentionDaysCreateChangeAndDropTheTTLIndexes(t *testing.T) {
+	uri, dbName, client := testDB(t)
+	ctx := context.Background()
+	expiry := func(collection string) (int64, bool) {
+		cur, err := client.Database(dbName).Collection(collection).Indexes().List(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var specs []bson.M
+		if err := cur.All(ctx, &specs); err != nil {
+			t.Fatal(err)
+		}
+		for _, spec := range specs {
+			if spec["name"] == "retention_ttl" {
+				switch v := spec["expireAfterSeconds"].(type) {
+				case int32:
+					return int64(v), true
+				case int64:
+					return v, true
+				case float64:
+					return int64(v), true
+				}
+			}
+		}
+		return 0, false
+	}
+	connect := func(days int) {
+		s := mongosession.New(session.Config{MongoURL: uri, DBName: dbName, RetentionDays: days})
+		s.Logger = slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
+		if err := s.Connect(ctx); err != nil {
+			t.Fatalf("Connect: %v", err)
+		}
+		_ = s.Close(ctx)
+	}
+	connect(30)
+	for _, c := range []string{"sessions", "hook_events", "transcript_lines", "subagent_lines", "blobs"} {
+		if got, ok := expiry(c); !ok || got != 30*86400 {
+			t.Errorf("%s: expiry = %d, %v; want 30 days", c, got, ok)
+		}
+	}
+	connect(7)
+	if got, ok := expiry("transcript_lines"); !ok || got != 7*86400 {
+		t.Errorf("after a change: expiry = %d, %v; want 7 days", got, ok)
+	}
+	connect(0)
+	if _, ok := expiry("transcript_lines"); ok {
+		t.Error("retention off left the TTL index")
+	}
+}

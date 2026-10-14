@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/home/me/shop</title>
+<style>
+:root { --bg: #fff; --fg: #1d1d1f; --muted: #6b6b70; --line: #e3e3e6; --user: #f2f5fb; --tool: #f7f7f8; --err: #b42318; }
+@media (prefers-color-scheme: dark) { :root { --bg: #161618; --fg: #ececee; --muted: #9a9aa0; --line: #2c2c30; --user: #1d2433; --tool: #1f1f22; --err: #f97066; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 22px; margin: 0 0 12px; overflow-wrap: anywhere; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0 0 24px; color: var(--muted); font-size: 13px; }
+dt { font-weight: 600; } dd { margin: 0; overflow-wrap: anywhere; }
+section { border-top: 1px solid var(--line); padding: 14px 0; }
+section.user { background: var(--user); margin: 0 -16px; padding: 14px 16px; border-radius: 8px; border-top: 0; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 8px; }
+.text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.tool { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--tool); border-radius: 6px; padding: 4px 8px; margin: 6px 0; overflow-wrap: anywhere; }
+details { margin: 6px 0; } summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+details.error summary { color: var(--err); font-weight: 600; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--tool); border-radius: 6px; padding: 8px; margin: 6px 0 0; }
+.note { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+<h1>/home/me/shop</h1>
+<dl><dt>Session</dt><dd>11111111-2222-3333-4444-555555555555</dd><dt>Repository</dt><dd>git@github.com:me/shop.git</dd><dt>Branch</dt><dd>fix/checkout</dd><dt>Started</dt><dd>2026-10-14 09:00 UTC</dd><dt>Last seen</dt><dd>2026-10-14 09:42 UTC</dd><dt>Usage</dt><dd>3 messages, 1200 input, 40000 cache and 900 output tokens, about $0.01</dd></dl>
+
+<section class="user">
+<h2>user · 2026-10-14 09:00 UTC</h2>
+<div class="text">The checkout total is &lt;wrong&gt; when a coupon &amp; tax apply.</div>
+</section>
+<section class="assistant">
+<h2>assistant · 2026-10-14 09:00 UTC</h2>
+<div class="text">I&#39;ll look at the **totals** code.</div>
+<div class="tool">🔧 <strong>Bash</strong> go test ./checkout/... …</div>
+<details class="error"><summary>⚠ Error</summary><pre>--- FAIL: TestTotal
+```
+want 10, got 12</pre></details>
+<div class="tool">🔧 <strong>Edit</strong> /home/me/shop/checkout/total.go</div>
+<details><summary>Result</summary><pre>The file was updated.</pre></details>
+<div class="text">Fixed: the coupon is applied before tax now.</div>
+</section>
+</main>
+</body>
+</html>
