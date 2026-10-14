@@ -383,24 +383,45 @@ command prints `{"ok": true, "result": {"dirs": […], "scanned": n, "posted": n
 
 `mind-palace session mcp [--mcp-tool-prefix p]` serves an MCP server named
 `clued` (version `1.0.0`). Every tool returns JSON text; a failure is a tool
-error carrying the message. All tools except `restore_session` are marked
-read-only.
+error carrying the message. All tools except `restore_session` and
+`forget_session` are marked read-only; `forget_session` is marked
+destructive.
+
+**Token budgets.** Every tool but `restore_session` and `forget_session`
+takes `max_tokens`, the approximate size of its result in tokens, estimated
+as the JSON's length over four (default 4,000 for `find_sessions`, the
+`search_*` tools, `usage`, `file_history` and `find_errors`; 8,000 for
+`get_session_context`, `get_full_session`, `read_transcript`, `get_lines`
+and `prime_context`; at least 200). A list result that fits is returned as
+the list; one that does not becomes `{"items": [...], "truncated": true,
+"next": "<cursor>"}`, and calling the tool again with the same arguments
+and `cursor` set to `next` continues after the last item (`next` is absent
+when nothing is left). A single item over the budget is returned with its
+longest strings cut (`…[N characters clipped]`), so a call always makes
+progress. `usage` cuts its `groups` the same way inside the report (its
+`total` covers every group). `get_session_context` trims its first and last
+lines, sets `truncated` and gives `next`, a `read_transcript` cursor at the
+first line left out. `get_full_session` gives each section an equal share
+and its `next` continues every section that was cut. `prime_context` cuts
+the longest report sections first. A cursor another tool issued, or a
+malformed one, is an error.
 
 | Tool | Parameters | Returns |
 |---|---|---|
 | `find_sessions` | `project_path` (regex), `git_origin` (regex), `query` (regex against project path or cwd), `limit` (default 10, max 500) | sessions, newest first |
 | `get_session_context` | `session_id` (required) | metadata, the most recent distinct Bash commands, first and last transcript lines, the latest memory records, and `usage` (the session's group of the `usage` tool, with its per-model breakdown; `null` when no usage is recorded) |
-| `get_full_session` | `session_id` (required) | metadata, every transcript and subagent line, blob metadata without content, every hook event |
+| `get_full_session` | `session_id` (required), `sections` (`transcript`, `subagents`, `blobs`, `hook_events`; default all), `max_tokens`, `cursor` | metadata and the sections asked for: transcript and subagent lines, blob metadata without content, hook events |
 | `search_commands` | `pattern` (required regex), `session_id`, `git_origin` (regex), `limit` (default 20, max 500) | Bash commands, newest first |
 | `search_memory` | `pattern` (regex), `kind` (`entry`, `day`, `recent`, `archive`, `handoff`, `identity`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | `MemorySaved` records across the account, newest first |
 | `file_history` | `path` (required regex over the file path), `session_id`, `git_origin`, `project_path`, `limit` (sessions, default 10, max 500) | per session, most recent first, from the newest 500 file events: `files` (at most 10), `operations` (`read`, `edit`, `write`, `glob`, `ls` counts from `file-tracker`), `lines_added` and `lines_removed` (from `edit-diff-stats`), `first_touch`, `last_touch`, `project_path`, `git_origin` |
 | `find_errors` | `type` (`hook_error`, `tool_failure`, `error_text`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | lines `error-flag` marked, newest first: `session_id`, `seq`, `type`, `text` (300 characters), `timestamp`, `project_path`, `git_origin`, `created_at` |
 | `search_transcripts` | `query` (required: words, any of which matches, `"quoted phrases"` that must appear, `-words` to exclude; matching ignores case), `session_id`, `git_origin` (regex), `project_path` (regex), `limit` (default 20, max 500) | transcript lines ranked by relevance (MongoDB text score; term frequency in the in-memory store), best first: `session_id`, `seq`, `score`, `snippet` (240 characters around the first matching word), `project_path`, `git_origin`, `created_at`. It searches the `search-text` enrichment, so a line is found once the enricher has run on it |
 | `usage` | `group_by` (`session`, the default, `model` or `day`), `session_id`, `git_origin` (regex), `project_path` (regex), `since` and `until` (inclusive UTC days, `YYYY-MM-DD`), `limit` (groups, default 50, max 500) | `{"group_by", "groups", "total", "unpriced_models"}`. Each group has `key` (the session id, model or day), `messages`, `input_tokens`, `cache_creation_input_tokens`, `cache_creation_1h_tokens`, `cache_read_input_tokens`, `output_tokens`, `peak_context_tokens` (the largest input context of one message), `cost_usd` and, unless grouped by model, `models` (the same counters per model). Every assistant message counts once (the lines of one message repeat its usage). `cost_usd` is an estimate at list prices (cache writes 1.25× the input price, 2× for the one-hour cache; cache reads at the model's cache-read price, 0.1× the input price unless the table says otherwise; a message whose prompt, input plus cache tokens, is over 100,000 tokens at the model's long-prompt price when it has one, as Claude Haiku 5.5 does) from the built-in table (the models and prices on Anthropic's pricing page; batch, fast-mode and US-only prices are not applied) and the config's `modelPrices`, rounded to 0.0001; it covers the priced models only and is `null` when none is priced; the others are listed in `unpriced_models`. Groups come costliest first, or in day order by day; `total` covers every group |
-| `read_transcript` | `session_id` (required), `offset` (default 0), `limit` (default 200, max 500) | transcript lines in order |
+| `read_transcript` | `session_id` (required), `offset` (default 0), `limit` (default 200, max 500), `max_tokens`, `cursor` (overrides `offset`) | transcript lines in order |
+| `get_lines` | `session_id` (required), `seqs` (required, 1 to 100 seq numbers), `max_tokens`, `cursor` | the whole transcript lines with those seqs, in seq order; a seq the transcript lacks is left out |
 | `restore_session` | `session_id` (required), `project_path` (override), `projects_dir` (override) | rebuilds the JSONL, subagent files, tool-result blobs and file-history backups on the local disk |
 | `forget_session` | `session_id`, `session_ids`, `project_path` (regex), `before` (a day, `YYYY-MM-DD` UTC, or an RFC 3339 time); at least one, all must hold | `{"sessions": [ids], "documents": n}`: the sessions deleted from the store with their hook events, transcript and subagent lines and blobs; marked destructive, not offered by the server's `/mcp` |
-| `prime_context` | `cwd`, `no_store`, `no_docs`, `no_snapshot` | the plain-text report with the sections ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, MEMORY, BUILD |
+| `prime_context` | `cwd`, `no_store`, `no_docs`, `no_snapshot`, `max_tokens` | the plain-text report with the sections ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, MEMORY, BUILD |
 
 The clued server's `/mcp` endpoint offers the same tools minus
 `restore_session` and `prime_context`, which need the local disk.

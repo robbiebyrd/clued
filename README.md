@@ -221,7 +221,7 @@ off.
 |---|---|
 | `find_sessions` | Find previous sessions, newest first; regex filters on project path, cwd and git origin |
 | `get_session_context` | Metadata, the most recent distinct Bash commands, the first and last transcript lines, the session's latest memory records, and its token usage and estimated cost |
-| `get_full_session` | The complete record: metadata, transcript, subagent lines, blob metadata and hook events |
+| `get_full_session` | The record: metadata, transcript, subagent lines, blob metadata and hook events, or only the `sections` asked for |
 | `search_commands` | Search the Bash commands run in previous sessions |
 | `search_memory` | Search the claude-remember summaries, handoffs and identity notes captured as `MemorySaved` events across every session and machine of the account: regex over the text, optional `kind`, `session_id`, `git_origin` or `project_path` scope |
 | `file_history` | Which sessions touched a file (regex over the path): per session the files, how often it read, edited or wrote them, the lines its edits added and removed, first and last touch; built from the `file-tracker` and `edit-diff-stats` enrichments |
@@ -229,9 +229,16 @@ off.
 | `search_transcripts` | Search what was said in previous sessions (prompts, replies, tool calls and results) by words, best match first, with a snippet of each line: any word matches, `"quoted phrases"` must appear, `-words` are excluded; optionally scoped to a session, repository or project. Built from the `search-text` enrichment and, in MongoDB, its text index |
 | `usage` | Token usage and estimated cost (US dollars at list prices) by session, model or day, each message counted once, optionally scoped to a session, repository, project or range of days; built from the `usage` enrichment. The built-in prices are the ones on Anthropic's pricing page (Claude 5.x, 4.x and Haiku 3.5, with each model's cache-read price and Claude Haiku 5.5's price for prompts over 100,000 tokens); other models have no cost until `modelPrices` names them |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
+| `get_lines` | Whole transcript lines by their seq numbers: search first (`search_transcripts`, `find_errors`), then fetch only the lines needed |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
 | `forget_session` | Delete captured sessions (by id, project path or last seen before a day) with everything stored for them; not offered by the server's `/mcp` |
 | `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |
+
+Results are cut to a token budget (`max_tokens`; about 4,000 tokens for
+searches and lists, 8,000 for reads). A list that does not fit comes back
+as `{"items", "truncated": true, "next"}`; pass `next` as `cursor` to
+continue. An item too large for the budget alone is returned with its
+longest strings clipped.
 
 ### Session commands
 
