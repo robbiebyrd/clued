@@ -2,12 +2,13 @@
 id: 0042-01o
 title: 'Environment keys and the token exchange in mind-palace: client, clued server, CLI and setup'
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-14T15:39:27.224Z"
-updated: "2026-10-14T15:42:57.504Z"
+updated: "2026-10-14T16:20:46.834Z"
 started: "2026-10-14T15:39:27.224Z"
+completed: "2026-10-14T16:20:46.834Z"
 tags:
   - auth
   - server
