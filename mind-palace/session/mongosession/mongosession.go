@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -149,6 +150,13 @@ func (s *Store) Connect(ctx context.Context) error {
 		if _, err := s.db.Collection(ix.collection).Indexes().CreateOne(ctx, model); err != nil {
 			s.logger().Warn("clued: index warning", "collection", ix.collection, "keys", fmt.Sprint(ix.keys), "error", err)
 		}
+	}
+	// The one text index of transcript_lines; its account_id prefix
+	// scopes every search to an account, which $text then requires.
+	textIndex := mongo.IndexModel{Keys: key("account_id", 1, "enrichments.search-text", "text"),
+		Options: options.Index().SetName("transcript_text").SetDefaultLanguage("none")}
+	if _, err := s.db.Collection(transcriptLines).Indexes().CreateOne(ctx, textIndex); err != nil {
+		s.logger().Warn("clued: index warning", "collection", transcriptLines, "keys", "text", "error", err)
 	}
 	for _, ix := range partialIndexes {
 		model := mongo.IndexModel{Keys: ix.keys, Options: options.Index().SetUnique(true).SetPartialFilterExpression(ix.partial)}
@@ -518,6 +526,19 @@ func (s *Store) FileEvents(ctx context.Context, q session.FileQuery) ([]session.
 	projection := key("_id", 0, "session_id", 1, "hook_event_name", 1, "tool_name", 1, "tool_use_id", 1, "tool_input.file_path", 1,
 		"enrichments.file-tracker", 1, "enrichments.edit-diff-stats", 1, "created_at", 1)
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
+func (s *Store) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]session.Doc, error) {
+	if strings.TrimSpace(q.Query) == "" {
+		return []session.Doc{}, nil
+	}
+	filter := key("account_id", q.AccountID, "$text", key("$search", q.Query))
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	score := key("$meta", "textScore")
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "score", score, "enrichments.search-text", 1, "created_at", 1)
+	return s.find(ctx, transcriptLines, filter, projection, key("score", score, "created_at", -1), 0, q.Limit)
 }
 
 func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session.Doc, error) {

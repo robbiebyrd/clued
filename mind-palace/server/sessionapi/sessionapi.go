@@ -27,6 +27,7 @@
 //	POST /memory-events                  MemoryEvents           body: session.MemoryQuery
 //	POST /file-events                    FileEvents             body: session.FileQuery
 //	POST /error-lines                    ErrorLines             body: session.ErrorQuery
+//	POST /transcript-search              SearchTranscripts      body: session.TextQuery
 //	GET  /sessions/{id}/full             FullSession
 //
 // The query structs (SessionQuery, LineQuery, CommandQuery, MemoryQuery) use
@@ -127,6 +128,7 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/memory-events", a.memoryEvents)
 	route("POST", "/file-events", a.fileEvents)
 	route("POST", "/error-lines", a.errorLines)
+	route("POST", "/transcript-search", a.searchTranscripts)
 	mux.HandleFunc(Prefix+"/", func(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusNotFound, KindNotFound, fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))
 	})
@@ -478,6 +480,25 @@ func (a *api) errorLines(w http.ResponseWriter, r *http.Request, account string)
 	}
 	q.AccountID = account
 	found, err := a.store.ErrorLines(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, docs(found))
+}
+
+func (a *api) searchTranscripts(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.TextQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	found, err := a.store.SearchTranscripts(r.Context(), q)
 	if err != nil {
 		storeError(w, err)
 		return

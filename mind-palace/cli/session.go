@@ -121,7 +121,7 @@ func (a *App) sessionCmd() *cobra.Command {
 	}
 	c.PersistentFlags().StringVar(&a.sess.configPath, "config", session.DefaultConfigPath(), "clued config file")
 	c.AddCommand(
-		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
+		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
 		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
 		a.sessionSearchMemoryCmd(), a.sessionMemoryIngestCmd(),
@@ -357,6 +357,34 @@ func (a *App) sessionSearchCommandsCmd() *cobra.Command {
 	f.StringVar(&args.SessionID, "session", "", "only this session")
 	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
 	f.IntVar(&args.Limit, "limit", 0, "maximum commands (default 20, at most 500)")
+	return c
+}
+
+func (a *App) sessionSearchCmd() *cobra.Command {
+	var args query.SearchTranscriptsArgs
+	c := &cobra.Command{
+		Use:   "search <words…> [--session id] [--git-origin re] [--project re] [--limit n]",
+		Short: "Search what was said in sessions by words, best match first",
+		Args:  cobra.MinimumNArgs(1),
+	}
+	run := a.sessionAction(func(ctx context.Context, _ session.Store, svc *query.Service) (any, error) {
+		return svc.SearchTranscripts(ctx, args)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		args.Query = strings.Join(positional, " ")
+		if err := a.validated(
+			checkRegex("--git-origin", args.GitOrigin), checkRegex("--project", args.ProjectPath),
+			checkNotNegative("--limit", args.Limit),
+		); err != nil {
+			return err
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringVar(&args.SessionID, "session", "", "only this session")
+	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
+	f.StringVar(&args.ProjectPath, "project", "", "only sessions whose project path matches this regular expression")
+	f.IntVar(&args.Limit, "limit", 0, "maximum lines (default 20, at most 500)")
 	return c
 }
 

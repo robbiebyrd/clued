@@ -236,6 +236,13 @@ const toolSchemas = `{
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
       "limit":{"type":"number","description":"Max records to return (default 20, max 500)"}}}},
+  "search_transcripts": {"description": "Search what was said in previous sessions (prompts, replies, tool calls and results) by words, best match first, with a snippet of each matching line. Use it to find the session that discussed a topic, then read_transcript with offset set to the hit's seq.",
+    "inputSchema": {"type":"object","properties":{
+      "query":{"type":"string","description":"Words to look for (any of them matches; more matches rank higher), \"quoted phrases\" that must appear, -words to exclude"},
+      "session_id":{"type":"string","description":"Restrict to one session"},
+      "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
+      "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
+      "limit":{"type":"number","description":"Max lines to return (default 20, max 500)"}},"required":["query"]}},
   "file_history": {"description": "Which previous sessions touched a file: for each session (most recent first) the matching files, how often it read, edited or wrote them, the lines its edits added and removed, and when it first and last touched them. Built from the file-tracker and edit-diff-stats enrichments.",
     "inputSchema": {"type":"object","properties":{
       "path":{"type":"string","description":"Case-insensitive regex matched against the file path (e.g. \\bauth/session\\.go$)"},
@@ -268,7 +275,7 @@ const toolSchemas = `{
       "no_snapshot":{"type":"boolean","description":"Do not post the report to the daemon as a ContextCollected event"}}}}
 }`
 
-func TestToolListHasTheTenToolsWithTheProtocolSchemas(t *testing.T) {
+func TestToolListHasTheElevenToolsWithTheProtocolSchemas(t *testing.T) {
 	eachStore(t, func(t *testing.T) {
 		var want map[string]struct {
 			Description string `json:"description"`
@@ -618,7 +625,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 10 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
+		if len(names) != 11 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {
@@ -790,4 +797,35 @@ func must2[T any](v T, err error) T {
 		panic(err)
 	}
 	return v
+}
+
+func TestSearchTranscripts(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		st := seeded(t)
+		ctx := context.Background()
+		docs := must2(st.Unenriched(ctx, "transcript_lines", "search-text", 0))
+		for i, d := range docs {
+			text := "routine output line"
+			if d["session_id"] == "sess-3" && i%2 == 0 {
+				text = "we discussed the OAuth migration plan here"
+			}
+			must(t, st.SetEnrichment(ctx, "transcript_lines", d["_id"], "search-text", text))
+		}
+		cs := connectClient(t, newTools(st, session.Config{}).Server(), nil)
+		hits := okJSON[[]obj](t, call(t, cs, "search_transcripts", obj{"query": "oauth migration", "limit": 3}))
+		if len(hits) == 0 || len(hits) > 3 {
+			t.Fatalf("search_transcripts = %v", hits)
+		}
+		for _, h := range hits {
+			if h["session_id"] != "sess-3" || !strings.Contains(h["snippet"].(string), "OAuth migration") || h["git_origin"] != "https://github.com/user/myrepo.git" {
+				t.Errorf("hit = %v", h)
+			}
+		}
+		if got := text(t, call(t, cs, "search_transcripts", obj{"query": "oauth", "session_id": "sess-1"})); got != "[]" {
+			t.Errorf("scoped to a session without the words: %s", got)
+		}
+		if got := text(t, call(t, cs, "search_transcripts", obj{"query": "   "})); got != "[]" {
+			t.Errorf("blank query: %s", got)
+		}
+	})
 }

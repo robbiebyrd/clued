@@ -2,11 +2,12 @@
 id: 0028-p8p
 title: Rank transcript search over the words of past sessions
 type: feat
-status: ready
+status: in_progress
 priority: "1"
 effort: M
 created: "2026-10-14T03:13:00.645Z"
-updated: "2026-10-14T03:13:00.645Z"
+updated: "2026-10-14T03:46:47.084Z"
+started: "2026-10-14T03:40:53.263Z"
 tags:
   - session
   - search
@@ -24,11 +25,11 @@ links:
     - ["0007-w5t", "included"]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
 ---
 
 # Rank transcript search over the words of past sessions
@@ -53,8 +54,10 @@ Store method with a Mongo text index and textScore ranking, a term-frequency mem
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/...
-- [ ] VERIFY: A phrase from a past session finds it, best match first, and never another account's
-- [ ] VERIFY: Indexed text holds no secret that the privacy-redact patterns match
+- [x] VERIFY: cd mind-palace && go test -race ./session/...
+- [x] VERIFY: A phrase from a past session finds it, best match first, and never another account's
+- [x] VERIFY: Indexed text holds no secret that the privacy-redact patterns match
 
 ## Work Log
+
+### 2026-10-14T03:46:47.084Z - Added the search-text enricher (readable line text, credentials masked, 16 KB cap), SearchTranscripts on the session.Store port (Mongo text index transcript_text with $text and textScore; in-memory term-frequency ranking with phrases and exclusions), POST /transcript-search, the remote adapter, a sessiontest case, the search_transcripts MCP tool and session search. The Mongo ranking runs only in CI.

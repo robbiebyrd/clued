@@ -75,6 +75,19 @@ type ErrorQuery struct {
 	Limit      int      `json:"limit"`
 }
 
+// TextQuery searches the indexed text of transcript lines (the search-text
+// enricher's enrichments.search-text) for the words of Query, best match
+// first. A line matches when it holds any of the words; lines holding more
+// of them, more often, rank higher. Words are matched case-insensitively;
+// a word starting with "-" excludes the lines holding it and a "quoted
+// phrase" must appear as written. Empty SessionIDs means no filter.
+type TextQuery struct {
+	AccountID  string   `json:"-"`
+	Query      string   `json:"query"`
+	SessionIDs []string `json:"sessionIds"`
+	Limit      int      `json:"limit"`
+}
+
 // MemoryEventName is the hook_event_name of an ingested memory record. Such
 // an event carries the record under "memory" with a "hash" that identifies
 // its text; a store keeps one event per account and hash.
@@ -142,6 +155,9 @@ type Store interface {
 	// ErrorLines projects session_id, seq, line, enrichments.error-flag and
 	// created_at of the lines ErrorQuery selects.
 	ErrorLines(ctx context.Context, q ErrorQuery) ([]Doc, error)
+	// SearchTranscripts projects session_id, seq, score (higher is better),
+	// enrichments.search-text and created_at of the lines TextQuery matches.
+	SearchTranscripts(ctx context.Context, q TextQuery) ([]Doc, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of

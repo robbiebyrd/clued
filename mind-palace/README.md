@@ -357,6 +357,7 @@ to `events.wal` next to the config file and is set only through
 ```bash
 mind-palace session find [--project-path re] [--git-origin re] [--query re] [--limit n]
 mind-palace session search-commands <pattern> [--session id] [--git-origin re] [--limit n]
+mind-palace session search <words…> [--session id] [--git-origin re] [--project re] [--limit n]
 mind-palace session context <session>
 mind-palace session full <session>
 mind-palace session transcript <session> [--offset n] [--limit n]
@@ -393,7 +394,7 @@ is stamped with the Claude account id (from `claudeAppConfigPath`, or
 primary IP and MAC); queries and restores are scoped to the account.
 
 The enrichment loop runs every 5 seconds over the enrichers in
-`session/enrichers` (six on `hook_events`, twelve on `transcript_lines`;
+`session/enrichers` (six on `hook_events`, thirteen on `transcript_lines`;
 `privacy-redact` is off unless listed in `enabledEnrichers`) and stores results under
 `enrichments.<name>`. Documents an enricher does not apply to are marked
 skipped so they leave its queue; transient write failures are retried; a
@@ -402,7 +403,8 @@ projects and file-history directories and produces equivalent JSON whose key
 order may differ from the original file.
 
 **MCP tools.** `find_sessions`, `get_session_context`, `get_full_session`,
-`search_commands`, `search_memory`, `read_transcript`, `restore_session` and `prime_context`
+`search_commands`, `search_memory`, `file_history`, `find_errors`,
+`search_transcripts`, `read_transcript`, `restore_session` and `prime_context`
 (the context collector's report for a `cwd`; see `mind-palace context --help`).
 `session mcp` serves just these; `mind-palace mcp` and `mind-palace serve`
 expose them next to the plan and story tools.

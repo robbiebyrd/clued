@@ -140,6 +140,10 @@ func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session
 	return s.docs(ctx, "POST", prefix+"/error-lines", q)
 }
 
+func (s *Store) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/transcript-search", q)
+}
+
 // --- transcript, subagent lines and blobs ---
 
 // UpsertTranscriptLines sends the lines in batches of at most MaxLines, in

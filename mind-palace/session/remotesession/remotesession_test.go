@@ -251,6 +251,10 @@ func (h *harness) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]sessi
 	return h.as(q.AccountID).ErrorLines(ctx, q)
 }
 
+func (h *harness) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).SearchTranscripts(ctx, q)
+}
+
 func (h *harness) FullSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
 	return h.as(accountID).FullSession(ctx, accountID, sessionID)
 }

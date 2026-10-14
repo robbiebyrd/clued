@@ -203,6 +203,7 @@ off.
 | `skill-detector` | `transcript_lines` | Skill tool invocations of an assistant line |
 | `thinking-stats` | `transcript_lines` | Size of the thinking and text of an assistant line |
 | `tool-use-summary` | `transcript_lines` | The tools an assistant line calls and whether it thinks |
+| `search-text` | `transcript_lines` | The readable text of the line (message text, tool calls and results, no thinking), at most 16 KB, with the credential patterns of `privacy-redact` (not e-mail addresses) masked; MongoDB keeps a text index on it for `search_transcripts` |
 | `privacy-redact` | `transcript_lines` | A copy of the raw line with four patterns masked (`sk-…` API keys, e-mail addresses, `AKIA…` AWS access key ids and JWTs), stored under `enrichments.privacy-redact.redacted_line`; the raw line itself is kept unchanged. **Off by default**: add it to `enabledEnrichers` to run it |
 | `privacy-redact-memory` | `hook_events` | The same masked copy of the text of each claude-remember record (`MemorySaved` event); switched on and off together with `privacy-redact` |
 
@@ -217,6 +218,7 @@ off.
 | `search_memory` | Search the claude-remember summaries, handoffs and identity notes captured as `MemorySaved` events across every session and machine of the account: regex over the text, optional `kind`, `session_id`, `git_origin` or `project_path` scope |
 | `file_history` | Which sessions touched a file (regex over the path): per session the files, how often it read, edited or wrote them, the lines its edits added and removed, first and last touch; built from the `file-tracker` and `edit-diff-stats` enrichments |
 | `find_errors` | Transcript lines that reported an error (failed hook, failed tool result, error text), newest first, optionally of one type and scoped to a session, repository or project; built from the `error-flag` enrichment |
+| `search_transcripts` | Search what was said in previous sessions (prompts, replies, tool calls and results) by words, best match first, with a snippet of each line: any word matches, `"quoted phrases"` must appear, `-words` are excluded; optionally scoped to a session, repository or project. Built from the `search-text` enrichment and, in MongoDB, its text index |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
 | `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |
@@ -232,6 +234,7 @@ prints JSON.
 |---|---|
 | `session find [--project-path re] [--git-origin re] [--query re] [--limit n]` | Find sessions, newest first |
 | `session search-commands <pattern> [--session id] [--git-origin re] [--limit n]` | Search the Bash commands run in sessions |
+| `session search <words…> [--session id] [--git-origin re] [--project re] [--limit n]` | Ranked search over the text of transcript lines (what `search_transcripts` does) |
 | `session search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]` | Search the memory records ingested from claude-remember |
 | `session memory-ingest [--dir d]... [--cwd c] [--session id] [--quiet]` | Post the new records of the working directory's claude-remember store(s) to the daemon (what the hooks run) |
 | `session context <session>` | Metadata, recent commands, first and last transcript lines |

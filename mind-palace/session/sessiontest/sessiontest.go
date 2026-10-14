@@ -52,6 +52,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"bash events reject an invalid regex", bashEventsInvalidRegex},
 		{"file events select tracked and measured file events by path, newest first", fileEvents},
 		{"error lines select flagged lines by type and session, newest first", errorLines},
+		{"search transcripts ranks lines by their indexed words, scoped to the account", searchTranscripts},
 		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
@@ -1090,4 +1091,42 @@ func errorLines(t *testing.T, s session.Store) {
 	eq(t, "session scoping", keys(session.ErrorQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 1}), []string{"s1/2/error_text"})
 	got := ok(s.ErrorLines(ctx, session.ErrorQuery{AccountID: "acc", Limit: 1}))[0]
 	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "line", "seq", "session_id"})
+}
+
+func searchTranscripts(t *testing.T, s session.Store) {
+	index := func(sid string, seq int, acc, text string) {
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, seq, "assistant", acc)}))
+		var id any
+		for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "search-text", 0)) {
+			if d["session_id"] == sid && num(d["seq"]) == seq {
+				id = d["_id"]
+			}
+		}
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "search-text", text))
+	}
+	index("s1", 0, "acc", "the oauth migration broke the oauth login flow")
+	index("s1", 1, "acc", "oauth tokens were rotated today for the whole team")
+	index("s2", 0, "acc", "unrelated build output from the compiler run")
+	index("s3", 0, "other", "oauth migration notes from another account")
+	keys := func(q session.TextQuery) []string {
+		var out []string
+		for _, d := range ok(s.SearchTranscripts(ctx, q)) {
+			sid, _ := d.String("session_id")
+			out = append(out, fmt.Sprintf("%s/%d", sid, num(d["seq"])))
+		}
+		return out
+	}
+	eq(t, "best match first, own account only", keys(session.TextQuery{AccountID: "acc", Query: "oauth migration", Limit: 10}), []string{"s1/0", "s1/1"})
+	eq(t, "case-insensitive", keys(session.TextQuery{AccountID: "acc", Query: "COMPILER", Limit: 10}), []string{"s2/0"})
+	eq(t, "phrase", keys(session.TextQuery{AccountID: "acc", Query: `"oauth login"`, Limit: 10}), []string{"s1/0"})
+	eq(t, "excluded word", keys(session.TextQuery{AccountID: "acc", Query: "oauth -tokens", Limit: 10}), []string{"s1/0"})
+	eq(t, "session scoping", keys(session.TextQuery{AccountID: "acc", Query: "oauth", SessionIDs: []string{"s2"}, Limit: 10}), []string(nil))
+	eq(t, "limit", len(ok(s.SearchTranscripts(ctx, session.TextQuery{AccountID: "acc", Query: "oauth", Limit: 1}))), 1)
+	eq(t, "empty query", len(ok(s.SearchTranscripts(ctx, session.TextQuery{AccountID: "acc", Query: "  ", Limit: 10}))), 0)
+	got := ok(s.SearchTranscripts(ctx, session.TextQuery{AccountID: "acc", Query: "rotated", Limit: 1}))[0]
+	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "score", "seq", "session_id"})
+	if score, isNum := got["score"].(float64); !isNum || score <= 0 {
+		t.Errorf("score = %#v, want a positive float64", got["score"])
+	}
+	eq(t, "indexed text", got.Map("enrichments")["search-text"], "oauth tokens were rotated today for the whole team")
 }

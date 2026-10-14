@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 )
@@ -740,4 +742,129 @@ func (s *Store) setEnrichmentField(collection string, id any, field string, valu
 	}
 	e[field] = deepCopy(value)
 	return nil
+}
+
+// SearchTranscripts scores lines the way a Mongo text index with no
+// language does, closely enough for one process: the query's words, "quoted
+// phrases" (all of which must appear) and -excluded words, matched
+// case-insensitively on word boundaries; the score is how often the
+// positive words occur.
+func (s *Store) SearchTranscripts(_ context.Context, q session.TextQuery) ([]session.Doc, error) {
+	words, phrases, excluded := parseTextQuery(q.Query)
+	if len(words) == 0 && len(phrases) == 0 {
+		return []session.Doc{}, nil
+	}
+	inSessions := setOf(q.SessionIDs)
+	type hit struct {
+		doc   session.Doc
+		score float64
+	}
+	s.mu.Lock()
+	var hits []hit
+	for _, d := range s.cols[transcriptLines] {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			continue
+		}
+		text, ok := d.Map("enrichments")["search-text"].(string)
+		if !ok {
+			continue
+		}
+		lower := strings.ToLower(text)
+		tokens := textTokens(lower)
+		if anyToken(tokens, excluded) {
+			continue
+		}
+		matched := true
+		for _, p := range phrases {
+			if !strings.Contains(lower, p) {
+				matched = false
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		score := 0.0
+		for _, w := range words {
+			score += float64(tokens[w])
+		}
+		for _, p := range phrases {
+			for _, w := range strings.Fields(p) {
+				score += float64(tokens[w])
+			}
+		}
+		if score == 0 {
+			continue
+		}
+		p := project(d, "session_id", "seq", "created_at")
+		p["score"] = score
+		p["enrichments"] = session.Doc{"search-text": text}
+		hits = append(hits, hit{p, score})
+	}
+	s.mu.Unlock()
+	sort.SliceStable(hits, func(i, j int) bool {
+		if hits[i].score != hits[j].score {
+			return hits[i].score > hits[j].score
+		}
+		return timeOf(hits[i].doc, "created_at").After(timeOf(hits[j].doc, "created_at"))
+	})
+	out := []session.Doc{}
+	for i, h := range hits {
+		if q.Limit > 0 && i == q.Limit {
+			break
+		}
+		out = append(out, h.doc)
+	}
+	return out, nil
+}
+
+// parseTextQuery splits a text search into words, "phrases" and -excluded
+// words, lower-cased.
+func parseTextQuery(query string) (words, phrases, excluded []string) {
+	query = strings.ToLower(query)
+	for {
+		start := strings.IndexByte(query, '"')
+		if start < 0 {
+			break
+		}
+		end := strings.IndexByte(query[start+1:], '"')
+		if end < 0 {
+			break
+		}
+		if p := strings.TrimSpace(query[start+1 : start+1+end]); p != "" {
+			phrases = append(phrases, p)
+		}
+		query = query[:start] + " " + query[start+1+end+1:]
+	}
+	for _, f := range strings.Fields(query) {
+		if strings.HasPrefix(f, "-") {
+			for w := range textTokens(f[1:]) {
+				excluded = append(excluded, w)
+			}
+			continue
+		}
+		for w := range textTokens(f) {
+			words = append(words, w)
+		}
+	}
+	return words, phrases, excluded
+}
+
+// textTokens counts the words of lower-cased text, split on anything that
+// is not a letter or digit.
+func textTokens(text string) map[string]int {
+	out := map[string]int{}
+	for _, w := range strings.FieldsFunc(text, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		out[w]++
+	}
+	return out
+}
+
+func anyToken(tokens map[string]int, words []string) bool {
+	for _, w := range words {
+		if tokens[w] > 0 {
+			return true
+		}
+	}
+	return false
 }
