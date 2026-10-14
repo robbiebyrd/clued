@@ -2,11 +2,12 @@
 id: 0006-tsw
 title: 'Clued server: remote HTTPS storage for sessions, plans and stories'
 type: dsgn
-status: in_progress
+status: complete
 priority: "2"
 effort: XL
 created: "2026-10-12T19:57:12.904Z"
-updated: "2026-10-14T19:12:34.207Z"
+updated: "2026-10-14T19:14:44.278Z"
+completed: "2026-10-14T19:14:44.278Z"
 tags:
   - server
   - remote
