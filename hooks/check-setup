@@ -25,7 +25,7 @@ problems=()
 # environment's CLUED_SERVER_URL and CLUED_SERVER_TOKEN link every new
 # container without a config file; without a server nothing is captured.
 if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" && -z "$SERVER_URL" ]]; then
-  problems+=("clued: this is a Claude Code cloud container, which keeps nothing once it is reclaimed, so clued needs clued cloud (https://clued.cloud) or a clued server and captures nothing until it has one. Run /clued-setup to link it; with CLUED_SERVER_URL and CLUED_SERVER_TOKEN set in the environment's settings every new container is linked without it")
+  problems+=("clued: this is a Claude Code cloud container, which keeps nothing once it is reclaimed, so clued needs clued cloud (https://clued.cloud) or a clued server and captures nothing until it has one. Run /clued-setup to link it; with CLUED_SERVER_URL and CLUED_SERVER_KEY (an environment key, or CLUED_SERVER_TOKEN) set in the environment's settings every new container is linked without it")
 elif [[ ! -f "$CONFIG_FILE" && -z "$SERVER_URL" ]]; then
   problems+=("clued: run /clued-setup to finish configuring this plugin")
 fi

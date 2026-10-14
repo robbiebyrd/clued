@@ -40,7 +40,10 @@ type Principal struct {
 }
 
 // Token is one entry of the token file. Hash is the hex SHA-256 of the raw
-// token; the raw token itself is never stored.
+// token; the raw token itself is never stored. Kind is empty for a token
+// and KindEnvironment for an environment key; Parent names the key a token
+// was exchanged for, and Expires ends a token's life (keys and tokens
+// minted by hand have none).
 type Token struct {
 	Name      string     `json:"name"`
 	Hash      string     `json:"hash"`
@@ -48,7 +51,49 @@ type Token struct {
 	Projects  []string   `json:"projects"`
 	Created   time.Time  `json:"created"`
 	Revoked   *time.Time `json:"revoked,omitempty"`
+	Kind      string     `json:"kind,omitempty"`
+	// TokenTTL is, on a key, how long the tokens it is exchanged for live.
+	TokenTTL Duration   `json:"token_ttl,omitempty"`
+	Parent   string     `json:"parent,omitempty"`
+	Expires  *time.Time `json:"expires,omitempty"`
 }
+
+// KindEnvironment marks an environment key: a credential that authenticates
+// nothing but the token exchange, which trades it for a short-lived token
+// (one per Claude Code cloud container).
+const KindEnvironment = "environment"
+
+// Token lifetimes of an environment key's exchanges.
+const (
+	DefaultTokenTTL = 24 * time.Hour
+	MinTokenTTL     = time.Hour
+	MaxTokenTTL     = 7 * 24 * time.Hour
+	// ExchangesPerHour bounds the exchanges of one key in a rolling hour.
+	ExchangesPerHour = 60
+	// pruneAfter is how long an expired exchanged token stays in the file.
+	pruneAfter = 24 * time.Hour
+)
+
+// Duration is a time.Duration written as a Go duration string ("24h").
+type Duration time.Duration
+
+func (d Duration) MarshalJSON() ([]byte, error) { return json.Marshal(time.Duration(d).String()) }
+
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	v, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+	*d = Duration(v)
+	return nil
+}
+
+// Expired reports whether the token's life ended before now.
+func (t Token) Expired(now time.Time) bool { return t.Expires != nil && !now.Before(*t.Expires) }
 
 // Source resolves a raw bearer token to its principal; TokenFile implements
 // it and tests stub it.
@@ -61,13 +106,16 @@ type Source interface {
 // size changes; writes replace the file atomically with mode 0600.
 type TokenFile struct {
 	path string
+	// Now is the clock (time.Now when nil); tests set it.
+	Now func() time.Time
 
-	mu     sync.Mutex
-	loaded bool
-	mtime  time.Time
-	size   int64
-	tokens []Token
-	err    error
+	mu        sync.Mutex
+	exchanges map[string][]time.Time
+	loaded    bool
+	mtime     time.Time
+	size      int64
+	tokens    []Token
+	err       error
 }
 
 // OpenTokenFile returns a TokenFile for path. Nothing is read until the
@@ -90,14 +138,33 @@ func matchHash(a, b string) bool {
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
 
+func (f *TokenFile) now() time.Time {
+	if f.Now != nil {
+		return f.Now()
+	}
+	return time.Now()
+}
+
 // Lookup resolves a raw token to its principal. Every stored token is
 // compared with crypto/subtle, so the time taken does not reveal how close
-// a guess came; revoked tokens never match.
+// a guess came; revoked and expired tokens never match, and neither does an
+// environment key, which only the exchange accepts.
 func (f *TokenFile) Lookup(raw string) (Principal, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := f.load(); err != nil || raw == "" {
+	i := f.match(raw)
+	if i < 0 || f.tokens[i].Kind == KindEnvironment || f.tokens[i].Expired(f.now()) {
 		return Principal{}, false
+	}
+	t := f.tokens[i]
+	return Principal{Name: t.Name, AccountID: t.AccountID, Projects: slices.Clone(t.Projects)}, true
+}
+
+// match returns the index of the unrevoked token whose hash is raw's, or -1.
+// The caller holds f.mu.
+func (f *TokenFile) match(raw string) int {
+	if err := f.load(); err != nil || raw == "" {
+		return -1
 	}
 	want := HashToken(raw)
 	found := -1
@@ -106,11 +173,137 @@ func (f *TokenFile) Lookup(raw string) (Principal, bool) {
 			found = i
 		}
 	}
-	if found < 0 {
-		return Principal{}, false
+	return found
+}
+
+// Exchanged is what the token exchange hands a client: a token, its name
+// (TokenID is the same name, as for the device login), its account and the
+// end of its life.
+type Exchanged struct {
+	Token     string    `json:"token"`
+	TokenID   string    `json:"token_id"`
+	Name      string    `json:"name"`
+	AccountID string    `json:"account_id"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// Exchanger trades an environment key for a short-lived token;
+// TokenFile implements it for the clued server, the cloud's account service
+// for the cloud.
+type Exchanger interface {
+	Exchange(ctx context.Context, key, clientName string, info map[string]string) (Exchanged, error)
+}
+
+// Exchange errors.
+var (
+	// ErrInvalidKey: the key is unknown, revoked or not an environment key.
+	ErrInvalidKey = errors.New("auth: unknown or revoked environment key")
+	// ErrRateLimited: the key was exchanged ExchangesPerHour times in the
+	// last hour.
+	ErrRateLimited = errors.New("auth: too many exchanges for this key; try again later")
+)
+
+// CreateEnvironmentKey mints an environment key, which authenticates only
+// Exchange: the tokens it is exchanged for get its account and projects and
+// live ttl (DefaultTokenTTL when zero; MinTokenTTL to MaxTokenTTL).
+func (f *TokenFile) CreateEnvironmentKey(name, accountID string, projects []string, ttl time.Duration) (string, error) {
+	if ttl == 0 {
+		ttl = DefaultTokenTTL
 	}
-	t := f.tokens[found]
-	return Principal{Name: t.Name, AccountID: t.AccountID, Projects: slices.Clone(t.Projects)}, true
+	if ttl < MinTokenTTL || ttl > MaxTokenTTL {
+		return "", fmt.Errorf("auth: token lifetime %s is outside %s to %s", ttl, MinTokenTTL, MaxTokenTTL)
+	}
+	return f.create(name, accountID, projects, func(t *Token) {
+		t.Kind, t.TokenTTL = KindEnvironment, Duration(ttl)
+	})
+}
+
+// Exchange trades an environment key for a new token named
+// <key>@<client>-<4 hex> with the key's account and projects, expiring after
+// the key's TokenTTL. Tokens exchanged before and expired for more than a
+// day leave the file on the way.
+func (f *TokenFile) Exchange(_ context.Context, key, clientName string, _ map[string]string) (Exchanged, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	i := f.match(key)
+	if i < 0 || f.tokens[i].Kind != KindEnvironment {
+		return Exchanged{}, ErrInvalidKey
+	}
+	k := f.tokens[i]
+	now := f.now()
+	if !f.allowExchange(k.Name, now) {
+		return Exchanged{}, ErrRateLimited
+	}
+	suffix := make([]byte, 2)
+	if _, err := rand.Read(suffix); err != nil {
+		return Exchanged{}, fmt.Errorf("auth: generate token name: %w", err)
+	}
+	name := k.Name + "@" + hex.EncodeToString(suffix)
+	if c := clientLabel(clientName); c != "" {
+		name = k.Name + "@" + c + "-" + hex.EncodeToString(suffix)
+	}
+	ttl := time.Duration(k.TokenTTL)
+	if ttl <= 0 {
+		ttl = DefaultTokenTTL
+	}
+	expires := now.UTC().Add(ttl).Truncate(time.Second)
+	f.prune(now)
+	raw, err := f.appendToken(name, k.AccountID, k.Projects, func(t *Token) {
+		t.Parent, t.Expires = k.Name, &expires
+	})
+	if err != nil {
+		return Exchanged{}, err
+	}
+	return Exchanged{Token: raw, TokenID: name, Name: name, AccountID: k.AccountID, ExpiresAt: expires}, nil
+}
+
+// allowExchange counts an exchange of the named key, refusing it past
+// ExchangesPerHour in the last hour. The caller holds f.mu.
+func (f *TokenFile) allowExchange(key string, now time.Time) bool {
+	if f.exchanges == nil {
+		f.exchanges = map[string][]time.Time{}
+	}
+	recent := f.exchanges[key][:0]
+	for _, at := range f.exchanges[key] {
+		if now.Sub(at) < time.Hour {
+			recent = append(recent, at)
+		}
+	}
+	if len(recent) >= ExchangesPerHour {
+		f.exchanges[key] = recent
+		return false
+	}
+	f.exchanges[key] = append(recent, now)
+	return true
+}
+
+// prune drops exchanged tokens that expired more than pruneAfter ago. The
+// caller holds f.mu and saves.
+func (f *TokenFile) prune(now time.Time) {
+	kept := f.tokens[:0]
+	for _, t := range f.tokens {
+		if t.Parent != "" && t.Expires != nil && now.Sub(*t.Expires) > pruneAfter {
+			continue
+		}
+		kept = append(kept, t)
+	}
+	f.tokens = kept
+}
+
+// clientLabel keeps the letters, digits, dots and dashes of a client name,
+// at most 40 of them.
+func clientLabel(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		if b.Len() >= 40 {
+			break
+		}
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '.', r == '-', r == '_':
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // ErrTokenExists is returned (wrapped, naming the token) by Create for a
@@ -122,14 +315,24 @@ var ErrTokenExists = errors.New("auth: token already exists")
 // (a fresh random id when accountID is empty) and the projects. Names are
 // unique within the file: a taken name is ErrTokenExists.
 func (f *TokenFile) Create(name, accountID string, projects []string) (string, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return "", errors.New("auth: token name is required")
-	}
+	return f.create(name, accountID, projects, nil)
+}
+
+func (f *TokenFile) create(name, accountID string, projects []string, set func(*Token)) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if err := f.load(); err != nil {
 		return "", err
+	}
+	return f.appendToken(name, accountID, projects, set)
+}
+
+// appendToken adds a token (set fills in the extra fields) and saves. The
+// caller holds f.mu and has loaded the file.
+func (f *TokenFile) appendToken(name, accountID string, projects []string, set func(*Token)) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", errors.New("auth: token name is required")
 	}
 	for _, t := range f.tokens {
 		if t.Name == name {
@@ -148,13 +351,17 @@ func (f *TokenFile) Create(name, accountID string, projects []string) (string, e
 		}
 		accountID = id
 	}
-	f.tokens = append(f.tokens, Token{
+	t := Token{
 		Name:      name,
 		Hash:      HashToken(raw),
 		AccountID: accountID,
 		Projects:  cleanProjects(nil, projects),
-		Created:   time.Now().UTC().Truncate(time.Second),
-	})
+		Created:   f.now().UTC().Truncate(time.Second),
+	}
+	if set != nil {
+		set(&t)
+	}
+	f.tokens = append(f.tokens, t)
 	if err := f.save(); err != nil {
 		return "", err
 	}
@@ -176,12 +383,17 @@ func (f *TokenFile) List() ([]Token, error) {
 			r := *t.Revoked
 			out[i].Revoked = &r
 		}
+		if t.Expires != nil {
+			e := *t.Expires
+			out[i].Expires = &e
+		}
 	}
 	return out, nil
 }
 
 // Revoke marks the named token revoked; it stops matching at once and stays
-// in the file for the record. Revoking twice is not an error.
+// in the file for the record. Revoking an environment key also revokes the
+// tokens it was exchanged for. Revoking twice is not an error.
 func (f *TokenFile) Revoke(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -192,11 +404,17 @@ func (f *TokenFile) Revoke(name string) error {
 	if i < 0 {
 		return fmt.Errorf("auth: no token named %q", name)
 	}
-	if f.tokens[i].Revoked != nil {
+	now := f.now().UTC().Truncate(time.Second)
+	changed := false
+	for j := range f.tokens {
+		if (j == i || (f.tokens[i].Kind == KindEnvironment && f.tokens[j].Parent == name)) && f.tokens[j].Revoked == nil {
+			f.tokens[j].Revoked = &now
+			changed = true
+		}
+	}
+	if !changed {
 		return nil
 	}
-	now := time.Now().UTC().Truncate(time.Second)
-	f.tokens[i].Revoked = &now
 	return f.save()
 }
 
@@ -379,6 +597,10 @@ func Middleware(src Source) func(http.Handler) http.Handler {
 
 // bearer extracts the token from an Authorization header value, or explains
 // why it cannot.
+// Bearer returns the raw token of the request's Authorization header, or
+// "" with the reason it has none.
+func Bearer(r *http.Request) (raw, problem string) { return bearer(r.Header.Get("Authorization")) }
+
 func bearer(header string) (raw, problem string) {
 	if strings.TrimSpace(header) == "" {
 		return "", "missing Authorization header"

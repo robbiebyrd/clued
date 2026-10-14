@@ -37,6 +37,14 @@ type Config struct {
 	ServerToken    string `json:"serverToken"`
 	ServerCAFile   string `json:"serverCaFile"`
 	ServerInsecure bool   `json:"serverInsecure"`
+	// ServerKey is an environment key (CLUED_SERVER_KEY): with no
+	// ServerToken, the client trades it at the server's token exchange for
+	// a short-lived token, cached in TokenCache and renewed before it
+	// expires. A Claude Code cloud environment keeps it in its settings.
+	ServerKey string `json:"serverKey,omitempty"`
+	// TokenCache is where an exchanged token is kept (server-token.json
+	// next to the config file); not read from the file.
+	TokenCache string `json:"-"`
 
 	// PrimeOnStart, when false, stops `hook prime` from adding the prime
 	// report to new, resumed, cleared and compacted sessions; unset means
@@ -156,6 +164,7 @@ func LoadConfig(path string) Config {
 	setFromEnv(&cfg.ServerURL, "CLUED_SERVER_URL")
 	setFromEnv(&cfg.ServerToken, "CLUED_SERVER_TOKEN")
 	setFromEnv(&cfg.ServerCAFile, "CLUED_SERVER_CA_FILE")
+	setFromEnv(&cfg.ServerKey, "CLUED_SERVER_KEY")
 	if v := os.Getenv("CLUED_SERVER_INSECURE"); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
 			cfg.ServerInsecure = b
@@ -180,6 +189,7 @@ func LoadConfig(path string) Config {
 	cfg.ServerCAFile = expandHome(cfg.ServerCAFile)
 
 	cfg.WalPath = filepath.Join(filepath.Dir(path), "events.wal")
+	cfg.TokenCache = filepath.Join(filepath.Dir(path), "server-token.json")
 	setFromEnv(&cfg.WalPath, "CLUED_WAL_PATH")
 	return cfg
 }

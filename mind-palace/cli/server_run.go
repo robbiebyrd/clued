@@ -211,6 +211,7 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 		Enrichers:    session.Active(sessionCfg.DisabledEnrichers, sessionCfg.EnabledEnrichers),
 		Logger:       logger,
 		Device:       device.New(device.Options{Tokens: tokens}),
+		Exchange:     tokens,
 		ClientConfig: clientConfigFrom(sessionCfg, o.SessionConfig, time.Now()),
 	})
 	if err := srv.Serve(ctx, listen, o.Ready); err != nil {

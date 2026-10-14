@@ -27,7 +27,7 @@ Then whether this is a Claude Code cloud container, and whether the environment 
 
 ```bash
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && echo "cloud container: yes (Claude Code on the web)" || echo "cloud container: no"
-[ -n "${CLUED_SERVER_URL:-}" ] && echo "server from the environment: ${CLUED_SERVER_URL} (token $([ -n "${CLUED_SERVER_TOKEN:-}" ] && echo set || echo "not set"))" || echo "server from the environment: none"
+[ -n "${CLUED_SERVER_URL:-}" ] && echo "server from the environment: ${CLUED_SERVER_URL} (token $([ -n "${CLUED_SERVER_TOKEN:-}" ] && echo set || echo "not set"), environment key $([ -n "${CLUED_SERVER_KEY:-}" ] && echo set || echo "not set"))" || echo "server from the environment: none"
 ```
 
 `cloud container: yes` → follow "Cloud container" below instead of Step 2.
@@ -36,7 +36,7 @@ Then whether this is a Claude Code cloud container, and whether the environment 
 
 When Step 1 reports `cloud container: yes`, this section replaces Step 2: do not ask Step 2's question, and skip Steps 3 and 4. The container is reclaimed when the session ends, so anything clued would keep on it (a MongoDB, a container stack, `config.json` and its token) is lost, and a device login has to be approved again in every new container. Local MongoDB and a clued server in containers on this machine are therefore not offered. clued works here only against a server reached over HTTPS, and it stays linked from one container to the next when the server's URL and token come from the **environment's settings**, which every new container starts with.
 
-**Already linked by the environment.** When Step 1 reports `server from the environment: <URL> (token set)`, ask nothing: do Step 5 and Step 8 (the plugin root), then the "clued server" parts of Step 9 (`register-hooks`, `session whoami`, `check-setup`). Write no config file, and tell the user it is sticky: every new container in this environment is linked the same way. When the URL is set but the token is not (or the reverse), name the missing variable and continue below with the same choice.
+**Already linked by the environment.** When Step 1 reports `server from the environment: <URL>` with the token or the environment key `set`, ask nothing: do Step 5 and Step 8 (the plugin root), then the "clued server" parts of Step 9 (`register-hooks`, `session whoami`, `check-setup`). Write no config file, and tell the user it is sticky: every new container in this environment is linked the same way. When the URL is set but neither secret is (or a secret without the URL), name the missing variable and continue below with the same choice.
 
 **Otherwise ask:**
 
@@ -55,24 +55,26 @@ Wait for the answer. Then:
 
    `200` is fine. Anything else (a `403` from the egress proxy, a timeout, a TLS error) usually means the environment's network policy does not allow the host: tell the user to open the cloud environment menu in the session's title bar, choose **Edit**, and either pick a broader **Network access** level or add the host under **Allowed domains** (leave the package managers allowed), as https://code.claude.com/docs/en/cloud-environments#network-access describes; it applies to new sessions. A server whose certificate comes from a private CA is not trusted here unless its CA file is part of the repository (then `CLUED_SERVER_CA_FILE` is its path in the checkout); a certificate from a public CA (Let's Encrypt) needs nothing.
 
-2. **Get a token that does not expire with the container.**
-   - **Clued Cloud:** the user signs in at https://clued.cloud (or the cloud's URL), opens **Linked clients** (`/links`), creates a token named for this environment (for example `claude-code-cloud`) and copies it: it is shown once, it lasts until it is revoked there, and revoking it unlinks every container that uses it.
-   - **A clued server:** the operator mints one: `mind-palace server token create --name claude-code-cloud --project '*'` (or with the `--project` slugs this environment's repositories need).
+2. **Get an environment key** (recommended). It is not a token: it authenticates nothing but the server's token exchange, where each container trades it at its first request for a token of its own that expires within a day (24 hours by default) and is renewed in place. The containers appear one by one in the server's list of tokens, and revoking the key cuts all of them off.
+   - **Clued Cloud:** the user signs in at https://clued.cloud (or the cloud's URL), opens **Linked clients** (`/links`), creates an **environment key** named for this environment (for example `claude-code-cloud`) and copies it: it is shown once.
+   - **A clued server:** the operator mints one: `mind-palace server token create --environment --name claude-code-cloud --project '*'` (or with the `--project` slugs this environment's repositories need; `--ttl 8h` shortens the containers' tokens).
 
-3. **Put the URL and the token in the environment's settings.** Tell the user to open the cloud environment menu in the session's title bar, choose **Edit**, and add the environment variables:
+   A server that offers no token exchange (an older release) needs a plain token instead: one created on the Linked clients page, or with `server token create` without `--environment`, as `CLUED_SERVER_TOKEN` below. It covers every container and lasts until it is revoked.
+
+3. **Put the URL and the key in the environment's settings.** Tell the user to open the cloud environment menu in the session's title bar, choose **Edit**, and add the environment variables:
 
    ```
    CLUED_SERVER_URL=https://clued.cloud
-   CLUED_SERVER_TOKEN=<the token>
+   CLUED_SERVER_KEY=<the environment key>
    ```
 
-   (and `CLUED_SERVER_CA_FILE=<path in the checkout>` for a private CA). **Never ask for the token in the chat** and never write it into a file or a command line here: it belongs only in the environment's settings, which every new session of this environment reads at its start. The hooks, the relay and both MCP servers take these variables over `config.json`, so no config file is needed.
+   (`CLUED_SERVER_TOKEN=<the token>` instead of the key for a server without the exchange, and `CLUED_SERVER_CA_FILE=<path in the checkout>` for a private CA). **Never ask for the key or a token in the chat** and never write either into a file or a command line here: they belong only in the environment's settings, which every new session of this environment reads at its start. The hooks, the relay and both MCP servers take these variables over `config.json`, so no config file is needed; the exchanged token is cached in `~/.claude/plugins/data/clued/server-token.json` (mode 0600), which goes with the container.
 
 4. **Start a new session** in this environment: the variables are read when a session starts, so this one does not see them yet. In the new session `check-setup` probes the server with `session whoami` and reports nothing when the link works; running `/clued-setup` there again only verifies it ("Already linked by the environment" above).
 
-   If the user wants this container captured too, before the new session: for Clued Cloud, link it with the device flow of Step 6 ("clued cloud", `session login --server https://clued.cloud`), which lasts only as long as this container (the extra linked client it creates can be revoked on the Linked clients page); for a clued server there is nothing to do here, since the token must not be typed into this session.
+   If the user wants this container captured too, before the new session: for Clued Cloud, link it with the device flow of Step 6 ("clued cloud", `session login --server https://clued.cloud`), which lasts only as long as this container (the extra linked client it creates can be revoked on the Linked clients page); for a clued server there is nothing to do here, since the key must not be typed into this session.
 
-Then confirm (Step 10): where the data goes, that the link comes from the environment's settings and survives new containers, and that revoking the token on the cloud's Linked clients page (or `mind-palace server token revoke <name>` on the server) unlinks them all. `session logout` is not the way to unlink here: it would revoke the token every future container of the environment uses.
+Then confirm (Step 10): where the data goes, that the link comes from the environment's settings and survives new containers, and that revoking the environment key on the cloud's Linked clients page (or `mind-palace server token revoke <name>` on the server) unlinks them all, the tokens its containers hold included. `session logout` in a container revokes only that container's token (with a plain `CLUED_SERVER_TOKEN` it would revoke the one every future container uses).
 
 
 ## Step 2 — Ask where clued stores its data

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // A Claude Code cloud container (CLAUDE_CODE_REMOTE=true) is reclaimed after
@@ -57,6 +58,25 @@ func TestSessionStartStartsNoDaemonInACloudContainer(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(home, ".claude/plugins/data/clued", f)); err == nil {
 			t.Errorf("%s written: a daemon was started in a cloud container", f)
 		}
+	}
+	waitForSettings(t, home)
+}
+
+// waitForSettings returns once the register-hooks session-start leaves
+// running in the background has written settings.json, so the temporary
+// home is not removed under it.
+func waitForSettings(t *testing.T, home string) {
+	t.Helper()
+	settings := filepath.Join(home, ".claude", "settings.json")
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(settings); err == nil {
+			if tmp, _ := filepath.Glob(settings + ".tmp*"); len(tmp) == 0 {
+				time.Sleep(100 * time.Millisecond)
+				return
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 

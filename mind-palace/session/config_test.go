@@ -323,6 +323,7 @@ func TestLoadConfigOldKeysOnlyLoadsIdentically(t *testing.T) {
 		EnabledEnrichers:    []string{"b"},
 		ClaudeAppConfigPath: "/p/claude/config.json",
 		WalPath:             filepath.Join(dir, "events.wal"),
+		TokenCache:          filepath.Join(dir, "server-token.json"),
 	}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("LoadConfig = %+v\nwant        %+v", cfg, want)

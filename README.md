@@ -58,8 +58,10 @@ for the plan and story service in depth.
    hosted service at https://clued.cloud. In a Claude Code cloud container
    (Claude Code on the web) it offers only Clued Cloud and a clued server, and
    links the environment instead of the container: `CLUED_SERVER_URL` and
-   `CLUED_SERVER_TOKEN` in the environment's settings link every new
-   container without a config file or a browser approval
+   `CLUED_SERVER_KEY`, an environment key each container trades for a
+   token of its own that expires within a day, in the environment's
+   settings link every new container without a config file or a browser
+   approval
    ([details](docs/server.md#claude-code-cloud-containers)). For a MongoDB it asks how
    to run it (local binary, Docker or remote), installs and starts it,
    installs `mind-palace`, writes `~/.claude/plugins/data/clued/config.json`
@@ -353,6 +355,7 @@ sessions and other machines can search it:
 | `devRepoPath` | | | Source checkout that `scripts/clued` builds and runs instead of an installed binary (plugin developers) |
 | `serverUrl` | | `CLUED_SERVER_URL` | Switches to [remote mode](#remote-mode): the clued server everything is sent to; `mongoUrl` is then ignored |
 | `serverToken` | | `CLUED_SERVER_TOKEN` | The bearer token the server minted; the file is written `0600` because of it |
+| `serverKey` | | `CLUED_SERVER_KEY` | An environment key (`server token create --environment`, or the cloud's Linked clients page): with no `serverToken`, each client trades it for a short-lived token of its own, cached in `server-token.json` next to this file; meant for a Claude Code cloud environment's settings |
 | `serverCaFile` | | `CLUED_SERVER_CA_FILE` | PEM bundle trusted in addition to the system roots (a private CA) |
 | `serverInsecure` | `false` | `CLUED_SERVER_INSECURE` | Allow a plain `http://` server URL off loopback; never set it outside a network you trust |
 | `redactAtCapture` | off; `/clued-setup` writes `true` | `CLUED_REDACT_AT_CAPTURE` | Mask API keys, AWS access key ids, JWTs, GitHub and Slack tokens, PEM private keys and `<private>…</private>` spans in everything captured before it is written or sent to the server |
