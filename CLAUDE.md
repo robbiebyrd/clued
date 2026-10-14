@@ -91,9 +91,9 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   (capture, with `session/ingest` and `session/catchup` for the relay) and
   `hookguard/` (hook decisions); entrypoints (`cli/`, `server/`,
   `sessionmcp`) only translate. Hooks the binary serves are `mind-palace
-  hook …` subcommands (`write-guard`, `stop-guard`, `status-review`, and
-  `relay`, which `hooks/event-relay` and `hooks/session-start` run in remote
-  mode) registered in `hooks.json` and `hooks/register-hooks` as
+  hook …` subcommands (`write-guard`, `stop-guard`, `status-review`,
+  `prime`, and `relay`, which `hooks/event-relay` and `hooks/session-start`
+  run in remote mode) registered in `hooks.json` and `hooks/register-hooks` as
   `${CLAUDE_PLUGIN_ROOT}/scripts/clued hook …`; they print bare hook JSON,
   not the `{"ok": …}` envelope, and `hook relay` prints nothing and always
   exits 0.

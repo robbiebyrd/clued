@@ -93,8 +93,9 @@ volumes, and the data.
 | `scripts/clued hook relay` | Remote mode, every event: stores the event on the server, pushes the transcript lines and artifact files written since the previous hook, replays the WAL; never fails the hook, logs failures to `relay.log` (see [Remote mode](#remote-mode)) |
 | `scripts/clued hook write-guard` | PreToolUse on `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Bash`, `EnterPlanMode` and `ExitPlanMode`: routes every change to a plan or story through mind-palace (see [Plans and stories are written by mind-palace](#plans-and-stories-are-written-by-mind-palace)) |
 | `scripts/clued hook stop-guard` | Stop: blocks the assistant from stopping when its last message dodges ownership of a failure, defers work to another session or asks whether to continue (see [Hooks served by the binary](#hooks-served-by-the-binary)) |
+| `scripts/clued hook prime` | SessionStart (startup, resume, clear and after compaction): adds the prime report of the session's directory as context, cut to 8,000 characters and collected within 3 seconds; `primeOnStart: false` turns it off |
 | `scripts/clued hook status-review` | SessionStart, and UserPromptSubmit at most every 30 minutes: tells the assistant to ask you about plans whose stories are all complete and stories whose steps and acceptance criteria are all done but still open |
-| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the three `scripts/clued hook` commands and the SessionEnd `session memory-ingest`) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
+| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the four `scripts/clued hook` commands and the SessionEnd `session memory-ingest`) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
 | `hooks/uninstall` | Non-interactive cleanup used by `/clued-uninstall` |
 | `scripts/clued` | Shim that finds and runs `mind-palace` (resolution order below) |
 | `.mcp.json` | Two stdio MCP servers: `clued` (`scripts/clued session mcp`, the session tools) and `mind-palace` (`scripts/clued mcp --no-session-tools --tools core`, the core tier of the plan and story tools) |
@@ -299,6 +300,7 @@ sessions and other machines can search it:
 | `serverToken` | | `CLUED_SERVER_TOKEN` | The bearer token the server minted; the file is written `0600` because of it |
 | `serverCaFile` | | `CLUED_SERVER_CA_FILE` | PEM bundle trusted in addition to the system roots (a private CA) |
 | `serverInsecure` | `false` | `CLUED_SERVER_INSECURE` | Allow a plain `http://` server URL off loopback; never set it outside a network you trust |
+| `primeOnStart` | `true` | `CLUED_PRIME_ON_START` | Start every session (and every session after compaction) with the prime report as context; `false` leaves it to `/clued-prime` |
 
 A leading `~/` is expanded in every path. Unknown keys are ignored, so a
 config file from the earlier Node implementation keeps working; its
@@ -449,6 +451,13 @@ under [Remote mode](#remote-mode).
 - **`hook write-guard`** (PreToolUse, blocking). Keeps plans and stories
   under mind-palace's control; the rules are described in the next section
   and live in `mind-palace/hookguard/write.go`.
+- **`hook prime`** (SessionStart, synchronous). Adds the prime report (the
+  one `/clued-prime` prints) as context when a session starts, resumes, is
+  cleared or comes back from compaction, so the branch, open PR, plans,
+  stories, last session and build tool are known from the first turn. It is
+  cut to 8,000 characters (the longest sections are trimmed first) and
+  collected within 3 seconds; a store that is down costs a line, not the
+  session start. Set `primeOnStart` to `false` to turn it off.
 - **`hook status-review`** (SessionStart; UserPromptSubmit with
   `--every 30m`). Reviews the plans and stories of the hook's `cwd` and, when
   a plan has all of its stories complete or a story has all of its steps

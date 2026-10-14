@@ -110,6 +110,44 @@ func (r Report) String() string {
 	return b.String()
 }
 
+// Trimmed is the marker that ends a section body Capped shortened.
+const Trimmed = "… (trimmed)"
+
+// Capped renders the report like String in at most max bytes (when max is
+// positive): while it is too long, the longest section body is cut to half
+// its length at a line break and marked Trimmed, so every section keeps its
+// heading and the short ones stay whole. A report whose headings alone
+// exceed max is cut at max.
+func (r Report) Capped(max int) string {
+	out := r.String()
+	if max <= 0 || len(out) <= max {
+		return out
+	}
+	sections := append([]Section(nil), r.Sections...)
+	for len(out) > max {
+		longest := -1
+		for i, s := range sections {
+			if len(s.Body) > len(Trimmed)*2 && (longest < 0 || len(s.Body) > len(sections[longest].Body)) {
+				longest = i
+			}
+		}
+		if longest < 0 {
+			break
+		}
+		body := strings.TrimSuffix(sections[longest].Body, "\n"+Trimmed)
+		keep := body[:len(body)/2]
+		if nl := strings.LastIndexByte(keep, '\n'); nl > 0 {
+			keep = keep[:nl]
+		}
+		sections[longest].Body = keep + "\n" + Trimmed
+		out = Report{Sections: sections}.String()
+	}
+	if len(out) > max {
+		out = out[:max]
+	}
+	return out
+}
+
 // Fallback is the answer of a probe that failed before producing one.
 func Fallback(name string, args []string) string {
 	if len(args) == 0 {

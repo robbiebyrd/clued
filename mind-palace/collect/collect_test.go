@@ -202,3 +202,26 @@ func TestNoFile(t *testing.T) {
 		t.Errorf("NoFile = %q", got)
 	}
 }
+
+func TestCappedTrimsTheLongestSectionsFirst(t *testing.T) {
+	long := strings.Repeat("a line of the log\n", 200)
+	r := Report{Sections: []Section{{Name: "BRANCH", Body: "main"}, {Name: "LOG", Body: long}, {Name: "STORIES", Body: "0001 ready"}}}
+	if got := r.Capped(0); got != r.String() {
+		t.Error("Capped(0) should not cut")
+	}
+	got := r.Capped(500)
+	if len(got) > 500 {
+		t.Fatalf("Capped(500) is %d bytes", len(got))
+	}
+	for _, want := range []string{"=== BRANCH ===\nmain", "=== LOG ===", Trimmed, "=== STORIES ===\n0001 ready"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("capped report lacks %q:\n%s", want, got)
+		}
+	}
+	if short := r.Capped(len(r.String())); short != r.String() {
+		t.Error("a report that fits is cut")
+	}
+	if tiny := r.Capped(10); len(tiny) != 10 {
+		t.Errorf("Capped(10) = %d bytes", len(tiny))
+	}
+}

@@ -73,6 +73,16 @@ type Collector struct {
 	EnabledEnrichers  []string // enrichers switched on among those that ship disabled
 
 	Budget time.Duration // zero means DefaultBudget
+	// StoreTimeout bounds each store lookup (SESSION, MEMORY); zero means
+	// the package's StoreTimeout.
+	StoreTimeout time.Duration
+}
+
+func (c *Collector) storeTimeout() time.Duration {
+	if c.StoreTimeout > 0 {
+		return c.StoreTimeout
+	}
+	return StoreTimeout
 }
 
 // Options switches sections off.
@@ -393,7 +403,7 @@ func (c *Collector) sessionSection(ctx context.Context, root string, opts Option
 	if c.Sessions == nil || opts.NoStore {
 		return collect.StoreDisabled, ""
 	}
-	ctx, cancel := context.WithTimeout(ctx, StoreTimeout)
+	ctx, cancel := context.WithTimeout(ctx, c.storeTimeout())
 	defer cancel()
 	snap, err := c.Sessions.Current(ctx, filepath.ToSlash(root))
 	if err != nil {
@@ -442,7 +452,7 @@ func (c *Collector) memory(ctx context.Context, root string, opts Options) strin
 	if c.Memory == nil || opts.NoStore {
 		return collect.StoreDisabled
 	}
-	ctx, cancel := context.WithTimeout(ctx, StoreTimeout)
+	ctx, cancel := context.WithTimeout(ctx, c.storeTimeout())
 	defer cancel()
 	notes, err := c.Memory.Recent(ctx, filepath.ToSlash(root), memoryCount)
 	if err != nil {

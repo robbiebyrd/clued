@@ -26,7 +26,7 @@ func (a *App) hookCmd() *cobra.Command {
 		Use:   "hook",
 		Short: "Claude Code hooks served by the binary (read hook JSON on stdin)",
 	}
-	cmd.AddCommand(a.hookStopGuardCmd(), a.hookWriteGuardCmd(), a.hookStatusReviewCmd(), a.hookRelayCmd())
+	cmd.AddCommand(a.hookStopGuardCmd(), a.hookWriteGuardCmd(), a.hookStatusReviewCmd(), a.hookRelayCmd(), a.hookPrimeCmd())
 	return cmd
 }
 
@@ -135,6 +135,8 @@ including when stop_hook_active is set (the guard already fired this turn).`,
 type hookInput struct {
 	HookEventName string `json:"hook_event_name"`
 	Cwd           string `json:"cwd"`
+	// Source is why SessionStart fired: startup, resume, clear or compact.
+	Source string `json:"source"`
 }
 
 // hookContext is the JSON a hook prints to add context to the conversation.
