@@ -2,11 +2,12 @@
 id: 0007-w5t
 title: Retrieval, usage and work scheduling for mind-palace
 type: impl
-status: in_progress
+status: complete
 priority: "1"
 effort: XL
 created: "2026-10-14T03:11:32.943Z"
-updated: "2026-10-14T03:13:19.714Z"
+updated: "2026-10-14T04:02:34.661Z"
+completed: "2026-10-14T04:02:34.661Z"
 tags:
   - session
   - mcp
@@ -27,19 +28,19 @@ links:
     - docs/superpowers/specs/2026-09-23-clued-mcp-search-design.md
 progress:
   "1":
-    status: pending
+    status: complete
     stories:
       - 0024-mfj
   "1.1":
     status: pending
   "2":
-    status: pending
+    status: complete
     stories:
       - 0025-u4v
   "2.1":
     status: pending
   "3":
-    status: pending
+    status: complete
     stories:
       - 0026-fu8
   "3.1":
@@ -47,7 +48,7 @@ progress:
   "3.2":
     status: pending
   "4":
-    status: pending
+    status: complete
     stories:
       - 0027-bek
   "4.1":
@@ -55,7 +56,7 @@ progress:
   "4.2":
     status: pending
   "5":
-    status: pending
+    status: complete
     stories:
       - 0028-p8p
   "5.1":
@@ -63,7 +64,7 @@ progress:
   "5.2":
     status: pending
   "6":
-    status: pending
+    status: complete
     stories:
       - 0029-h4q
   "6.1":

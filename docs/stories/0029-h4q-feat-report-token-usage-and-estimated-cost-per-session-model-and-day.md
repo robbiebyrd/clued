@@ -2,12 +2,13 @@
 id: 0029-h4q
 title: Report token usage and estimated cost per session, model and day
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-14T03:13:00.705Z"
-updated: "2026-10-14T03:58:19.758Z"
+updated: "2026-10-14T04:02:30.255Z"
 started: "2026-10-14T03:58:19.396Z"
+completed: "2026-10-14T04:02:30.255Z"
 tags:
   - session
   - usage
