@@ -51,6 +51,30 @@ type MemoryQuery struct {
 	Limit      int      `json:"limit"`
 }
 
+// FileQuery selects the hook events that touched a file, newest first: the
+// PreToolUse events the file-tracker enricher recorded (by
+// enrichments.file-tracker.file_path) and the PostToolUse Edit and Write
+// events the edit-diff-stats enricher measured (by tool_input.file_path).
+// PathRe is a case-insensitive regex over the path; empty matches every
+// file. Empty SessionIDs means no session filter.
+type FileQuery struct {
+	AccountID  string   `json:"-"`
+	PathRe     string   `json:"pathRe"`
+	SessionIDs []string `json:"sessionIds"`
+	Limit      int      `json:"limit"`
+}
+
+// ErrorQuery selects the transcript lines the error-flag enricher marked as
+// errors (enrichments.error-flag.is_error), newest first. Types keeps only
+// those error types (hook_error, tool_failure, error_text); empty Types and
+// SessionIDs mean no filter.
+type ErrorQuery struct {
+	AccountID  string   `json:"-"`
+	Types      []string `json:"types"`
+	SessionIDs []string `json:"sessionIds"`
+	Limit      int      `json:"limit"`
+}
+
 // MemoryEventName is the hook_event_name of an ingested memory record. Such
 // an event carries the record under "memory" with a "hash" that identifies
 // its text; a store keeps one event per account and hash.
@@ -110,6 +134,14 @@ type Store interface {
 	// MemoryEvents projects session_id, cwd, memory and created_at of the
 	// MemorySaved events matching the query, newest first.
 	MemoryEvents(ctx context.Context, q MemoryQuery) ([]Doc, error)
+	// FileEvents projects session_id, hook_event_name, tool_name,
+	// tool_use_id, tool_input.file_path, enrichments.file-tracker,
+	// enrichments.edit-diff-stats and created_at of the events FileQuery
+	// selects.
+	FileEvents(ctx context.Context, q FileQuery) ([]Doc, error)
+	// ErrorLines projects session_id, seq, line, enrichments.error-flag and
+	// created_at of the lines ErrorQuery selects.
+	ErrorLines(ctx context.Context, q ErrorQuery) ([]Doc, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of

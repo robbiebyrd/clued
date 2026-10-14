@@ -215,6 +215,8 @@ off.
 | `get_full_session` | The complete record: metadata, transcript, subagent lines, blob metadata and hook events |
 | `search_commands` | Search the Bash commands run in previous sessions |
 | `search_memory` | Search the claude-remember summaries, handoffs and identity notes captured as `MemorySaved` events across every session and machine of the account: regex over the text, optional `kind`, `session_id`, `git_origin` or `project_path` scope |
+| `file_history` | Which sessions touched a file (regex over the path): per session the files, how often it read, edited or wrote them, the lines its edits added and removed, first and last touch; built from the `file-tracker` and `edit-diff-stats` enrichments |
+| `find_errors` | Transcript lines that reported an error (failed hook, failed tool result, error text), newest first, optionally of one type and scoped to a session, repository or project; built from the `error-flag` enrichment |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
 | `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |

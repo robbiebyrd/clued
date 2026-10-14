@@ -453,6 +453,86 @@ func (s *Store) BashEvents(_ context.Context, q session.CommandQuery) ([]session
 	return out, nil
 }
 
+func (s *Store) FileEvents(_ context.Context, q session.FileQuery) ([]session.Doc, error) {
+	re, err := compileRe(q.PathRe)
+	if err != nil {
+		return nil, err
+	}
+	inSessions := setOf(q.SessionIDs)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(hookEvents, func(d session.Doc) bool {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			return false
+		}
+		e := d.Map("enrichments")
+		var path string
+		var ok bool
+		if tracked := e.Map("file-tracker"); tracked != nil {
+			path, ok = tracked.String("file_path")
+		} else if e["edit-diff-stats"] != nil && strOf(d, "hook_event_name") == "PostToolUse" {
+			path, ok = d.ToolInput().String("file_path")
+		}
+		return ok && (re == nil || re.MatchString(path))
+	})
+	sort.SliceStable(found, func(i, j int) bool { return timeOf(found[i], "created_at").After(timeOf(found[j], "created_at")) })
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		p := project(d, "session_id", "hook_event_name", "tool_name", "tool_use_id", "created_at")
+		if path, ok := d.ToolInput().String("file_path"); ok {
+			p["tool_input"] = session.Doc{"file_path": path}
+		}
+		e := session.Doc{}
+		for _, name := range []string{"file-tracker", "edit-diff-stats"} {
+			if v, ok := d.Map("enrichments")[name]; ok {
+				e[name] = deepCopy(v)
+			}
+		}
+		p["enrichments"] = e
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+func (s *Store) ErrorLines(_ context.Context, q session.ErrorQuery) ([]session.Doc, error) {
+	inSessions, inTypes := setOf(q.SessionIDs), setOf(q.Types)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(transcriptLines, func(d session.Doc) bool {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			return false
+		}
+		flag := d.Map("enrichments").Map("error-flag")
+		if isErr, _ := flag["is_error"].(bool); !isErr {
+			return false
+		}
+		typ, _ := flag.String("error_type")
+		return len(inTypes) == 0 || inTypes[typ]
+	})
+	sort.SliceStable(found, func(i, j int) bool {
+		ti, tj := timeOf(found[i], "created_at"), timeOf(found[j], "created_at")
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return intOf(found[i], "seq") > intOf(found[j], "seq")
+	})
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		p := project(d, "session_id", "seq", "line", "created_at")
+		p["enrichments"] = session.Doc{"error-flag": deepCopy(d.Map("enrichments")["error-flag"])}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+func setOf(values []string) map[string]bool {
+	out := map[string]bool{}
+	for _, v := range values {
+		out[v] = true
+	}
+	return out
+}
+
 // --- transcript, subagent lines and blobs ---
 
 func (s *Store) UpsertTranscriptLines(_ context.Context, lines []session.TranscriptLine) error {

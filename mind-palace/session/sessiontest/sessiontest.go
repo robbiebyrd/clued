@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,8 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"blobs are ordered by type and name and account scoped", blobsOrdering},
 		{"bash events filter by regex, session and account, newest first", bashEvents},
 		{"bash events reject an invalid regex", bashEventsInvalidRegex},
+		{"file events select tracked and measured file events by path, newest first", fileEvents},
+		{"error lines select flagged lines by type and session, newest first", errorLines},
 		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
@@ -1008,4 +1011,83 @@ func deleteAccount(t *testing.T, s session.Store) {
 	eq(t, "b's subagents", len(ok(s.SubagentIDs(ctx, "b", "s-b"))), 1)
 	eq(t, "b's bash events", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "b", PatternRe: "."}))), 1)
 	eq(t, "a second delete", ok(s.DeleteAccount(ctx, "a")), int64(0))
+}
+
+func fileEvents(t *testing.T, s session.Store) {
+	tracked := func(sid, acc, tool, path string, at time.Time) session.Doc {
+		return session.Doc{"session_id": sid, "account_id": acc, "hook_event_name": "PreToolUse", "tool_name": tool, "tool_use_id": "tu-" + sid + tool,
+			"tool_input": session.Doc{"file_path": path}, "created_at": at,
+			"enrichments": session.Doc{"file-tracker": session.Doc{"file_path": path, "operation": strings.ToLower(tool)}}}
+	}
+	for _, ev := range []session.Doc{
+		tracked("s1", "acc", "Read", "/repo/main.go", t0),
+		tracked("s1", "acc", "Edit", "/repo/main.go", t0.Add(time.Minute)),
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": "PostToolUse", "tool_name": "Edit", "tool_use_id": "tu-s1Edit",
+			"tool_input": session.Doc{"file_path": "/repo/main.go", "old_string": "a", "new_string": "b\nc"}, "created_at": t0.Add(2 * time.Minute),
+			"enrichments": session.Doc{"edit-diff-stats": session.Doc{"lines_added": 2, "lines_removed": 1, "net_change": 1}}},
+		tracked("s2", "acc", "Write", "/repo/README.md", t0.Add(3*time.Minute)),
+		tracked("s3", "other", "Read", "/repo/main.go", t0.Add(4*time.Minute)),
+		// A PostToolUse without diff stats and a PreToolUse without a tracked path are not file events.
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": "PostToolUse", "tool_name": "Read", "tool_input": session.Doc{"file_path": "/repo/main.go"}, "created_at": t0},
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": session.Doc{"command": "cat main.go"}, "created_at": t0},
+	} {
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	kinds := func(q session.FileQuery) []string {
+		var out []string
+		for _, d := range ok(s.FileEvents(ctx, q)) {
+			ev, _ := d.String("hook_event_name")
+			tool, _ := d.String("tool_name")
+			out = append(out, ev+":"+tool)
+		}
+		return out
+	}
+	eq(t, "path regex, newest first, own account", kinds(session.FileQuery{AccountID: "acc", PathRe: "MAIN\\.go$", Limit: 10}),
+		[]string{"PostToolUse:Edit", "PreToolUse:Edit", "PreToolUse:Read"})
+	eq(t, "every file", len(ok(s.FileEvents(ctx, session.FileQuery{AccountID: "acc", Limit: 10}))), 4)
+	eq(t, "session scoping", kinds(session.FileQuery{AccountID: "acc", SessionIDs: []string{"s2"}, Limit: 10}), []string{"PreToolUse:Write"})
+	eq(t, "limit", len(ok(s.FileEvents(ctx, session.FileQuery{AccountID: "acc", Limit: 1}))), 1)
+	got := ok(s.FileEvents(ctx, session.FileQuery{AccountID: "acc", PathRe: "main", Limit: 1}))[0]
+	eq(t, "diff stats", num(got.Map("enrichments").Map("edit-diff-stats")["lines_added"]), 2)
+	eq(t, "file path", got.ToolInput()["file_path"], "/repo/main.go")
+	eq(t, "tool use id", got["tool_use_id"], "tu-s1Edit")
+	if _, err := s.FileEvents(ctx, session.FileQuery{AccountID: "acc", PathRe: "(", Limit: 1}); err == nil {
+		t.Error("FileEvents accepted an invalid regex")
+	}
+}
+
+func errorLines(t *testing.T, s session.Store) {
+	flag := func(sid string, seq int, acc string, errType any) {
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, seq, "user", acc)}))
+		var id any
+		for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "error-flag", 0)) {
+			if d["session_id"] == sid && num(d["seq"]) == seq {
+				id = d["_id"]
+			}
+		}
+		result := session.Doc{"is_error": errType != nil, "error_type": errType}
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "error-flag", result))
+		time.Sleep(5 * time.Millisecond) // created_at orders the lines
+	}
+	flag("s1", 0, "acc", "tool_failure")
+	flag("s1", 1, "acc", nil)
+	flag("s1", 2, "acc", "error_text")
+	flag("s2", 0, "acc", "hook_error")
+	flag("s3", 0, "other", "tool_failure")
+	keys := func(q session.ErrorQuery) []string {
+		var out []string
+		for _, d := range ok(s.ErrorLines(ctx, q)) {
+			sid, _ := d.String("session_id")
+			typ, _ := d.Map("enrichments").Map("error-flag").String("error_type")
+			out = append(out, fmt.Sprintf("%s/%d/%s", sid, num(d["seq"]), typ))
+		}
+		return out
+	}
+	eq(t, "errors only, newest first, own account", keys(session.ErrorQuery{AccountID: "acc", Limit: 10}),
+		[]string{"s2/0/hook_error", "s1/2/error_text", "s1/0/tool_failure"})
+	eq(t, "types", keys(session.ErrorQuery{AccountID: "acc", Types: []string{"tool_failure", "hook_error"}, Limit: 10}),
+		[]string{"s2/0/hook_error", "s1/0/tool_failure"})
+	eq(t, "session scoping", keys(session.ErrorQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 1}), []string{"s1/2/error_text"})
+	got := ok(s.ErrorLines(ctx, session.ErrorQuery{AccountID: "acc", Limit: 1}))[0]
+	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "line", "seq", "session_id"})
 }

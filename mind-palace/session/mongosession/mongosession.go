@@ -87,6 +87,8 @@ var indexes = []index{
 	{subagentLines, key("account_id", 1, "session_id", 1, "subagent_id", 1, "seq", 1), false},
 	{blobs, key("session_id", 1, "blob_type", 1, "name", 1), true},
 	{blobs, key("account_id", 1, "session_id", 1, "blob_type", 1), false},
+	{hookEvents, key("account_id", 1, "enrichments.file-tracker.file_path", 1), false},
+	{transcriptLines, key("account_id", 1, "enrichments.error-flag.is_error", 1, "created_at", -1), false},
 }
 
 // partialIndexes are unique indexes limited to the documents matching a
@@ -495,6 +497,39 @@ func (s *Store) BashEvents(ctx context.Context, q session.CommandQuery) ([]sessi
 	}
 	projection := key("_id", 0, "session_id", 1, "tool_input", 1, "created_at", 1)
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
+func (s *Store) FileEvents(ctx context.Context, q session.FileQuery) ([]session.Doc, error) {
+	path := key("$type", "string")
+	if q.PathRe != "" {
+		re, err := regexFilter(q.PathRe)
+		if err != nil {
+			return nil, err
+		}
+		path = re
+	}
+	filter := key("account_id", q.AccountID, "$or", bson.A{
+		key("enrichments.file-tracker.file_path", path),
+		key("hook_event_name", "PostToolUse", "tool_input.file_path", path, "enrichments.edit-diff-stats", key("$exists", true)),
+	})
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	projection := key("_id", 0, "session_id", 1, "hook_event_name", 1, "tool_name", 1, "tool_use_id", 1, "tool_input.file_path", 1,
+		"enrichments.file-tracker", 1, "enrichments.edit-diff-stats", 1, "created_at", 1)
+	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
+func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session.Doc, error) {
+	filter := key("account_id", q.AccountID, "enrichments.error-flag.is_error", true)
+	if len(q.Types) > 0 {
+		filter = append(filter, bson.E{Key: "enrichments.error-flag.error_type", Value: key("$in", q.Types)})
+	}
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "line", 1, "enrichments.error-flag", 1, "created_at", 1)
+	return s.find(ctx, transcriptLines, filter, projection, key("created_at", -1, "seq", -1), 0, q.Limit)
 }
 
 // --- transcript, subagent lines and blobs ---

@@ -132,6 +132,14 @@ func (s *Store) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]sess
 	return s.docs(ctx, "POST", prefix+"/memory-events", q)
 }
 
+func (s *Store) FileEvents(ctx context.Context, q session.FileQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/file-events", q)
+}
+
+func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/error-lines", q)
+}
+
 // --- transcript, subagent lines and blobs ---
 
 // UpsertTranscriptLines sends the lines in batches of at most MaxLines, in

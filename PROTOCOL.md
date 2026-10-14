@@ -392,6 +392,8 @@ read-only.
 | `get_full_session` | `session_id` (required) | metadata, every transcript and subagent line, blob metadata without content, every hook event |
 | `search_commands` | `pattern` (required regex), `session_id`, `git_origin` (regex), `limit` (default 20, max 500) | Bash commands, newest first |
 | `search_memory` | `pattern` (regex), `kind` (`entry`, `day`, `recent`, `archive`, `handoff`, `identity`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | `MemorySaved` records across the account, newest first |
+| `file_history` | `path` (required regex over the file path), `session_id`, `git_origin`, `project_path`, `limit` (sessions, default 10, max 500) | per session, most recent first, from the newest 500 file events: `files` (at most 10), `operations` (`read`, `edit`, `write`, `glob`, `ls` counts from `file-tracker`), `lines_added` and `lines_removed` (from `edit-diff-stats`), `first_touch`, `last_touch`, `project_path`, `git_origin` |
+| `find_errors` | `type` (`hook_error`, `tool_failure`, `error_text`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | lines `error-flag` marked, newest first: `session_id`, `seq`, `type`, `text` (300 characters), `timestamp`, `project_path`, `git_origin`, `created_at` |
 | `read_transcript` | `session_id` (required), `offset` (default 0), `limit` (default 200, max 500) | transcript lines in order |
 | `restore_session` | `session_id` (required), `project_path` (override), `projects_dir` (override) | rebuilds the JSONL, subagent files, tool-result blobs and file-history backups on the local disk |
 | `prime_context` | `cwd`, `no_store`, `no_docs`, `no_snapshot` | the plain-text report with the sections ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, MEMORY, BUILD |
@@ -588,6 +590,8 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 | `POST /blobs/query` | `{"session_id"}` | blobs |
 | `POST /bash-events` | `{"patternRe", "sessionIds", "limit"}` | Bash hook events |
 | `POST /memory-events` | `{"patternRe", "kinds", "sessionIds", "limit"}` | `MemorySaved` events |
+| `POST /file-events` | `{"pathRe", "sessionIds", "limit"}` | hook events with `enrichments.file-tracker.file_path` or PostToolUse `edit-diff-stats` matching the path |
+| `POST /error-lines` | `{"types", "sessionIds", "limit"}` | transcript lines with `enrichments.error-flag.is_error` |
 
 The query bodies use the camel-case keys above. The server decodes keys
 case-insensitively, so the Go field names an older client sent
