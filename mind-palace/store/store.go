@@ -134,6 +134,23 @@ func (e *FanoutError) Error() string {
 	return s + " run `mind-palace sync` to reconcile"
 }
 
+// Locker is implemented by stores that can hold an exclusive lock on a
+// document across processes (the file store, for agents sharing one
+// checkout). Lock blocks until the lock is held or ctx is done; unlock
+// releases it.
+type Locker interface {
+	Lock(ctx context.Context, kind, id string) (unlock func(), err error)
+}
+
+// Lock takes the primary store's lock on a document when the primary is a
+// Locker; otherwise it holds nothing and returns at once.
+func (m *MultiStore) Lock(ctx context.Context, kind, id string) (func(), error) {
+	if l, ok := m.Primary().(Locker); ok {
+		return l.Lock(ctx, kind, id)
+	}
+	return func() {}, nil
+}
+
 // MultiStore fans writes out to every store and reads from the primary (the
 // first one). It implements Store itself so the service does not care how
 // many copies exist.

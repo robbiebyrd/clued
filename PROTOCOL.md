@@ -61,6 +61,7 @@ code (`cli/cli.go`):
 | `UnknownStep` | 400 | 12 | A story step number has no progress entry |
 | `UnknownCriterion` | 400 | 13 | No criterion at that position |
 | `LinkedStory` | 409 | 14 | Deleting a story other documents link to |
+| `BlockedByDependency` | 409 | 15 | Starting a document while a plan or story it `depends` on is unfinished, or completing it while also one whose `blocks` link names it is; `problems` lists them, `force` overrides |
 
 The transports of the clued server add lower-case kinds of their own:
 `unauthorized` (401), `forbidden` (403), `invalid` (400), `not_found` (404),
@@ -467,8 +468,21 @@ kind refuses to delete its default template).
 
 Fields: `setTitle` (`title`, `renameFile`), `setPurpose` (`purpose`,
 stories), `setType` (`type`; renames the file's type part), `setStatus`
-(`status`, `force`; synonyms accepted, workflow enforced), `getTransitions`
-(read-only), `setPriority` (`priority`: 0–5 or a label), `setEffort`
+(`status`, `force`; synonyms accepted, workflow enforced; moving to
+`in_progress` needs every `depends` target finished, i.e. complete, rejected
+or archived, and moving to `complete` also every document whose `blocks`
+link names this one, else `BlockedByDependency`; a story whose last step
+completes stays in progress while one is open), `getTransitions`
+(read-only), `ready` (read-only; `tag`, `milestone`, `unassigned`, `limit`:
+the documents whose status may move to `in_progress` and whose `depends`
+targets are all finished, by priority, order and id), `dependencies`
+(read-only: the unfinished documents holding one up, each `{kind, id,
+title, status, relation}` with relation `depends` or `blocked_by`), `claim`
+(stories; `assignee`, `force`: sets the assignee and moves to `in_progress`
+in one write under the workflow and dependency rules, `Conflict` when
+another assignee holds it, unchanged when the holder claims again; claims
+are serialised in the process and, on the file store, by a lock file under
+the system temp directory), `setPriority` (`priority`: 0–5 or a label), `setEffort`
 (`effort`: XS–XL, a label or points), `clearEffort`, `setTags` (`tags`),
 `addTag` and `removeTag` (`tag`), `setMilestone` (`milestone`),
 `setDueDate` (`date`), `setPlannedDates` (`start`, `end`), `setOrder`

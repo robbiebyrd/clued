@@ -69,7 +69,7 @@ func (s *Service) SetStatus(ctx context.Context, identifier, status string, forc
 	if err != nil {
 		return nil, err
 	}
-	changed, err := s.applyStatus(d, status, force)
+	changed, err := s.applyStatus(ctx, d, status, force)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (s *Service) SetStatus(ctx context.Context, identifier, status string, forc
 // it) and reaching complete records `completed`; both are overwritten on a
 // later return and kept when the document moves away. Kinds with a criteria
 // gate refuse complete while acceptance criteria are open, force or not.
-func (s *Service) applyStatus(d *model.Document, status string, force bool) (bool, error) {
+func (s *Service) applyStatus(ctx context.Context, d *model.Document, status string, force bool) (bool, error) {
 	to, ok := s.cfg.NormalizeStatus(status)
 	if !ok {
 		return false, newErr(KindBadRequest, "unknown status %q (known: %s)", status, strings.Join(s.cfg.StatusNames(), ", "))
@@ -99,6 +99,11 @@ func (s *Service) applyStatus(d *model.Document, status string, force bool) (boo
 	}
 	if to == "complete" {
 		if err := s.criteriaGate(d); err != nil {
+			return false, err
+		}
+	}
+	if !force && (to == "in_progress" || to == "complete") {
+		if err := s.dependencyGate(ctx, d, to == "complete"); err != nil {
 			return false, err
 		}
 	}
@@ -242,7 +247,7 @@ func (s *Service) PatchFrontMatter(ctx context.Context, identifier string, patch
 			d.FrontMatter.Type = t
 		case "status":
 			str, _ := v.(string)
-			if _, err := s.applyStatus(d, str, force); err != nil {
+			if _, err := s.applyStatus(ctx, d, str, force); err != nil {
 				return nil, err
 			}
 		case "priority":

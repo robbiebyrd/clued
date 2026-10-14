@@ -2,11 +2,12 @@
 id: 0027-bek
 title: Enforce story dependencies and add ready and claim
 type: feat
-status: ready
+status: in_progress
 priority: "1"
 effort: M
 created: "2026-10-14T03:13:00.587Z"
-updated: "2026-10-14T03:13:00.587Z"
+updated: "2026-10-14T03:40:05.282Z"
+started: "2026-10-14T03:31:28.439Z"
 tags:
   - plans-and-stories
   - service
@@ -23,13 +24,13 @@ links:
     - ["0007-w5t", "included"]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Enforce story dependencies and add ready and claim
@@ -58,8 +59,10 @@ Service tests, a concurrent claim test, CLI and MCP exposure, PROTOCOL.md.
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./service/ ./ops/ ./store/...
-- [ ] VERIFY: Starting a story whose dependency is open fails with the dependency listed, and succeeds with force
-- [ ] VERIFY: Two concurrent claims of one story produce exactly one winner
+- [x] VERIFY: cd mind-palace && go test -race ./service/ ./ops/ ./store/...
+- [x] VERIFY: Starting a story whose dependency is open fails with the dependency listed, and succeeds with force
+- [x] VERIFY: Two concurrent claims of one story produce exactly one winner
 
 ## Work Log
+
+### 2026-10-14T03:40:05.282Z - Dependency gate in applyStatus, following the relations' documented meaning: moving to in_progress needs every depends target (plan or story) finished (complete, rejected or archived); moving to complete also needs every document whose blocks link names this one finished. New error kind BlockedByDependency (409, exit 15) lists them; force overrides; auto-completion from progress waits while one is open. New ops ready (both kinds; statuses that may move to in_progress, no open depends, by priority/order/id; tag, milestone, unassigned, limit), dependencies (both kinds) and claim (stories): assignee + in_progress in one write, Conflict for another holder, idempotent for the holder; serialised by a palace mutex and, on the file store, store.Locker (an O_EXCL lock file under the system temp dir, stale after 30 s), then re-read. CLI ready, dependencies, claim; ready and claim are in the core tier (now 52 tools / 29,461 bytes; full 104 / 80,553). Tests: TestDependenciesGateStartAndCompletion, TestDependsOnAPlan, TestReadyListsStartableWorkInPriorityOrder, TestClaimHasOneWinner (8 concurrent claims, one winner), filestore lock tests. Tried on this repo: story dependencies 0033-zmt lists 0028-p8p.

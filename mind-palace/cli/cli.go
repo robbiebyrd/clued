@@ -39,19 +39,20 @@ import (
 
 // Exit codes by error kind.
 var exitCodes = map[string]int{
-	service.KindBadRequest:         2,
-	service.KindValidation:         3,
-	service.KindNotFound:           4,
-	service.KindInvalidTransition:  5,
-	service.KindImmutableField:     6,
-	service.KindUnknownSection:     7,
-	service.KindLinkedPlan:         8,
-	service.KindConflict:           9,
-	service.KindStorage:            10,
-	service.KindIncompleteCriteria: 11,
-	service.KindUnknownStep:        12,
-	service.KindUnknownCriterion:   13,
-	service.KindLinkedStory:        14,
+	service.KindBadRequest:          2,
+	service.KindValidation:          3,
+	service.KindNotFound:            4,
+	service.KindInvalidTransition:   5,
+	service.KindImmutableField:      6,
+	service.KindUnknownSection:      7,
+	service.KindLinkedPlan:          8,
+	service.KindConflict:            9,
+	service.KindStorage:             10,
+	service.KindIncompleteCriteria:  11,
+	service.KindUnknownStep:         12,
+	service.KindUnknownCriterion:    13,
+	service.KindLinkedStory:         14,
+	service.KindBlockedByDependency: 15,
 }
 
 // ExitCode maps an error to a process exit code.
@@ -356,7 +357,7 @@ func (a *App) kindGroup(k *kind.Kind) *cobra.Command {
 	c.AddCommand(
 		kc.createCmd(), kc.getCmd(), kc.listCmd(), kc.updateCmd(), kc.deleteCmd(), kc.validateCmd(),
 		kc.templateCmd(),
-		kc.setTitleCmd(), kc.setTypeCmd(), kc.setStatusCmd(), kc.transitionsCmd(), kc.setPriorityCmd(), kc.setEffortCmd(), kc.clearEffortCmd(), kc.patchCmd(),
+		kc.setTitleCmd(), kc.setTypeCmd(), kc.setStatusCmd(), kc.transitionsCmd(), kc.readyCmd(), kc.dependenciesCmd(), kc.setPriorityCmd(), kc.setEffortCmd(), kc.clearEffortCmd(), kc.patchCmd(),
 		kc.setTagsCmd(), kc.addTagCmd(), kc.removeTagCmd(), kc.setMilestoneCmd(), kc.setDueDateCmd(), kc.setPlannedCmd(), kc.setOrderCmd(),
 		kc.linkPlanCmd(), kc.unlinkPlanCmd(), kc.linkStoryCmd(), kc.unlinkStoryCmd(), kc.addSpecCmd(), kc.removeSpecCmd(), kc.setWebCmd(), kc.removeWebCmd(), kc.setRepoCmd(), kc.clearRepoCmd(),
 		kc.progressCmd(), kc.setProgressCmd(), kc.removeProgressCmd(),
@@ -366,7 +367,7 @@ func (a *App) kindGroup(k *kind.Kind) *cobra.Command {
 		c.AddCommand(kc.setPurposeCmd())
 	}
 	if k.HasAssignee {
-		c.AddCommand(kc.setAssigneeCmd())
+		c.AddCommand(kc.setAssigneeCmd(), kc.claimCmd())
 	}
 	if k.PlanLinkSections {
 		c.AddCommand(kc.planSectionsCmd())
@@ -664,6 +665,36 @@ func (kc *kindCommands) transitionsCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return kc.run(cmd, "getTransitions", ops.DocParams{Document: args[0]})
 		}}
+}
+
+func (kc *kindCommands) readyCmd() *cobra.Command {
+	var p ops.ReadyParams
+	c := &cobra.Command{Use: "ready", Short: "List the documents that can start now (nothing they depend on is open)", Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return kc.run(cmd, "ready", p)
+		}}
+	c.Flags().StringVar(&p.Tag, "tag", "", "keep documents carrying this tag")
+	c.Flags().StringVar(&p.Milestone, "milestone", "", "keep documents in this milestone")
+	c.Flags().BoolVar(&p.Unassigned, "unassigned", false, "keep only documents nobody is assigned to")
+	c.Flags().IntVar(&p.Limit, "limit", 0, "return at most this many")
+	return c
+}
+
+func (kc *kindCommands) dependenciesCmd() *cobra.Command {
+	return &cobra.Command{Use: "dependencies " + kc.arg(), Short: "List the unfinished plans and stories that hold the document up", Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return kc.run(cmd, "dependencies", ops.DocParams{Document: args[0]})
+		}}
+}
+
+func (kc *kindCommands) claimCmd() *cobra.Command {
+	var force bool
+	c := &cobra.Command{Use: "claim " + kc.arg() + " <provider:handle>", Short: "Take the document: set the assignee and start it, refusing one someone else holds", Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return kc.run(cmd, "claim", ops.ClaimParams{Document: args[0], Assignee: args[1], Force: force})
+		}}
+	c.Flags().BoolVar(&force, "force", false, "take it from another assignee and override the workflow and dependency rules")
+	return c
 }
 
 func (kc *kindCommands) setPriorityCmd() *cobra.Command {
