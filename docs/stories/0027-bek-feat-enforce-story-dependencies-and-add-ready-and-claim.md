@@ -2,12 +2,13 @@
 id: 0027-bek
 title: Enforce story dependencies and add ready and claim
 type: feat
-status: in_progress
+status: complete
 priority: "1"
 effort: M
 created: "2026-10-14T03:13:00.587Z"
-updated: "2026-10-14T03:40:05.282Z"
+updated: "2026-10-14T03:59:05.480Z"
 started: "2026-10-14T03:31:28.439Z"
+completed: "2026-10-14T03:59:05.480Z"
 tags:
   - plans-and-stories
   - service

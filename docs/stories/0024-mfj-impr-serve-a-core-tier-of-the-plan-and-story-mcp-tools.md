@@ -2,12 +2,13 @@
 id: 0024-mfj
 title: Serve a core tier of the plan and story MCP tools
 type: impr
-status: in_progress
+status: complete
 priority: "1"
 effort: S
 created: "2026-10-14T03:13:00.422Z"
-updated: "2026-10-14T03:18:39.722Z"
+updated: "2026-10-14T03:59:05.279Z"
 started: "2026-10-14T03:13:19.766Z"
+completed: "2026-10-14T03:59:05.279Z"
 tags:
   - mcp
   - tokens

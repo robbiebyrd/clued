@@ -2,12 +2,13 @@
 id: 0026-fu8
 title: Query sessions by the files they touched and the errors they hit
 type: feat
-status: in_progress
+status: complete
 priority: "1"
 effort: M
 created: "2026-10-14T03:13:00.528Z"
-updated: "2026-10-14T03:31:19.184Z"
+updated: "2026-10-14T03:59:05.414Z"
 started: "2026-10-14T03:24:34.252Z"
+completed: "2026-10-14T03:59:05.414Z"
 tags:
   - session
   - mcp

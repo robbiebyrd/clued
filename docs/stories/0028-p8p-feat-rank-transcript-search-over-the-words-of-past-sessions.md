@@ -2,12 +2,13 @@
 id: 0028-p8p
 title: Rank transcript search over the words of past sessions
 type: feat
-status: in_progress
+status: complete
 priority: "1"
 effort: M
 created: "2026-10-14T03:13:00.645Z"
-updated: "2026-10-14T03:46:47.084Z"
+updated: "2026-10-14T03:59:05.550Z"
 started: "2026-10-14T03:40:53.263Z"
+completed: "2026-10-14T03:59:05.550Z"
 tags:
   - session
   - search

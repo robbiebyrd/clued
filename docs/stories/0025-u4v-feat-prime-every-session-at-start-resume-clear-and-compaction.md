@@ -2,12 +2,13 @@
 id: 0025-u4v
 title: Prime every session at start, resume, clear and compaction
 type: feat
-status: in_progress
+status: complete
 priority: "1"
 effort: S
 created: "2026-10-14T03:13:00.479Z"
-updated: "2026-10-14T03:24:01.644Z"
+updated: "2026-10-14T03:59:05.348Z"
 started: "2026-10-14T03:18:54.062Z"
+completed: "2026-10-14T03:59:05.348Z"
 tags:
   - prime
   - hooks
