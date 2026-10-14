@@ -42,8 +42,9 @@ func TestTranscriptModelIsRecordedOnTheSession(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		// The memory store joins typed documents, MongoDB decoded ones.
 		var changes []session.Doc
-		for _, ev := range full["hook_events"].([]session.Doc) {
+		for _, ev := range joined(full["hook_events"]) {
 			if ev["hook_event_name"] == session.ModelChangedEventName {
 				changes = append(changes, ev)
 			}
@@ -52,4 +53,24 @@ func TestTranscriptModelIsRecordedOnTheSession(t *testing.T) {
 			t.Fatalf("model changes = %v", changes)
 		}
 	})
+}
+
+// joined reads a list of a full session whatever the store decoded it to.
+func joined(v any) []session.Doc {
+	switch list := v.(type) {
+	case []session.Doc:
+		return list
+	case []any:
+		out := make([]session.Doc, 0, len(list))
+		for _, item := range list {
+			switch d := item.(type) {
+			case session.Doc:
+				out = append(out, d)
+			case map[string]any:
+				out = append(out, session.Doc(d))
+			}
+		}
+		return out
+	}
+	return nil
 }
