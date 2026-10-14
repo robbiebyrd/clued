@@ -482,6 +482,33 @@ func (s *Store) MemoryEvents(_ context.Context, q session.MemoryQuery) ([]sessio
 	return out, nil
 }
 
+// limitProjection is what LimitSamples returns of a LimitsSampled event.
+var limitProjection = []string{"session_id", "cwd", "model", "version", "context_window", "rate_limits", "cost", "sampled_at", "created_at"}
+
+func (s *Store) LimitSamples(_ context.Context, q session.LimitQuery) ([]session.Doc, error) {
+	inSessions := map[string]bool{}
+	for _, id := range q.SessionIDs {
+		inSessions[id] = true
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(hookEvents, func(d session.Doc) bool {
+		if strOf(d, "hook_event_name") != session.LimitsEventName || !owned(d, q.AccountID) {
+			return false
+		}
+		if len(inSessions) > 0 && !inSessions[strOf(d, "session_id")] {
+			return false
+		}
+		return q.Since.IsZero() || !timeOf(d, "created_at").Before(q.Since)
+	})
+	sort.SliceStable(found, func(i, j int) bool { return timeOf(found[i], "created_at").After(timeOf(found[j], "created_at")) })
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		out = append(out, project(d, limitProjection...))
+	}
+	return out, nil
+}
+
 func (s *Store) HookEventIDsByToolUse(_ context.Context, sessionID string, toolUseIDs []string) ([]string, error) {
 	wanted := map[string]bool{}
 	for _, id := range toolUseIDs {

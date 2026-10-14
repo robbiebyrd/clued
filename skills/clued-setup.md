@@ -430,6 +430,21 @@ session start. This is the same in both modes:
 bash "${CLUED_PLUGIN_ROOT}/hooks/register-hooks"
 ```
 
+Then offer the status line, once:
+
+> "Should clued also run Claude Code's status line? It prints your current status line unchanged (or `ctx 37% of 1M · 5h 12% · 7d 40%` when there is none) and records the context window's fill and, on a Pro or Max plan, the five-hour and seven-day usage limits as `LimitsSampled` events you can query with `get_limits`. (yes/no)"
+
+On yes, set `statusLine` in the config file and register again, which keeps the
+status line command configured today to run after each sample:
+
+```bash
+jq '.statusLine = true' "${HOME}/.claude/plugins/data/clued/config.json" > "${HOME}/.claude/plugins/data/clued/config.json.tmp" && mv "${HOME}/.claude/plugins/data/clued/config.json.tmp" "${HOME}/.claude/plugins/data/clued/config.json" && chmod 600 "${HOME}/.claude/plugins/data/clued/config.json"
+bash "${CLUED_PLUGIN_ROOT}/hooks/register-hooks"
+```
+
+The status line takes effect on the next Claude Code start. Setting `statusLine`
+back to `false` and registering again puts the previous command back.
+
 ### Local MongoDB — start the daemon
 
 ```bash

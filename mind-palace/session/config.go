@@ -28,6 +28,11 @@ type Config struct {
 	// minted; ServerCAFile is an optional PEM bundle that is trusted in
 	// addition to the system roots (a private CA); ServerInsecure allows a
 	// plain http:// ServerURL on a host that is not loopback.
+	// StatusLine turns on the status-line sampler: register-hooks then
+	// installs `mind-palace hook status` as Claude Code's status line,
+	// which posts LimitsSampled events (CLUED_STATUS_LINE).
+	StatusLine bool `json:"statusLine"`
+
 	ServerURL      string `json:"serverUrl"`
 	ServerToken    string `json:"serverToken"`
 	ServerCAFile   string `json:"serverCaFile"`
@@ -141,6 +146,11 @@ func LoadConfig(path string) Config {
 	if v := os.Getenv("CLUED_PORT"); v != "" {
 		if port, err := strconv.Atoi(v); err == nil {
 			cfg.Port = port
+		}
+	}
+	if v := os.Getenv("CLUED_STATUS_LINE"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.StatusLine = b
 		}
 	}
 	setFromEnv(&cfg.ServerURL, "CLUED_SERVER_URL")

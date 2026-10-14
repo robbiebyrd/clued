@@ -59,6 +59,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
+		{"usage events filter by session, time and account, newest first", limitSamples},
 		{"full session joins sub-collections and strips redundant fields", fullSessionShape},
 		{"full session of a session with nothing else has empty arrays", fullSessionEmpty},
 		{"full session is not found for a missing or foreign session", fullSessionNotFound},
@@ -956,6 +957,66 @@ func memoryEvents(t *testing.T, s session.Store) {
 	eq(t, "cwd", got[0]["cwd"], "/p/s1")
 	eq(t, "memory.kind", got[0].Map("memory")["kind"], "handoff")
 	if !timeOf(t, got[0], "created_at").Equal(t0.Add(time.Minute)) {
+		t.Errorf("created_at = %v", got[0]["created_at"])
+	}
+}
+
+// limitSample is a LimitsSampled event as `hook status` posts it, once the
+// daemon has stamped account_id and created_at.
+func limitSample(sid, acc string, used float64, at time.Time) session.Doc {
+	return session.Doc{
+		"session_id": sid, "account_id": acc, "hook_event_name": session.LimitsEventName, "cwd": "/p/" + sid,
+		"created_at": at, "sampled_at": at.UTC().Format(time.RFC3339Nano),
+		"model":          session.Doc{"id": "claude-fable-5-1", "display_name": "Fable 5.1"},
+		"version":        "2.1.0",
+		"context_window": session.Doc{"used_percentage": used, "context_window_size": 1000000},
+		"rate_limits":    session.Doc{"five_hour": session.Doc{"used_percentage": 12.0, "resets_at": 1760400000}},
+		"cost":           session.Doc{"total_cost_usd": 0.5},
+	}
+}
+
+func limitSamples(t *testing.T, s session.Store) {
+	for _, ev := range []session.Doc{
+		limitSample("s1", "acc", 10, t0),
+		limitSample("s1", "acc", 20, t0.Add(time.Minute)),
+		limitSample("s2", "acc", 30, t0.Add(2*time.Minute)),
+		limitSample("s3", "other", 40, t0.Add(3*time.Minute)),
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": session.Doc{"command": "x"}, "created_at": t0},
+	} {
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	used := func(q session.LimitQuery) []float64 {
+		var out []float64
+		for _, d := range ok(s.LimitSamples(ctx, q)) {
+			switch v := d.Map("context_window")["used_percentage"].(type) {
+			case float64:
+				out = append(out, v)
+			case int:
+				out = append(out, float64(v))
+			case int32:
+				out = append(out, float64(v))
+			case int64:
+				out = append(out, float64(v))
+			default:
+				t.Fatalf("used_percentage is %T", v)
+			}
+		}
+		return out
+	}
+	eq(t, "own account and usage events only, newest first", used(session.LimitQuery{AccountID: "acc", Limit: 10}), []float64{30, 20, 10})
+	eq(t, "session scoping", used(session.LimitQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 10}), []float64{20, 10})
+	eq(t, "since", used(session.LimitQuery{AccountID: "acc", Since: t0.Add(time.Minute), Limit: 10}), []float64{30, 20})
+	eq(t, "limit", used(session.LimitQuery{AccountID: "acc", Limit: 1}), []float64{30})
+	eq(t, "unknown session", len(used(session.LimitQuery{AccountID: "acc", SessionIDs: []string{"zzz"}, Limit: 10})), 0)
+
+	got := ok(s.LimitSamples(ctx, session.LimitQuery{AccountID: "acc", SessionIDs: []string{"s2"}, Limit: 10}))
+	if len(got) != 1 {
+		t.Fatalf("got %d events, want 1", len(got))
+	}
+	eq(t, "projection fields", sortedKeys(got[0]), []string{"context_window", "cost", "created_at", "cwd", "model", "rate_limits", "sampled_at", "session_id", "version"})
+	eq(t, "cwd", got[0]["cwd"], "/p/s2")
+	eq(t, "model id", got[0].Map("model")["id"], "claude-fable-5-1")
+	if !timeOf(t, got[0], "created_at").Equal(t0.Add(2 * time.Minute)) {
 		t.Errorf("created_at = %v", got[0]["created_at"])
 	}
 }

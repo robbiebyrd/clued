@@ -147,7 +147,7 @@ func (a *App) sessionCmd() *cobra.Command {
 		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionForgetCmd(), a.sessionExportCmd(), a.sessionImportCmd(), a.sessionOTelExportCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
 		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
-		a.sessionSearchMemoryCmd(), a.sessionMemoryIngestCmd(),
+		a.sessionSearchMemoryCmd(), a.sessionLimitsCmd(), a.sessionMemoryIngestCmd(),
 		a.sessionLoginCmd(), a.sessionLogoutCmd(), a.sessionConfigPullCmd(),
 	)
 	return c
@@ -258,6 +258,36 @@ func (p storePoster) Post(ctx context.Context, ev memory.Event) error {
 		return err
 	}
 	return nil
+}
+
+// sessionLimitsCmd is `session limits`: the LimitsSampled events `hook status`
+// posted, newest first.
+func (a *App) sessionLimitsCmd() *cobra.Command {
+	var args query.LimitsArgs
+	c := &cobra.Command{
+		Use:   "limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]",
+		Short: "Show the context-window and usage-limit samples the status line captured (LimitsSampled events), newest first",
+		Args:  cobra.NoArgs,
+	}
+	run := a.sessionAction(func(ctx context.Context, _ session.Store, svc *query.Service) (any, error) {
+		return svc.Limits(ctx, args)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if err := a.validated(
+			checkRegex("--git-origin", args.GitOrigin), checkRegex("--project-path", args.ProjectPath),
+			checkNotNegative("--limit", args.Limit),
+		); err != nil {
+			return err
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringVar(&args.SessionID, "session", "", "only this session")
+	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
+	f.StringVar(&args.ProjectPath, "project-path", "", "only sessions whose project path matches this regular expression")
+	f.StringVar(&args.Since, "since", "", "only samples after this RFC 3339 time, or within this duration back from now (e.g. 24h)")
+	f.IntVar(&args.Limit, "limit", 0, "maximum samples (default 20, at most 500)")
+	return c
 }
 
 // memoryStateDir is where the ingest keeps its per-store state: next to the

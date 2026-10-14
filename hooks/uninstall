@@ -94,6 +94,23 @@ if [[ -f "${DATA_DIR}/relay.log" ]]; then
   echo "clued: removed relay log"
 fi
 
+# --- The status line: put back the command clued's replaced (register-hooks kept it) ---
+SETTINGS="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
+if command -v jq &>/dev/null && [[ -f "$SETTINGS" ]]; then
+  current=$(jq -r '.statusLine.command // empty' "$SETTINGS" 2>/dev/null)
+  if [[ "$current" == *"/scripts/clued hook status"* ]]; then
+    then=$(jq -r '.then // empty' "${DATA_DIR}/statusline.json" 2>/dev/null)
+    TMP="${SETTINGS}.tmp.$$"
+    if [[ -n "$then" ]]; then
+      jq --arg cmd "$then" '.statusLine.command = $cmd' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
+    else
+      jq 'del(.statusLine)' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
+    fi
+    rm -f "${DATA_DIR}/statusline.json"
+    echo "clued: status line restored"
+  fi
+fi
+
 # --- Config, data and the bin/ dir with the downloaded release binary (inside the data dir) ---
 if [[ $KEEP_CONFIG -eq 0 && -d "$DATA_DIR" ]]; then
   rm -rf "$DATA_DIR"

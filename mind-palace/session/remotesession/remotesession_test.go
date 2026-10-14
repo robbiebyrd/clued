@@ -268,6 +268,10 @@ func (h *harness) DeleteSessions(ctx context.Context, q session.ForgetQuery) (se
 	return h.as(q.AccountID).DeleteSessions(ctx, q)
 }
 
+func (h *harness) LimitSamples(ctx context.Context, q session.LimitQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).LimitSamples(ctx, q)
+}
+
 func (h *harness) FullSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
 	return h.as(accountID).FullSession(ctx, accountID, sessionID)
 }

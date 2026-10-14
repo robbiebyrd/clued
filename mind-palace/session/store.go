@@ -113,6 +113,23 @@ type Forgotten struct {
 	Documents int64    `json:"documents"`
 }
 
+// LimitQuery selects LimitsSampled events (the context-window and
+// usage-limit samples the status line posts), newest first. Empty
+// SessionIDs mean every session; a zero Since means no lower bound on
+// created_at.
+type LimitQuery struct {
+	AccountID  string    `json:"-"`
+	SessionIDs []string  `json:"sessionIds"`
+	Since      time.Time `json:"since"`
+	Limit      int       `json:"limit"`
+}
+
+// LimitsEventName is the hook_event_name of a status-line sample (`mind-palace
+// hook status`): the context window's fill, the subscription's usage
+// windows, the model and the cost of the session at that moment, under
+// "context_window", "rate_limits", "model", "version" and "cost".
+const LimitsEventName = "LimitsSampled"
+
 // MemoryEventName is the hook_event_name of an ingested memory record. Such
 // an event carries the record under "memory" with a "hash" that identifies
 // its text; a store keeps one event per account and hash.
@@ -189,6 +206,11 @@ type Store interface {
 	// DeleteSessions deletes the sessions ForgetQuery selects and everything
 	// captured for them; an empty AccountID is ErrNoAccount.
 	DeleteSessions(ctx context.Context, q ForgetQuery) (Forgotten, error)
+
+	// LimitSamples projects session_id, cwd, model, version, context_window,
+	// rate_limits, cost, sampled_at and created_at of the LimitsSampled
+	// events matching the query, newest first.
+	LimitSamples(ctx context.Context, q LimitQuery) ([]Doc, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of

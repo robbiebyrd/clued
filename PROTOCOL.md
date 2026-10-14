@@ -249,6 +249,31 @@ event carries `session_id` and `transcript_path`, runs the catch-up (section
 `~/.claude/plugins/data/clued/relay.log` as
 `<RFC3339> <event> session=<id>: <notes>`.
 
+**`hook status [--then <command>] [--state-dir d] [--quiet]`** (the status
+line, not a hook event). Claude Code runs the `statusLine` command of
+`settings.json` after every assistant message, after compaction, when a
+usage window resets and on its `refreshInterval`, piping it a JSON object
+with `session_id`, `cwd`, `transcript_path`, `version`, `model` (`id`,
+`display_name`), `context_window` (`used_percentage`,
+`remaining_percentage`, `context_window_size`, `total_input_tokens`,
+`total_output_tokens`, `current_usage`), `rate_limits` (`five_hour` and
+`seven_day`, each `used_percentage` and `resets_at`, Pro and Max accounts
+only) and `cost`. `hook status` prints the line first: the output of
+`--then` (a shell command run with the same stdin; by default the status
+line command that was configured before clued's, which `register-hooks`
+keeps in `statusline.json` next to the config file), else a line of its own
+such as `ctx 37% of 1M · 5h 12% · 7d 40% · Fable 5.1`. Then, when the
+sample is worth keeping, it posts a `LimitsSampled` event (section 5.1).
+Worth keeping: the first sample of the session, a change of a point in the
+context's used percentage, any change of a usage window's percentage or
+reset time, or five minutes since the last one, never within fifteen
+seconds of it; the last kept sample of each session lives under
+`~/.claude/plugins/data/clued/limits/`. It never fails the status line:
+problems are notes on stderr and the exit code is 0. `register-hooks`
+installs it as the status line when the config sets `statusLine: true`
+(section 11.1) and puts the previous command back when that is unset;
+`hooks/uninstall` restores it too.
+
 ## 3. The shim: `scripts/clued`
 
 `scripts/clued [--locate | --build-only] [args…]` finds a `mind-palace`
@@ -377,6 +402,26 @@ fallback) or stored directly in remote mode:
 `time`, `day` and `branch` appear only when set. Without `--quiet` the
 command prints `{"ok": true, "result": {"dirs": […], "scanned": n, "posted": n, "session_id": "…"}}`.
 
+### 5.1 Limits samples
+
+`hook status` (section 2.6) posts the status line's numbers as a
+`LimitsSampled` event, through the daemon in local mode (WAL fallback) or
+straight into the server in remote mode, so the account's history of
+context fill and usage limits is queryable with `get_limits`, `session
+limits` and `POST /api/v1/session/limit-samples`:
+
+```json
+{"hook_event_name": "LimitsSampled", "session_id": "<id>", "cwd": "<cwd>", "sampled_at": "<RFC3339Nano UTC>", "version": "<Claude Code version>",
+ "model": {"id": "claude-fable-5-1", "display_name": "Fable 5.1"},
+ "context_window": {"used_percentage": 7.4, "remaining_percentage": 92.6, "context_window_size": 1000000, "total_input_tokens": 74454, "total_output_tokens": 281, "current_usage": {…}},
+ "rate_limits": {"five_hour": {"used_percentage": 12, "resets_at": 1760400000}, "seven_day": {"used_percentage": 40.5, "resets_at": 1760900000}},
+ "cost": {"total_cost_usd": 1.25, "total_duration_ms": 5000, …}}
+```
+
+The maps are stored as Claude Code sent them; one the input lacks (no
+`rate_limits` on an API-key account) is left out. The daemon stamps
+`account_id`, `host` and `created_at` as for every event.
+
 ## 6. MCP servers over stdio
 
 ### 6.1 `clued`: the session tools
@@ -387,10 +432,10 @@ error carrying the message. All tools except `restore_session`,
 `export_session` and `forget_session` are marked read-only;
 `forget_session` is marked destructive.
 
-**Token budgets.** Every tool but `restore_session` and `forget_session`
-takes `max_tokens`, the approximate size of its result in tokens, estimated
+**Token budgets.** Every tool but `restore_session`, `export_session` and
+`forget_session` takes `max_tokens`, the approximate size of its result in tokens, estimated
 as the JSON's length over four (default 4,000 for `find_sessions`, the
-`search_*` tools, `usage`, `file_history` and `find_errors`; 8,000 for
+`search_*` tools, `usage`, `file_history`, `find_errors` and `get_limits`; 8,000 for
 `get_session_context`, `get_full_session`, `read_transcript`, `get_lines`
 and `prime_context`; at least 200). A list result that fits is returned as
 the list; one that does not becomes `{"items": [...], "truncated": true,
@@ -417,6 +462,7 @@ malformed one, is an error.
 | `find_errors` | `type` (`hook_error`, `tool_failure`, `error_text`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | lines `error-flag` marked, newest first: `session_id`, `seq`, `type`, `text` (300 characters), `timestamp`, `project_path`, `git_origin`, `created_at` |
 | `search_transcripts` | `query` (required: words, any of which matches, `"quoted phrases"` that must appear, `-words` to exclude; matching ignores case), `session_id`, `git_origin` (regex), `project_path` (regex), `limit` (default 20, max 500) | transcript lines ranked by relevance (MongoDB text score; term frequency in the in-memory store), best first: `session_id`, `seq`, `score`, `snippet` (240 characters around the first matching word), `project_path`, `git_origin`, `created_at`. It searches the `search-text` enrichment, so a line is found once the enricher has run on it |
 | `usage` | `group_by` (`session`, the default, `model` or `day`), `session_id`, `git_origin` (regex), `project_path` (regex), `since` and `until` (inclusive UTC days, `YYYY-MM-DD`), `limit` (groups, default 50, max 500) | `{"group_by", "groups", "total", "unpriced_models"}`. Each group has `key` (the session id, model or day), `messages`, `input_tokens`, `cache_creation_input_tokens`, `cache_creation_1h_tokens`, `cache_read_input_tokens`, `output_tokens`, `peak_context_tokens` (the largest input context of one message), `cost_usd` and, unless grouped by model, `models` (the same counters per model). Every assistant message counts once (the lines of one message repeat its usage). `cost_usd` is an estimate at list prices (cache writes 1.25× the input price, 2× for the one-hour cache; cache reads at the model's cache-read price, 0.1× the input price unless the table says otherwise; a message whose prompt, input plus cache tokens, is over 100,000 tokens at the model's long-prompt price when it has one, as Claude Haiku 5.5 does) from the built-in table (the models and prices on Anthropic's pricing page; batch, fast-mode and US-only prices are not applied) and the config's `modelPrices`, rounded to 0.0001; it covers the priced models only and is `null` when none is priced; the others are listed in `unpriced_models`. Groups come costliest first, or in day order by day; `total` covers every group |
+| `get_limits` | `session_id`, `git_origin` (regex), `project_path` (regex), `since` (an RFC 3339 time, or a duration back from now such as `24h`), `limit` (default 20, max 500), `max_tokens`, `cursor` | `LimitsSampled` samples newest first: `session_id`, `project_path`, `git_origin`, `cwd`, `model`, `version`, `context_window`, `rate_limits`, `cost`, `sampled_at`, `created_at` (section 5.1) |
 | `read_transcript` | `session_id` (required), `offset` (default 0), `limit` (default 200, max 500), `max_tokens`, `cursor` (overrides `offset`) | transcript lines in order |
 | `get_lines` | `session_id` (required), `seqs` (required, 1 to 100 seq numbers), `max_tokens`, `cursor` | the whole transcript lines with those seqs, in seq order; a seq the transcript lacks is left out |
 | `restore_session` | `session_id` (required), `project_path` (override), `projects_dir` (override) | rebuilds the JSONL, subagent files, tool-result blobs and file-history backups on the local disk |
@@ -633,6 +679,7 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 | `POST /error-lines` | `{"types", "sessionIds", "limit"}` | transcript lines with `enrichments.error-flag.is_error` |
 | `POST /sessions/delete` | `{"sessionIds", "projectPathRe", "before"}` (at least one, else 400) | `{"sessions", "documents"}`: the token's account's sessions forgotten (see `forget_session`) |
 | `POST /usage-totals` | `{"groupBy", "sessionIds", "since", "until", "longPromptTokens"}` | `[{"key", "model", "messages", "input_tokens", "cache_creation_input_tokens", "cache_creation_1h_tokens", "cache_read_input_tokens", "output_tokens", "peak_context_tokens", "long_prompt"}]`, one per group and model (and, when `longPromptTokens` is positive, per whether a message's context tokens are over it), sorted by key, model and `long_prompt`; a `groupBy` other than `session`, `model`, `day` or empty is 400 |
+| `POST /limit-samples` | `{"sessionIds", "since" (RFC 3339, zero for none), "limit"}` | `LimitsSampled` events, newest first, projected to `session_id`, `cwd`, `model`, `version`, `context_window`, `rate_limits`, `cost`, `sampled_at`, `created_at` |
 | `POST /transcript-search` | `{"query", "sessionIds", "limit"}` | transcript lines whose `enrichments.search-text` matches, best first, with `score`; only `session_id`, `seq`, `score`, `created_at` and `enrichments.search-text` are returned |
 
 The query bodies use the camel-case keys above. The server decodes keys
@@ -875,6 +922,7 @@ forget [--session id]… [--project re] [--before day|time]
 export [--session id]… [--project re] [--since day|time] [--format md|html|jsonl|zip] [--out path] [--force] [--raw]
 import <file.jsonl|export.zip>
 otel-export [--session id]… [--project re] [--since day|time]
+limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]
 context <session>                         full <session>                         transcript <session> [--offset n] [--limit n]
 restore <session> [--project-path p] [--projects-dir d]                          backfill
 memory-ingest [--dir d]… [--cwd c] [--session id] [--quiet]
@@ -918,8 +966,8 @@ first token in `tokens.json`) and prints `{"dir", "composeFile", "proxy",
 "port", "serverUrl", "caFile", "hosts", "tls", "token", "up", "health",
 "written", "kept", "notes"}`; `up` is the command that starts the stack.
 
-Hooks (`mind-palace hook write-guard|stop-guard|status-review|prime|relay`) are
-section 2.6.
+Hooks (`mind-palace hook write-guard|stop-guard|status-review|prime|relay`)
+and the status line command (`mind-palace hook status`) are section 2.6.
 
 ## 10. The document model
 
@@ -1000,6 +1048,7 @@ the environment:
 | `retentionDays` | | `0` (keep) | MongoDB deletes captured documents that many days after they were stored (TTL indexes `retention_ttl` on `created_at`, and on `last_seen` for sessions); `0` drops the indexes |
 | `otelEndpoint` | `CLUED_OTEL_ENDPOINT` | (none) | An OTLP/HTTP collector (`http://localhost:4318`; `/v1/traces` is appended unless present). Each session's trace is sent when it ends: by the daemon 5 s after `SessionEnd` is stored, by `hook relay` right after its catch-up in remote mode, or by `session otel-export`. The trace: a root span `invoke_agent claude-code` (`gen_ai.operation.name`, `gen_ai.agent.name`, `gen_ai.conversation.id` = the session id, `clued.project_path`, `clued.git_origin`, …), a `turn` span per `UserPromptSubmit` (to the next one or the session's last event; `clued.turn.index`, `clued.prompt.chars`, and `gen_ai.usage.input_tokens`, `output_tokens`, `cache_read.input_tokens`, `cache_creation.input_tokens`, `gen_ai.response.model` from the `usage` enrichment, each message once; the session span holds the totals), an `execute_tool <name>` span per tool use from `PreToolUse` to `PostToolUse` or `PostToolUseFailure` (`gen_ai.tool.name`, `gen_ai.tool.call.id`; a failure has status error and `error.type`), and an `invoke_agent <agent_type>` span per subagent. Resource: `service.name` `claude-code`. Trace and span ids derive from the account and session, and `<config dir>/otel/<session>.json` records the spans sent, so each span is sent at most once and a resumed session adds only its new spans. A collector that is down costs a log line (the daemon log, or `relay.log`), never a hook; nothing is retried until the session is exported again |
 | `otelHeaders` | | `{}` | Headers sent with every OTLP request (`{"Authorization": "Bearer …"}`); secrets, never logged |
+| `statusLine` | `CLUED_STATUS_LINE` | `false` | `register-hooks` makes `hook status` the Claude Code status line, keeping the previous command in `statusline.json` to run after each sample, and puts it back when unset |
 | `modelPrices` | | | Prices for the `usage` estimates, by model id prefix, in US dollars per million tokens: `{"<prefix>": {"input": n, "output": n, "cacheRead": n, "longPrompt": {"input": n, "output": n, "cacheRead": n}}}` (`cacheRead` defaults to 0.1× `input`; `longPrompt` prices messages whose prompt is over 100,000 tokens). The longest matching prefix wins and these come before the built-in table, whose entries match only their own model ids and those ids' dated or platform forms (`claude-opus-4-1-20250805`, `anthropic.claude-sonnet-4-5-20250929-v1:0`), never a newer model whose id starts with them |
 | `devRepoPath` | | | read by the shim and `session-start` only: build from this checkout |
 

@@ -256,6 +256,15 @@ const toolSchemas = `{
       "max_tokens":{"description":"Approximate size limit of the result in tokens (default 8000, at least 200)","type":"number"},
       "sections":{"description":"Sections to include (default all)","items":{"enum":["transcript","subagents","blobs","hook_events"],"type":"string"},"type":"array"},
       "session_id":{"type":"string"}},"required":["session_id"]}},
+  "get_limits": {"description": "Return the context-window and usage-limit samples the status line captured (LimitsSampled events): the context's used percentage and window size, the five-hour and seven-day limits with their reset times, the model and the cost, newest first, across every session and machine of the account unless scoped. The result is cut to about 4000 tokens (max_tokens): a cut result says \"truncated\": true (a list becomes {\"items\", \"truncated\", \"next\"}), and its next, passed as cursor, continues it.",
+    "inputSchema": {"type":"object","properties":{
+      "cursor":{"description":"The next value of a truncated result, to continue after it (the other arguments must stay the same)","type":"string"},
+      "git_origin":{"description":"Restrict to sessions whose git origin matches this regex","type":"string"},
+      "limit":{"description":"Max samples to return (default 20, max 500)","type":"number"},
+      "max_tokens":{"description":"Approximate size limit of the result in tokens (default 4000, at least 200)","type":"number"},
+      "project_path":{"description":"Restrict to sessions whose project path matches this regex","type":"string"},
+      "session_id":{"description":"Restrict to one session","type":"string"},
+      "since":{"description":"Only samples after this RFC 3339 time, or within this duration back from now (e.g. 24h)","type":"string"}}}},
   "get_lines": {"description": "Fetch whole transcript lines of a session by their seq numbers, as search_transcripts, find_errors and read_transcript report them: search first, then fetch only the lines you need. The result is cut to about 8000 tokens (max_tokens): a cut result says \"truncated\": true (a list becomes {\"items\", \"truncated\", \"next\"}), and its next, passed as cursor, continues it.",
     "inputSchema": {"type":"object","properties":{
       "cursor":{"description":"The next value of a truncated result, to continue after it (the other arguments must stay the same)","type":"string"},
@@ -325,7 +334,7 @@ const toolSchemas = `{
       "until":{"description":"Last day to count, YYYY-MM-DD (UTC)","type":"string"}}}}
 }`
 
-func TestToolListHasTheFifteenToolsWithTheProtocolSchemas(t *testing.T) {
+func TestToolListHasTheSixteenToolsWithTheProtocolSchemas(t *testing.T) {
 	eachStore(t, func(t *testing.T) {
 		var want map[string]struct {
 			Description string `json:"description"`
@@ -679,7 +688,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 15 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
+		if len(names) != 16 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] || !names["pfx_get_limits"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {
