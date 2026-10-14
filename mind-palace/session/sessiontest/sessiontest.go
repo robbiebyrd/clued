@@ -37,6 +37,12 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"touch updates last_seen only for the owning account", touchSession},
 		{"git info is written only when git_origin is missing", gitInfoIfMissing},
 		{"get session is scoped to the account", getSessionScoping},
+		{"set model writes the model on a change and reports the previous one", setModel},
+		{"set live state writes the state on a change and reports the previous one", setLiveState},
+		{"set session meta sets the given fields and find sessions filters by title", setSessionMeta},
+		{"state changes select SessionStateChanged events by session and time, newest first", stateChanges},
+		{"find sessions filters by live state and last-seen bounds", findSessionsByStateAndTime},
+		{"last model before finds the newest assistant line's model under a seq or time", lastModelBefore},
 		{"find sessions filters by account and regexes", findSessionsFilters},
 		{"find sessions projects, orders by last_seen and limits", findSessionsOrdering},
 		{"find sessions rejects an invalid regex", findSessionsInvalidRegex},
@@ -60,6 +66,8 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
 		{"usage events filter by session, time and account, newest first", limitSamples},
+		{"activities select labelled lines by kind, session and time, newest first", activities},
+		{"rejected tool uses select the lines error-flag marked rejected, newest first", rejectedToolUses},
 		{"full session joins sub-collections and strips redundant fields", fullSessionShape},
 		{"full session of a session with nothing else has empty arrays", fullSessionEmpty},
 		{"full session is not found for a missing or foreign session", fullSessionNotFound},
@@ -338,6 +346,191 @@ func findSessionsFilters(t *testing.T, s session.Store) {
 	eq(t, "query matches project_path or cwd", find(session.SessionQuery{AccountID: "acc", QueryRe: "gamma", Limit: 10}), []string{"b", "c"})
 	eq(t, "filters combine", find(session.SessionQuery{AccountID: "acc", QueryRe: "gamma", ProjectPathRe: "beta", Limit: 10}), []string{"b"})
 	eq(t, "no match", find(session.SessionQuery{AccountID: "acc", ProjectPathRe: "zzz", Limit: 10}), []string{})
+}
+
+func setModel(t *testing.T, s session.Store) {
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s1", AccountID: "acc", LastSeen: t0}))
+	previous, changed, err := s.SetModel(ctx, "acc", "s1", "claude-a", t0)
+	must(t, err)
+	eq(t, "first model", []any{previous, changed}, []any{"", true})
+	got := ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "model stored", got["model"], "claude-a")
+	if !timeOf(t, got, "model_changed_at").Equal(t0) {
+		t.Errorf("model_changed_at = %v, want %v", got["model_changed_at"], t0)
+	}
+
+	previous, changed, err = s.SetModel(ctx, "acc", "s1", "claude-a", t0.Add(time.Hour))
+	must(t, err)
+	eq(t, "same model", []any{previous, changed}, []any{"claude-a", false})
+	if !timeOf(t, ok(s.GetSession(ctx, "acc", "s1")), "model_changed_at").Equal(t0) {
+		t.Error("the same model must not move model_changed_at")
+	}
+
+	previous, changed, err = s.SetModel(ctx, "acc", "s1", "claude-b", t0.Add(time.Hour))
+	must(t, err)
+	eq(t, "changed model", []any{previous, changed}, []any{"claude-a", true})
+	got = ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "new model", got["model"], "claude-b")
+	if !timeOf(t, got, "model_changed_at").Equal(t0.Add(time.Hour)) {
+		t.Errorf("model_changed_at = %v", got["model_changed_at"])
+	}
+
+	if _, _, err := s.SetModel(ctx, "other", "s1", "claude-c", t0); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("foreign account: err = %v, want ErrNotFound", err)
+	}
+	if _, _, err := s.SetModel(ctx, "acc", "missing", "claude-c", t0); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("missing session: err = %v, want ErrNotFound", err)
+	}
+	previous, changed, err = s.SetModel(ctx, "acc", "s1", "", t0)
+	must(t, err)
+	eq(t, "empty model is ignored", []any{previous, changed}, []any{"", false})
+	eq(t, "model kept", ok(s.GetSession(ctx, "acc", "s1"))["model"], "claude-b")
+
+	found := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 5}))
+	eq(t, "find sessions projects the model", found[0]["model"], "claude-b")
+}
+
+func setSessionMeta(t *testing.T, s session.Store) {
+	seedSessions(t, s)
+	must(t, s.SetSessionMeta(ctx, "acc", "a", session.Doc{"title": "Fix the build", "title_kind": "ai", "entrypoint": "cli", "claude_version": "2.1.0"}))
+	must(t, s.SetSessionMeta(ctx, "acc", "a", session.Doc{"title": "Release work", "title_kind": "custom", "pr_link": "https://x/pull/1", "worktree": session.Doc{"path": "/w"}}))
+	must(t, s.SetSessionMeta(ctx, "acc", "b", session.Doc{"title": "Build the thing", "slug": "sunny", "permission_mode": "plan"}))
+	must(t, s.SetSessionMeta(ctx, "acc", "a", nil))
+	if err := s.SetSessionMeta(ctx, "other", "a", session.Doc{"title": "x"}); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("foreign account: err = %v, want ErrNotFound", err)
+	}
+	if err := s.SetSessionMeta(ctx, "acc", "missing", session.Doc{"title": "x"}); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("missing session: err = %v, want ErrNotFound", err)
+	}
+	a := ok(s.GetSession(ctx, "acc", "a"))
+	eq(t, "later fields replace earlier ones", []any{a["title"], a["title_kind"], a["entrypoint"], a["claude_version"], a["pr_link"]}, []any{"Release work", "custom", "cli", "2.1.0", "https://x/pull/1"})
+	eq(t, "nested field", a.Map("worktree")["path"], "/w")
+	eq(t, "other sessions untouched", ok(s.GetSession(ctx, "acc", "c"))["title"], nil)
+
+	found := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", TitleRe: "build", Limit: 10}))
+	eq(t, "title filter is a case-insensitive regex", strs(found, "session_id"), []string{"b"})
+	eq(t, "projection", []any{found[0]["title"], found[0]["slug"], found[0]["permission_mode"]}, []any{"Build the thing", "sunny", "plan"})
+	all := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 10}))
+	eq(t, "no title filter", strs(all, "session_id"), []string{"b", "c", "a"})
+	eq(t, "pr_link projected", all[2]["pr_link"], "https://x/pull/1")
+	if _, err := s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", TitleRe: "(", Limit: 10}); err == nil {
+		t.Error("an invalid title regex must be an error")
+	}
+}
+
+func setLiveState(t *testing.T, s session.Store) {
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s1", AccountID: "acc", LastSeen: t0}))
+	previous, changed, err := s.SetLiveState(ctx, "acc", "s1", "working", "UserPromptSubmit", t0)
+	must(t, err)
+	eq(t, "first state", []any{previous, changed}, []any{"", true})
+	got := ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "state stored", []any{got["live_state"], got["live_state_reason"]}, []any{"working", "UserPromptSubmit"})
+	if !timeOf(t, got, "live_state_at").Equal(t0) {
+		t.Errorf("live_state_at = %v, want %v", got["live_state_at"], t0)
+	}
+
+	previous, changed, err = s.SetLiveState(ctx, "acc", "s1", "working", "PreToolUse", t0.Add(time.Minute))
+	must(t, err)
+	eq(t, "same state", []any{previous, changed}, []any{"working", false})
+	got = ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "same state keeps the reason", got["live_state_reason"], "UserPromptSubmit")
+
+	previous, changed, err = s.SetLiveState(ctx, "acc", "s1", "waiting", "Stop", t0.Add(time.Hour))
+	must(t, err)
+	eq(t, "changed state", []any{previous, changed}, []any{"working", true})
+	got = ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "new state", []any{got["live_state"], got["live_state_reason"]}, []any{"waiting", "Stop"})
+	if !timeOf(t, got, "live_state_at").Equal(t0.Add(time.Hour)) {
+		t.Errorf("live_state_at = %v", got["live_state_at"])
+	}
+
+	if _, _, err := s.SetLiveState(ctx, "other", "s1", "ended", "SessionEnd", t0); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("foreign account: err = %v, want ErrNotFound", err)
+	}
+	if _, _, err := s.SetLiveState(ctx, "acc", "missing", "ended", "SessionEnd", t0); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("missing session: err = %v, want ErrNotFound", err)
+	}
+	previous, changed, err = s.SetLiveState(ctx, "acc", "s1", "", "x", t0)
+	must(t, err)
+	eq(t, "empty state is ignored", []any{previous, changed}, []any{"", false})
+
+	found := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 5}))
+	eq(t, "find sessions projects the state", []any{found[0]["live_state"], found[0]["live_state_reason"]}, []any{"waiting", "Stop"})
+	if !timeOf(t, found[0], "live_state_at").Equal(t0.Add(time.Hour)) {
+		t.Errorf("projected live_state_at = %v", found[0]["live_state_at"])
+	}
+}
+
+func stateChanges(t *testing.T, s session.Store) {
+	change := func(sid, acc, from, to string, at time.Time) session.Doc {
+		return session.Doc{"session_id": sid, "account_id": acc, "hook_event_name": session.StateChangedEventName, "from": from, "to": to, "reason": "Stop", "at": at, "created_at": at}
+	}
+	for _, ev := range []session.Doc{
+		change("s1", "acc", "", "working", t0),
+		change("s1", "acc", "working", "waiting", t0.Add(time.Minute)),
+		change("s2", "acc", "", "working", t0.Add(2*time.Minute)),
+		change("s3", "other", "", "working", t0.Add(3*time.Minute)),
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": "Stop", "created_at": t0.Add(4 * time.Minute)},
+	} {
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	tos := func(q session.ActivityQuery) []string {
+		var out []string
+		for _, d := range ok(s.StateChanges(ctx, q)) {
+			sid, _ := d.String("session_id")
+			to, _ := d.String("to")
+			out = append(out, sid+"/"+to)
+		}
+		return out
+	}
+	eq(t, "own account's changes, newest first", tos(session.ActivityQuery{AccountID: "acc", Limit: 10}), []string{"s2/working", "s1/waiting", "s1/working"})
+	eq(t, "session scoping", tos(session.ActivityQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 10}), []string{"s1/waiting", "s1/working"})
+	eq(t, "since and limit", tos(session.ActivityQuery{AccountID: "acc", Since: t0.Add(time.Minute), Limit: 1}), []string{"s2/working"})
+	got := ok(s.StateChanges(ctx, session.ActivityQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 1}))[0]
+	eq(t, "projection", sortedKeys(got), []string{"at", "created_at", "from", "reason", "session_id", "to"})
+	eq(t, "from", got["from"], "working")
+	if !timeOf(t, got, "at").Equal(t0.Add(time.Minute)) {
+		t.Errorf("at = %v", got["at"])
+	}
+}
+
+func findSessionsByStateAndTime(t *testing.T, s session.Store) {
+	seedSessions(t, s) // a: t0+1h, b: t0+3h, c: t0+2h
+	_, _, err := s.SetLiveState(ctx, "acc", "a", "waiting", "Stop", t0)
+	must(t, err)
+	_, _, err = s.SetLiveState(ctx, "acc", "b", "working", "PreToolUse", t0)
+	must(t, err)
+	find := func(q session.SessionQuery) []string {
+		q.AccountID, q.Limit = "acc", 10
+		return strs(ok(s.FindSessions(ctx, q)), "session_id")
+	}
+	eq(t, "one state", find(session.SessionQuery{LiveStates: []string{"waiting"}}), []string{"a"})
+	eq(t, "several states", find(session.SessionQuery{LiveStates: []string{"waiting", "working"}}), []string{"b", "a"})
+	eq(t, "a state no session has", find(session.SessionQuery{LiveStates: []string{"ended"}}), []string{})
+	eq(t, "last seen from (inclusive)", find(session.SessionQuery{LastSeenFrom: t0.Add(2 * time.Hour)}), []string{"b", "c"})
+	eq(t, "last seen before (exclusive)", find(session.SessionQuery{LastSeenBefore: t0.Add(2 * time.Hour)}), []string{"a"})
+	eq(t, "both bounds", find(session.SessionQuery{LastSeenFrom: t0.Add(time.Hour), LastSeenBefore: t0.Add(3 * time.Hour)}), []string{"c", "a"})
+	eq(t, "bounds with a state", find(session.SessionQuery{LiveStates: []string{"working"}, LastSeenBefore: t0.Add(2 * time.Hour)}), []string{})
+}
+
+func lastModelBefore(t *testing.T, s session.Store) {
+	assistant := func(sid string, seq int, model string) session.TranscriptLine {
+		return session.TranscriptLine{SessionID: sid, Seq: seq, AccountID: "acc", Line: map[string]any{"type": "assistant", "message": map[string]any{"role": "assistant", "model": model}}}
+	}
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s1", 0, "user", "acc"), assistant("s1", 1, "claude-a"), assistant("s1", 2, session.SyntheticModel)}))
+	time.Sleep(5 * time.Millisecond)
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{assistant("s1", 3, "claude-b"), assistant("s2", 0, "claude-z")}))
+	model := func(sid string, seq int, at time.Time) string {
+		return ok(s.LastModelBefore(ctx, sid, seq, at))
+	}
+	eq(t, "newest model of the session", model("s1", -1, time.Time{}), "claude-b")
+	eq(t, "below a seq, skipping synthetic lines", model("s1", 3, time.Time{}), "claude-a")
+	eq(t, "no assistant line below", model("s1", 1, time.Time{}), "")
+	eq(t, "unknown session", model("zzz", -1, time.Time{}), "")
+	first := ok(s.TranscriptLines(ctx, session.LineQuery{AccountID: "acc", SessionID: "s1", Limit: 2}))
+	at := timeOf(t, first[1], "created_at")
+	eq(t, "not after a time", model("s1", -1, at), "claude-a")
+	eq(t, "before the first line", model("s1", -1, at.Add(-time.Second)), "")
 }
 
 func findSessionsOrdering(t *testing.T, s session.Store) {
@@ -1155,6 +1348,88 @@ func errorLines(t *testing.T, s session.Store) {
 	eq(t, "session scoping", keys(session.ErrorQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 1}), []string{"s1/2/error_text"})
 	got := ok(s.ErrorLines(ctx, session.ErrorQuery{AccountID: "acc", Limit: 1}))[0]
 	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "line", "seq", "session_id"})
+}
+
+func activities(t *testing.T, s session.Store) {
+	label := func(sid string, seq int, acc, kind string, enrich bool) {
+		line := tl(sid, seq, "assistant", acc)
+		line.Line = map[string]any{"type": "assistant", "timestamp": fmt.Sprintf("2026-10-14T10:00:%02dZ", seq)}
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{line}))
+		if !enrich {
+			return
+		}
+		var id any
+		for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "activity-kind", 0)) {
+			if d["session_id"] == sid && num(d["seq"]) == seq {
+				id = d["_id"]
+			}
+		}
+		result := session.Doc{"kind": kind, "label": kind, "detail": "d-" + kind, "tool_name": "", "tool_use_id": ""}
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "activity-kind", result))
+		time.Sleep(5 * time.Millisecond) // created_at orders the lines
+	}
+	label("s1", 0, "acc", "user", true)
+	label("s1", 1, "acc", "bash", true)
+	label("s1", 2, "acc", "edit", false)
+	label("s2", 0, "acc", "response", true)
+	label("s3", 0, "other", "user", true)
+	keys := func(q session.ActivityQuery) []string {
+		var out []string
+		for _, d := range ok(s.Activities(ctx, q)) {
+			sid, _ := d.String("session_id")
+			kind, _ := d.Map("enrichments").Map("activity-kind").String("kind")
+			out = append(out, fmt.Sprintf("%s/%d/%s", sid, num(d["seq"]), kind))
+		}
+		return out
+	}
+	eq(t, "labelled lines only, newest first, own account", keys(session.ActivityQuery{AccountID: "acc", Limit: 10}),
+		[]string{"s2/0/response", "s1/1/bash", "s1/0/user"})
+	eq(t, "kinds", keys(session.ActivityQuery{AccountID: "acc", Kinds: []string{"user", "bash"}, Limit: 10}),
+		[]string{"s1/1/bash", "s1/0/user"})
+	eq(t, "session scoping and limit", keys(session.ActivityQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 1}), []string{"s1/1/bash"})
+	got := ok(s.Activities(ctx, session.ActivityQuery{AccountID: "acc", Limit: 1}))[0]
+	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "line", "seq", "session_id"})
+	eq(t, "line keeps only its timestamp", sortedKeys(got.Map("line")), []string{"timestamp"})
+	eq(t, "timestamp", got.Map("line")["timestamp"], "2026-10-14T10:00:00Z")
+	eq(t, "detail", got.Map("enrichments").Map("activity-kind")["detail"], "d-response")
+	since := timeOf(t, got, "created_at")
+	eq(t, "since", keys(session.ActivityQuery{AccountID: "acc", Since: since, Limit: 10}), []string{"s2/0/response"})
+}
+
+func rejectedToolUses(t *testing.T, s session.Store) {
+	flag := func(sid string, seq int, acc string, rejected bool) {
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, seq, "user", acc)}))
+		var id any
+		for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "error-flag", 0)) {
+			if d["session_id"] == sid && num(d["seq"]) == seq {
+				id = d["_id"]
+			}
+		}
+		result := session.Doc{"is_error": true, "error_type": "tool_failure"}
+		if rejected {
+			result["rejected"], result["rejection"], result["tool_use_id"] = true, "permission_denied", fmt.Sprintf("tu-%s-%d", sid, seq)
+		}
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "error-flag", result))
+		time.Sleep(5 * time.Millisecond)
+	}
+	flag("s1", 0, "acc", true)
+	flag("s1", 1, "acc", false)
+	flag("s2", 0, "acc", true)
+	flag("s3", 0, "other", true)
+	ids := func(q session.ActivityQuery) []string {
+		var out []string
+		for _, d := range ok(s.RejectedToolUses(ctx, q)) {
+			id, _ := d.Map("enrichments").Map("error-flag").String("tool_use_id")
+			out = append(out, id)
+		}
+		return out
+	}
+	eq(t, "rejected lines of the account, newest first", ids(session.ActivityQuery{AccountID: "acc", Limit: 10}), []string{"tu-s2-0", "tu-s1-0"})
+	eq(t, "session scoping", ids(session.ActivityQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 10}), []string{"tu-s1-0"})
+	eq(t, "limit", ids(session.ActivityQuery{AccountID: "acc", Limit: 1}), []string{"tu-s2-0"})
+	got := ok(s.RejectedToolUses(ctx, session.ActivityQuery{AccountID: "acc", Limit: 1}))[0]
+	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "seq", "session_id"})
+	eq(t, "since", len(ids(session.ActivityQuery{AccountID: "acc", Since: timeOf(t, got, "created_at").Add(time.Second), Limit: 10})), 0)
 }
 
 func searchTranscripts(t *testing.T, s session.Store) {

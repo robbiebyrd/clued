@@ -229,8 +229,9 @@ func TestEventRelayRoutesToTheServerInRemoteMode(t *testing.T) {
 			if r.code != 0 || r.stdout != "" {
 				t.Fatalf("got %+v, want exit 0 and no output", r)
 			}
-			if n := srv.count("POST", sessionapi.Prefix+"/hook-events"); n != 1 {
-				t.Errorf("hook-events requests = %d, want 1", n)
+			// The event, then the SessionStateChanged event it caused.
+			if n := srv.count("POST", sessionapi.Prefix+"/hook-events"); n != 2 {
+				t.Errorf("hook-events requests = %d, want 2", n)
 			}
 			if !srv.tracked("s-remote") {
 				t.Error("the event's session was not tracked on the server")

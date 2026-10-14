@@ -373,6 +373,124 @@ func (s *Store) SetGitInfoIfMissing(_ context.Context, sessionID, origin, branch
 	return nil
 }
 
+func (s *Store) SetModel(_ context.Context, accountID, sessionID, model string, at time.Time) (string, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if model == "" {
+		return "", false, nil
+	}
+	d := s.ownedSession(accountID, sessionID)
+	if d == nil {
+		return "", false, session.ErrNotFound
+	}
+	previous := strOf(d, "model")
+	if previous == model {
+		return previous, false, nil
+	}
+	d["model"], d["model_changed_at"] = model, at
+	return previous, true, nil
+}
+
+func (s *Store) SetSessionMeta(_ context.Context, accountID, sessionID string, fields session.Doc) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d := s.ownedSession(accountID, sessionID)
+	if d == nil {
+		return session.ErrNotFound
+	}
+	for k, v := range fields {
+		d[k] = deepCopy(v)
+	}
+	return nil
+}
+
+func (s *Store) SetLiveState(_ context.Context, accountID, sessionID, state, reason string, at time.Time) (string, bool, error) {
+	if state == "" {
+		return "", false, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d := s.ownedSession(accountID, sessionID)
+	if d == nil {
+		return "", false, session.ErrNotFound
+	}
+	previous := strOf(d, "live_state")
+	if previous == state {
+		return previous, false, nil
+	}
+	d["live_state"], d["live_state_at"], d["live_state_reason"] = state, at, reason
+	return previous, true, nil
+}
+
+func (s *Store) StateChanges(_ context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	inSessions := setOf(q.SessionIDs)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(hookEvents, func(d session.Doc) bool {
+		if strOf(d, "hook_event_name") != session.StateChangedEventName || !owned(d, q.AccountID) {
+			return false
+		}
+		if len(inSessions) > 0 && !inSessions[strOf(d, "session_id")] {
+			return false
+		}
+		return q.Since.IsZero() || !timeOf(d, "created_at").Before(q.Since)
+	})
+	sort.SliceStable(found, func(i, j int) bool { return timeOf(found[i], "created_at").After(timeOf(found[j], "created_at")) })
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		out = append(out, project(d, "session_id", "from", "to", "reason", "at", "created_at"))
+	}
+	return out, nil
+}
+
+func (s *Store) RejectedToolUses(_ context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	inSessions := setOf(q.SessionIDs)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(transcriptLines, func(d session.Doc) bool {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			return false
+		}
+		if rejected, _ := d.Map("enrichments").Map("error-flag")["rejected"].(bool); !rejected {
+			return false
+		}
+		return q.Since.IsZero() || !timeOf(d, "created_at").Before(q.Since)
+	})
+	sort.SliceStable(found, func(i, j int) bool {
+		ti, tj := timeOf(found[i], "created_at"), timeOf(found[j], "created_at")
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return intOf(found[i], "seq") > intOf(found[j], "seq")
+	})
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		p := project(d, "session_id", "seq", "created_at")
+		p["enrichments"] = session.Doc{"error-flag": deepCopy(d.Map("enrichments")["error-flag"])}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+func (s *Store) LastModelBefore(_ context.Context, sessionID string, seq int, at time.Time) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	best, bestSeq := "", -1
+	for _, d := range s.filter(transcriptLines, func(d session.Doc) bool { return strOf(d, "session_id") == sessionID }) {
+		lineSeq := intOf(d, "seq")
+		if seq >= 0 && lineSeq >= seq || !at.IsZero() && timeOf(d, "created_at").After(at) || lineSeq <= bestSeq {
+			continue
+		}
+		if model := session.LineModel(d); model != "" {
+			best, bestSeq = model, lineSeq
+		}
+	}
+	return best, nil
+}
+
 func (s *Store) ownedSession(accountID, sessionID string) session.Doc {
 	return s.find(sessions, func(d session.Doc) bool { return d["session_id"] == sessionID && owned(d, accountID) })
 }
@@ -400,10 +518,25 @@ func (s *Store) FindSessions(_ context.Context, q session.SessionQuery) ([]sessi
 	if err != nil {
 		return nil, err
 	}
+	titleRe, err := compileRe(q.TitleRe)
+	if err != nil {
+		return nil, err
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	inStates := setOf(q.LiveStates)
 	found := s.filter(sessions, func(d session.Doc) bool {
+		if len(inStates) > 0 && !inStates[strOf(d, "live_state")] {
+			return false
+		}
+		if !matches(titleRe, d, "title") {
+			return false
+		}
+		lastSeen := timeOf(d, "last_seen")
+		if !q.LastSeenFrom.IsZero() && lastSeen.Before(q.LastSeenFrom) || !q.LastSeenBefore.IsZero() && !lastSeen.Before(q.LastSeenBefore) {
+			return false
+		}
 		return owned(d, q.AccountID) && matches(projectRe, d, "project_path") &&
 			matches(originRe, d, "git_origin") && matches(queryRe, d, "project_path", "cwd")
 	})
@@ -415,7 +548,8 @@ func (s *Store) FindSessions(_ context.Context, q session.SessionQuery) ([]sessi
 	}
 	out := []session.Doc{}
 	for _, d := range page(found, 0, limit) {
-		out = append(out, project(d, "session_id", "project_path", "git_origin", "cwd", "started_at", "last_seen"))
+		out = append(out, project(d, "session_id", "project_path", "git_origin", "cwd", "model", "live_state", "live_state_at", "live_state_reason",
+			"title", "title_kind", "slug", "permission_mode", "pr_link", "worktree", "entrypoint", "claude_version", "started_at", "last_seen"))
 	}
 	return out, nil
 }
@@ -483,7 +617,7 @@ func (s *Store) MemoryEvents(_ context.Context, q session.MemoryQuery) ([]sessio
 }
 
 // limitProjection is what LimitSamples returns of a LimitsSampled event.
-var limitProjection = []string{"session_id", "cwd", "model", "version", "context_window", "rate_limits", "cost", "sampled_at", "created_at"}
+var limitProjection = []string{"session_id", "cwd", "model", "version", "context_window", "rate_limits", "cost", "live_state", "sampled_at", "created_at"}
 
 func (s *Store) LimitSamples(_ context.Context, q session.LimitQuery) ([]session.Doc, error) {
 	inSessions := map[string]bool{}
@@ -551,7 +685,7 @@ func (s *Store) BashEvents(_ context.Context, q session.CommandQuery) ([]session
 
 	out := []session.Doc{}
 	for _, d := range page(found, 0, q.Limit) {
-		out = append(out, project(d, "session_id", "tool_input", "created_at"))
+		out = append(out, project(d, "session_id", "tool_use_id", "tool_input", "created_at"))
 	}
 	return out, nil
 }
@@ -623,6 +757,47 @@ func (s *Store) ErrorLines(_ context.Context, q session.ErrorQuery) ([]session.D
 	for _, d := range page(found, 0, q.Limit) {
 		p := project(d, "session_id", "seq", "line", "created_at")
 		p["enrichments"] = session.Doc{"error-flag": deepCopy(d.Map("enrichments")["error-flag"])}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+func (s *Store) Activities(_ context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	inSessions, inKinds := setOf(q.SessionIDs), setOf(q.Kinds)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(transcriptLines, func(d session.Doc) bool {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			return false
+		}
+		activity := d.Map("enrichments").Map("activity-kind")
+		if activity == nil {
+			return false
+		}
+		if kind, _ := activity.String("kind"); len(inKinds) > 0 && !inKinds[kind] {
+			return false
+		}
+		return q.Since.IsZero() || !timeOf(d, "created_at").Before(q.Since)
+	})
+	sort.SliceStable(found, func(i, j int) bool {
+		ti, tj := timeOf(found[i], "created_at"), timeOf(found[j], "created_at")
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return intOf(found[i], "seq") > intOf(found[j], "seq")
+	})
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		p := project(d, "session_id", "seq", "created_at")
+		if ts, ok := d.Line()["timestamp"]; ok {
+			p["line"] = session.Doc{"timestamp": ts}
+		}
+		p["enrichments"] = session.Doc{"activity-kind": deepCopy(d.Map("enrichments")["activity-kind"])}
+		for _, name := range []string{"tool-result-detail", "system-record"} {
+			if detail, ok := d.Map("enrichments")[name]; ok {
+				p["enrichments"].(session.Doc)[name] = deepCopy(detail)
+			}
+		}
 		out = append(out, p)
 	}
 	return out, nil

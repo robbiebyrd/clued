@@ -7,10 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
+	"github.com/robbiebyrd/clued/mind-palace/session/livestate"
 )
 
 const (
@@ -34,6 +36,17 @@ type Service struct {
 	// Prices are the model prices (by model id prefix) that override the
 	// built-in table for the usage estimates; nil keeps the table.
 	Prices map[string]session.ModelPrice
+	// Now is the clock the hotness grades and the time bounds use; nil is
+	// time.Now.
+	Now func() time.Time
+}
+
+// now is the service's clock.
+func (s *Service) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return time.Now()
 }
 
 // FindSessionsArgs are the find_sessions tool parameters.
@@ -41,15 +54,23 @@ type FindSessionsArgs struct {
 	ProjectPath string `json:"project_path,omitempty"`
 	GitOrigin   string `json:"git_origin,omitempty"`
 	Query       string `json:"query,omitempty"`
-	Limit       int    `json:"limit,omitempty"`
+	// Title keeps only sessions whose title matches this regex.
+	Title string `json:"title,omitempty"`
+	// LiveState keeps only sessions in that live state (working, waiting,
+	// ended); Hotness only those of that grade (hot, warm, cool, cold).
+	LiveState string `json:"live_state,omitempty"`
+	Hotness   string `json:"hotness,omitempty"`
+	Limit     int    `json:"limit,omitempty"`
 }
 
 // SearchCommandsArgs are the search_commands tool parameters.
+// IncludeRejected keeps the commands the harness refused to run.
 type SearchCommandsArgs struct {
-	Pattern   string `json:"pattern"`
-	SessionID string `json:"session_id,omitempty"`
-	GitOrigin string `json:"git_origin,omitempty"`
-	Limit     int    `json:"limit,omitempty"`
+	IncludeRejected bool   `json:"include_rejected,omitempty"`
+	Pattern         string `json:"pattern"`
+	SessionID       string `json:"session_id,omitempty"`
+	GitOrigin       string `json:"git_origin,omitempty"`
+	Limit           int    `json:"limit,omitempty"`
 }
 
 // SearchMemoryArgs are the search_memory tool parameters. Pattern is a
@@ -85,6 +106,7 @@ type LimitSample struct {
 	ContextWindow session.Doc `json:"context_window,omitempty"`
 	RateLimits    session.Doc `json:"rate_limits,omitempty"`
 	Cost          session.Doc `json:"cost,omitempty"`
+	LiveState     string      `json:"live_state,omitempty"`
 	SampledAt     string      `json:"sampled_at,omitempty"`
 	CreatedAt     time.Time   `json:"created_at"`
 }
@@ -134,6 +156,18 @@ type Context struct {
 	// Usage is the session's token usage and estimated cost (see Usage);
 	// null when no usage is recorded for it.
 	Usage *UsageGroup `json:"usage"`
+	// Turns is the session's pace from its turn_duration records; null
+	// when none is recorded.
+	Turns *TurnStats `json:"turns"`
+}
+
+// TurnStats sums the turn_duration records of a session: how many turns,
+// their total and mean duration in milliseconds, and the longest.
+type TurnStats struct {
+	Turns     int   `json:"turns"`
+	TotalMs   int64 `json:"total_ms"`
+	MeanMs    int64 `json:"mean_ms"`
+	LongestMs int64 `json:"longest_ms"`
 }
 
 // withDefault returns n, or def when n is not positive, never above maxLimit.
@@ -147,13 +181,32 @@ func withDefault(n, def int) int {
 // FindSessions returns the matching sessions, newest first, each with the
 // number of transcript lines captured as event_count.
 func (s *Service) FindSessions(ctx context.Context, args FindSessionsArgs) ([]session.Doc, error) {
-	docs, err := s.Store.FindSessions(ctx, session.SessionQuery{
+	now := s.now()
+	q := session.SessionQuery{
 		AccountID:     s.AccountID,
 		ProjectPathRe: args.ProjectPath,
 		GitOriginRe:   args.GitOrigin,
 		QueryRe:       args.Query,
+		TitleRe:       args.Title,
 		Limit:         withDefault(args.Limit, defaultSessionLimit),
-	})
+	}
+	if args.LiveState != "" {
+		if !slices.Contains(livestate.States, args.LiveState) {
+			return nil, fmt.Errorf("live_state must be one of %s: %q", strings.Join(livestate.States, ", "), args.LiveState)
+		}
+		q.LiveStates = []string{args.LiveState}
+	}
+	if args.Hotness != "" {
+		from, before, ok := livestate.Window(args.Hotness, now)
+		if !ok {
+			return nil, fmt.Errorf("hotness must be one of %s: %q", strings.Join(livestate.Grades, ", "), args.Hotness)
+		}
+		if !from.IsZero() && !before.IsZero() && !from.Before(before) {
+			return []session.Doc{}, nil // no session can be in that grade right now
+		}
+		q.LastSeenFrom, q.LastSeenBefore = from, before
+	}
+	docs, err := s.Store.FindSessions(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -162,8 +215,16 @@ func (s *Service) FindSessions(ctx context.Context, args FindSessionsArgs) ([]se
 		if d["event_count"], err = s.Store.CountTranscriptLines(ctx, s.AccountID, id); err != nil {
 			return nil, err
 		}
+		addHotness(d, now)
 	}
 	return docs, nil
+}
+
+// addHotness sets the session's hotness grade from its last_seen time.
+func addHotness(d session.Doc, now time.Time) {
+	if lastSeen, ok := d["last_seen"].(time.Time); ok {
+		d["hotness"] = livestate.Hotness(lastSeen, now)
+	}
 }
 
 // SearchCommands returns Bash commands matching the pattern, newest first,
@@ -187,9 +248,16 @@ func (s *Service) SearchCommands(ctx context.Context, args SearchCommandsArgs) (
 		return nil, err
 	}
 
+	rejected, err := s.rejectedToolUses(ctx, sessionIDs, args.IncludeRejected)
+	if err != nil {
+		return nil, err
+	}
 	sessions := map[string]session.Doc{}
 	hits := make([]CommandHit, 0, len(events))
 	for _, ev := range events {
+		if id, _ := ev.String("tool_use_id"); rejected[id] {
+			continue
+		}
 		id, _ := ev.String("session_id")
 		if _, known := sessions[id]; !known {
 			if sessions[id], err = s.sessionOrNil(ctx, id); err != nil {
@@ -272,6 +340,7 @@ func (s *Service) Limits(ctx context.Context, args LimitsArgs) ([]LimitSample, e
 		}
 		cwd, _ := ev.String("cwd")
 		version, _ := ev.String("version")
+		liveState, _ := ev.String("live_state")
 		sampledAt, _ := ev.String("sampled_at")
 		createdAt, _ := ev["created_at"].(time.Time)
 		out = append(out, LimitSample{
@@ -284,11 +353,35 @@ func (s *Service) Limits(ctx context.Context, args LimitsArgs) ([]LimitSample, e
 			ContextWindow: docOrNil(ev, "context_window"),
 			RateLimits:    docOrNil(ev, "rate_limits"),
 			Cost:          docOrNil(ev, "cost"),
+			LiveState:     liveState,
 			SampledAt:     sampledAt,
 			CreatedAt:     createdAt,
 		})
 	}
 	return out, nil
+}
+
+// rejectedScan bounds the rejected tool calls a query looks up to leave
+// their calls out.
+const rejectedScan = maxLimit
+
+// rejectedToolUses is the set of tool_use ids of the scope's calls the
+// harness refused (the newest 500), empty when the caller wants them kept.
+func (s *Service) rejectedToolUses(ctx context.Context, sessionIDs []string, include bool) (map[string]bool, error) {
+	ids := map[string]bool{}
+	if include {
+		return ids, nil
+	}
+	lines, err := s.Store.RejectedToolUses(ctx, session.ActivityQuery{AccountID: s.AccountID, SessionIDs: sessionIDs, Limit: rejectedScan})
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range lines {
+		if id, _ := l.Map("enrichments").Map("error-flag").String("tool_use_id"); id != "" {
+			ids[id] = true
+		}
+	}
+	return ids, nil
 }
 
 // parseSince reads a lower time bound: empty means none, a duration means
@@ -435,18 +528,67 @@ func (s *Service) SessionContext(ctx context.Context, sessionID string) (Context
 	if err != nil {
 		return Context{}, err
 	}
-	c := Context{Session: sessionSummary(stored), TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent}
+	turns, err := s.turnStats(ctx, sessionID)
+	if err != nil {
+		return Context{}, err
+	}
+	summary := sessionSummary(stored)
+	addHotness(summary, s.now())
+	c := Context{Session: summary, TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent, Turns: turns}
 	if len(usage.Groups) > 0 {
 		c.Usage = &usage.Groups[0]
 	}
 	return c, nil
 }
 
-// sessionSummary keeps the six fields the context reports; git_origin is
-// always present, null when the session has none.
+// turnScan bounds the turn records summed for one session.
+const turnScan = maxLimit
+
+// turnStats sums the session's turn_duration records (the lines the
+// activity-kind enricher labelled "turn", with their system-record); nil
+// when there is none.
+func (s *Service) turnStats(ctx context.Context, sessionID string) (*TurnStats, error) {
+	lines, err := s.Store.Activities(ctx, session.ActivityQuery{AccountID: s.AccountID, SessionIDs: []string{sessionID}, Kinds: []string{"turn"}, Limit: turnScan})
+	if err != nil {
+		return nil, err
+	}
+	var st TurnStats
+	for _, l := range lines {
+		ms := toInt64(l.Map("enrichments").Map("system-record")["duration_ms"])
+		st.Turns++
+		st.TotalMs += ms
+		st.LongestMs = max(st.LongestMs, ms)
+	}
+	if st.Turns == 0 {
+		return nil, nil
+	}
+	st.MeanMs = st.TotalMs / int64(st.Turns)
+	return &st, nil
+}
+
+// toInt64 reads a stored number whatever its decoded type.
+func toInt64(v any) int64 {
+	switch n := v.(type) {
+	case int:
+		return int64(n)
+	case int32:
+		return int64(n)
+	case int64:
+		return n
+	case float64:
+		return int64(n)
+	}
+	return 0
+}
+
+// sessionSummary keeps the fields the context reports; git_origin is
+// always present, null when the session has none; model and
+// model_changed_at appear once a model is known, live_state, live_state_at
+// and live_state_reason once a state is.
 func sessionSummary(stored session.Doc) session.Doc {
 	out := session.Doc{"git_origin": nil}
-	for _, k := range []string{"session_id", "project_path", "git_origin", "cwd", "started_at", "last_seen"} {
+	for _, k := range []string{"session_id", "project_path", "git_origin", "cwd", "model", "model_changed_at", "live_state", "live_state_at", "live_state_reason",
+		"title", "title_kind", "slug", "permission_mode", "pr_link", "worktree", "entrypoint", "claude_version", "started_at", "last_seen"} {
 		if v, ok := stored[k]; ok {
 			out[k] = v
 		}

@@ -152,3 +152,53 @@ func TestErrorFlagTextPatternAlternatives(t *testing.T) {
 func TestErrorFlagResultTagsMatch(t *testing.T) {
 	requireBSONTagsMirrorJSON(t, ErrorFlagResult{})
 }
+
+func TestErrorFlagMarksRejectedToolCalls(t *testing.T) {
+	result := func(text string, isError bool) session.Doc {
+		return session.Doc{"line": map[string]any{"message": map[string]any{
+			"role":    "user",
+			"content": []any{map[string]any{"type": "tool_result", "tool_use_id": "tu-1", "is_error": isError, "content": text}},
+		}}}
+	}
+	cases := []struct {
+		text   string
+		reason string
+	}{
+		{"Permission for this action was denied. The user chose not to allow this.", "permission_denied"},
+		{"InputValidationError: file_path is required", "input_validation"},
+		{"This operation was blocked by a hook: no writes under docs/plans", "blocked_by_hook"},
+		{"The user doesn't want to proceed with this tool use.", "user_declined"},
+		{"Tool use was rejected by the user", "user_declined"},
+		{"Refusing to write through symlink /etc/passwd", "symlink"},
+		{"Blocked: path outside the project", "other"},
+	}
+	for _, c := range cases {
+		got, err := ErrorFlag.Enrich(t.Context(), result(c.text, true), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := got.(ErrorFlagResult)
+		if !r.IsError || *r.ErrorType != "tool_failure" || !r.Rejected || r.Rejection != c.reason || r.ToolUseID != "tu-1" {
+			t.Errorf("%q: %+v", c.text, r)
+		}
+	}
+	// A refusal is a rejection even when the block is not marked as an error.
+	if got := marshalEnrichment(t, ErrorFlag, result("Permission for this action was denied", false)); got != `{"is_error":true,"error_type":"tool_failure","rejected":true,"rejection":"permission_denied","tool_use_id":"tu-1"}` {
+		t.Errorf("unmarked refusal = %s", got)
+	}
+	// Ordinary output holding the word is not one; a failed tool is not rejected.
+	if got := marshalEnrichment(t, ErrorFlag, result("grep found: Blocked: 3 matches", true)); got != toolFailure {
+		t.Errorf("ordinary failure = %s", got)
+	}
+	if got := marshalEnrichment(t, ErrorFlag, result("exit status 1", true)); got != toolFailure {
+		t.Errorf("failure = %s", got)
+	}
+	// A refusal in a list of text blocks is found too.
+	blocks := session.Doc{"line": map[string]any{"message": map[string]any{
+		"role":    "user",
+		"content": []any{map[string]any{"type": "tool_result", "tool_use_id": "tu-2", "content": []any{map[string]any{"type": "text", "text": "This operation was blocked by a hook"}}}},
+	}}}
+	if got, _ := ErrorFlag.Enrich(t.Context(), blocks, nil); !got.(ErrorFlagResult).Rejected || got.(ErrorFlagResult).Rejection != "blocked_by_hook" {
+		t.Errorf("blocks = %+v", got)
+	}
+}

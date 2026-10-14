@@ -5,15 +5,22 @@ import (
 	"strings"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
+	"github.com/robbiebyrd/clued/mind-palace/session/structpatch"
 )
 
 type diffStatsResult struct {
 	LinesAdded   int `json:"lines_added" bson:"lines_added"`
 	LinesRemoved int `json:"lines_removed" bson:"lines_removed"`
 	NetChange    int `json:"net_change" bson:"net_change"`
+	// FilePath is the edited file; Span names the lines the edit touched
+	// in the new file ("L10-12"), from the tool response's structuredPatch
+	// when the hook carried one.
+	FilePath string `json:"file_path,omitempty" bson:"file_path,omitempty"`
+	Span     string `json:"span,omitempty" bson:"span,omitempty"`
 }
 
-// EditDiffStats counts the lines an Edit or Write call added and removed.
+// EditDiffStats counts the lines an Edit or Write call added and removed,
+// and names the span it touched when the response carries the patch.
 var EditDiffStats = session.Enricher{
 	Name:       "edit-diff-stats",
 	Collection: "hook_events",
@@ -25,15 +32,24 @@ var EditDiffStats = session.Enricher{
 	},
 	Enrich: func(_ context.Context, doc session.Doc, _ session.Lookup) (any, error) {
 		input := doc.ToolInput()
+		var r diffStatsResult
 		if tool, _ := doc.String("tool_name"); tool == "Write" {
 			content, _ := input.String("content")
-			added := countTextLines(content)
-			return diffStatsResult{LinesAdded: added, NetChange: added}, nil
+			r.LinesAdded = countTextLines(content)
+		} else {
+			newString, _ := input.String("new_string")
+			oldString, _ := input.String("old_string")
+			r.LinesAdded, r.LinesRemoved = countTextLines(newString), countTextLines(oldString)
 		}
-		newString, _ := input.String("new_string")
-		oldString, _ := input.String("old_string")
-		added, removed := countTextLines(newString), countTextLines(oldString)
-		return diffStatsResult{LinesAdded: added, LinesRemoved: removed, NetChange: added - removed}, nil
+		r.NetChange = r.LinesAdded - r.LinesRemoved
+		r.FilePath, _ = input.String("file_path")
+		if s, ok := structpatch.Parse(doc.ToolResponse()["structuredPatch"]); ok && len(s.Hunks) > 0 {
+			r.Span = s.Span
+			if p, ok := doc.ToolResponse().String("filePath"); ok && p != "" {
+				r.FilePath = p
+			}
+		}
+		return r, nil
 	},
 }
 

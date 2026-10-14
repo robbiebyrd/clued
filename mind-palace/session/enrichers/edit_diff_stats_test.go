@@ -68,7 +68,7 @@ func TestEditDiffStatsEditEmptyStringsGiveZeroLines(t *testing.T) {
 
 func TestEditDiffStatsWriteLinesRemovedIsAlwaysZero(t *testing.T) {
 	r := editDiffStatsOf(t, "Write", map[string]any{"file_path": "/x.ts", "content": "a\nb\nc"})
-	want := diffStatsResult{LinesAdded: 3, LinesRemoved: 0, NetChange: 3}
+	want := diffStatsResult{LinesAdded: 3, LinesRemoved: 0, NetChange: 3, FilePath: "/x.ts"}
 	if r != want {
 		t.Errorf("got %+v, want %+v", r, want)
 	}
@@ -108,5 +108,27 @@ func TestEditDiffStatsResultShape(t *testing.T) {
 	j := hookEventJSON(t, diffStatsResult{LinesAdded: 2, LinesRemoved: 3, NetChange: -1})
 	if j != `{"lines_added":2,"lines_removed":3,"net_change":-1}` {
 		t.Errorf("got %s", j)
+	}
+}
+
+func TestEditDiffStatsNamesTheFileAndSpanFromThePatch(t *testing.T) {
+	got, err := EditDiffStats.Enrich(context.Background(), session.Doc{
+		"hook_event_name": "PostToolUse",
+		"tool_name":       "Edit",
+		"tool_input":      map[string]any{"file_path": "/repo/a.go", "old_string": "b", "new_string": "c\nd"},
+		"tool_response": map[string]any{"filePath": "/repo/a.go", "structuredPatch": []any{
+			map[string]any{"oldStart": 10.0, "oldLines": 1.0, "newStart": 10.0, "newLines": 2.0, "lines": []any{"-b", "+c", "+d"}},
+		}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := diffStatsResult{LinesAdded: 2, LinesRemoved: 1, NetChange: 1, FilePath: "/repo/a.go", Span: "L10-11"}
+	if got != want {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+	// Without a patch the file comes from the input and there is no span.
+	if r := editDiffStatsOf(t, "Write", map[string]any{"file_path": "/repo/b.go", "content": "x"}); r != (diffStatsResult{LinesAdded: 1, NetChange: 1, FilePath: "/repo/b.go"}) {
+		t.Errorf("without a patch: %+v", r)
 	}
 }

@@ -313,8 +313,8 @@ func TestSessionContext(t *testing.T) {
 	if got.Session["session_id"] != "sess-1" || got.Session["git_origin"] != "https://github.com/user/myrepo.git" {
 		t.Fatalf("session = %v", got.Session)
 	}
-	if len(got.Session) != 6 {
-		t.Fatalf("session must hold exactly six keys, got %v", got.Session)
+	if len(got.Session) != 7 || got.Session["hotness"] != "cold" {
+		t.Fatalf("session must hold exactly seven keys (with the hotness), got %v", got.Session)
 	}
 	if want := []string{"git status", "npm install"}; !reflect.DeepEqual(got.TopCommands, want) {
 		t.Fatalf("top_commands = %v, want %v", got.TopCommands, want)

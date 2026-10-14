@@ -439,6 +439,108 @@ func (s *Store) SetGitInfoIfMissing(ctx context.Context, sessionID, origin, bran
 	return s.update(ctx, sessions, key("session_id", sessionID, "git_origin", key("$exists", false)), set)
 }
 
+func (s *Store) SetModel(ctx context.Context, accountID, sessionID, model string, at time.Time) (string, bool, error) {
+	if model == "" {
+		return "", false, nil
+	}
+	filter := key("session_id", sessionID, "account_id", accountID, "model", key("$ne", model))
+	update := key("$set", key("model", model, "model_changed_at", at))
+	var before bson.D
+	err := s.coll(sessions).FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetProjection(key("_id", 0, "model", 1))).Decode(&before)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		// Either the session already runs on this model or it does not exist.
+		if _, gerr := s.GetSession(ctx, accountID, sessionID); gerr != nil {
+			return "", false, gerr
+		}
+		return model, false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	previous, _ := session.Doc(normalizeDoc(before)).String("model")
+	return previous, true, nil
+}
+
+func (s *Store) SetSessionMeta(ctx context.Context, accountID, sessionID string, fields session.Doc) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	set := bson.D{}
+	for k, v := range fields {
+		set = append(set, bson.E{Key: k, Value: v})
+	}
+	res, err := s.coll(sessions).UpdateOne(ctx, key("session_id", sessionID, "account_id", accountID), key("$set", set))
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return session.ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) SetLiveState(ctx context.Context, accountID, sessionID, state, reason string, at time.Time) (string, bool, error) {
+	if state == "" {
+		return "", false, nil
+	}
+	filter := key("session_id", sessionID, "account_id", accountID, "live_state", key("$ne", state))
+	update := key("$set", key("live_state", state, "live_state_at", at, "live_state_reason", reason))
+	var before bson.D
+	err := s.coll(sessions).FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetProjection(key("_id", 0, "live_state", 1))).Decode(&before)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		if _, gerr := s.GetSession(ctx, accountID, sessionID); gerr != nil {
+			return "", false, gerr
+		}
+		return state, false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	previous, _ := session.Doc(normalizeDoc(before)).String("live_state")
+	return previous, true, nil
+}
+
+func (s *Store) StateChanges(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	filter := key("hook_event_name", session.StateChangedEventName, "account_id", q.AccountID)
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	if !q.Since.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
+	}
+	projection := key("_id", 0, "session_id", 1, "from", 1, "to", 1, "reason", 1, "at", 1, "created_at", 1)
+	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
+func (s *Store) RejectedToolUses(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	filter := key("account_id", q.AccountID, "enrichments.error-flag.rejected", true)
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	if !q.Since.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
+	}
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "enrichments.error-flag", 1, "created_at", 1)
+	return s.find(ctx, transcriptLines, filter, projection, key("created_at", -1, "seq", -1), 0, q.Limit)
+}
+
+func (s *Store) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
+	filter := key("session_id", sessionID, "line.type", "assistant",
+		"line.message.model", key("$exists", true, "$nin", bson.A{"", session.SyntheticModel}))
+	if seq >= 0 {
+		filter = append(filter, bson.E{Key: "seq", Value: key("$lt", seq)})
+	}
+	if !at.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$lte", at)})
+	}
+	docs, err := s.find(ctx, transcriptLines, filter, key("_id", 0, "line.message.model", 1), key("seq", -1), 0, 1)
+	if err != nil || len(docs) == 0 {
+		return "", err
+	}
+	model, _ := docs[0].Message().String("model")
+	return model, nil
+}
+
 func (s *Store) GetSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
 	return s.findOne(ctx, sessions, key("session_id", sessionID, "account_id", accountID))
 }
@@ -492,7 +594,7 @@ func (s *Store) findOne(ctx context.Context, col string, filter bson.D) (session
 
 func (s *Store) FindSessions(ctx context.Context, q session.SessionQuery) ([]session.Doc, error) {
 	filter := key("account_id", q.AccountID)
-	for _, f := range []struct{ field, pattern string }{{"project_path", q.ProjectPathRe}, {"git_origin", q.GitOriginRe}} {
+	for _, f := range []struct{ field, pattern string }{{"project_path", q.ProjectPathRe}, {"git_origin", q.GitOriginRe}, {"title", q.TitleRe}} {
 		if f.pattern == "" {
 			continue
 		}
@@ -509,11 +611,25 @@ func (s *Store) FindSessions(ctx context.Context, q session.SessionQuery) ([]ses
 		}
 		filter = append(filter, bson.E{Key: "$or", Value: bson.A{key("project_path", re), key("cwd", re)}})
 	}
+	if len(q.LiveStates) > 0 {
+		filter = append(filter, bson.E{Key: "live_state", Value: key("$in", q.LiveStates)})
+	}
+	if !q.LastSeenFrom.IsZero() || !q.LastSeenBefore.IsZero() {
+		bounds := bson.D{}
+		if !q.LastSeenFrom.IsZero() {
+			bounds = append(bounds, bson.E{Key: "$gte", Value: q.LastSeenFrom})
+		}
+		if !q.LastSeenBefore.IsZero() {
+			bounds = append(bounds, bson.E{Key: "$lt", Value: q.LastSeenBefore})
+		}
+		filter = append(filter, bson.E{Key: "last_seen", Value: bounds})
+	}
 	limit := q.Limit
 	if limit <= 0 || limit > maxSessions {
 		limit = maxSessions
 	}
-	projection := key("_id", 0, "session_id", 1, "project_path", 1, "git_origin", 1, "cwd", 1, "started_at", 1, "last_seen", 1)
+	projection := key("_id", 0, "session_id", 1, "project_path", 1, "git_origin", 1, "cwd", 1, "model", 1, "live_state", 1, "live_state_at", 1, "live_state_reason", 1,
+		"title", 1, "title_kind", 1, "slug", 1, "permission_mode", 1, "pr_link", 1, "worktree", 1, "entrypoint", 1, "claude_version", 1, "started_at", 1, "last_seen", 1)
 	return s.find(ctx, sessions, filter, projection, key("last_seen", -1), 0, limit)
 }
 
@@ -562,7 +678,7 @@ func (s *Store) LimitSamples(ctx context.Context, q session.LimitQuery) ([]sessi
 	if !q.Since.IsZero() {
 		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
 	}
-	projection := key("_id", 0, "session_id", 1, "cwd", 1, "model", 1, "version", 1, "context_window", 1, "rate_limits", 1, "cost", 1, "sampled_at", 1, "created_at", 1)
+	projection := key("_id", 0, "session_id", 1, "cwd", 1, "model", 1, "version", 1, "context_window", 1, "rate_limits", 1, "cost", 1, "live_state", 1, "sampled_at", 1, "created_at", 1)
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
 }
 
@@ -602,7 +718,7 @@ func (s *Store) BashEvents(ctx context.Context, q session.CommandQuery) ([]sessi
 	if len(q.SessionIDs) > 0 {
 		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
 	}
-	projection := key("_id", 0, "session_id", 1, "tool_input", 1, "created_at", 1)
+	projection := key("_id", 0, "session_id", 1, "tool_use_id", 1, "tool_input", 1, "created_at", 1)
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
 }
 
@@ -728,6 +844,21 @@ func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session
 		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
 	}
 	projection := key("_id", 0, "session_id", 1, "seq", 1, "line", 1, "enrichments.error-flag", 1, "created_at", 1)
+	return s.find(ctx, transcriptLines, filter, projection, key("created_at", -1, "seq", -1), 0, q.Limit)
+}
+
+func (s *Store) Activities(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	filter := key("account_id", q.AccountID, "enrichments.activity-kind", key("$exists", true))
+	if len(q.Kinds) > 0 {
+		filter = append(filter, bson.E{Key: "enrichments.activity-kind.kind", Value: key("$in", q.Kinds)})
+	}
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	if !q.Since.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
+	}
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "line.timestamp", 1, "enrichments.activity-kind", 1, "enrichments.tool-result-detail", 1, "enrichments.system-record", 1, "created_at", 1)
 	return s.find(ctx, transcriptLines, filter, projection, key("created_at", -1, "seq", -1), 0, q.Limit)
 }
 

@@ -11,6 +11,9 @@ import (
 // captured session of a working directory.
 type SessionSnapshot struct {
 	SessionID   string
+	Model       string    // the model last seen serving it; "" when unknown
+	LiveState   string    // working, waiting or ended; "" when unknown
+	Hotness     string    // hot, warm, cool or cold; "" when unknown
 	StartedAt   time.Time // zero when unknown
 	LastSeen    time.Time // zero when unknown
 	TopCommands []string  // most recent distinct Bash commands, newest first

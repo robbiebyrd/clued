@@ -348,6 +348,11 @@ same rules (`session/ingest`):
   malformed lines are dropped, failed ones kept.
 - A `session_id` that is not a single path element is stored but the
   session is not tracked.
+- An event that names a model (`model.id` of a `LimitsSampled` sample,
+  section 5.1) records it as the session's model (section 4.5).
+- An event that says what the agent is doing puts the session in a live
+  state (section 4.6); a `LimitsSampled` sample is stamped with the
+  session's `live_state` when one is known.
 
 The account id is `lastKnownAccountUuid` from the Claude app's config file
 (`claudeAppConfigPath`), or `unknown`.
@@ -358,7 +363,9 @@ The daemon tails `transcript_path` when it is absolute and under
 `projectsDir`, storing each line as a `TranscriptLine` (`session_id`, `seq`,
 `line`, `account_id`, `host`), and watches `<transcript dir>/<session_id>/`
 and `<fileHistoryDir>/<session_id>/` for subagent lines and artifact blobs.
-Enrichers run over new documents every five seconds.
+Each assistant line that names a model records it as the session's model
+(section 4.5), and the sidecar records set the session's metadata (section
+4.7). Enrichers run over new documents every five seconds.
 
 ### 4.4 Catch-up (remote mode)
 
@@ -375,7 +382,93 @@ exclusively, stale after a minute; a held lock skips the run) and
 Transcript lines after `offset` go up in batches of 500 (a shrunken file
 resets the state), then changed artifact files and subagent lines under the
 two watched directories. A blob the server refuses as too large is recorded
-under `refused` and not retried.
+under `refused` and not retried. The state's `model` is the model the pushed
+lines last named, so each change is recorded once (section 4.5).
+
+### 4.5 The session's model
+
+The model serving a session is kept on its `Session` record as `model`
+with `model_changed_at`, written through `session.Store.SetModel` whenever
+a source names a model other than the stored one:
+
+- an assistant transcript line's `message.model` (the daemon's tailer, the
+  relay's catch-up and `session backfill`, which tracks it only for a
+  session whose model is not known yet, since it replays the whole file);
+  the synthetic lines Claude Code writes itself (`<synthetic>`) name none;
+- a `LimitsSampled` sample's `model.id` (the daemon and `hook relay`).
+
+Every change, the first model seen included, is also recorded as a hook
+event, so a session's model switches are a queryable sequence:
+
+```json
+{"hook_event_name": "ModelChanged", "session_id": "<id>", "account_id": "<account>", "from": "claude-sonnet-4-5", "to": "claude-fable-5-1",
+ "seq": 42, "source": "transcript", "at": "<RFC3339>", "created_at": "<RFC3339>"}
+```
+
+`from` is `""` for the first model; `seq` is the transcript line that named
+the model and is absent when a sample did (`source: "limits"`); `at` is the
+line's own timestamp (or the time of the sample). The `model` and
+`hook-model` enrichments (section 6.1.2) put the model on every stored
+line and event.
+
+### 4.6 The session's live state and hotness
+
+The hooks say what the agent is doing, so each event puts its session in a
+live state (`session/livestate`), kept on the `Session` record as
+`live_state`, `live_state_at` and `live_state_reason` through
+`session.Store.SetLiveState`, in the daemon (local mode) and `hook relay`
+(remote mode):
+
+| Event | State | Reason recorded |
+|---|---|---|
+| `UserPromptSubmit`, `PreToolUse` (any tool but `AskUserQuestion`), `PostToolUse`, `PostToolUseFailure`, `SubagentStart` | `working`: the agent is mid-turn | the event's name |
+| `PreToolUse` of `AskUserQuestion` | `waiting`: the agent asked the user | `PreToolUse:AskUserQuestion` |
+| `Stop`, `StopFailure`, `PermissionRequest` | `waiting`: the agent yielded or needs a permission | the event's name |
+| `Notification` whose `notification_type` starts with `permission_prompt`, `idle_prompt` or `elicitation` | `waiting` | `Notification:<type>` |
+| `SessionEnd` | `ended` | `SessionEnd` |
+| anything else (`SessionStart`, `SubagentStop`, `PreCompact`, other notifications, samples, memory records) | unchanged | |
+
+Only a change is written (the same state again keeps the earlier
+`live_state_at` and reason), and every change, the first state included, is
+also recorded as a hook event:
+
+```json
+{"hook_event_name": "SessionStateChanged", "session_id": "<id>", "account_id": "<account>", "from": "working", "to": "waiting",
+ "reason": "Stop", "at": "<RFC3339>", "created_at": "<RFC3339>"}
+```
+
+`from` is `""` for the first state; `at` is when the event that caused the
+change was stored. The changes are queryable as `state` entries of
+`get_activities` and through `POST /api/v1/session/state-changes`.
+
+Hotness is how recently a session was active, computed from `last_seen`
+whenever a session is returned, never stored: `hot` within the last 30
+minutes, `warm` within the last hour, `cool` earlier the same UTC day,
+`cold` before that. `find_sessions` filters on a grade by turning it into a
+`last_seen` range (`lastSeenFrom`, `lastSeenBefore` of `POST
+/sessions/find`); just after midnight UTC nothing can be `cool`.
+
+### 4.7 Session metadata from the transcript's records
+
+Besides messages, a transcript holds records about the session itself.
+The daemon's tailer, the relay's catch-up (whose state keeps the fields
+last set under `meta`) and `session backfill` read them through
+`session/sidecar` and set the fields on the `Session` record through
+`session.Store.SetSessionMeta`, each value once:
+
+| Record | Field | Value |
+|---|---|---|
+| `{"type": "custom-title", "title"}` | `title`, `title_kind: "custom"` | the title the user gave; a later `ai-title` never replaces it |
+| `{"type": "ai-title", "title"}` | `title`, `title_kind: "ai"` | the generated title |
+| `{"type": "slug", "slug"}` | `slug` | |
+| `{"type": "permission-mode", "permissionMode"}` or `{"type": "mode", "mode"}` | `permission_mode` | the mode last recorded |
+| `{"type": "pr-link", "prUrl"}` (or `url`, `link`) | `pr_link` | |
+| `{"type": "worktree-state", …}` | `worktree` | the record without `type`, `sessionId`, `uuid` and `timestamp` |
+| any message line's `entrypoint` | `entrypoint` | `cli` for an interactive session, `sdk-cli` for a non-interactive one, `remote` for a cloud session |
+| any message line's `version` | `claude_version` | the Claude Code version |
+
+`find_sessions` and `get_session_context` return the fields, and
+`find_sessions` filters by `title`.
 
 ## 5. Memory events
 
@@ -420,7 +513,42 @@ limits` and `POST /api/v1/session/limit-samples`:
 
 The maps are stored as Claude Code sent them; one the input lacks (no
 `rate_limits` on an API-key account) is left out. The daemon stamps
-`account_id`, `host` and `created_at` as for every event.
+`account_id`, `host` and `created_at` as for every event, and `live_state`
+(section 4.6) when the session's state is known, so a sample says whether
+the session was working or waiting.
+
+### 5.2 Digests
+
+`mind-palace session digest` (section 9) writes the first-person retro of
+a UTC day, or a range of days, from the day's activity report (`session
+report`, the activity timeline of section 6.1.1 rendered as one section
+per session and one `[HH:MM] <icon> <label>: <detail>` row per activity,
+details cut at 120 characters, repeats marked `×N`, a sub-agent's returned
+text indented under its task; kinds `user`, `response`, `bash`, `edit`,
+`thinking`, `task` unless `--include` says otherwise; the estimated size in
+tokens, with a warning past 300,000). The prompt is `templates/daily.md`
+(or `templates/range.md`, which wraps each day's stored digest in
+`<day date="…">`) of `mind-palace/session/digest`, overridden by a file of
+the same name under `~/.claude/plugins/data/clued/digest/`; the `claude`
+engine pipes it to `claude -p --no-session-persistence --output-format
+stream-json --verbose [--model m]` and reads the `result` event's text and
+`total_cost_usd`.
+
+The digest is stored as a `MemorySaved` event (section 5) of kind `digest`,
+so every machine of the account shares it and `search_memory`,
+`get_digest` and the prime report's MEMORY section (which leads with
+yesterday's) find it:
+
+```json
+{"hook_event_name": "MemorySaved", "saved_at": "<RFC3339Nano UTC>",
+ "memory": {"kind": "digest", "file": "digest/2026-10-13.md", "text": "## Context\n…", "hash": "<sha256 of scope|from|to|text>",
+            "scope": "day", "from": "2026-10-13", "to": "2026-10-13", "day": "2026-10-13", "engine": "claude", "model": "claude-fable-5-1", "cost_usd": 0.02, "report_tokens": 1234}}
+```
+
+A range digest has `scope: "range"`, `file: "digest/<from>..<to>.md"` and
+`day` set to its last day. A finished day is answered from the store
+unless `--force`; today is always regenerated; a range generates its
+missing days first and skips days with no sessions.
 
 ## 6. MCP servers over stdio
 
@@ -453,16 +581,18 @@ malformed one, is an error.
 
 | Tool | Parameters | Returns |
 |---|---|---|
-| `find_sessions` | `project_path` (regex), `git_origin` (regex), `query` (regex against project path or cwd), `limit` (default 10, max 500) | sessions, newest first |
-| `get_session_context` | `session_id` (required) | metadata, the most recent distinct Bash commands, first and last transcript lines, the latest memory records, and `usage` (the session's group of the `usage` tool, with its per-model breakdown; `null` when no usage is recorded) |
+| `find_sessions` | `project_path` (regex), `git_origin` (regex), `query` (regex against project path or cwd), `title` (regex), `live_state` (`working`, `waiting`, `ended`), `hotness` (`hot`, `warm`, `cool`, `cold`), `limit` (default 10, max 500) | sessions, newest first: `session_id`, `project_path`, `git_origin`, `cwd`, `model` (when known, section 4.5), `live_state`, `live_state_at`, `live_state_reason` (when known, section 4.6), `hotness`, `title`, `title_kind`, `slug`, `permission_mode`, `pr_link`, `worktree`, `entrypoint`, `claude_version` (when set, section 4.7), `started_at`, `last_seen`, `event_count` |
+| `get_session_context` | `session_id` (required) | metadata (`session` with `model` and `model_changed_at` once known, `live_state`, `live_state_at` and `live_state_reason` once known, `hotness`, and the section 4.7 fields once set), `turns` (`turns`, `total_ms`, `mean_ms`, `longest_ms` from the `turn_duration` records; `null` without any), the most recent distinct Bash commands, first and last transcript lines, the latest memory records, and `usage` (the session's group of the `usage` tool, with its per-model breakdown; `null` when no usage is recorded) |
 | `get_full_session` | `session_id` (required), `sections` (`transcript`, `subagents`, `blobs`, `hook_events`; default all), `max_tokens`, `cursor` | metadata and the sections asked for: transcript and subagent lines, blob metadata without content, hook events |
-| `search_commands` | `pattern` (required regex), `session_id`, `git_origin` (regex), `limit` (default 20, max 500) | Bash commands, newest first |
+| `search_commands` | `pattern` (required regex), `session_id`, `git_origin` (regex), `include_rejected` (keep the commands the harness refused to run, section 6.1.5), `limit` (default 20, max 500) | Bash commands, newest first |
 | `search_memory` | `pattern` (regex), `kind` (`entry`, `day`, `recent`, `archive`, `handoff`, `identity`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | `MemorySaved` records across the account, newest first |
-| `file_history` | `path` (required regex over the file path), `session_id`, `git_origin`, `project_path`, `limit` (sessions, default 10, max 500) | per session, most recent first, from the newest 500 file events: `files` (at most 10), `operations` (`read`, `edit`, `write`, `glob`, `ls` counts from `file-tracker`), `lines_added` and `lines_removed` (from `edit-diff-stats`), `first_touch`, `last_touch`, `project_path`, `git_origin` |
-| `find_errors` | `type` (`hook_error`, `tool_failure`, `error_text`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | lines `error-flag` marked, newest first: `session_id`, `seq`, `type`, `text` (300 characters), `timestamp`, `project_path`, `git_origin`, `created_at` |
+| `file_history` | `path` (required regex over the file path), `session_id`, `git_origin`, `project_path`, `include_rejected` (count the calls the harness refused to run, section 6.1.5), `limit` (sessions, default 10, max 500) | per session, most recent first, from the newest 500 file events: `files` (at most 10), `operations` (`read`, `edit`, `write`, `glob`, `ls` counts from `file-tracker`), `lines_added` and `lines_removed` (from `edit-diff-stats`), `spans` (`<file> L10-12` of each edit whose hook carried the patch, newest first, at most 20), `first_touch`, `last_touch`, `project_path`, `git_origin` |
+| `find_errors` | `type` (`hook_error`, `api_error`, `tool_failure`, `error_text`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | lines `error-flag` marked, newest first: `session_id`, `seq`, `type`, `text` (300 characters), `timestamp`, `project_path`, `git_origin`, `created_at` |
 | `search_transcripts` | `query` (required: words, any of which matches, `"quoted phrases"` that must appear, `-words` to exclude; matching ignores case), `session_id`, `git_origin` (regex), `project_path` (regex), `limit` (default 20, max 500) | transcript lines ranked by relevance (MongoDB text score; term frequency in the in-memory store), best first: `session_id`, `seq`, `score`, `snippet` (240 characters around the first matching word), `project_path`, `git_origin`, `created_at`. It searches the `search-text` enrichment, so a line is found once the enricher has run on it |
 | `usage` | `group_by` (`session`, the default, `model` or `day`), `session_id`, `git_origin` (regex), `project_path` (regex), `since` and `until` (inclusive UTC days, `YYYY-MM-DD`), `limit` (groups, default 50, max 500) | `{"group_by", "groups", "total", "unpriced_models"}`. Each group has `key` (the session id, model or day), `messages`, `input_tokens`, `cache_creation_input_tokens`, `cache_creation_1h_tokens`, `cache_read_input_tokens`, `output_tokens`, `peak_context_tokens` (the largest input context of one message), `cost_usd` and, unless grouped by model, `models` (the same counters per model). Every assistant message counts once (the lines of one message repeat its usage). `cost_usd` is an estimate at list prices (cache writes 1.25× the input price, 2× for the one-hour cache; cache reads at the model's cache-read price, 0.1× the input price unless the table says otherwise; a message whose prompt, input plus cache tokens, is over 100,000 tokens at the model's long-prompt price when it has one, as Claude Haiku 5.5 does) from the built-in table (the models and prices on Anthropic's pricing page; batch, fast-mode and US-only prices are not applied) and the config's `modelPrices`, rounded to 0.0001; it covers the priced models only and is `null` when none is priced; the others are listed in `unpriced_models`. Groups come costliest first, or in day order by day; `total` covers every group |
-| `get_limits` | `session_id`, `git_origin` (regex), `project_path` (regex), `since` (an RFC 3339 time, or a duration back from now such as `24h`), `limit` (default 20, max 500), `max_tokens`, `cursor` | `LimitsSampled` samples newest first: `session_id`, `project_path`, `git_origin`, `cwd`, `model`, `version`, `context_window`, `rate_limits`, `cost`, `sampled_at`, `created_at` (section 5.1) |
+| `get_limits` | `session_id`, `git_origin` (regex), `project_path` (regex), `since` (an RFC 3339 time, or a duration back from now such as `24h`), `limit` (default 20, max 500), `max_tokens`, `cursor` | `LimitsSampled` samples newest first: `session_id`, `project_path`, `git_origin`, `cwd`, `model`, `version`, `context_window`, `rate_limits`, `cost`, `live_state` (when stamped), `sampled_at`, `created_at` (section 5.1) |
+| `get_activities` | `session_id`, `git_origin` (regex), `project_path` (regex), `kinds` (list of `user`, `response`, `thinking`, `bash`, `commit`, `edit`, `read`, `task`, `tool`, `result`, `compaction`, `api_error`, `turn`, `other`, `state`), `since` (an RFC 3339 time, or a duration back from now such as `24h`), `include_rejected` (keep the tool calls the harness refused to run and their results, section 6.1.5), `limit` (lines and state changes read, each, default 50, max 500), `max_tokens`, `cursor` | the timeline, newest first: per line `session_id`, `seq`, `kind`, `label`, `detail`, `tool_name`, `tool_use_id`, `is_error`, `blocks` (the `activity-kind` enrichment, section 6.1.1), `count` (consecutive repeats of one `bash`, `commit`, `edit`, `read`, `task` or `tool` activity with the same label and detail in one session are one entry; `seq`, `tool_use_id` and `timestamp` are the newest's), `timestamp` (the line's own), `project_path`, `git_origin`, `created_at`, and on a `result` line `result` (its `tool-result-detail`, section 6.1.3, without `diff`, `stdout`, `stderr`, `result`, `text` and `hunks`) with that enrichment's `summary` as the `detail`; a `SessionStateChanged` event (section 4.6) is an entry of kind `state` whose `label` is the state entered, `detail` the hook that set it, `seq` -1 and `timestamp` the change's `at`, merged by `created_at` |
+| `get_digest` | `day` (YYYY-MM-DD, default yesterday UTC) or `from` and `to` | the stored digest of the period (section 5.2): `scope`, `from`, `to`, `text`, `engine`, `model`, `cost_usd`, `report_tokens`, `cached`, `created_at`; `null` when none is stored |
 | `read_transcript` | `session_id` (required), `offset` (default 0), `limit` (default 200, max 500), `max_tokens`, `cursor` (overrides `offset`) | transcript lines in order |
 | `get_lines` | `session_id` (required), `seqs` (required, 1 to 100 seq numbers), `max_tokens`, `cursor` | the whole transcript lines with those seqs, in seq order; a seq the transcript lacks is left out |
 | `restore_session` | `session_id` (required), `project_path` (override), `projects_dir` (override) | rebuilds the JSONL, subagent files, tool-result blobs and file-history backups on the local disk |
@@ -472,6 +602,120 @@ malformed one, is an error.
 
 The clued server's `/mcp` endpoint offers the same tools minus
 `restore_session` and `prime_context`, which need the local disk.
+
+#### 6.1.1 The `activity-kind` enrichment
+
+The `activity-kind` enricher labels every transcript line with what the
+agent was doing, stored under `enrichments.activity-kind`:
+
+```json
+{"kind": "bash", "label": "Bash", "detail": "go test ./...", "tool_name": "Bash", "tool_use_id": "toolu_…", "is_error": false, "blocks": ["response"]}
+```
+
+| `kind` | When | `label` | `detail` (at most 300 characters, one line) |
+|---|---|---|---|
+| `user` | a user message whose content is text | `user` | the prompt |
+| `response` | an assistant text block | `response` | the text |
+| `thinking` | a thinking or redacted thinking block | `thinking` | the thought |
+| `bash` | a `Bash` tool call | `Bash` | the command, terminal escapes stripped |
+| `commit` | a `Bash` call whose command runs `git commit` | `Bash` | the first line of the `-m`/`--message` message (quoted, or a `$(cat <<'EOF' …)` here-document), else the commit stage of the command |
+| `edit` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | the tool | the file's base name |
+| `read` | `Read` | `Read` | the file's base name |
+| `read` | `Glob`, `Grep` | the tool | the pattern |
+| `task` | `Task`, `Agent` | the tool | the `description`, else the start of the `prompt` |
+| `tool` | any other tool call | the tool | the first of `url`, `query`, `pattern`, `description`, `skill`, `command`, `file_path`, `prompt` in the input |
+| `result` | a `tool_result` block | `result` | the start of the result's text; `is_error` is the block's |
+| `compaction` | a `system` record of subtype `compact_boundary` | `compaction` | the trigger and the tokens before (`auto 791988 tokens`) |
+| `api_error` | a `system` record of subtype `api_error` | `api_error` | the status and message (`529 Overloaded`) |
+| `turn` | a `system` record of subtype `turn_duration` | `turn` | the duration (`12.345s`) |
+| `other` | everything else: other system records, summary, attachment, `last-prompt` and other sidecar lines, a message without content | the line's `type`, with `:subtype` or `:attachment type` when present | empty |
+
+`tool_name` and `tool_use_id` are set for a tool call, `tool_use_id` for a
+result. A message with several content blocks takes the kind of its first
+block; the kinds of the rest are listed in `blocks` (absent when there is
+only one). `is_error` and `blocks` are stored only when set.
+
+#### 6.1.2 The `model` and `hook-model` enrichments
+
+Every transcript line and hook event is labelled with the model in use
+when it was written, as `{"model": "<id>", "source": "<how>"}` under
+`enrichments.model` (lines) and `enrichments.hook-model` (events):
+
+| `source` | Meaning |
+|---|---|
+| `line` | an assistant line's own `message.model` (synthetic lines excluded) |
+| `carried` | the model of the nearest preceding assistant line of the session (for a line: by `seq`; for an event: the newest line stored no later than the event's `created_at`) |
+| `event` | the event names it itself (`model.id` of a `LimitsSampled` sample, or a string `model`) |
+| `session` | an event no assistant line preceded in time takes the session's latest assistant line |
+| `unknown` | none found; `model` is `""` |
+
+The lookup is `Lookup.LastModelBefore(session_id, seq, at)` of the store
+(`POST /transcript-lines/last-model` on the server, section 7.3).
+
+#### 6.1.3 The `tool-result-detail` enrichment
+
+Claude Code writes a `toolUseResult` next to each tool result line. The
+`tool-result-detail` enricher (transcript lines with one) reduces it to the
+facts a timeline shows, under `enrichments.tool-result-detail`, with the
+tool its shape reveals in `tool`, a one-line `summary`, and the
+`tool_use_id` of the result block:
+
+| `tool` | Shape | Fields |
+|---|---|---|
+| `edit` (`write` when the result's `type` is `create`) | a `structuredPatch` | `file_path`, `hunks` (`old_start`, `old_lines`, `new_start`, `new_lines`), `lines_added`, `lines_removed` (the `+` and `-` lines of the hunks), `span` (`L10-12` from the first hunk's start to the last hunk's end in the new file), `diff` (the unified diff, at most 16 KB); summary `a.go L10-12 +3 -1` |
+| `bash` | `stdout`, `stderr` or `interrupted` | `stdout`, `stderr` (terminal escapes stripped, at most 4 KB each), `exit_code` (when the result carries `exitCode`), `interrupted`; summary `exit 1, 12 lines, stderr, [interrupted]` as applies |
+| `read` | a `file` with `startLine` or `numLines` | `file_path`, `start_line`, `num_lines`, `total_lines`, `span`; summary `README.md L1-50` |
+| `task` | an `agentId`, or a `description` with a `prompt` | `description`, `status`, `agent_id`, `result` (the `result` string or the text blocks of `content`, at most 4 KB); summary `<description> (<status>)` |
+| `text` | a string (a refusal, an error) | `text` (at most 4 KB); summary its first line |
+| `other` | anything else | `keys` (the result's top-level keys, sorted); summary the keys |
+
+A text the caps cut ends in `[truncated]`. The `edit-diff-stats`
+enrichment of the `PostToolUse` hook event carries the same `file_path` and
+`span` from the hook's `tool_response.structuredPatch`, which is what
+`file_history` reports as `spans`.
+
+#### 6.1.4 The `system-record` enrichment
+
+A transcript line of type `system` is a record Claude Code writes between
+the messages. The `system-record` enricher stores its `subtype`, its
+`content` as `text` (300 characters) and the payload of the subtypes it
+knows, under `enrichments.system-record`:
+
+| `subtype` | Fields |
+|---|---|
+| `turn_duration` | `duration_ms` (from `durationMs`) |
+| `api_error` | `status`, `message`, `retry` (from `status`/`error.status`, `message`/`error.message`, `retryAttempt`); the `error-flag` enrichment marks the line `api_error` |
+| `compact_boundary` | `trigger`, `pre_tokens`, `post_tokens` (from `compactMetadata`) |
+| `stop_hook_summary` | `hook_count`, `hook_error` (any entry in `hookErrors`) |
+| `away_summary` and others | `text` only |
+
+`get_session_context` sums the `turn_duration` records into `turns`, and
+the activity timeline shows compactions, API errors and turns (section
+6.1.1).
+
+#### 6.1.5 Rejected tool calls
+
+A tool call Claude Code refused (a denied permission, a hook that blocked
+it, invalid input) still has a `tool_use` and a `tool_result`, but the
+result's text is the harness's refusal and the call never ran. The
+`error-flag` enricher marks such a result line `tool_failure` with
+`rejected: true`, `rejection` and the `tool_use_id` of the call, by the
+text of the result:
+
+| Text | `rejection` |
+|---|---|
+| `InputValidationError:` | `input_validation` |
+| `Permission for this action was denied` | `permission_denied` |
+| `Refusing to write through symlink` | `symlink` |
+| `The user doesn't want to proceed`, `Tool use was rejected` | `user_declined` |
+| `This operation was blocked by a hook` | `blocked_by_hook` |
+| `Blocked:` (at the start of the text only) | `other` |
+
+The markers live in `session/enrichers/rejections.go`. The hook events of
+the call (written before the refusal) are not marked; `search_commands`,
+`file_history` and `get_activities` look the rejected `tool_use_id`s of
+their scope up (`POST /rejected-tool-uses`, the newest 500) and leave those
+calls, and their results, out unless `include_rejected` is true.
 
 ### 6.2 `mind-palace`: the plan and story tools
 
@@ -658,13 +902,17 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 | Route | Body | Result |
 |---|---|---|
 | `PUT /sessions` | a `Session` (`session_id`, `transcript_path`, `cwd`, `project_path`, `git_origin`, `git_branch`, `host`, `last_seen`) | `{"session_id"}` |
-| `POST /sessions/find` | `{"projectPathRe", "gitOriginRe", "queryRe", "limit"}` | sessions |
+| `POST /sessions/find` | `{"projectPathRe", "gitOriginRe", "queryRe", "titleRe", "liveStates": […], "lastSeenFrom", "lastSeenBefore" (RFC 3339; inclusive from, exclusive before, zero for none), "limit"}` | sessions, projected to `session_id`, `project_path`, `git_origin`, `cwd`, `model`, `live_state`, `live_state_at`, `live_state_reason`, `title`, `title_kind`, `slug`, `permission_mode`, `pr_link`, `worktree`, `entrypoint`, `claude_version`, `started_at`, `last_seen` |
 | `POST /sessions/{id}/touch` | `{"at": "<RFC3339>"}` | `{"session_id"}` |
 | `POST /sessions/{id}/git` | `{"origin", "branch"}` (set once; a foreign session is silently ignored) | `{"session_id"}` |
+| `POST /sessions/{id}/model` | `{"model", "at"}` (`at` defaults to now) | `{"previous", "changed"}`: the stored model (`""` when none) and whether `model` and `model_changed_at` were written (section 4.5); 404 when the account has no such session |
+| `POST /sessions/{id}/meta` | `{"fields": {…}}` (only `title`, `title_kind`, `slug`, `permission_mode`, `pr_link`, `worktree`, `entrypoint`, `claude_version`; another key is 400) | `{"session_id"}`; sets the fields (section 4.7); 404 when the account has no such session |
+| `POST /sessions/{id}/state` | `{"state", "reason", "at"}` (`at` defaults to now) | `{"previous", "changed"}`: the stored live state (`""` when none) and whether `live_state`, `live_state_at` and `live_state_reason` were written (section 4.6); 404 when the account has no such session |
 | `GET /sessions/{id}` | | the session |
 | `GET /sessions/{id}/full` | | the session joined with its lines, blobs and events |
 | `POST /hook-events` | an array of events, each with `session_id`; a string `created_at` is parsed as RFC 3339 | `{"inserted": n}` (a partial failure is 502 naming how many went in) |
 | `POST /hook-events/by-tool-use` | `{"session_id", "tool_use_ids": […]}` (an empty session id matches every session) | event ids |
+| `POST /transcript-lines/last-model` | `{"session_id", "seq" (omitted or negative for any), "at" (omitted for any time)}` | the model of the newest assistant line of the session below `seq` and not after `at`, as a string (`""` when none) |
 | `PUT /transcript-lines` | up to 500 `TranscriptLine`s (`session_id`, `seq`, `line`) | `{"upserted": n}` |
 | `GET /transcript-lines/count?session=` | | an integer |
 | `POST /transcript-lines/query` | `{"sessionId", "offset", "limit", "descending"}` | lines |
@@ -673,13 +921,16 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 | `POST /subagent-lines/query` | `{"session_id", "subagent_id"}` | lines |
 | `PUT /blobs` | a `Blob` (`session_id`, `blob_type`, `name`, `content`, `encoding`) | `{"upserted": 1}` |
 | `POST /blobs/query` | `{"session_id"}` | blobs |
-| `POST /bash-events` | `{"patternRe", "sessionIds", "limit"}` | Bash hook events |
+| `POST /bash-events` | `{"patternRe", "sessionIds", "limit"}` | Bash hook events, projected to `session_id`, `tool_use_id`, `tool_input`, `created_at` |
 | `POST /memory-events` | `{"patternRe", "kinds", "sessionIds", "limit"}` | `MemorySaved` events |
 | `POST /file-events` | `{"pathRe", "sessionIds", "limit"}` | hook events with `enrichments.file-tracker.file_path` or PostToolUse `edit-diff-stats` matching the path |
 | `POST /error-lines` | `{"types", "sessionIds", "limit"}` | transcript lines with `enrichments.error-flag.is_error` |
 | `POST /sessions/delete` | `{"sessionIds", "projectPathRe", "before"}` (at least one, else 400) | `{"sessions", "documents"}`: the token's account's sessions forgotten (see `forget_session`) |
 | `POST /usage-totals` | `{"groupBy", "sessionIds", "since", "until", "longPromptTokens"}` | `[{"key", "model", "messages", "input_tokens", "cache_creation_input_tokens", "cache_creation_1h_tokens", "cache_read_input_tokens", "output_tokens", "peak_context_tokens", "long_prompt"}]`, one per group and model (and, when `longPromptTokens` is positive, per whether a message's context tokens are over it), sorted by key, model and `long_prompt`; a `groupBy` other than `session`, `model`, `day` or empty is 400 |
-| `POST /limit-samples` | `{"sessionIds", "since" (RFC 3339, zero for none), "limit"}` | `LimitsSampled` events, newest first, projected to `session_id`, `cwd`, `model`, `version`, `context_window`, `rate_limits`, `cost`, `sampled_at`, `created_at` |
+| `POST /limit-samples` | `{"sessionIds", "since" (RFC 3339, zero for none), "limit"}` | `LimitsSampled` events, newest first, projected to `session_id`, `cwd`, `model`, `version`, `context_window`, `rate_limits`, `cost`, `live_state`, `sampled_at`, `created_at` |
+| `POST /activities` | `{"sessionIds", "kinds", "since" (RFC 3339, zero for none), "limit"}` | transcript lines with an `enrichments.activity-kind`, of those kinds, newest first (`created_at`, then `seq`), projected to `session_id`, `seq`, `line.timestamp`, `enrichments.activity-kind`, `enrichments.tool-result-detail` and `enrichments.system-record` (when present), `created_at` |
+| `POST /state-changes` | `{"sessionIds", "since" (RFC 3339, zero for none), "limit"}` (`kinds` is ignored) | `SessionStateChanged` events (section 4.6), newest first, projected to `session_id`, `from`, `to`, `reason`, `at`, `created_at` |
+| `POST /rejected-tool-uses` | `{"sessionIds", "since" (RFC 3339, zero for none), "limit"}` (`kinds` is ignored) | transcript lines with `enrichments.error-flag.rejected` (section 6.1.5), newest first, projected to `session_id`, `seq`, `enrichments.error-flag`, `created_at` |
 | `POST /transcript-search` | `{"query", "sessionIds", "limit"}` | transcript lines whose `enrichments.search-text` matches, best first, with `score`; only `session_id`, `seq`, `score`, `created_at` and `enrichments.search-text` are returned |
 
 The query bodies use the camel-case keys above. The server decodes keys
@@ -913,8 +1164,8 @@ Sessions (`mind-palace session …`, `--config` names the clued config file):
 
 ```
 daemon [--addr host:port]                 mcp [--mcp-tool-prefix p]              whoami
-find [--project-path re] [--git-origin re] [--query re] [--limit n]
-search-commands <pattern> [--session id] [--git-origin re] [--limit n]
+find [--project-path re] [--git-origin re] [--query re] [--title re] [--live-state s] [--hotness h] [--limit n]
+search-commands <pattern> [--session id] [--git-origin re] [--include-rejected] [--limit n]
 search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]
 search <words…> [--session id] [--git-origin re] [--project re] [--limit n]
 usage [--by session|model|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]
@@ -923,6 +1174,9 @@ export [--session id]… [--project re] [--since day|time] [--format md|html|jso
 import <file.jsonl|export.zip>
 otel-export [--session id]… [--project re] [--since day|time]
 limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]
+activities [--session id] [--git-origin re] [--project-path re] [--kind k]… [--since t] [--include-rejected] [--limit n]
+report [--day YYYY-MM-DD | --from d --to d] [--include kinds] [--format markdown|json] [--project-path re] [--git-origin re]
+digest [--day YYYY-MM-DD | --from d --to d] [--engine claude|none] [--model m] [--force] [--show] [--include kinds] [--project-path re] [--git-origin re] [--template-dir d]
 context <session>                         full <session>                         transcript <session> [--offset n] [--limit n]
 restore <session> [--project-path p] [--projects-dir d]                          backfill
 memory-ingest [--dir d]… [--cwd c] [--session id] [--quiet]
@@ -965,6 +1219,13 @@ top-level project name `clued`, `nginx/clued.conf`,
 first token in `tokens.json`) and prints `{"dir", "composeFile", "proxy",
 "port", "serverUrl", "caFile", "hosts", "tls", "token", "up", "health",
 "written", "kept", "notes"}`; `up` is the command that starts the stack.
+
+`report` prints the activity report as Markdown (`--format json` puts its
+structure in the envelope: `period`, `from`, `to`, `sessions` with their
+`rows`, `tokens`, `warning`); `digest` prints the stored or generated
+digest in the envelope, `--engine none` prints the report, a `---` rule
+and the prompt instead and stores nothing, and `--show` prints the stored
+digest or fails with `NotFound` (section 5.2).
 
 Hooks (`mind-palace hook write-guard|stop-guard|status-review|prime|relay`)
 and the status line command (`mind-palace hook status`) are section 2.6.

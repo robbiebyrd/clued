@@ -70,8 +70,14 @@ func (s *Source) Current(ctx context.Context, cwd string) (*prime.SessionSnapsho
 	if top == nil {
 		top = []string{}
 	}
+	model, _ := c.Session.String("model")
+	liveState, _ := c.Session.String("live_state")
+	hotness, _ := c.Session.String("hotness")
 	return &prime.SessionSnapshot{
 		SessionID:   id,
+		Model:       model,
+		LiveState:   liveState,
+		Hotness:     hotness,
 		StartedAt:   timeOf(c.Session, "started_at"),
 		LastSeen:    timeOf(c.Session, "last_seen"),
 		TopCommands: top,
@@ -94,11 +100,31 @@ func (s *Source) Recent(ctx context.Context, cwd string, limit int) ([]prime.Mem
 	if err != nil {
 		return nil, err
 	}
-	notes := make([]prime.MemoryNote, 0, len(hits))
+	notes := make([]prime.MemoryNote, 0, len(hits)+1)
+	if d := s.yesterdaysDigest(ctx, svc); d != nil {
+		notes = append(notes, *d)
+	}
 	for _, h := range hits {
 		notes = append(notes, prime.MemoryNote{Kind: h.Kind, Day: h.Day, Time: h.Time, Branch: h.Branch, Text: h.Text, CreatedAt: h.CreatedAt})
 	}
 	return notes, nil
+}
+
+// yesterdaysDigest is the digest `session digest` stored for yesterday
+// (UTC), as a note of kind digest; nil when there is none (or the store
+// fails: the digest is a bonus, not the section).
+func (s *Source) yesterdaysDigest(ctx context.Context, svc *query.Service) *prime.MemoryNote {
+	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format(time.DateOnly)
+	hits, err := svc.SearchMemory(ctx, query.SearchMemoryArgs{Kind: "digest", Limit: 20})
+	if err != nil {
+		return nil
+	}
+	for _, h := range hits {
+		if h.Day == yesterday && h.File == "digest/"+yesterday+".md" {
+			return &prime.MemoryNote{Kind: h.Kind, Day: h.Day, Text: h.Text, CreatedAt: h.CreatedAt}
+		}
+	}
+	return nil
 }
 
 // open connects once; a failed connect is retried on the next call.

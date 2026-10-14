@@ -15,6 +15,8 @@ import (
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
+	"github.com/robbiebyrd/clued/mind-palace/session/livestate"
+	"github.com/robbiebyrd/clued/mind-palace/session/modeltrack"
 	"github.com/robbiebyrd/clued/mind-palace/session/wal"
 )
 
@@ -55,7 +57,8 @@ type Service struct {
 // sessionState is what the service remembers about a session it has seen.
 type sessionState struct {
 	gitOriginFound bool
-	gitLookup      bool // a late lookup is in flight
+	gitLookup      bool   // a late lookup is in flight
+	liveState      string // the live state last recorded, "" when unknown
 }
 
 // Tracked reports what Handle learned about the event's session.
@@ -94,8 +97,20 @@ func (s *Service) Handle(ctx context.Context, event session.Doc) (Tracked, error
 	ev["created_at"] = time.Now()
 	ictx, cancel := context.WithTimeout(ctx, s.timeout())
 	defer cancel()
+	if name, _ := ev.String("hook_event_name"); name == session.LimitsEventName && sessionID != "" {
+		if state := s.liveStateOf(ictx, sessionID); state != "" {
+			ev["live_state"] = state
+		}
+	}
 	err := s.Store.InsertHookEvent(ictx, ev)
 	if err == nil {
+		if model := modeltrack.EventModel(event); model != "" && sessionID != "" {
+			s.run(ctx, func(ctx context.Context) { s.observeModel(ctx, sessionID, model) })
+		}
+		if state, reason := livestate.StateOf(event); state != "" && sessionID != "" {
+			at := ev["created_at"].(time.Time)
+			s.run(ctx, func(ctx context.Context) { s.observeState(ctx, sessionID, state, reason, at) })
+		}
 		return tr, nil
 	}
 	s.logger().Warn("hook event insert failed; appending to WAL", "err", err)
@@ -201,6 +216,59 @@ func (s *Service) fillGitInfo(ctx context.Context, sessionID, cwd string, state 
 	if err := s.Store.SetGitInfoIfMissing(sctx, sessionID, origin, branch); err != nil && ctx.Err() == nil {
 		s.logger().Error("set git info failed", "session_id", sessionID, "err", err)
 	}
+}
+
+// observeModel records the model an event names (a LimitsSampled sample)
+// as the session's. A session the store does not have yet (its first-sight
+// upsert may still be in flight) is not an error worth logging.
+func (s *Service) observeModel(ctx context.Context, sessionID, model string) {
+	sctx, cancel := context.WithTimeout(ctx, s.timeout())
+	defer cancel()
+	if _, err := modeltrack.Observe(sctx, s.Store, s.AccountID, sessionID, model, -1, time.Now(), modeltrack.SourceLimits); err != nil && !errors.Is(err, session.ErrNotFound) && ctx.Err() == nil {
+		s.logger().Error("record session model failed", "session_id", sessionID, "err", err)
+	}
+}
+
+// observeState records the live state an event puts the session in. A
+// session the store does not have yet (its first-sight upsert may still be
+// in flight) is not an error worth logging: the next event tries again.
+func (s *Service) observeState(ctx context.Context, sessionID, state, reason string, at time.Time) {
+	sctx, cancel := context.WithTimeout(ctx, s.timeout())
+	defer cancel()
+	_, err := livestate.Observe(sctx, s.Store, s.AccountID, sessionID, state, reason, at)
+	if err != nil {
+		if !errors.Is(err, session.ErrNotFound) && ctx.Err() == nil {
+			s.logger().Error("record session state failed", "session_id", sessionID, "err", err)
+		}
+		return
+	}
+	s.mu.Lock()
+	if st := s.seen[sessionID]; st != nil {
+		st.liveState = state
+	}
+	s.mu.Unlock()
+}
+
+// liveStateOf is the session's live state as last recorded by this service,
+// else as stored (a short-lived relay has no memory of it); "" when unknown.
+func (s *Service) liveStateOf(ctx context.Context, sessionID string) string {
+	s.mu.Lock()
+	st := s.seen[sessionID]
+	known := st != nil && st.liveState != ""
+	var state string
+	if known {
+		state = st.liveState
+	}
+	s.mu.Unlock()
+	if known {
+		return state
+	}
+	doc, err := s.Store.GetSession(ctx, s.AccountID, sessionID)
+	if err != nil {
+		return ""
+	}
+	state, _ = doc.String("live_state")
+	return state
 }
 
 func (s *Service) touch(ctx context.Context, sessionID string, at time.Time) {

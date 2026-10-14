@@ -12,7 +12,7 @@
 // failure is the remote package's error.
 //
 // Results come back as JSON, so the adapter restores what the local stores
-// return natively: the time fields created_at, last_seen, started_at and
+// return natively: the time fields created_at, last_seen, started_at, model_changed_at, at and
 // enrichments.<name>_failed.at become time.Time, seq and host.uid become int,
 // and the joined lists of a full session become []session.Doc. Transcript
 // content (line, tool_input) is left exactly as stored.
@@ -90,6 +90,61 @@ func (s *Store) SetGitInfoIfMissing(ctx context.Context, sessionID, origin, bran
 	return s.do(ctx, "POST", sessionPath(sessionID, "/git"), map[string]string{"origin": origin, "branch": branch}, nil)
 }
 
+func (s *Store) SetModel(ctx context.Context, _ string, sessionID, model string, at time.Time) (string, bool, error) {
+	if model == "" {
+		return "", false, nil
+	}
+	var out struct {
+		Previous string `json:"previous"`
+		Changed  bool   `json:"changed"`
+	}
+	if err := s.do(ctx, "POST", sessionPath(sessionID, "/model"), map[string]any{"model": model, "at": at}, &out); err != nil {
+		return "", false, err
+	}
+	return out.Previous, out.Changed, nil
+}
+
+func (s *Store) SetSessionMeta(ctx context.Context, _ string, sessionID string, fields session.Doc) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	return s.do(ctx, "POST", sessionPath(sessionID, "/meta"), map[string]any{"fields": fields}, nil)
+}
+
+func (s *Store) SetLiveState(ctx context.Context, _ string, sessionID, state, reason string, at time.Time) (string, bool, error) {
+	if state == "" {
+		return "", false, nil
+	}
+	var out struct {
+		Previous string `json:"previous"`
+		Changed  bool   `json:"changed"`
+	}
+	if err := s.do(ctx, "POST", sessionPath(sessionID, "/state"), map[string]any{"state": state, "reason": reason, "at": at}, &out); err != nil {
+		return "", false, err
+	}
+	return out.Previous, out.Changed, nil
+}
+
+func (s *Store) StateChanges(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/state-changes", q)
+}
+
+func (s *Store) RejectedToolUses(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/rejected-tool-uses", q)
+}
+
+func (s *Store) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
+	var model string
+	body := map[string]any{"session_id": sessionID, "seq": seq}
+	if !at.IsZero() {
+		body["at"] = at
+	}
+	if err := s.do(ctx, "POST", prefix+"/transcript-lines/last-model", body, &model); err != nil {
+		return "", err
+	}
+	return model, nil
+}
+
 func (s *Store) GetSession(ctx context.Context, _ string, sessionID string) (session.Doc, error) {
 	var d session.Doc
 	if err := s.do(ctx, "GET", sessionPath(sessionID, ""), nil, &d); err != nil {
@@ -138,6 +193,10 @@ func (s *Store) FileEvents(ctx context.Context, q session.FileQuery) ([]session.
 
 func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session.Doc, error) {
 	return s.docs(ctx, "POST", prefix+"/error-lines", q)
+}
+
+func (s *Store) Activities(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/activities", q)
 }
 
 func (s *Store) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]session.Doc, error) {
@@ -281,7 +340,7 @@ func (s *Store) strList(ctx context.Context, method, path string, in any) ([]str
 }
 
 // timeKeys are the document fields the stores hold as times.
-var timeKeys = []string{"created_at", "last_seen", "started_at"}
+var timeKeys = []string{"created_at", "last_seen", "started_at", "model_changed_at", "live_state_at", "at"}
 
 // joinedLists are the sub-collections a full session carries.
 var joinedLists = []string{"transcript_lines", "subagent_lines", "blobs", "hook_events"}

@@ -168,6 +168,30 @@ func (h *harness) SetGitInfoIfMissing(ctx context.Context, sessionID, origin, br
 	return h.as("").SetGitInfoIfMissing(ctx, sessionID, origin, branch)
 }
 
+func (h *harness) SetModel(ctx context.Context, accountID, sessionID, model string, at time.Time) (string, bool, error) {
+	return h.as(accountID).SetModel(ctx, accountID, sessionID, model, at)
+}
+
+func (h *harness) SetSessionMeta(ctx context.Context, accountID, sessionID string, fields session.Doc) error {
+	return h.as(accountID).SetSessionMeta(ctx, accountID, sessionID, fields)
+}
+
+func (h *harness) SetLiveState(ctx context.Context, accountID, sessionID, state, reason string, at time.Time) (string, bool, error) {
+	return h.as(accountID).SetLiveState(ctx, accountID, sessionID, state, reason, at)
+}
+
+func (h *harness) StateChanges(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).StateChanges(ctx, q)
+}
+
+func (h *harness) RejectedToolUses(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).RejectedToolUses(ctx, q)
+}
+
+func (h *harness) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
+	return h.as("").LastModelBefore(ctx, sessionID, seq, at)
+}
+
 func (h *harness) GetSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
 	return h.as(accountID).GetSession(ctx, accountID, sessionID)
 }
@@ -249,6 +273,10 @@ func (h *harness) FileEvents(ctx context.Context, q session.FileQuery) ([]sessio
 
 func (h *harness) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session.Doc, error) {
 	return h.as(q.AccountID).ErrorLines(ctx, q)
+}
+
+func (h *harness) Activities(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).Activities(ctx, q)
 }
 
 func (h *harness) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]session.Doc, error) {

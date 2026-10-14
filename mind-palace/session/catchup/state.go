@@ -16,6 +16,8 @@ import (
 type state struct {
 	Offset    int64                     `json:"offset"`
 	Seq       int                       `json:"seq"`
+	Model     string                    `json:"model,omitempty"` // the model the pushed lines last named
+	Meta      map[string]any            `json:"meta,omitempty"`  // the session fields the pushed lines set (sidecar.Tracker.Known)
 	Artifacts map[string]tail.FileStamp `json:"artifacts,omitempty"`
 	// Refused lists artifacts the store rejected as too large; they keep
 	// their stamp in Artifacts so they are retried only when the file changes.

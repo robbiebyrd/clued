@@ -73,8 +73,8 @@ func TestRemoteEndToEnd(t *testing.T) {
 		t.Errorf("session account_id = %v, want the token's %q", full["account_id"], account)
 	}
 	events, _ := full["hook_events"].([]any)
-	if len(events) != 1 {
-		t.Fatalf("hook_events = %v, want one", events)
+	if len(events) != 2 {
+		t.Fatalf("hook_events = %v, want the event and its state change", events)
 	}
 	// The full view strips _id, session_id and account_id from each event;
 	// the session's account_id above and the account the tools were given

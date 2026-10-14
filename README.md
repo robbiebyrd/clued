@@ -196,20 +196,25 @@ off.
 |---|---|---|
 | `bash-binaries` | `hook_events` | The binary invoked by each stage of a Bash command |
 | `bash-outcome` | `hook_events` | Whether a Bash call wrote to stderr and how much it printed |
-| `edit-diff-stats` | `hook_events` | Lines added and removed by an Edit or Write call |
+| `edit-diff-stats` | `hook_events` | Lines added and removed by an Edit or Write call, with the file and the span (`L10-12`) when the hook carried the patch |
 | `file-tracker` | `hook_events` | The file each file tool targets, its language and artifact kind (plan, spec, doc, test, config, code) |
 | `prompt-features` | `hook_events` | Word count, slash-command name and intent of a user prompt |
 | `tool-classifier` | `hook_events` | A category and read-only flag for each tool call |
+| `activity-kind` | `transcript_lines` | What the agent was doing: `user`, `response`, `thinking`, `bash`, `commit`, `edit`, `read`, `task`, `tool`, `result` or `other`, with a label (the tool's name) and a detail (the prompt or reply's start, the command, the file's base name, the pattern, the sub-agent's description, the commit message's first line); for `get_activities` |
 | `attachment-extractor` | `transcript_lines` | Path, language and size of an attached file |
 | `code-language-detector` | `transcript_lines` | Languages of fenced code blocks |
-| `error-flag` | `transcript_lines` | Lines that report an error (failed hook, failed tool, error text) |
+| `error-flag` | `transcript_lines` | Lines that report an error (failed hook, failed tool, error text); a tool result that is the harness's refusal (denied permission, blocked by a hook, invalid input, declined by the user, symlink) is also `rejected` with its `rejection` and `tool_use_id`, and `search_commands`, `file_history` and `get_activities` leave such calls out unless `include_rejected` |
 | `file-snapshot-extractor` | `transcript_lines` | Files and languages in a file-history snapshot |
 | `hook-linker` | `transcript_lines` | Links a line to the hook events of the tool calls it mentions |
 | `intent-classifier` | `transcript_lines` | question, instruction, feedback, correction, approval or slash_command |
 | `line-classifier` | `transcript_lines` | user_prompt, assistant, tool_result, hook_success, hook_error, session_meta or unknown |
 | `message-stats` | `transcript_lines` | Characters, words and content blocks |
+| `model` | `transcript_lines` | The model in use when the line was written: an assistant line's own, else carried from the nearest preceding assistant line (`source`: `line`, `carried` or `unknown`) |
+| `hook-model` | `hook_events` | The model in use when the event happened: the event's own (`event`), the newest assistant line stored by then (`carried`), else the session's latest (`session`) |
+| `system-record` | `transcript_lines` | The subtype and payload of a `system` record: a turn's duration, an API error's status and message, a compaction's trigger and tokens, a stop-hook summary |
 | `skill-detector` | `transcript_lines` | Skill tool invocations of an assistant line |
 | `thinking-stats` | `transcript_lines` | Size of the thinking and text of an assistant line |
+| `tool-result-detail` | `transcript_lines` | The facts of a tool result's `toolUseResult`: an edit's file, hunks, span (`L10-12`), lines added and removed and unified diff (16 KB); a command's stdout and stderr (4 KB each), exit code and interruption; a read's range; a sub-agent's description, status and result; with a one-line summary |
 | `tool-use-summary` | `transcript_lines` | The tools an assistant line calls and whether it thinks |
 | `usage` | `transcript_lines` | The token usage of an assistant line (input, cache writes, one-hour cache writes, cache reads, output, input context) with its model, message id and UTC day, for the `usage` tool |
 | `search-text` | `transcript_lines` | The readable text of the line (message text, tool calls and results, no thinking), at most 16 KB, with the credential patterns of `privacy-redact` (not e-mail addresses) masked; MongoDB keeps a text index on it for `search_transcripts` |
@@ -220,16 +225,18 @@ off.
 
 | Tool | Does |
 |---|---|
-| `find_sessions` | Find previous sessions, newest first; regex filters on project path, cwd and git origin |
-| `get_session_context` | Metadata, the most recent distinct Bash commands, the first and last transcript lines, the session's latest memory records, and its token usage and estimated cost |
+| `find_sessions` | Find previous sessions, newest first; regex filters on project path, cwd and git origin, or one `live_state` (`working`, `waiting`, `ended`) or `hotness` (`hot`: active in the last 30 minutes, `warm`: the last hour, `cool`: earlier today, `cold`: before); or a `title` regex; each session carries its current `model`, `live_state` and `hotness` once known, and the title, slug, permission mode, pull request link, entrypoint and Claude Code version its transcript's records set |
+| `get_session_context` | Metadata, the most recent distinct Bash commands, the first and last transcript lines, the session's latest memory records, and its token usage and estimated cost; with the session's model, state, title and pull request link once known, and its turns (count, total, mean and longest duration) |
 | `get_full_session` | The record: metadata, transcript, subagent lines, blob metadata and hook events, or only the `sections` asked for |
-| `search_commands` | Search the Bash commands run in previous sessions |
+| `search_commands` | Search the Bash commands run in previous sessions; rejected calls left out unless `include_rejected` |
 | `search_memory` | Search the claude-remember summaries, handoffs and identity notes captured as `MemorySaved` events across every session and machine of the account: regex over the text, optional `kind`, `session_id`, `git_origin` or `project_path` scope |
 | `get_limits` | The context-window and usage-limit samples the status line captured (`LimitsSampled` events): used percentage and window size, the five-hour and seven-day limits with their reset times, model and cost, newest first; scoped by `session_id`, `git_origin`, `project_path` or `since` |
-| `file_history` | Which sessions touched a file (regex over the path): per session the files, how often it read, edited or wrote them, the lines its edits added and removed, first and last touch; built from the `file-tracker` and `edit-diff-stats` enrichments |
+| `get_activities` | The timeline of what the agent did, newest first: each line's activity kind, label and detail, the session's state changes (`state` entries: working, waiting, ended), consecutive repeats of one tool activity collapsed into an entry with a count; scoped by `session_id`, `git_origin`, `project_path`, `kinds` or `since`; built from the `activity-kind` enrichment and the `SessionStateChanged` events |
+| `file_history` | Which sessions touched a file (regex over the path): per session the files, how often it read, edited or wrote them, the lines its edits added and removed, the spans they touched, first and last touch; built from the `file-tracker` and `edit-diff-stats` enrichments |
 | `find_errors` | Transcript lines that reported an error (failed hook, failed tool result, error text), newest first, optionally of one type and scoped to a session, repository or project; built from the `error-flag` enrichment |
 | `search_transcripts` | Search what was said in previous sessions (prompts, replies, tool calls and results) by words, best match first, with a snippet of each line: any word matches, `"quoted phrases"` must appear, `-words` are excluded; optionally scoped to a session, repository or project. Built from the `search-text` enrichment and, in MongoDB, its text index |
 | `usage` | Token usage and estimated cost (US dollars at list prices) by session, model or day, each message counted once, optionally scoped to a session, repository, project or range of days; built from the `usage` enrichment. The built-in prices are the ones on Anthropic's pricing page (Claude 5.x, 4.x and Haiku 3.5, with each model's cache-read price and Claude Haiku 5.5's price for prompts over 100,000 tokens); other models have no cost until `modelPrices` names them |
+| `get_digest` | The stored retro digest of a day or a range (what `session digest` wrote), with its engine, model and cost; null when none |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
 | `get_lines` | Whole transcript lines by their seq numbers: search first (`search_transcripts`, `find_errors`), then fetch only the lines needed |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
@@ -252,8 +259,8 @@ prints JSON.
 
 | Command | Does |
 |---|---|
-| `session find [--project-path re] [--git-origin re] [--query re] [--limit n]` | Find sessions, newest first |
-| `session search-commands <pattern> [--session id] [--git-origin re] [--limit n]` | Search the Bash commands run in sessions |
+| `session find [--project-path re] [--git-origin re] [--query re] [--title re] [--live-state s] [--hotness h] [--limit n]` | Find sessions, newest first |
+| `session search-commands <pattern> [--session id] [--git-origin re] [--include-rejected] [--limit n]` | Search the Bash commands run in sessions |
 | `session search <words…> [--session id] [--git-origin re] [--project re] [--limit n]` | Ranked search over the text of transcript lines (what `search_transcripts` does) |
 | `session export [--session id]... [--project re] [--since day] [--format md\|html\|jsonl\|zip] [--out path] [--force] [--raw]` | Write sessions to Markdown, a self-contained HTML page, Claude Code's JSONL, or a zip of many (which `session import` reads back); redacted unless `--raw` |
 | `session otel-export [--session id]... [--project re] [--since day]` | Send sessions to `otelEndpoint` as traces (older sessions, or after an outage; spans sent before are skipped) |
@@ -261,6 +268,9 @@ prints JSON.
 | `session forget [--session id]... [--project re] [--before day]` | Delete captured sessions from the store (local MongoDB or the server) with everything stored for them; at least one criterion |
 | `session usage [--by session\|model\|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]` | Token usage and estimated cost (what `usage` does) |
 | `session limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]` | The status line's context and usage-limit samples (what `get_limits` does) |
+| `session activities [--session id] [--git-origin re] [--project-path re] [--kind k]... [--since t] [--include-rejected] [--limit n]` | What the agent did, newest first, repeats collapsed (what `get_activities` does) |
+| `session report [--day d \| --from d --to d] [--include kinds] [--format markdown\|json] [--project-path re] [--git-origin re]` | The activity report of a day or a range: one section per session, one `[HH:MM] <icon> <label>: <detail>` row per activity, sub-agents with what they returned, the size in tokens |
+| `session digest [--day d \| --from d --to d] [--engine claude\|none] [--model m] [--force] [--show]` | The first-person retro of a day or a range, written by `claude -p` from the report and kept as a memory record of kind `digest` (`get_digest`, `search_memory`, the prime report's MEMORY section); `--engine none` prints the report and the prompt |
 | `session search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]` | Search the memory records ingested from claude-remember |
 | `session memory-ingest [--dir d]... [--cwd c] [--session id] [--quiet]` | Post the new records of the working directory's claude-remember store(s) to the daemon (what the hooks run) |
 | `session context <session>` | Metadata, recent commands, first and last transcript lines |

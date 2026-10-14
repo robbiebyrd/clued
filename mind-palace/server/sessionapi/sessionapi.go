@@ -11,10 +11,14 @@
 //	PUT  /sessions                       UpsertSession          body: session.Session
 //	POST /sessions/{id}/touch            TouchSession           body: {"at": RFC3339}
 //	POST /sessions/{id}/git              SetGitInfoIfMissing    body: {"origin", "branch"}
+//	POST /sessions/{id}/model            SetModel               body: {"model", "at"} → {"previous", "changed"}
+//	POST /sessions/{id}/state            SetLiveState           body: {"state", "reason", "at"} → {"previous", "changed"}
+//	POST /sessions/{id}/meta             SetSessionMeta         body: {"fields": {…}}
 //	GET  /sessions/{id}                  GetSession
 //	POST /sessions/find                  FindSessions           body: session.SessionQuery
 //	POST /hook-events                    InsertHookEvent        body: [session.Doc, …], in order
 //	POST /hook-events/by-tool-use        HookEventIDsByToolUse  body: {"session_id", "tool_use_ids": []}
+//	POST /transcript-lines/last-model    LastModelBefore        body: {"session_id", "seq", "at"} → the model as a string
 //	PUT  /transcript-lines               UpsertTranscriptLines  body: [session.TranscriptLine, …] (≤ MaxLines)
 //	GET  /transcript-lines/count?session=  CountTranscriptLines
 //	POST /transcript-lines/query         TranscriptLines        body: session.LineQuery
@@ -30,7 +34,10 @@
 //	POST /transcript-search              SearchTranscripts      body: session.TextQuery
 //	POST /usage-totals                   UsageTotals            body: session.UsageQuery
 //	POST /sessions/delete                DeleteSessions         body: session.ForgetQuery
-//	POST /limit-samples                   LimitSamples            body: session.LimitQuery
+//	POST /limit-samples                  LimitSamples           body: session.LimitQuery
+//	POST /activities                     Activities             body: session.ActivityQuery
+//	POST /state-changes                  StateChanges           body: session.ActivityQuery
+//	POST /rejected-tool-uses             RejectedToolUses       body: session.ActivityQuery
 //	GET  /sessions/{id}/full             FullSession
 //
 // The query structs (SessionQuery, LineQuery, CommandQuery, MemoryQuery) use
@@ -115,10 +122,14 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/sessions/find", a.findSessions)
 	route("POST", "/sessions/{id}/touch", a.touchSession)
 	route("POST", "/sessions/{id}/git", a.setGitInfo)
+	route("POST", "/sessions/{id}/model", a.setModel)
+	route("POST", "/sessions/{id}/state", a.setLiveState)
+	route("POST", "/sessions/{id}/meta", a.setSessionMeta)
 	route("GET", "/sessions/{id}", a.getSession)
 	route("GET", "/sessions/{id}/full", a.fullSession)
 	route("POST", "/hook-events", a.insertHookEvents)
 	route("POST", "/hook-events/by-tool-use", a.hookEventIDsByToolUse)
+	route("POST", "/transcript-lines/last-model", a.lastModelBefore)
 	route("PUT", "/transcript-lines", a.upsertTranscriptLines)
 	route("GET", "/transcript-lines/count", a.countTranscriptLines)
 	route("POST", "/transcript-lines/query", a.transcriptLines)
@@ -135,6 +146,9 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/usage-totals", a.usageTotals)
 	route("POST", "/sessions/delete", a.deleteSessions)
 	route("POST", "/limit-samples", a.limitSamples)
+	route("POST", "/activities", a.activities)
+	route("POST", "/state-changes", a.stateChanges)
+	route("POST", "/rejected-tool-uses", a.rejectedToolUses)
 	mux.HandleFunc(Prefix+"/", func(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusNotFound, KindNotFound, fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))
 	})
@@ -397,6 +411,142 @@ func (a *api) insertHookEvents(w http.ResponseWriter, r *http.Request, account s
 	ok(w, map[string]any{"inserted": len(events)})
 }
 
+// setModel records the model serving a session the account owns.
+func (a *api) setModel(w http.ResponseWriter, r *http.Request, account string) {
+	id := r.PathValue("id")
+	var body struct {
+		Model string    `json:"model"`
+		At    time.Time `json:"at"`
+	}
+	if !idOrInvalid(w, "session id", id) || !a.decode(w, r, &body) {
+		return
+	}
+	if body.Model == "" {
+		invalid(w, `"model" is required`)
+		return
+	}
+	if body.At.IsZero() {
+		body.At = time.Now()
+	}
+	previous, changed, err := a.store.SetModel(writeCtx(r), account, id, body.Model, body.At)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, map[string]any{"previous": previous, "changed": changed})
+}
+
+// setLiveState records the live state of a session the account owns.
+func (a *api) setLiveState(w http.ResponseWriter, r *http.Request, account string) {
+	id := r.PathValue("id")
+	var body struct {
+		State  string    `json:"state"`
+		Reason string    `json:"reason"`
+		At     time.Time `json:"at"`
+	}
+	if !idOrInvalid(w, "session id", id) || !a.decode(w, r, &body) {
+		return
+	}
+	if body.State == "" {
+		invalid(w, `"state" is required`)
+		return
+	}
+	if body.At.IsZero() {
+		body.At = time.Now()
+	}
+	previous, changed, err := a.store.SetLiveState(writeCtx(r), account, id, body.State, body.Reason, body.At)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, map[string]any{"previous": previous, "changed": changed})
+}
+
+// setSessionMeta sets sidecar fields on a session the account owns.
+func (a *api) setSessionMeta(w http.ResponseWriter, r *http.Request, account string) {
+	id := r.PathValue("id")
+	var body struct {
+		Fields session.Doc `json:"fields"`
+	}
+	if !idOrInvalid(w, "session id", id) || !a.decode(w, r, &body) {
+		return
+	}
+	for k := range body.Fields {
+		if !sessionMetaFields[k] {
+			invalid(w, fmt.Sprintf("field %q is not session metadata", k))
+			return
+		}
+	}
+	if err := a.store.SetSessionMeta(writeCtx(r), account, id, body.Fields); err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, map[string]any{"session_id": id})
+}
+
+// sessionMetaFields are the session fields SetSessionMeta may set over
+// the transport.
+var sessionMetaFields = map[string]bool{"title": true, "title_kind": true, "slug": true, "permission_mode": true, "pr_link": true, "worktree": true, "entrypoint": true, "claude_version": true}
+
+func (a *api) stateChanges(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.ActivityQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	found, err := a.store.StateChanges(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, docs(found))
+}
+
+func (a *api) rejectedToolUses(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.ActivityQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	found, err := a.store.RejectedToolUses(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, docs(found))
+}
+
+func (a *api) lastModelBefore(w http.ResponseWriter, r *http.Request, _ string) {
+	var body struct {
+		SessionID string    `json:"session_id"`
+		Seq       *int      `json:"seq"`
+		At        time.Time `json:"at"`
+	}
+	if !a.decode(w, r, &body) || !idOrInvalid(w, "session_id", body.SessionID) {
+		return
+	}
+	seq := -1
+	if body.Seq != nil {
+		seq = *body.Seq
+	}
+	model, err := a.store.LastModelBefore(r.Context(), body.SessionID, seq, body.At)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, model)
+}
+
 func (a *api) hookEventIDsByToolUse(w http.ResponseWriter, r *http.Request, _ string) {
 	var body struct {
 		SessionID  string   `json:"session_id"`
@@ -505,6 +655,25 @@ func (a *api) errorLines(w http.ResponseWriter, r *http.Request, account string)
 	}
 	q.AccountID = account
 	found, err := a.store.ErrorLines(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, docs(found))
+}
+
+func (a *api) activities(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.ActivityQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	found, err := a.store.Activities(r.Context(), q)
 	if err != nil {
 		storeError(w, err)
 		return

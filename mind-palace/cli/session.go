@@ -147,7 +147,7 @@ func (a *App) sessionCmd() *cobra.Command {
 		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionForgetCmd(), a.sessionExportCmd(), a.sessionImportCmd(), a.sessionOTelExportCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
 		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
-		a.sessionSearchMemoryCmd(), a.sessionLimitsCmd(), a.sessionMemoryIngestCmd(),
+		a.sessionSearchMemoryCmd(), a.sessionLimitsCmd(), a.sessionActivitiesCmd(), a.sessionReportCmd(), a.sessionDigestCmd(), a.sessionMemoryIngestCmd(),
 		a.sessionLoginCmd(), a.sessionLogoutCmd(), a.sessionConfigPullCmd(),
 	)
 	return c
@@ -290,6 +290,38 @@ func (a *App) sessionLimitsCmd() *cobra.Command {
 	return c
 }
 
+// sessionActivitiesCmd is `session activities`: the timeline the
+// activity-kind enricher labelled, what the get_activities tool returns.
+func (a *App) sessionActivitiesCmd() *cobra.Command {
+	var args query.ActivitiesArgs
+	c := &cobra.Command{
+		Use:   "activities [--session id] [--git-origin re] [--project-path re] [--kind k]… [--since t] [--include-rejected] [--limit n]",
+		Short: "Show what the agent did (prompts, replies, thoughts, commands, edits, reads, tasks, commits), newest first, repeats collapsed",
+		Args:  cobra.NoArgs,
+	}
+	run := a.sessionAction(func(ctx context.Context, _ session.Store, svc *query.Service) (any, error) {
+		return svc.Activities(ctx, args)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if err := a.validated(
+			checkRegex("--git-origin", args.GitOrigin), checkRegex("--project-path", args.ProjectPath),
+			checkNotNegative("--limit", args.Limit),
+		); err != nil {
+			return err
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringVar(&args.SessionID, "session", "", "only this session")
+	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
+	f.StringVar(&args.ProjectPath, "project-path", "", "only sessions whose project path matches this regular expression")
+	f.StringArrayVar(&args.Kinds, "kind", nil, "only this activity kind (user, response, thinking, bash, commit, edit, read, task, tool, result, compaction, api_error, turn, other, state); repeatable")
+	f.StringVar(&args.Since, "since", "", "only lines after this RFC 3339 time, or within this duration back from now (e.g. 24h)")
+	f.BoolVar(&args.IncludeRejected, "include-rejected", false, "keep the tool calls the harness refused to run, and their results")
+	f.IntVar(&args.Limit, "limit", 0, "maximum lines read before repeats are collapsed (default 50, at most 500)")
+	return c
+}
+
 // memoryStateDir is where the ingest keeps its per-store state: next to the
 // write-ahead log, which lives next to the config file.
 func memoryStateDir(cfg session.Config) string {
@@ -363,8 +395,8 @@ func (a *App) validated(checks ...error) error {
 func (a *App) sessionFindCmd() *cobra.Command {
 	var args query.FindSessionsArgs
 	c := &cobra.Command{
-		Use:   "find [--project-path re] [--git-origin re] [--query re] [--limit n]",
-		Short: "Find sessions by project path, git origin or text, newest first",
+		Use:   "find [--project-path re] [--git-origin re] [--query re] [--title re] [--live-state s] [--hotness h] [--limit n]",
+		Short: "Find sessions by project path, git origin, text, live state or hotness, newest first",
 		Args:  cobra.NoArgs,
 	}
 	run := a.sessionAction(func(ctx context.Context, _ session.Store, svc *query.Service) (any, error) {
@@ -373,7 +405,7 @@ func (a *App) sessionFindCmd() *cobra.Command {
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
 		if err := a.validated(
 			checkRegex("--project-path", args.ProjectPath), checkRegex("--git-origin", args.GitOrigin),
-			checkRegex("--query", args.Query), checkNotNegative("--limit", args.Limit),
+			checkRegex("--query", args.Query), checkRegex("--title", args.Title), checkNotNegative("--limit", args.Limit),
 		); err != nil {
 			return err
 		}
@@ -383,6 +415,9 @@ func (a *App) sessionFindCmd() *cobra.Command {
 	f.StringVar(&args.ProjectPath, "project-path", "", "regular expression matching the project path")
 	f.StringVar(&args.GitOrigin, "git-origin", "", "regular expression matching the git origin")
 	f.StringVar(&args.Query, "query", "", "regular expression matching the project path or working directory")
+	f.StringVar(&args.Title, "title", "", "regular expression matching the session's title")
+	f.StringVar(&args.LiveState, "live-state", "", "only sessions in this live state: working, waiting or ended")
+	f.StringVar(&args.Hotness, "hotness", "", "only sessions last active within this grade: hot (30 minutes), warm (an hour), cool (earlier today, UTC) or cold")
 	f.IntVar(&args.Limit, "limit", 0, "maximum sessions (default 10, at most 500)")
 	return c
 }
@@ -390,7 +425,7 @@ func (a *App) sessionFindCmd() *cobra.Command {
 func (a *App) sessionSearchCommandsCmd() *cobra.Command {
 	var args query.SearchCommandsArgs
 	c := &cobra.Command{
-		Use:   "search-commands <pattern> [--session id] [--git-origin re] [--limit n]",
+		Use:   "search-commands <pattern> [--session id] [--git-origin re] [--include-rejected] [--limit n]",
 		Short: "Search the Bash commands run in sessions, newest first",
 		Args:  cobra.ExactArgs(1),
 	}
@@ -410,6 +445,7 @@ func (a *App) sessionSearchCommandsCmd() *cobra.Command {
 	f := c.Flags()
 	f.StringVar(&args.SessionID, "session", "", "only this session")
 	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
+	f.BoolVar(&args.IncludeRejected, "include-rejected", false, "keep the commands the harness refused to run")
 	f.IntVar(&args.Limit, "limit", 0, "maximum commands (default 20, at most 500)")
 	return c
 }
