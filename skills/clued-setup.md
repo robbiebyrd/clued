@@ -1,6 +1,6 @@
 ---
 name: clued-setup
-description: First-time setup for the clued plugin. Run this after installing clued to choose where sessions, plans and stories are stored (a local MongoDB or a clued server), write the config, register the hooks and, with a local MongoDB, start the daemon.
+description: First-time setup for the clued plugin. Run this after installing clued to choose where sessions, plans and stories are stored (a local MongoDB, a clued server, or Clued Cloud at clued.cloud; in a Claude Code cloud container only a server or Clued Cloud, linked through the environment's settings), write the config, register the hooks and, with a local MongoDB, start the daemon.
 ---
 
 # clued Setup
@@ -23,6 +23,58 @@ Also detect CPU architecture on macOS/Linux — needed for tarball download URLs
 uname -m   # arm64 = Apple Silicon; x86_64 = Intel
 ```
 
+Then whether this is a Claude Code cloud container, and whether the environment already names a server (the token itself is never printed):
+
+```bash
+[ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && echo "cloud container: yes (Claude Code on the web)" || echo "cloud container: no"
+[ -n "${CLUED_SERVER_URL:-}" ] && echo "server from the environment: ${CLUED_SERVER_URL} (token $([ -n "${CLUED_SERVER_TOKEN:-}" ] && echo set || echo "not set"))" || echo "server from the environment: none"
+```
+
+`cloud container: yes` → follow "Cloud container" below instead of Step 2.
+
+## Cloud container (Claude Code on the web) — Clued Cloud or a clued server only
+
+When Step 1 reports `cloud container: yes`, this section replaces Step 2: do not ask Step 2's question, and skip Steps 3 and 4. The container is reclaimed when the session ends, so anything clued would keep on it (a MongoDB, a container stack, `config.json` and its token) is lost, and a device login has to be approved again in every new container. Local MongoDB and a clued server in containers on this machine are therefore not offered. clued works here only against a server reached over HTTPS, and it stays linked from one container to the next when the server's URL and token come from the **environment's settings**, which every new container starts with.
+
+**Already linked by the environment.** When Step 1 reports `server from the environment: <URL> (token set)`, ask nothing: do Step 5 and Step 8 (the plugin root), then the "clued server" parts of Step 9 (`register-hooks`, `session whoami`, `check-setup`). Write no config file, and tell the user it is sticky: every new container in this environment is linked the same way. When the URL is set but the token is not (or the reverse), name the missing variable and continue below with the same choice.
+
+**Otherwise ask:**
+
+> "This is a Claude Code cloud container: it is reclaimed after the session, so clued keeps nothing on it. Where should it send your sessions, plans and stories?
+>
+> 1. **Clued Cloud** (recommended) — the hosted service at https://clued.cloud, with an account of your own (another clued cloud works the same with its URL)
+> 2. **A clued server someone runs** — a `mind-palace server run` reachable over HTTPS, with a token from its operator"
+
+Wait for the answer. Then:
+
+1. **Check that the container can reach the server**, `https://clued.cloud` or the URL the user gave (`https://` only):
+
+   ```bash
+   curl -sS --max-time 8 -o /dev/null -w '%{http_code}\n' <URL>/health
+   ```
+
+   `200` is fine. Anything else (a `403` from the egress proxy, a timeout, a TLS error) usually means the environment's network policy does not allow the host: tell the user to open the cloud environment menu in the session's title bar, choose **Edit**, and either pick a broader **Network access** level or add the host under **Allowed domains** (leave the package managers allowed), as https://code.claude.com/docs/en/cloud-environments#network-access describes; it applies to new sessions. A server whose certificate comes from a private CA is not trusted here unless its CA file is part of the repository (then `CLUED_SERVER_CA_FILE` is its path in the checkout); a certificate from a public CA (Let's Encrypt) needs nothing.
+
+2. **Get a token that does not expire with the container.**
+   - **Clued Cloud:** the user signs in at https://clued.cloud (or the cloud's URL), opens **Linked clients** (`/links`), creates a token named for this environment (for example `claude-code-cloud`) and copies it: it is shown once, it lasts until it is revoked there, and revoking it unlinks every container that uses it.
+   - **A clued server:** the operator mints one: `mind-palace server token create --name claude-code-cloud --project '*'` (or with the `--project` slugs this environment's repositories need).
+
+3. **Put the URL and the token in the environment's settings.** Tell the user to open the cloud environment menu in the session's title bar, choose **Edit**, and add the environment variables:
+
+   ```
+   CLUED_SERVER_URL=https://clued.cloud
+   CLUED_SERVER_TOKEN=<the token>
+   ```
+
+   (and `CLUED_SERVER_CA_FILE=<path in the checkout>` for a private CA). **Never ask for the token in the chat** and never write it into a file or a command line here: it belongs only in the environment's settings, which every new session of this environment reads at its start. The hooks, the relay and both MCP servers take these variables over `config.json`, so no config file is needed.
+
+4. **Start a new session** in this environment: the variables are read when a session starts, so this one does not see them yet. In the new session `check-setup` probes the server with `session whoami` and reports nothing when the link works; running `/clued-setup` there again only verifies it ("Already linked by the environment" above).
+
+   If the user wants this container captured too, before the new session: for Clued Cloud, link it with the device flow of Step 6 ("clued cloud", `session login --server https://clued.cloud`), which lasts only as long as this container (the extra linked client it creates can be revoked on the Linked clients page); for a clued server there is nothing to do here, since the token must not be typed into this session.
+
+Then confirm (Step 10): where the data goes, that the link comes from the environment's settings and survives new containers, and that revoking the token on the cloud's Linked clients page (or `mind-palace server token revoke <name>` on the server) unlinks them all. `session logout` is not the way to unlink here: it would revoke the token every future container of the environment uses.
+
+
 ## Step 2 — Ask where clued stores its data
 
 First question. Present the user with four options. **Local MongoDB is the default.**
@@ -32,7 +84,7 @@ First question. Present the user with four options. **Local MongoDB is the defau
 > 1. **Local MongoDB** (recommended for one machine) — a MongoDB this machine can reach and a capture daemon that runs on this machine
 > 2. **clued server in containers on this machine** — the clued server, its MongoDB and an nginx HTTPS front-end run as containers here, with Docker or, on a Mac (macOS 26 or later) that has no Docker, with Apple Containers; other machines and cloud containers can connect to it with a token. Plans and stories stay as Markdown in each repository and are copied to the server
 > 3. **clued server someone else runs** — a `mind-palace server run` operated for you over HTTPS; nothing runs on this machine between hooks, and no MongoDB is installed here. You need its URL and a bearer token: one minted with `mind-palace server token create`, or one the server mints when `scripts/clued session login --server <url>` is approved from a machine already linked to it with `scripts/clued server device approve <code>` (see `docs/server.md` in the plugin repository)
-> 4. **clued cloud** — a hosted, multi-tenant clued (the `clued-cloud` server) with an account of your own: you log in once in a browser and this machine is linked to the account; no token to copy, and the account's client settings are applied here at every session start. You need the cloud's URL"
+> 4. **clued cloud** — a hosted, multi-tenant clued (the `clued-cloud` server) with an account of your own: you log in once in a browser and this machine is linked to the account; no token to copy, and the account's client settings are applied here at every session start. The public service is https://clued.cloud; a clued cloud of your own works the same with its URL"
 
 Wait for their answer before continuing.
 
@@ -453,11 +505,13 @@ When a CA file was given, add `"serverCaFile": "<path>"` next to `serverToken` (
 
 ### clued cloud
 
-Ask for the cloud's URL, e.g. `https://cloud.example.com` (`https://` only, as above). Then link the machine with the device flow; the command writes `serverUrl` and `serverToken` into the config file itself (mode 0600, every other key kept) once the user approves in a browser:
+Use the public service, `https://clued.cloud`, unless the user names another clued cloud (then its URL, `https://` only, as above). Then link the machine with the device flow; the command writes `serverUrl` and `serverToken` into the config file itself (mode 0600, every other key kept) once the user approves in a browser:
 
 ```bash
-"${CLUED_PLUGIN_ROOT}/scripts/clued" session login --server <cloud URL> --name "$(hostname -s 2>/dev/null || hostname)"
+"${CLUED_PLUGIN_ROOT}/scripts/clued" session login --server https://clued.cloud --name "$(hostname -s 2>/dev/null || hostname)"
 ```
+
+For another clued cloud, pass its URL as `--server` instead.
 
 The command prints on stderr a line like `clued: open https://cloud.example.com/link?code=BCDF-GHJK in a browser and approve the code BCDF-GHJK`, then waits (up to 15 minutes) for the approval. **Show the user that link and the code immediately** (as a clickable link; in the Claude Code app it renders as one) and tell them to open it in any browser, sign up or log in there, check that the page shows this code and this machine's name, and approve. The command then finishes with a JSON result (`server`, `name`, `account_id`, `token_id`, `config`) and has already checked the token with `whoami`. A denied or expired request fails it: run it again.
 

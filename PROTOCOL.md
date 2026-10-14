@@ -119,6 +119,9 @@ unchanged. It parses nothing itself and prints nothing.
   `Content-Type: application/json` and the body as sent. On any failure the
   body is appended as one line to the write-ahead log
   `${CLUED_WAL_PATH:-~/.claude/plugins/data/clued/events.wal}`.
+- Local mode in a Claude Code cloud container (`CLAUDE_CODE_REMOTE=true`):
+  reads stdin and exits 0; nothing is posted or buffered (no daemon runs
+  there, see 2.3).
 
 The port is `port` from the config file (default 8085), overridden by
 `CLUED_PORT`.
@@ -139,6 +142,9 @@ Always runs `hooks/register-hooks` in the background and
   `~/.claude/plugins/data/clued/daemon.log` when the probe fails and polls
   the health endpoint for three seconds, then runs
   `session backfill` and `session memory-ingest --quiet` in the background.
+- Local mode in a Claude Code cloud container (`CLAUDE_CODE_REMOTE=true`):
+  exits 0 after the two hooks above; no daemon is started, since the
+  container is reclaimed with the session (`check-setup` asks for a server).
 
 ### 2.4 `hooks/check-setup`
 
@@ -149,8 +155,12 @@ any, otherwise nothing:
 {"systemMessage": "<problems joined by '; '>"}
 ```
 
-Problems: the config file is missing (`run /clued-setup`), the binary cannot
-be located, and in remote mode the result of `scripts/clued --compact session
+Problems: in a Claude Code cloud container (`CLAUDE_CODE_REMOTE=true`)
+without a server, that clued needs Clued Cloud (`https://clued.cloud`) or a
+clued server, best linked through `CLUED_SERVER_URL` and `CLUED_SERVER_TOKEN`
+in the environment's settings (`run /clued-setup`); elsewhere a missing config
+file while the environment names no server (`run /clued-setup`); the binary
+cannot be located, and in remote mode the result of `scripts/clued --compact session
 whoami`: a rejected token, an unreachable server (events keep buffering in
 the WAL) or a token whose `projects` list covers neither `*` nor this
 repository's project slug (section 7.2), with the `server token grant`
