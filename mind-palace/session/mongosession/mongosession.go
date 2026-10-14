@@ -653,7 +653,8 @@ func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]sessio
 		"model", key("$max", "$enrichments.usage.model"),
 		"day", key("$min", "$enrichments.usage.day"),
 		"context_tokens", key("$max", "$enrichments.usage.context_tokens"))
-	long := any(false)
+	// A bare false would read as projection syntax inside the _id document.
+	long := any(key("$literal", false))
 	if q.LongPromptTokens > 0 {
 		long = key("$gt", bson.A{key("$ifNull", bson.A{"$context_tokens", 0}), q.LongPromptTokens})
 	}
