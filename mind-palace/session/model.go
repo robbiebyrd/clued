@@ -57,3 +57,25 @@ type Blob struct {
 	Encoding  string `json:"encoding" bson:"encoding"`
 	AccountID string `json:"account_id,omitempty" bson:"account_id,omitempty"`
 }
+
+// SyntheticModel is the model Claude Code writes on the lines it makes up
+// itself (a local notice, not an answer); it names no model.
+const SyntheticModel = "<synthetic>"
+
+// LineModel is the model an assistant transcript line names
+// (line.message.model), "" for any other line or a synthetic one. The
+// document is a stored line ({"line": …}) or the line itself.
+func LineModel(d Doc) string {
+	line := d.Line()
+	if line == nil {
+		line = d
+	}
+	if t, _ := line.String("type"); t != "assistant" {
+		return ""
+	}
+	model, _ := line.Map("message").String("model")
+	if model == SyntheticModel {
+		return ""
+	}
+	return model
+}

@@ -21,6 +21,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
 	"github.com/robbiebyrd/clued/mind-palace/session/enrich"
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
+	"github.com/robbiebyrd/clued/mind-palace/session/modeltrack"
 	"github.com/robbiebyrd/clued/mind-palace/session/tail"
 )
 
@@ -228,17 +229,25 @@ func (d *Daemon) background(fn func()) {
 // restart or backfill that sees the same lines does not duplicate them.
 func (d *Daemon) tailTranscript(sessionID, path string) (stop func()) {
 	seq := 0
+	model := "" // the model the lines last named, so each change is recorded once
 	return tail.TailFile(path, func(raw string) {
 		var line any
 		if err := json.Unmarshal([]byte(raw), &line); err != nil {
 			line = map[string]any{"raw": raw}
 		}
-		err := d.opts.Store.UpsertTranscriptLines(d.ctx, []session.TranscriptLine{{
+		lines := []session.TranscriptLine{{
 			SessionID: sessionID, Seq: seq, Line: line, AccountID: d.opts.AccountID, Host: &d.opts.Host,
-		}})
+		}}
+		err := d.opts.Store.UpsertTranscriptLines(d.ctx, lines)
 		seq++
 		if err != nil && d.ctx.Err() == nil {
 			d.log.Error("store transcript line failed", "session_id", sessionID, "err", err)
+		}
+		if err != nil {
+			return
+		}
+		if model, err = modeltrack.Lines(d.ctx, d.opts.Store, d.opts.AccountID, lines, model); err != nil && d.ctx.Err() == nil {
+			d.log.Error("record session model failed", "session_id", sessionID, "err", err)
 		}
 	}, d.opts.Tail)
 }

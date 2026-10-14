@@ -315,6 +315,40 @@ func (s *Store) SetGitInfoIfMissing(_ context.Context, sessionID, origin, branch
 	return nil
 }
 
+func (s *Store) SetModel(_ context.Context, accountID, sessionID, model string, at time.Time) (string, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if model == "" {
+		return "", false, nil
+	}
+	d := s.ownedSession(accountID, sessionID)
+	if d == nil {
+		return "", false, session.ErrNotFound
+	}
+	previous := strOf(d, "model")
+	if previous == model {
+		return previous, false, nil
+	}
+	d["model"], d["model_changed_at"] = model, at
+	return previous, true, nil
+}
+
+func (s *Store) LastModelBefore(_ context.Context, sessionID string, seq int, at time.Time) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	best, bestSeq := "", -1
+	for _, d := range s.filter(transcriptLines, func(d session.Doc) bool { return strOf(d, "session_id") == sessionID }) {
+		lineSeq := intOf(d, "seq")
+		if seq >= 0 && lineSeq >= seq || !at.IsZero() && timeOf(d, "created_at").After(at) || lineSeq <= bestSeq {
+			continue
+		}
+		if model := session.LineModel(d); model != "" {
+			best, bestSeq = model, lineSeq
+		}
+	}
+	return best, nil
+}
+
 func (s *Store) ownedSession(accountID, sessionID string) session.Doc {
 	return s.find(sessions, func(d session.Doc) bool { return d["session_id"] == sessionID && owned(d, accountID) })
 }
@@ -357,7 +391,7 @@ func (s *Store) FindSessions(_ context.Context, q session.SessionQuery) ([]sessi
 	}
 	out := []session.Doc{}
 	for _, d := range page(found, 0, limit) {
-		out = append(out, project(d, "session_id", "project_path", "git_origin", "cwd", "started_at", "last_seen"))
+		out = append(out, project(d, "session_id", "project_path", "git_origin", "cwd", "model", "started_at", "last_seen"))
 	}
 	return out, nil
 }

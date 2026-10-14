@@ -3,11 +3,13 @@ id: 0035-ngb
 title: Record the model in use on every transcript line and on the session
 purpose: Every captured line names the model that was serving the session when it was recorded, so usage, activity and limit data can be read per model.
 type: feat
-status: pending
+status: complete
 priority: "2"
 effort: S
 created: "2026-10-14T04:28:51.382Z"
-updated: "2026-10-14T04:28:51.382Z"
+updated: "2026-10-14T04:56:33.796Z"
+started: "2026-10-14T04:45:08.183Z"
+completed: "2026-10-14T04:56:33.796Z"
 tags:
   - sessions
   - enrichment
@@ -19,11 +21,11 @@ planned_end: ""
 order: 0
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
 ---
 
 # Record the model in use on every transcript line and on the session
@@ -50,10 +52,10 @@ Each change appends a `ModelChanged` hook event (`session_id`, `from`, `to`, `se
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/... ./server/sessionapi/
-- [ ] A transcript where the model changes mid-session yields lines whose `enrichments.model` follows the change, user lines carrying the model of the preceding assistant line, and a `ModelChanged` event at the switch
-- [ ] `find_sessions` and `get_session_context` show the session's current model
-- [ ] PROTOCOL.md documents the enrichment, the session fields and the event
+- [x] VERIFY: cd mind-palace && go test -race ./session/... ./server/sessionapi/
+- [x] A transcript where the model changes mid-session yields lines whose `enrichments.model` follows the change, user lines carrying the model of the preceding assistant line, and a `ModelChanged` event at the switch
+- [x] `find_sessions` and `get_session_context` show the session's current model
+- [x] PROTOCOL.md documents the enrichment, the session fields and the event
 
 ## Files
 
@@ -64,3 +66,5 @@ Each change appends a `ModelChanged` hook event (`session_id`, `from`, `to`, `se
 - `PROTOCOL.md` - sections 4.2, 6.1 and 7.3
 
 ## Work Log
+
+### 2026-10-14T04:56:27.755Z - Added Store.SetModel and Lookup.LastModelBefore (memory, Mongo, remote with POST /sessions/{id}/model and /transcript-lines/last-model, conformance cases), the model and hook-model enrichers (source line/carried/event/session/unknown), the session/modeltrack package that records model/model_changed_at and a ModelChanged event from the daemon's tailer, the relay's catch-up (state keeps the last model), backfill (sessions without a model only) and LimitsSampled samples on ingest; find_sessions, get_session_context and the prime SESSION section name the model. Claude Code has no model-switch hook, so events naming a model (model.id or model) are the second source. Docs in PROTOCOL.md 4.2, 4.3, 4.5, 6.1, 6.1.2, 7.3 and README. gofmt, vet and `go test -race ./...` pass.

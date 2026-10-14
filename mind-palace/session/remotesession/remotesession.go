@@ -12,7 +12,7 @@
 // failure is the remote package's error.
 //
 // Results come back as JSON, so the adapter restores what the local stores
-// return natively: the time fields created_at, last_seen, started_at and
+// return natively: the time fields created_at, last_seen, started_at, model_changed_at, at and
 // enrichments.<name>_failed.at become time.Time, seq and host.uid become int,
 // and the joined lists of a full session become []session.Doc. Transcript
 // content (line, tool_input) is left exactly as stored.
@@ -88,6 +88,32 @@ func (s *Store) SetGitInfoIfMissing(ctx context.Context, sessionID, origin, bran
 		return nil
 	}
 	return s.do(ctx, "POST", sessionPath(sessionID, "/git"), map[string]string{"origin": origin, "branch": branch}, nil)
+}
+
+func (s *Store) SetModel(ctx context.Context, _ string, sessionID, model string, at time.Time) (string, bool, error) {
+	if model == "" {
+		return "", false, nil
+	}
+	var out struct {
+		Previous string `json:"previous"`
+		Changed  bool   `json:"changed"`
+	}
+	if err := s.do(ctx, "POST", sessionPath(sessionID, "/model"), map[string]any{"model": model, "at": at}, &out); err != nil {
+		return "", false, err
+	}
+	return out.Previous, out.Changed, nil
+}
+
+func (s *Store) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
+	var model string
+	body := map[string]any{"session_id": sessionID, "seq": seq}
+	if !at.IsZero() {
+		body["at"] = at
+	}
+	if err := s.do(ctx, "POST", prefix+"/transcript-lines/last-model", body, &model); err != nil {
+		return "", err
+	}
+	return model, nil
 }
 
 func (s *Store) GetSession(ctx context.Context, _ string, sessionID string) (session.Doc, error) {
@@ -268,7 +294,7 @@ func (s *Store) strList(ctx context.Context, method, path string, in any) ([]str
 }
 
 // timeKeys are the document fields the stores hold as times.
-var timeKeys = []string{"created_at", "last_seen", "started_at"}
+var timeKeys = []string{"created_at", "last_seen", "started_at", "model_changed_at", "at"}
 
 // joinedLists are the sub-collections a full session carries.
 var joinedLists = []string{"transcript_lines", "subagent_lines", "blobs", "hook_events"}

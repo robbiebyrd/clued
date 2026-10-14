@@ -37,6 +37,8 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"touch updates last_seen only for the owning account", touchSession},
 		{"git info is written only when git_origin is missing", gitInfoIfMissing},
 		{"get session is scoped to the account", getSessionScoping},
+		{"set model writes the model on a change and reports the previous one", setModel},
+		{"last model before finds the newest assistant line's model under a seq or time", lastModelBefore},
 		{"find sessions filters by account and regexes", findSessionsFilters},
 		{"find sessions projects, orders by last_seen and limits", findSessionsOrdering},
 		{"find sessions rejects an invalid regex", findSessionsInvalidRegex},
@@ -337,6 +339,68 @@ func findSessionsFilters(t *testing.T, s session.Store) {
 	eq(t, "query matches project_path or cwd", find(session.SessionQuery{AccountID: "acc", QueryRe: "gamma", Limit: 10}), []string{"b", "c"})
 	eq(t, "filters combine", find(session.SessionQuery{AccountID: "acc", QueryRe: "gamma", ProjectPathRe: "beta", Limit: 10}), []string{"b"})
 	eq(t, "no match", find(session.SessionQuery{AccountID: "acc", ProjectPathRe: "zzz", Limit: 10}), []string{})
+}
+
+func setModel(t *testing.T, s session.Store) {
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s1", AccountID: "acc", LastSeen: t0}))
+	previous, changed, err := s.SetModel(ctx, "acc", "s1", "claude-a", t0)
+	must(t, err)
+	eq(t, "first model", []any{previous, changed}, []any{"", true})
+	got := ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "model stored", got["model"], "claude-a")
+	if !timeOf(t, got, "model_changed_at").Equal(t0) {
+		t.Errorf("model_changed_at = %v, want %v", got["model_changed_at"], t0)
+	}
+
+	previous, changed, err = s.SetModel(ctx, "acc", "s1", "claude-a", t0.Add(time.Hour))
+	must(t, err)
+	eq(t, "same model", []any{previous, changed}, []any{"claude-a", false})
+	if !timeOf(t, ok(s.GetSession(ctx, "acc", "s1")), "model_changed_at").Equal(t0) {
+		t.Error("the same model must not move model_changed_at")
+	}
+
+	previous, changed, err = s.SetModel(ctx, "acc", "s1", "claude-b", t0.Add(time.Hour))
+	must(t, err)
+	eq(t, "changed model", []any{previous, changed}, []any{"claude-a", true})
+	got = ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "new model", got["model"], "claude-b")
+	if !timeOf(t, got, "model_changed_at").Equal(t0.Add(time.Hour)) {
+		t.Errorf("model_changed_at = %v", got["model_changed_at"])
+	}
+
+	if _, _, err := s.SetModel(ctx, "other", "s1", "claude-c", t0); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("foreign account: err = %v, want ErrNotFound", err)
+	}
+	if _, _, err := s.SetModel(ctx, "acc", "missing", "claude-c", t0); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("missing session: err = %v, want ErrNotFound", err)
+	}
+	previous, changed, err = s.SetModel(ctx, "acc", "s1", "", t0)
+	must(t, err)
+	eq(t, "empty model is ignored", []any{previous, changed}, []any{"", false})
+	eq(t, "model kept", ok(s.GetSession(ctx, "acc", "s1"))["model"], "claude-b")
+
+	found := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 5}))
+	eq(t, "find sessions projects the model", found[0]["model"], "claude-b")
+}
+
+func lastModelBefore(t *testing.T, s session.Store) {
+	assistant := func(sid string, seq int, model string) session.TranscriptLine {
+		return session.TranscriptLine{SessionID: sid, Seq: seq, AccountID: "acc", Line: map[string]any{"type": "assistant", "message": map[string]any{"role": "assistant", "model": model}}}
+	}
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s1", 0, "user", "acc"), assistant("s1", 1, "claude-a"), assistant("s1", 2, session.SyntheticModel)}))
+	time.Sleep(5 * time.Millisecond)
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{assistant("s1", 3, "claude-b"), assistant("s2", 0, "claude-z")}))
+	model := func(sid string, seq int, at time.Time) string {
+		return ok(s.LastModelBefore(ctx, sid, seq, at))
+	}
+	eq(t, "newest model of the session", model("s1", -1, time.Time{}), "claude-b")
+	eq(t, "below a seq, skipping synthetic lines", model("s1", 3, time.Time{}), "claude-a")
+	eq(t, "no assistant line below", model("s1", 1, time.Time{}), "")
+	eq(t, "unknown session", model("zzz", -1, time.Time{}), "")
+	first := ok(s.TranscriptLines(ctx, session.LineQuery{AccountID: "acc", SessionID: "s1", Limit: 2}))
+	at := timeOf(t, first[1], "created_at")
+	eq(t, "not after a time", model("s1", -1, at), "claude-a")
+	eq(t, "before the first line", model("s1", -1, at.Add(-time.Second)), "")
 }
 
 func findSessionsOrdering(t *testing.T, s session.Store) {

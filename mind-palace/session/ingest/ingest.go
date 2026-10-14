@@ -15,6 +15,7 @@ import (
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
+	"github.com/robbiebyrd/clued/mind-palace/session/modeltrack"
 	"github.com/robbiebyrd/clued/mind-palace/session/wal"
 )
 
@@ -96,6 +97,9 @@ func (s *Service) Handle(ctx context.Context, event session.Doc) (Tracked, error
 	defer cancel()
 	err := s.Store.InsertHookEvent(ictx, ev)
 	if err == nil {
+		if model := modeltrack.EventModel(event); model != "" && sessionID != "" {
+			s.run(ctx, func(ctx context.Context) { s.observeModel(ctx, sessionID, model) })
+		}
 		return tr, nil
 	}
 	s.logger().Warn("hook event insert failed; appending to WAL", "err", err)
@@ -200,6 +204,17 @@ func (s *Service) fillGitInfo(ctx context.Context, sessionID, cwd string, state 
 	defer cancel()
 	if err := s.Store.SetGitInfoIfMissing(sctx, sessionID, origin, branch); err != nil && ctx.Err() == nil {
 		s.logger().Error("set git info failed", "session_id", sessionID, "err", err)
+	}
+}
+
+// observeModel records the model an event names (a LimitsSampled sample)
+// as the session's. A session the store does not have yet (its first-sight
+// upsert may still be in flight) is not an error worth logging.
+func (s *Service) observeModel(ctx context.Context, sessionID, model string) {
+	sctx, cancel := context.WithTimeout(ctx, s.timeout())
+	defer cancel()
+	if _, err := modeltrack.Observe(sctx, s.Store, s.AccountID, sessionID, model, -1, time.Now(), modeltrack.SourceLimits); err != nil && !errors.Is(err, session.ErrNotFound) && ctx.Err() == nil {
+		s.logger().Error("record session model failed", "session_id", sessionID, "err", err)
 	}
 }
 

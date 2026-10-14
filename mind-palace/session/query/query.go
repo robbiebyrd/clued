@@ -442,11 +442,12 @@ func (s *Service) SessionContext(ctx context.Context, sessionID string) (Context
 	return c, nil
 }
 
-// sessionSummary keeps the six fields the context reports; git_origin is
-// always present, null when the session has none.
+// sessionSummary keeps the fields the context reports; git_origin is
+// always present, null when the session has none; model and
+// model_changed_at appear once a model is known.
 func sessionSummary(stored session.Doc) session.Doc {
 	out := session.Doc{"git_origin": nil}
-	for _, k := range []string{"session_id", "project_path", "git_origin", "cwd", "started_at", "last_seen"} {
+	for _, k := range []string{"session_id", "project_path", "git_origin", "cwd", "model", "model_changed_at", "started_at", "last_seen"} {
 		if v, ok := stored[k]; ok {
 			out[k] = v
 		}

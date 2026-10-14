@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
+	"github.com/robbiebyrd/clued/mind-palace/session/modeltrack"
 )
 
 const concurrency = 5
@@ -129,6 +130,18 @@ func processSession(ctx context.Context, store session.Store, t transcript, acco
 	}
 	if err := store.UpsertTranscriptLines(ctx, batch); err != nil {
 		return 0, err
+	}
+	// The whole transcript is replayed, so the model is tracked only for a
+	// session whose model is not known yet; a later run would otherwise
+	// record the session's switches again.
+	stored, err := store.GetSession(ctx, accountID, t.sessionID)
+	if err != nil {
+		return 0, err
+	}
+	if model, _ := stored.String("model"); model == "" {
+		if _, err := modeltrack.Lines(ctx, store, accountID, batch, ""); err != nil {
+			return 0, err
+		}
 	}
 	return len(batch), nil
 }

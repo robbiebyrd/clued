@@ -422,6 +422,9 @@ func SessionBody(snap *SessionSnapshot) string {
 		return collect.None
 	}
 	lines := []string{"session: " + snap.SessionID}
+	if snap.Model != "" {
+		lines = append(lines, "model: "+snap.Model)
+	}
 	if !snap.StartedAt.IsZero() {
 		lines = append(lines, "started: "+snap.StartedAt.UTC().Format(time.RFC3339))
 	}

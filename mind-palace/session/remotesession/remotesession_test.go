@@ -168,6 +168,14 @@ func (h *harness) SetGitInfoIfMissing(ctx context.Context, sessionID, origin, br
 	return h.as("").SetGitInfoIfMissing(ctx, sessionID, origin, branch)
 }
 
+func (h *harness) SetModel(ctx context.Context, accountID, sessionID, model string, at time.Time) (string, bool, error) {
+	return h.as(accountID).SetModel(ctx, accountID, sessionID, model, at)
+}
+
+func (h *harness) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
+	return h.as("").LastModelBefore(ctx, sessionID, seq, at)
+}
+
 func (h *harness) GetSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
 	return h.as(accountID).GetSession(ctx, accountID, sessionID)
 }

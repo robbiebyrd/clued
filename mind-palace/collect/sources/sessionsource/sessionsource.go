@@ -70,8 +70,10 @@ func (s *Source) Current(ctx context.Context, cwd string) (*prime.SessionSnapsho
 	if top == nil {
 		top = []string{}
 	}
+	model, _ := c.Session.String("model")
 	return &prime.SessionSnapshot{
 		SessionID:   id,
+		Model:       model,
 		StartedAt:   timeOf(c.Session, "started_at"),
 		LastSeen:    timeOf(c.Session, "last_seen"),
 		TopCommands: top,

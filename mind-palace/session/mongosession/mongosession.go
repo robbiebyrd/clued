@@ -353,6 +353,45 @@ func (s *Store) SetGitInfoIfMissing(ctx context.Context, sessionID, origin, bran
 	return s.update(ctx, sessions, key("session_id", sessionID, "git_origin", key("$exists", false)), set)
 }
 
+func (s *Store) SetModel(ctx context.Context, accountID, sessionID, model string, at time.Time) (string, bool, error) {
+	if model == "" {
+		return "", false, nil
+	}
+	filter := key("session_id", sessionID, "account_id", accountID, "model", key("$ne", model))
+	update := key("$set", key("model", model, "model_changed_at", at))
+	var before bson.D
+	err := s.coll(sessions).FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetProjection(key("_id", 0, "model", 1))).Decode(&before)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		// Either the session already runs on this model or it does not exist.
+		if _, gerr := s.GetSession(ctx, accountID, sessionID); gerr != nil {
+			return "", false, gerr
+		}
+		return model, false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	previous, _ := session.Doc(normalizeDoc(before)).String("model")
+	return previous, true, nil
+}
+
+func (s *Store) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
+	filter := key("session_id", sessionID, "line.type", "assistant",
+		"line.message.model", key("$exists", true, "$nin", bson.A{"", session.SyntheticModel}))
+	if seq >= 0 {
+		filter = append(filter, bson.E{Key: "seq", Value: key("$lt", seq)})
+	}
+	if !at.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$lte", at)})
+	}
+	docs, err := s.find(ctx, transcriptLines, filter, key("_id", 0, "line.message.model", 1), key("seq", -1), 0, 1)
+	if err != nil || len(docs) == 0 {
+		return "", err
+	}
+	model, _ := docs[0].Message().String("model")
+	return model, nil
+}
+
 func (s *Store) GetSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
 	return s.findOne(ctx, sessions, key("session_id", sessionID, "account_id", accountID))
 }
@@ -427,7 +466,7 @@ func (s *Store) FindSessions(ctx context.Context, q session.SessionQuery) ([]ses
 	if limit <= 0 || limit > maxSessions {
 		limit = maxSessions
 	}
-	projection := key("_id", 0, "session_id", 1, "project_path", 1, "git_origin", 1, "cwd", 1, "started_at", 1, "last_seen", 1)
+	projection := key("_id", 0, "session_id", 1, "project_path", 1, "git_origin", 1, "cwd", 1, "model", 1, "started_at", 1, "last_seen", 1)
 	return s.find(ctx, sessions, filter, projection, key("last_seen", -1), 0, limit)
 }
 

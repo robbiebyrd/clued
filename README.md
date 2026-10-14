@@ -202,6 +202,8 @@ off.
 | `intent-classifier` | `transcript_lines` | question, instruction, feedback, correction, approval or slash_command |
 | `line-classifier` | `transcript_lines` | user_prompt, assistant, tool_result, hook_success, hook_error, session_meta or unknown |
 | `message-stats` | `transcript_lines` | Characters, words and content blocks |
+| `model` | `transcript_lines` | The model in use when the line was written: an assistant line's own, else carried from the nearest preceding assistant line (`source`: `line`, `carried` or `unknown`) |
+| `hook-model` | `hook_events` | The model in use when the event happened: the event's own (`event`), the newest assistant line stored by then (`carried`), else the session's latest (`session`) |
 | `skill-detector` | `transcript_lines` | Skill tool invocations of an assistant line |
 | `thinking-stats` | `transcript_lines` | Size of the thinking and text of an assistant line |
 | `tool-use-summary` | `transcript_lines` | The tools an assistant line calls and whether it thinks |
@@ -214,7 +216,7 @@ off.
 
 | Tool | Does |
 |---|---|
-| `find_sessions` | Find previous sessions, newest first; regex filters on project path, cwd and git origin |
+| `find_sessions` | Find previous sessions, newest first; regex filters on project path, cwd and git origin; each session carries its current `model` once known |
 | `get_session_context` | Metadata, the most recent distinct Bash commands, the first and last transcript lines, the session's latest memory records, and its token usage and estimated cost |
 | `get_full_session` | The complete record: metadata, transcript, subagent lines, blob metadata and hook events |
 | `search_commands` | Search the Bash commands run in previous sessions |

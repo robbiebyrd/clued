@@ -348,6 +348,8 @@ same rules (`session/ingest`):
   malformed lines are dropped, failed ones kept.
 - A `session_id` that is not a single path element is stored but the
   session is not tracked.
+- An event that names a model (`model.id` of a `LimitsSampled` sample,
+  section 5.1) records it as the session's model (section 4.5).
 
 The account id is `lastKnownAccountUuid` from the Claude app's config file
 (`claudeAppConfigPath`), or `unknown`.
@@ -358,7 +360,8 @@ The daemon tails `transcript_path` when it is absolute and under
 `projectsDir`, storing each line as a `TranscriptLine` (`session_id`, `seq`,
 `line`, `account_id`, `host`), and watches `<transcript dir>/<session_id>/`
 and `<fileHistoryDir>/<session_id>/` for subagent lines and artifact blobs.
-Enrichers run over new documents every five seconds.
+Each assistant line that names a model records it as the session's model
+(section 4.5). Enrichers run over new documents every five seconds.
 
 ### 4.4 Catch-up (remote mode)
 
@@ -375,7 +378,34 @@ exclusively, stale after a minute; a held lock skips the run) and
 Transcript lines after `offset` go up in batches of 500 (a shrunken file
 resets the state), then changed artifact files and subagent lines under the
 two watched directories. A blob the server refuses as too large is recorded
-under `refused` and not retried.
+under `refused` and not retried. The state's `model` is the model the pushed
+lines last named, so each change is recorded once (section 4.5).
+
+### 4.5 The session's model
+
+The model serving a session is kept on its `Session` record as `model`
+with `model_changed_at`, written through `session.Store.SetModel` whenever
+a source names a model other than the stored one:
+
+- an assistant transcript line's `message.model` (the daemon's tailer, the
+  relay's catch-up and `session backfill`, which tracks it only for a
+  session whose model is not known yet, since it replays the whole file);
+  the synthetic lines Claude Code writes itself (`<synthetic>`) name none;
+- a `LimitsSampled` sample's `model.id` (the daemon and `hook relay`).
+
+Every change, the first model seen included, is also recorded as a hook
+event, so a session's model switches are a queryable sequence:
+
+```json
+{"hook_event_name": "ModelChanged", "session_id": "<id>", "account_id": "<account>", "from": "claude-sonnet-4-5", "to": "claude-fable-5-1",
+ "seq": 42, "source": "transcript", "at": "<RFC3339>", "created_at": "<RFC3339>"}
+```
+
+`from` is `""` for the first model; `seq` is the transcript line that named
+the model and is absent when a sample did (`source: "limits"`); `at` is the
+line's own timestamp (or the time of the sample). The `model` and
+`hook-model` enrichments (section 6.1.2) put the model on every stored
+line and event.
 
 ## 5. Memory events
 
@@ -433,8 +463,8 @@ read-only.
 
 | Tool | Parameters | Returns |
 |---|---|---|
-| `find_sessions` | `project_path` (regex), `git_origin` (regex), `query` (regex against project path or cwd), `limit` (default 10, max 500) | sessions, newest first |
-| `get_session_context` | `session_id` (required) | metadata, the most recent distinct Bash commands, first and last transcript lines, the latest memory records, and `usage` (the session's group of the `usage` tool, with its per-model breakdown; `null` when no usage is recorded) |
+| `find_sessions` | `project_path` (regex), `git_origin` (regex), `query` (regex against project path or cwd), `limit` (default 10, max 500) | sessions, newest first: `session_id`, `project_path`, `git_origin`, `cwd`, `model` (when known, section 4.5), `started_at`, `last_seen`, `event_count` |
+| `get_session_context` | `session_id` (required) | metadata (`session` with `model` and `model_changed_at` once known), the most recent distinct Bash commands, first and last transcript lines, the latest memory records, and `usage` (the session's group of the `usage` tool, with its per-model breakdown; `null` when no usage is recorded) |
 | `get_full_session` | `session_id` (required) | metadata, every transcript and subagent line, blob metadata without content, every hook event |
 | `search_commands` | `pattern` (required regex), `session_id`, `git_origin` (regex), `limit` (default 20, max 500) | Bash commands, newest first |
 | `search_memory` | `pattern` (regex), `kind` (`entry`, `day`, `recent`, `archive`, `handoff`, `identity`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | `MemorySaved` records across the account, newest first |
@@ -479,6 +509,23 @@ agent was doing, stored under `enrichments.activity-kind`:
 result. A message with several content blocks takes the kind of its first
 block; the kinds of the rest are listed in `blocks` (absent when there is
 only one). `is_error` and `blocks` are stored only when set.
+
+#### 6.1.2 The `model` and `hook-model` enrichments
+
+Every transcript line and hook event is labelled with the model in use
+when it was written, as `{"model": "<id>", "source": "<how>"}` under
+`enrichments.model` (lines) and `enrichments.hook-model` (events):
+
+| `source` | Meaning |
+|---|---|
+| `line` | an assistant line's own `message.model` (synthetic lines excluded) |
+| `carried` | the model of the nearest preceding assistant line of the session (for a line: by `seq`; for an event: the newest line stored no later than the event's `created_at`) |
+| `event` | the event names it itself (`model.id` of a `LimitsSampled` sample, or a string `model`) |
+| `session` | an event no assistant line preceded in time takes the session's latest assistant line |
+| `unknown` | none found; `model` is `""` |
+
+The lookup is `Lookup.LastModelBefore(session_id, seq, at)` of the store
+(`POST /transcript-lines/last-model` on the server, section 7.3).
 
 ### 6.2 `mind-palace`: the plan and story tools
 
@@ -668,10 +715,12 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 | `POST /sessions/find` | `{"projectPathRe", "gitOriginRe", "queryRe", "limit"}` | sessions |
 | `POST /sessions/{id}/touch` | `{"at": "<RFC3339>"}` | `{"session_id"}` |
 | `POST /sessions/{id}/git` | `{"origin", "branch"}` (set once; a foreign session is silently ignored) | `{"session_id"}` |
+| `POST /sessions/{id}/model` | `{"model", "at"}` (`at` defaults to now) | `{"previous", "changed"}`: the stored model (`""` when none) and whether `model` and `model_changed_at` were written (section 4.5); 404 when the account has no such session |
 | `GET /sessions/{id}` | | the session |
 | `GET /sessions/{id}/full` | | the session joined with its lines, blobs and events |
 | `POST /hook-events` | an array of events, each with `session_id`; a string `created_at` is parsed as RFC 3339 | `{"inserted": n}` (a partial failure is 502 naming how many went in) |
 | `POST /hook-events/by-tool-use` | `{"session_id", "tool_use_ids": […]}` (an empty session id matches every session) | event ids |
+| `POST /transcript-lines/last-model` | `{"session_id", "seq" (omitted or negative for any), "at" (omitted for any time)}` | the model of the newest assistant line of the session below `seq` and not after `at`, as a string (`""` when none) |
 | `PUT /transcript-lines` | up to 500 `TranscriptLine`s (`session_id`, `seq`, `line`) | `{"upserted": n}` |
 | `GET /transcript-lines/count?session=` | | an integer |
 | `POST /transcript-lines/query` | `{"sessionId", "offset", "limit", "descending"}` | lines |

@@ -11,10 +11,12 @@
 //	PUT  /sessions                       UpsertSession          body: session.Session
 //	POST /sessions/{id}/touch            TouchSession           body: {"at": RFC3339}
 //	POST /sessions/{id}/git              SetGitInfoIfMissing    body: {"origin", "branch"}
+//	POST /sessions/{id}/model            SetModel               body: {"model", "at"} → {"previous", "changed"}
 //	GET  /sessions/{id}                  GetSession
 //	POST /sessions/find                  FindSessions           body: session.SessionQuery
 //	POST /hook-events                    InsertHookEvent        body: [session.Doc, …], in order
 //	POST /hook-events/by-tool-use        HookEventIDsByToolUse  body: {"session_id", "tool_use_ids": []}
+//	POST /transcript-lines/last-model    LastModelBefore        body: {"session_id", "seq", "at"} → the model as a string
 //	PUT  /transcript-lines               UpsertTranscriptLines  body: [session.TranscriptLine, …] (≤ MaxLines)
 //	GET  /transcript-lines/count?session=  CountTranscriptLines
 //	POST /transcript-lines/query         TranscriptLines        body: session.LineQuery
@@ -115,10 +117,12 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/sessions/find", a.findSessions)
 	route("POST", "/sessions/{id}/touch", a.touchSession)
 	route("POST", "/sessions/{id}/git", a.setGitInfo)
+	route("POST", "/sessions/{id}/model", a.setModel)
 	route("GET", "/sessions/{id}", a.getSession)
 	route("GET", "/sessions/{id}/full", a.fullSession)
 	route("POST", "/hook-events", a.insertHookEvents)
 	route("POST", "/hook-events/by-tool-use", a.hookEventIDsByToolUse)
+	route("POST", "/transcript-lines/last-model", a.lastModelBefore)
 	route("PUT", "/transcript-lines", a.upsertTranscriptLines)
 	route("GET", "/transcript-lines/count", a.countTranscriptLines)
 	route("POST", "/transcript-lines/query", a.transcriptLines)
@@ -395,6 +399,52 @@ func (a *api) insertHookEvents(w http.ResponseWriter, r *http.Request, account s
 		}
 	}
 	ok(w, map[string]any{"inserted": len(events)})
+}
+
+// setModel records the model serving a session the account owns.
+func (a *api) setModel(w http.ResponseWriter, r *http.Request, account string) {
+	id := r.PathValue("id")
+	var body struct {
+		Model string    `json:"model"`
+		At    time.Time `json:"at"`
+	}
+	if !idOrInvalid(w, "session id", id) || !a.decode(w, r, &body) {
+		return
+	}
+	if body.Model == "" {
+		invalid(w, `"model" is required`)
+		return
+	}
+	if body.At.IsZero() {
+		body.At = time.Now()
+	}
+	previous, changed, err := a.store.SetModel(writeCtx(r), account, id, body.Model, body.At)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, map[string]any{"previous": previous, "changed": changed})
+}
+
+func (a *api) lastModelBefore(w http.ResponseWriter, r *http.Request, _ string) {
+	var body struct {
+		SessionID string    `json:"session_id"`
+		Seq       *int      `json:"seq"`
+		At        time.Time `json:"at"`
+	}
+	if !a.decode(w, r, &body) || !idOrInvalid(w, "session_id", body.SessionID) {
+		return
+	}
+	seq := -1
+	if body.Seq != nil {
+		seq = *body.Seq
+	}
+	model, err := a.store.LastModelBefore(r.Context(), body.SessionID, seq, body.At)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, model)
 }
 
 func (a *api) hookEventIDsByToolUse(w http.ResponseWriter, r *http.Request, _ string) {

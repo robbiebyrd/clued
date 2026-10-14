@@ -118,6 +118,13 @@ type ActivityQuery struct {
 // "context_window", "rate_limits", "model", "version" and "cost".
 const LimitsEventName = "LimitsSampled"
 
+// ModelChangedEventName is the hook_event_name of the event recorded when
+// the model serving a session changes (the first model seen included):
+// "from" (the previous model, "" at first), "to", "seq" (the transcript
+// line that named it, absent when a LimitsSampled sample did), "source"
+// ("transcript" or "limits") and "at".
+const ModelChangedEventName = "ModelChanged"
+
 // MemoryEventName is the hook_event_name of an ingested memory record. Such
 // an event carries the record under "memory" with a "hash" that identifies
 // its text; a store keeps one event per account and hash.
@@ -142,6 +149,11 @@ var ErrUnsupported = errors.New("operation not supported by this store")
 // Lookup is the read access an enricher gets to the store.
 type Lookup interface {
 	HookEventIDsByToolUse(ctx context.Context, sessionID string, toolUseIDs []string) ([]string, error)
+	// LastModelBefore is the model named by the newest assistant line of the
+	// session (its line.message.model, synthetic lines aside) whose seq is
+	// below seq (any seq when seq is negative) and whose created_at is not
+	// after at (any time when at is zero); "" when there is none.
+	LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error)
 }
 
 // Store is the persistence port for sessions and everything captured with them.
@@ -152,10 +164,16 @@ type Store interface {
 	TouchSession(ctx context.Context, accountID, sessionID string, at time.Time) error
 	// SetGitInfoIfMissing writes the git info only when git_origin is absent.
 	SetGitInfoIfMissing(ctx context.Context, sessionID, origin, branch string) error
+	// SetModel records the model serving the session: when the stored model
+	// differs, it sets model and model_changed_at (to at) and reports the
+	// previous model ("" when none was stored) with changed true; when it is
+	// the same nothing is written and changed is false. An empty model is
+	// ignored; a session the account does not have is ErrNotFound.
+	SetModel(ctx context.Context, accountID, sessionID, model string, at time.Time) (previous string, changed bool, err error)
 	// GetSession returns ErrNotFound when the session does not exist.
 	GetSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// FindSessions projects session_id, project_path, git_origin, cwd,
-	// started_at and last_seen, sorted by last_seen descending.
+	// model, started_at and last_seen, sorted by last_seen descending.
 	FindSessions(ctx context.Context, q SessionQuery) ([]Doc, error)
 	// InsertHookEvent stores one event as given. A MemorySaved event whose
 	// memory.hash the account already holds is dropped without error.
