@@ -5,11 +5,14 @@ package memsession
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 )
@@ -207,6 +210,21 @@ func timeOf(d session.Doc, key string) time.Time {
 func intOf(d session.Doc, key string) int {
 	n, _ := d[key].(int)
 	return n
+}
+
+// numOf reads a number of any type a stored or decoded document holds.
+func numOf(d session.Doc, key string) int64 {
+	switch n := d[key].(type) {
+	case int:
+		return int64(n)
+	case int32:
+		return int64(n)
+	case int64:
+		return n
+	case float64:
+		return int64(n)
+	}
+	return 0
 }
 
 func strOf(d session.Doc, key string) string {
@@ -453,6 +471,86 @@ func (s *Store) BashEvents(_ context.Context, q session.CommandQuery) ([]session
 	return out, nil
 }
 
+func (s *Store) FileEvents(_ context.Context, q session.FileQuery) ([]session.Doc, error) {
+	re, err := compileRe(q.PathRe)
+	if err != nil {
+		return nil, err
+	}
+	inSessions := setOf(q.SessionIDs)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(hookEvents, func(d session.Doc) bool {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			return false
+		}
+		e := d.Map("enrichments")
+		var path string
+		var ok bool
+		if tracked := e.Map("file-tracker"); tracked != nil {
+			path, ok = tracked.String("file_path")
+		} else if e["edit-diff-stats"] != nil && strOf(d, "hook_event_name") == "PostToolUse" {
+			path, ok = d.ToolInput().String("file_path")
+		}
+		return ok && (re == nil || re.MatchString(path))
+	})
+	sort.SliceStable(found, func(i, j int) bool { return timeOf(found[i], "created_at").After(timeOf(found[j], "created_at")) })
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		p := project(d, "session_id", "hook_event_name", "tool_name", "tool_use_id", "created_at")
+		if path, ok := d.ToolInput().String("file_path"); ok {
+			p["tool_input"] = session.Doc{"file_path": path}
+		}
+		e := session.Doc{}
+		for _, name := range []string{"file-tracker", "edit-diff-stats"} {
+			if v, ok := d.Map("enrichments")[name]; ok {
+				e[name] = deepCopy(v)
+			}
+		}
+		p["enrichments"] = e
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+func (s *Store) ErrorLines(_ context.Context, q session.ErrorQuery) ([]session.Doc, error) {
+	inSessions, inTypes := setOf(q.SessionIDs), setOf(q.Types)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(transcriptLines, func(d session.Doc) bool {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			return false
+		}
+		flag := d.Map("enrichments").Map("error-flag")
+		if isErr, _ := flag["is_error"].(bool); !isErr {
+			return false
+		}
+		typ, _ := flag.String("error_type")
+		return len(inTypes) == 0 || inTypes[typ]
+	})
+	sort.SliceStable(found, func(i, j int) bool {
+		ti, tj := timeOf(found[i], "created_at"), timeOf(found[j], "created_at")
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return intOf(found[i], "seq") > intOf(found[j], "seq")
+	})
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		p := project(d, "session_id", "seq", "line", "created_at")
+		p["enrichments"] = session.Doc{"error-flag": deepCopy(d.Map("enrichments")["error-flag"])}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+func setOf(values []string) map[string]bool {
+	out := map[string]bool{}
+	for _, v := range values {
+		out[v] = true
+	}
+	return out
+}
+
 // --- transcript, subagent lines and blobs ---
 
 func (s *Store) UpsertTranscriptLines(_ context.Context, lines []session.TranscriptLine) error {
@@ -658,6 +756,223 @@ func (s *Store) setEnrichmentField(collection string, id any, field string, valu
 		e = session.Doc{}
 		d["enrichments"] = e
 	}
-	e[field] = deepCopy(value)
+	e[field] = storable(value)
 	return nil
+}
+
+// storable is how the store keeps an enrichment result: documents and plain
+// values as they are, anything else (an enricher's result struct) as the
+// document its JSON encodes, the way MongoDB keeps the BSON of the struct,
+// so reads find the same fields in both stores.
+func storable(v any) any {
+	switch v.(type) {
+	case nil, bool, string, int, int32, int64, float64, time.Time, session.Doc, map[string]any, []any:
+		return deepCopy(v)
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return deepCopy(v)
+	}
+	var out any
+	if err := json.Unmarshal(b, &out); err != nil {
+		return deepCopy(v)
+	}
+	if m, ok := out.(map[string]any); ok {
+		return session.Doc(m)
+	}
+	return out
+}
+
+// UsageTotals keeps, per session and message id, the largest value of each
+// counter of the usage enrichment, then sums the messages by group and model.
+func (s *Store) UsageTotals(_ context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
+	inSessions := setOf(q.SessionIDs)
+	type message struct{ session, id string }
+	type entry struct {
+		total      session.UsageTotal
+		day, model string
+	}
+	messages := map[message]*entry{}
+	order := []message{}
+	s.mu.Lock()
+	for _, d := range s.cols[transcriptLines] {
+		u := d.Map("enrichments").Map("usage")
+		id, _ := u.String("message_id")
+		if u == nil || id == "" || !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			continue
+		}
+		day, _ := u.String("day")
+		if (q.Since != "" && day < q.Since) || (q.Until != "" && day > q.Until) {
+			continue
+		}
+		k := message{strOf(d, "session_id"), id}
+		e := messages[k]
+		if e == nil {
+			e = &entry{day: day}
+			messages[k] = e
+			order = append(order, k)
+		}
+		if model, _ := u.String("model"); model > e.model {
+			e.model = model
+		}
+		e.day = min(e.day, day)
+		t := &e.total
+		t.InputTokens = max(t.InputTokens, numOf(u, "input_tokens"))
+		t.CacheCreationInputTokens = max(t.CacheCreationInputTokens, numOf(u, "cache_creation_input_tokens"))
+		t.CacheCreation1hTokens = max(t.CacheCreation1hTokens, numOf(u, "cache_creation_1h_tokens"))
+		t.CacheReadInputTokens = max(t.CacheReadInputTokens, numOf(u, "cache_read_input_tokens"))
+		t.OutputTokens = max(t.OutputTokens, numOf(u, "output_tokens"))
+		t.PeakContextTokens = max(t.PeakContextTokens, numOf(u, "context_tokens"))
+	}
+	s.mu.Unlock()
+	type group struct{ key, model string }
+	groups := map[group]*session.UsageTotal{}
+	for _, k := range order {
+		e := messages[k]
+		g := group{k.session, e.model}
+		switch q.GroupBy {
+		case session.UsageByModel:
+			g.key = e.model
+		case session.UsageByDay:
+			g.key = e.day
+		}
+		t := groups[g]
+		if t == nil {
+			t = &session.UsageTotal{Key: g.key, Model: g.model}
+			groups[g] = t
+		}
+		e.total.Messages = 1
+		t.Add(e.total)
+	}
+	out := make([]session.UsageTotal, 0, len(groups))
+	for _, t := range groups {
+		out = append(out, *t)
+	}
+	session.SortUsage(out)
+	return out, nil
+}
+
+// SearchTranscripts scores lines the way a Mongo text index with no
+// language does, closely enough for one process: the query's words, "quoted
+// phrases" (all of which must appear) and -excluded words, matched
+// case-insensitively on word boundaries; the score is how often the
+// positive words occur.
+func (s *Store) SearchTranscripts(_ context.Context, q session.TextQuery) ([]session.Doc, error) {
+	words, phrases, excluded := parseTextQuery(q.Query)
+	if len(words) == 0 && len(phrases) == 0 {
+		return []session.Doc{}, nil
+	}
+	inSessions := setOf(q.SessionIDs)
+	type hit struct {
+		doc   session.Doc
+		score float64
+	}
+	s.mu.Lock()
+	var hits []hit
+	for _, d := range s.cols[transcriptLines] {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			continue
+		}
+		text, ok := d.Map("enrichments")["search-text"].(string)
+		if !ok {
+			continue
+		}
+		lower := strings.ToLower(text)
+		tokens := textTokens(lower)
+		if anyToken(tokens, excluded) {
+			continue
+		}
+		matched := true
+		for _, p := range phrases {
+			if !strings.Contains(lower, p) {
+				matched = false
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		score := 0.0
+		for _, w := range words {
+			score += float64(tokens[w])
+		}
+		for _, p := range phrases {
+			for _, w := range strings.Fields(p) {
+				score += float64(tokens[w])
+			}
+		}
+		if score == 0 {
+			continue
+		}
+		p := project(d, "session_id", "seq", "created_at")
+		p["score"] = score
+		p["enrichments"] = session.Doc{"search-text": text}
+		hits = append(hits, hit{p, score})
+	}
+	s.mu.Unlock()
+	sort.SliceStable(hits, func(i, j int) bool {
+		if hits[i].score != hits[j].score {
+			return hits[i].score > hits[j].score
+		}
+		return timeOf(hits[i].doc, "created_at").After(timeOf(hits[j].doc, "created_at"))
+	})
+	out := []session.Doc{}
+	for i, h := range hits {
+		if q.Limit > 0 && i == q.Limit {
+			break
+		}
+		out = append(out, h.doc)
+	}
+	return out, nil
+}
+
+// parseTextQuery splits a text search into words, "phrases" and -excluded
+// words, lower-cased.
+func parseTextQuery(query string) (words, phrases, excluded []string) {
+	query = strings.ToLower(query)
+	for {
+		start := strings.IndexByte(query, '"')
+		if start < 0 {
+			break
+		}
+		end := strings.IndexByte(query[start+1:], '"')
+		if end < 0 {
+			break
+		}
+		if p := strings.TrimSpace(query[start+1 : start+1+end]); p != "" {
+			phrases = append(phrases, p)
+		}
+		query = query[:start] + " " + query[start+1+end+1:]
+	}
+	for _, f := range strings.Fields(query) {
+		if strings.HasPrefix(f, "-") {
+			for w := range textTokens(f[1:]) {
+				excluded = append(excluded, w)
+			}
+			continue
+		}
+		for w := range textTokens(f) {
+			words = append(words, w)
+		}
+	}
+	return words, phrases, excluded
+}
+
+// textTokens counts the words of lower-cased text, split on anything that
+// is not a letter or digit.
+func textTokens(text string) map[string]int {
+	out := map[string]int{}
+	for _, w := range strings.FieldsFunc(text, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		out[w]++
+	}
+	return out
+}
+
+func anyToken(tokens map[string]int, words []string) bool {
+	for _, w := range words {
+		if tokens[w] > 0 {
+			return true
+		}
+	}
+	return false
 }

@@ -429,3 +429,22 @@ func TestServeExposesSessionToolsOverStreamableHTTP(t *testing.T) {
 		t.Errorf("exit code = %d, want 0", code)
 	}
 }
+
+func TestMCPCoreToolTier(t *testing.T) {
+	sessionEnv(t, nil)
+	dir := t.TempDir()
+	rc, cs, ctx := startStdioCommand(t, "--plans-dir", filepath.Join(dir, "plans"), "--stories-dir", filepath.Join(dir, "stories"), "mcp", "--no-session-tools", "--tools", "core")
+	names := toolNames(t, ctx, cs)
+	if !contains(names, "story_setCriterion") || contains(names, "plan_setTags") {
+		t.Errorf("core tier tools = %v", names)
+	}
+	if code := rc.stop(t); code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+
+	t.Setenv("MIND_PALACE_MCP_TOOLS", "bogus")
+	r := exec(t, dir, "mcp")
+	if r.code == 0 || !strings.Contains(r.stdout+r.stderr, "--tools must be core or full") {
+		t.Errorf("mcp with MIND_PALACE_MCP_TOOLS=bogus: code %d, %s %s", r.code, r.stdout, r.stderr)
+	}
+}

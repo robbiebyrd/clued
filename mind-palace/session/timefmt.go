@@ -62,6 +62,16 @@ func structTimes(v reflect.Value) map[string]any {
 	for i := range v.NumField() {
 		field := v.Type().Field(i)
 		name, opts, _ := strings.Cut(field.Tag.Get("json"), ",")
+		if name == "" && field.Anonymous && field.Type.Kind() == reflect.Struct {
+			// An embedded struct's fields are promoted, as encoding/json
+			// does; the outer struct's own fields win.
+			for k, e := range structTimes(v.Field(i)) {
+				if _, taken := out[k]; !taken {
+					out[k] = e
+				}
+			}
+			continue
+		}
 		if !field.IsExported() || name == "-" {
 			continue
 		}

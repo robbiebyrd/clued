@@ -109,6 +109,9 @@ func TestHooksJSONRunsStatusReviewOnSessionStartAndThrottledOnPrompts(t *testing
 	if h := findHook(hooks["SessionStart"], "/scripts/clued hook status-review"); h == nil || h.Async != nil || !strings.HasPrefix(h.Command, shim) {
 		t.Errorf("SessionStart status-review = %+v, want a synchronous hook run from %s", h, shim)
 	}
+	if h := findHook(hooks["SessionStart"], "/scripts/clued hook prime"); h == nil || h.Async != nil || !strings.HasPrefix(h.Command, shim) {
+		t.Errorf("SessionStart prime = %+v, want a synchronous hook run from %s (an async hook's output is not added as context)", h, shim)
+	}
 	h := findHook(hooks["UserPromptSubmit"], "/scripts/clued hook status-review --every 30m")
 	if h == nil || h.Async != nil || !strings.HasPrefix(h.Command, shim) {
 		t.Errorf("UserPromptSubmit status-review = %+v, want a synchronous throttled hook run from %s", h, shim)

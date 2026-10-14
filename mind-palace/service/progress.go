@@ -69,8 +69,12 @@ func (s *Service) SetProgress(ctx context.Context, identifier, section, status s
 	e.Status = st
 	d.FrontMatter.Progress[section] = e
 	if s.kind.AutoComplete && st == "complete" && d.FrontMatter.Status == "in_progress" && s.allStepsComplete(d) {
-		if err := s.criteriaGate(d); err == nil {
-			if _, err := s.applyStatus(d, "complete", true); err != nil {
+		if open, err := s.openDependencies(ctx, d, true); err != nil {
+			return nil, err
+		} else if err := s.criteriaGate(d); err == nil && len(open) == 0 {
+			// Completing itself never overrides a dependency: the story
+			// stays in progress until what blocks it finishes.
+			if _, err := s.applyStatus(ctx, d, "complete", true); err != nil {
 				return nil, err
 			}
 			d.Path = s.pathFor(d, "")

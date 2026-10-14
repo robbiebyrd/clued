@@ -132,6 +132,29 @@ func (s *Store) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]sess
 	return s.docs(ctx, "POST", prefix+"/memory-events", q)
 }
 
+func (s *Store) FileEvents(ctx context.Context, q session.FileQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/file-events", q)
+}
+
+func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/error-lines", q)
+}
+
+func (s *Store) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/transcript-search", q)
+}
+
+func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
+	var out []session.UsageTotal
+	if err := s.do(ctx, "POST", prefix+"/usage-totals", q, &out); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = []session.UsageTotal{}
+	}
+	return out, nil
+}
+
 // --- transcript, subagent lines and blobs ---
 
 // UpsertTranscriptLines sends the lines in batches of at most MaxLines, in

@@ -243,6 +243,22 @@ func (h *harness) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]se
 	return h.as(q.AccountID).MemoryEvents(ctx, q)
 }
 
+func (h *harness) FileEvents(ctx context.Context, q session.FileQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).FileEvents(ctx, q)
+}
+
+func (h *harness) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).ErrorLines(ctx, q)
+}
+
+func (h *harness) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).SearchTranscripts(ctx, q)
+}
+
+func (h *harness) UsageTotals(ctx context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
+	return h.as(q.AccountID).UsageTotals(ctx, q)
+}
+
 func (h *harness) FullSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
 	return h.as(accountID).FullSession(ctx, accountID, sessionID)
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
+	"github.com/robbiebyrd/clued/mind-palace/session/enrichers"
 	"github.com/robbiebyrd/clued/mind-palace/session/sessionmcp"
 	"github.com/robbiebyrd/clued/mind-palace/session/sessiontest"
 )
@@ -236,6 +237,36 @@ const toolSchemas = `{
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
       "limit":{"type":"number","description":"Max records to return (default 20, max 500)"}}}},
+  "search_transcripts": {"description": "Search what was said in previous sessions (prompts, replies, tool calls and results) by words, best match first, with a snippet of each matching line. Use it to find the session that discussed a topic, then read_transcript with offset set to the hit's seq.",
+    "inputSchema": {"type":"object","properties":{
+      "query":{"type":"string","description":"Words to look for (any of them matches; more matches rank higher), \"quoted phrases\" that must appear, -words to exclude"},
+      "session_id":{"type":"string","description":"Restrict to one session"},
+      "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
+      "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
+      "limit":{"type":"number","description":"Max lines to return (default 20, max 500)"}},"required":["query"]}},
+  "usage": {"description": "Token usage and estimated cost (US dollars, at list prices) of previous sessions, grouped by session, model or day, each assistant message counted once. Groups come costliest first (in day order by day) with a per-model breakdown; models without a known price have no cost and are listed in unpriced_models.",
+    "inputSchema": {"type":"object","properties":{
+      "group_by":{"type":"string","enum":["session","model","day"],"description":"How to group the totals (default session)"},
+      "session_id":{"type":"string","description":"Restrict to one session"},
+      "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
+      "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
+      "since":{"type":"string","description":"First day to count, YYYY-MM-DD (UTC)"},
+      "until":{"type":"string","description":"Last day to count, YYYY-MM-DD (UTC)"},
+      "limit":{"type":"number","description":"Max groups to return (default 50, max 500); the total covers every group"}}}},
+  "file_history": {"description": "Which previous sessions touched a file: for each session (most recent first) the matching files, how often it read, edited or wrote them, the lines its edits added and removed, and when it first and last touched them. Built from the file-tracker and edit-diff-stats enrichments.",
+    "inputSchema": {"type":"object","properties":{
+      "path":{"type":"string","description":"Case-insensitive regex matched against the file path (e.g. \\bauth/session\\.go$)"},
+      "session_id":{"type":"string","description":"Restrict to one session"},
+      "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
+      "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
+      "limit":{"type":"number","description":"Max sessions to return (default 10, max 500)"}},"required":["path"]}},
+  "find_errors": {"description": "Transcript lines that reported an error (a failed hook, a failed tool result, or error text), newest first, with the start of their text and their session. Built from the error-flag enrichment.",
+    "inputSchema": {"type":"object","properties":{
+      "type":{"type":"string","enum":["hook_error","tool_failure","error_text"],"description":"Restrict to one kind of error"},
+      "session_id":{"type":"string","description":"Restrict to one session"},
+      "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
+      "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
+      "limit":{"type":"number","description":"Max lines to return (default 20, max 500)"}}}},
   "read_transcript": {"description": "Read transcript lines of a session in order, paginated by offset/limit.",
     "inputSchema": {"type":"object","properties":{
       "session_id":{"type":"string"},
@@ -254,7 +285,7 @@ const toolSchemas = `{
       "no_snapshot":{"type":"boolean","description":"Do not post the report to the daemon as a ContextCollected event"}}}}
 }`
 
-func TestToolListHasTheEightToolsWithTheProtocolSchemas(t *testing.T) {
+func TestToolListHasTheTwelveToolsWithTheProtocolSchemas(t *testing.T) {
 	eachStore(t, func(t *testing.T) {
 		var want map[string]struct {
 			Description string `json:"description"`
@@ -604,7 +635,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 8 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
+		if len(names) != 12 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {
@@ -710,6 +741,136 @@ func TestPrimeContextPostsASnapshotWhenTheDaemonRuns(t *testing.T) {
 		call(t, cs, "prime_context", obj{"cwd": root, "no_snapshot": true})
 		if len(bodies) != 1 {
 			t.Errorf("no_snapshot must not post, got %d events", len(bodies))
+		}
+	})
+}
+
+func TestFileHistoryAndFindErrors(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		st := seeded(t)
+		ctx := context.Background()
+		t0 := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+		for i, ev := range []session.Doc{
+			{"session_id": "sess-1", "account_id": account, "hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": session.Doc{"file_path": "/home/user/myrepo/auth.go"}, "created_at": t0,
+				"enrichments": session.Doc{"file-tracker": session.Doc{"file_path": "/home/user/myrepo/auth.go", "operation": "edit"}}},
+			{"session_id": "sess-1", "account_id": account, "hook_event_name": "PostToolUse", "tool_name": "Edit", "tool_input": session.Doc{"file_path": "/home/user/myrepo/auth.go"}, "created_at": t0.Add(time.Second),
+				"enrichments": session.Doc{"edit-diff-stats": session.Doc{"lines_added": 3, "lines_removed": 1, "net_change": 2}}},
+			{"session_id": "sess-3", "account_id": account, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": session.Doc{"file_path": "/home/user/myrepo/auth.go"}, "created_at": t0.Add(time.Hour),
+				"enrichments": session.Doc{"file-tracker": session.Doc{"file_path": "/home/user/myrepo/auth.go", "operation": "read"}}},
+		} {
+			if err := st.InsertHookEvent(ctx, ev); err != nil {
+				t.Fatalf("event %d: %v", i, err)
+			}
+		}
+		cs := connectClient(t, newTools(st, session.Config{}).Server(), nil)
+		hist := okJSON[[]obj](t, call(t, cs, "file_history", obj{"path": `auth\.go$`}))
+		if len(hist) != 2 || hist[0]["session_id"] != "sess-3" || hist[1]["session_id"] != "sess-1" {
+			t.Fatalf("file_history = %v", hist)
+		}
+		if ops := hist[1]["operations"].(map[string]any); ops["edit"] != float64(1) || hist[1]["lines_added"] != float64(3) || hist[1]["lines_removed"] != float64(1) {
+			t.Errorf("sess-1 entry = %v", hist[1])
+		}
+		if hist[1]["git_origin"] != "https://github.com/user/myrepo.git" {
+			t.Errorf("git_origin = %v", hist[1]["git_origin"])
+		}
+		if got := okJSON[[]obj](t, call(t, cs, "file_history", obj{"path": "auth", "session_id": "sess-1"})); len(got) != 1 {
+			t.Errorf("scoped file_history = %v", got)
+		}
+		if got := text(t, call(t, cs, "file_history", obj{"path": "auth", "session_id": "not-mine"})); got != "[]" {
+			t.Errorf("foreign session = %s", got)
+		}
+
+		lines := okJSON[[]obj](t, call(t, cs, "read_transcript", obj{"session_id": "sess-1", "limit": 1}))
+		if len(lines) != 1 {
+			t.Fatalf("no transcript to flag: %v", lines)
+		}
+		var id any
+		for _, d := range must2(st.Unenriched(ctx, "transcript_lines", "error-flag", 0)) {
+			if d["session_id"] == "sess-1" {
+				id = d["_id"]
+				break
+			}
+		}
+		must(t, st.SetEnrichment(ctx, "transcript_lines", id, "error-flag", session.Doc{"is_error": true, "error_type": "tool_failure"}))
+		errs := okJSON[[]obj](t, call(t, cs, "find_errors", obj{}))
+		if len(errs) != 1 || errs[0]["session_id"] != "sess-1" || errs[0]["type"] != "tool_failure" {
+			t.Fatalf("find_errors = %v", errs)
+		}
+		if got := text(t, call(t, cs, "find_errors", obj{"type": "hook_error"})); got != "[]" {
+			t.Errorf("find_errors by type = %s", got)
+		}
+	})
+}
+
+func must2[T any](v T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func TestSearchTranscripts(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		st := seeded(t)
+		ctx := context.Background()
+		docs := must2(st.Unenriched(ctx, "transcript_lines", "search-text", 0))
+		for i, d := range docs {
+			text := "routine output line"
+			if d["session_id"] == "sess-3" && i%2 == 0 {
+				text = "we discussed the OAuth migration plan here"
+			}
+			must(t, st.SetEnrichment(ctx, "transcript_lines", d["_id"], "search-text", text))
+		}
+		cs := connectClient(t, newTools(st, session.Config{}).Server(), nil)
+		hits := okJSON[[]obj](t, call(t, cs, "search_transcripts", obj{"query": "oauth migration", "limit": 3}))
+		if len(hits) == 0 || len(hits) > 3 {
+			t.Fatalf("search_transcripts = %v", hits)
+		}
+		for _, h := range hits {
+			if h["session_id"] != "sess-3" || !strings.Contains(h["snippet"].(string), "OAuth migration") || h["git_origin"] != "https://github.com/user/myrepo.git" {
+				t.Errorf("hit = %v", h)
+			}
+		}
+		if got := text(t, call(t, cs, "search_transcripts", obj{"query": "oauth", "session_id": "sess-1"})); got != "[]" {
+			t.Errorf("scoped to a session without the words: %s", got)
+		}
+		if got := text(t, call(t, cs, "search_transcripts", obj{"query": "   "})); got != "[]" {
+			t.Errorf("blank query: %s", got)
+		}
+	})
+}
+
+func TestUsageTool(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		st := seeded(t)
+		ctx := context.Background()
+		for _, d := range must2(st.Unenriched(ctx, "transcript_lines", "usage", 0)) {
+			if d["session_id"] != "sess-3" {
+				continue
+			}
+			// Every line of sess-3 repeats one message, as the blocks of one reply do.
+			r := enrichers.UsageResult{Model: "claude-mine-1", MessageID: "msg-1", Day: "2026-10-03", InputTokens: 1000, OutputTokens: 100, ContextTokens: 1000}
+			must(t, st.SetEnrichment(ctx, "transcript_lines", d["_id"], "usage", r))
+		}
+		cfg := session.Config{ModelPrices: map[string]session.ModelPrice{"claude-mine": {Input: 1000, Output: 10000}}}
+		cs := connectClient(t, newTools(st, cfg).Server(), nil)
+		report := okJSON[obj](t, call(t, cs, "usage", obj{"group_by": "day"}))
+		groups, _ := report["groups"].([]any)
+		if len(groups) != 1 {
+			t.Fatalf("usage = %v", report)
+		}
+		g := groups[0].(obj)
+		// 1000 input at $1000 and 100 output at $10000 per million tokens.
+		if g["key"] != "2026-10-03" || g["messages"] != float64(1) || g["output_tokens"] != float64(100) || g["cost_usd"] != float64(2) {
+			t.Errorf("group = %v", g)
+		}
+		if got := okJSON[obj](t, call(t, cs, "usage", obj{"session_id": "sess-1"})); len(got["groups"].([]any)) != 0 {
+			t.Errorf("a session without usage = %v", got)
+		}
+		wantError(t, call(t, cs, "usage", obj{"group_by": "week"}), `group_by "week" is not session, model or day`)
+		ctxReport := okJSON[obj](t, call(t, cs, "get_session_context", obj{"session_id": "sess-3"}))
+		if u, _ := ctxReport["usage"].(obj); u == nil || u["output_tokens"] != float64(100) {
+			t.Errorf("get_session_context usage = %v", ctxReport["usage"])
 		}
 	})
 }

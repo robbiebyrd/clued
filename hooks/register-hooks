@@ -47,7 +47,8 @@ jq \
     {"hooks": [
       {"type": "command", "command": $check_setup},
       {"type": "command", "command": $session_start, "async": true},
-      {"type": "command", "command": ($clued + " hook status-review")}
+      {"type": "command", "command": ($clued + " hook status-review")},
+      {"type": "command", "command": ($clued + " hook prime")}
     ]}]) |
   replace("PreToolUse"; [
     relay_hook($relay),

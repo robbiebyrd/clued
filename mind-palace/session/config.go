@@ -32,7 +32,20 @@ type Config struct {
 	ServerToken    string `json:"serverToken"`
 	ServerCAFile   string `json:"serverCaFile"`
 	ServerInsecure bool   `json:"serverInsecure"`
+
+	// PrimeOnStart, when false, stops `hook prime` from adding the prime
+	// report to new, resumed, cleared and compacted sessions; unset means
+	// on. CLUED_PRIME_ON_START (a boolean) overrides it.
+	PrimeOnStart *bool `json:"primeOnStart,omitempty"`
+
+	// ModelPrices adds or overrides model prices (US dollars per million
+	// input and output tokens, by model id prefix) for the usage cost
+	// estimates; see DefaultModelPrices.
+	ModelPrices map[string]ModelPrice `json:"modelPrices,omitempty"`
 }
+
+// PrimesOnStart reports whether sessions start with the prime report.
+func (c Config) PrimesOnStart() bool { return c.PrimeOnStart == nil || *c.PrimeOnStart }
 
 // Remote reports whether the plugin runs in remote mode, which is the case
 // exactly when a server URL is configured.
@@ -109,6 +122,11 @@ func LoadConfig(path string) Config {
 	if v := os.Getenv("CLUED_SERVER_INSECURE"); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
 			cfg.ServerInsecure = b
+		}
+	}
+	if v := os.Getenv("CLUED_PRIME_ON_START"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.PrimeOnStart = &b
 		}
 	}
 

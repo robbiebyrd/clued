@@ -38,7 +38,9 @@ type Palace struct {
 	now      func() time.Time
 	randomID func() string
 	// mu serialises id allocation across kinds.
-	mu       sync.Mutex
+	mu sync.Mutex
+	// claimMu serialises claims within the process (see Service.Claim).
+	claimMu  sync.Mutex
 	services map[string]*Service
 }
 

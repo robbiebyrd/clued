@@ -118,6 +118,19 @@ type SetOrderParams struct {
 	Order    int    `json:"order" jsonschema:"Sort position (lower first; 0 is the default)"`
 }
 
+type ReadyParams struct {
+	Tag        string `json:"tag,omitempty" jsonschema:"Keep documents carrying this tag"`
+	Milestone  string `json:"milestone,omitempty" jsonschema:"Keep documents in this milestone"`
+	Unassigned bool   `json:"unassigned,omitempty" jsonschema:"Keep only documents nobody is assigned to"`
+	Limit      int    `json:"limit,omitempty" jsonschema:"Return at most this many (default: all)"`
+}
+
+type ClaimParams struct {
+	Document string `json:"document" jsonschema:"Document identifier"`
+	Assignee string `json:"assignee" jsonschema:"Who takes it, as provider:handle (e.g. github:octocat)"`
+	Force    bool   `json:"force,omitempty" jsonschema:"Take it from another assignee, and override the workflow and dependency rules"`
+}
+
 type SetAssigneeParams struct {
 	Document string `json:"document" jsonschema:"Document identifier"`
 	Assignee string `json:"assignee" jsonschema:"Owner as provider:handle, e.g. github:octocat (empty clears)"`
@@ -318,6 +331,7 @@ func For(k *kind.Kind) *Registry {
 	if k.CriteriaGate {
 		statusDesc += " Moving to complete requires every acceptance criterion to be checked; force does not override this."
 	}
+	statusDesc += " Moving to in_progress requires every plan or story it depends on to be complete, rejected or archived, and moving to complete also requires the same of every document whose blocks link names it (BlockedByDependency lists them); force overrides."
 	statusDesc += " archived moves the file to archive/; leaving archived moves it back."
 	Register(r, &Op{Name: "setStatus", Group: "fields", Description: statusDesc},
 		func(ctx context.Context, svc *service.Service, p SetStatusParams) (any, error) {
@@ -327,6 +341,20 @@ func For(k *kind.Kind) *Registry {
 		func(ctx context.Context, svc *service.Service, p DocParams) (any, error) {
 			return svc.GetTransitions(ctx, p.Document)
 		})
+	Register(r, &Op{Name: "ready", Group: "fields", ReadOnly: true, Description: fmt.Sprintf("List the %ss that can start now: their status may move to in_progress and every plan or story they depend on is complete, rejected or archived. Ordered by priority, then order, then id.", name)},
+		func(ctx context.Context, svc *service.Service, p ReadyParams) (any, error) {
+			return svc.Ready(ctx, service.ReadyFilter{Tag: p.Tag, Milestone: p.Milestone, Unassigned: p.Unassigned, Limit: p.Limit})
+		})
+	Register(r, &Op{Name: "dependencies", Group: "links", ReadOnly: true, Description: fmt.Sprintf("List what holds a %s up: the unfinished plans and stories it depends on (relation depends) and those whose blocks link names it (relation blocked_by).", name)},
+		func(ctx context.Context, svc *service.Service, p DocParams) (any, error) {
+			return svc.Dependencies(ctx, p.Document)
+		})
+	if k.HasAssignee {
+		Register(r, &Op{Name: "claim", Group: "fields", Description: fmt.Sprintf("Take a %s in one step: set the assignee and move it to in_progress, under the workflow and dependency rules. Fails with Conflict when someone else holds it (unless force); claiming your own in-progress %s again changes nothing. Use it so two agents never take the same work.", name, name)},
+			func(ctx context.Context, svc *service.Service, p ClaimParams) (any, error) {
+				return svc.Claim(ctx, p.Document, p.Assignee, p.Force)
+			})
+	}
 	Register(r, &Op{Name: "setPriority", Group: "fields", Description: "Set priority from a number (0–5) or label (P1, Critical)."},
 		func(ctx context.Context, svc *service.Service, p SetPriorityParams) (any, error) {
 			return svc.SetPriority(ctx, p.Document, p.Priority)

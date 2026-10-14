@@ -21,6 +21,9 @@ const (
 	KindBadRequest         = "BadRequest"
 	KindConflict           = "Conflict"
 	KindStorage            = "StorageError"
+	// KindBlockedByDependency refuses a start or completion while a
+	// document it depends on, or one that blocks it, is unfinished.
+	KindBlockedByDependency = "BlockedByDependency"
 )
 
 // Kinds lists every error kind in a stable order.
@@ -28,6 +31,7 @@ var Kinds = []string{
 	KindBadRequest, KindValidation, KindNotFound, KindInvalidTransition, KindImmutableField,
 	KindUnknownSection, KindLinkedPlan, KindConflict, KindStorage,
 	KindIncompleteCriteria, KindUnknownStep, KindUnknownCriterion, KindLinkedStory,
+	KindBlockedByDependency,
 }
 
 // Error is the typed error every entrypoint maps to its own representation.
@@ -59,7 +63,7 @@ func (e *Error) HTTPStatus() int {
 		return 404
 	case KindValidation, KindBadRequest, KindUnknownSection, KindUnknownStep, KindUnknownCriterion:
 		return 400
-	case KindInvalidTransition, KindIncompleteCriteria, KindImmutableField, KindLinkedPlan, KindLinkedStory, KindConflict:
+	case KindInvalidTransition, KindIncompleteCriteria, KindImmutableField, KindLinkedPlan, KindLinkedStory, KindConflict, KindBlockedByDependency:
 		return 409
 	case KindStorage:
 		return 500

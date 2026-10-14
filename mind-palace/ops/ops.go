@@ -46,7 +46,31 @@ type Op struct {
 	schemaOnce sync.Once
 	schema     *jsonschema.Schema
 	schemaErr  error
+
+	compactOnce sync.Once
+	compact     *jsonschema.Schema
+	compactErr  error
 }
+
+// coreOps are the operations of the core tool tier: reading and writing
+// documents, the workflow, criteria, progress, links and the ready queue.
+// The other operations (single-field setters patchFrontMatter covers,
+// template management, file and web links, removals) stay available in the
+// full tier, over the CLI and over HTTP.
+var coreOps = map[string]bool{
+	"create": true, "get": true, "getContent": true, "list": true, "update": true, "validate": true,
+	"setStatus": true, "getTransitions": true, "setTitle": true, "setType": true, "setPriority": true,
+	"patchFrontMatter": true, "setAssignee": true,
+	"addPlanLink": true, "addStoryLink": true, "addSpec": true,
+	"getProgress": true, "setProgress": true,
+	"getCriteria": true, "setCriterion": true, "addCriterion": true, "removeCriterion": true, "appendWorkLog": true,
+	"getTemplate": true, "listTemplates": true, "getSchema": true,
+	"ready": true, "claim": true,
+	"sync": true, "getConfig": true,
+}
+
+// Core reports whether the operation belongs to the core tool tier.
+func (o *Op) Core() bool { return coreOps[o.Name] }
 
 // InputSchema returns the JSON Schema for the operation's parameters, with
 // the kind's parameter names applied.
@@ -61,6 +85,27 @@ func (o *Op) InputSchema(svc *service.Service) (*jsonschema.Schema, error) {
 		}
 	})
 	return o.schema, o.schemaErr
+}
+
+// Compact reports whether CompactInputSchema differs from InputSchema: the
+// operation inlines a document schema (create) that getSchema also serves.
+func (o *Op) Compact() bool { return o.schemaFn != nil }
+
+// CompactInputSchema is InputSchema without the inlined document schema:
+// the parameters as their struct declares them, the input described in
+// words. A server that keeps its tool list short (the core tier) serves
+// it, and the client reads the full schema from getSchema when it needs it.
+func (o *Op) CompactInputSchema(svc *service.Service) (*jsonschema.Schema, error) {
+	if o.schemaFn == nil {
+		return o.InputSchema(svc)
+	}
+	o.compactOnce.Do(func() {
+		o.compact, o.compactErr = jsonschema.ForType(o.paramsType, &jsonschema.ForOptions{IgnoreInvalidTypes: true})
+		if o.compactErr == nil {
+			o.compact = o.reg.publicSchema(o.compact)
+		}
+	})
+	return o.compact, o.compactErr
 }
 
 // NewParams returns a zero value of the parameter struct.

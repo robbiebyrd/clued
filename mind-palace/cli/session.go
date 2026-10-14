@@ -121,7 +121,7 @@ func (a *App) sessionCmd() *cobra.Command {
 	}
 	c.PersistentFlags().StringVar(&a.sess.configPath, "config", session.DefaultConfigPath(), "clued config file")
 	c.AddCommand(
-		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
+		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
 		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
 		a.sessionSearchMemoryCmd(), a.sessionMemoryIngestCmd(),
@@ -270,7 +270,8 @@ func (a *App) sessionAction(fn func(ctx context.Context, store session.Store, sv
 		if err != nil {
 			return a.sessionFail(err)
 		}
-		svc := &query.Service{Store: store, AccountID: session.ReadAccountID(a.sessionConfig().ClaudeAppConfigPath)}
+		cfg := a.sessionConfig()
+		svc := &query.Service{Store: store, AccountID: session.ReadAccountID(cfg.ClaudeAppConfigPath), Prices: cfg.ModelPrices}
 		result, err := fn(cmd.Context(), store, svc)
 		if err != nil {
 			return a.sessionFail(err)
@@ -357,6 +358,64 @@ func (a *App) sessionSearchCommandsCmd() *cobra.Command {
 	f.StringVar(&args.SessionID, "session", "", "only this session")
 	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
 	f.IntVar(&args.Limit, "limit", 0, "maximum commands (default 20, at most 500)")
+	return c
+}
+
+func (a *App) sessionUsageCmd() *cobra.Command {
+	var args query.UsageArgs
+	c := &cobra.Command{
+		Use:   "usage [--by session|model|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]",
+		Short: "Token usage and estimated cost by session, model or day",
+		Args:  cobra.NoArgs,
+	}
+	run := a.sessionAction(func(ctx context.Context, _ session.Store, svc *query.Service) (any, error) {
+		return svc.Usage(ctx, args)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if err := a.validated(
+			checkRegex("--git-origin", args.GitOrigin), checkRegex("--project", args.ProjectPath),
+			checkNotNegative("--limit", args.Limit),
+		); err != nil {
+			return err
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringVar(&args.GroupBy, "by", "", "group by session (default), model or day")
+	f.StringVar(&args.SessionID, "session", "", "only this session")
+	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
+	f.StringVar(&args.ProjectPath, "project", "", "only sessions whose project path matches this regular expression")
+	f.StringVar(&args.Since, "since", "", "first day to count (YYYY-MM-DD, UTC)")
+	f.StringVar(&args.Until, "until", "", "last day to count (YYYY-MM-DD, UTC)")
+	f.IntVar(&args.Limit, "limit", 0, "maximum groups (default 50, at most 500)")
+	return c
+}
+
+func (a *App) sessionSearchCmd() *cobra.Command {
+	var args query.SearchTranscriptsArgs
+	c := &cobra.Command{
+		Use:   "search <words…> [--session id] [--git-origin re] [--project re] [--limit n]",
+		Short: "Search what was said in sessions by words, best match first",
+		Args:  cobra.MinimumNArgs(1),
+	}
+	run := a.sessionAction(func(ctx context.Context, _ session.Store, svc *query.Service) (any, error) {
+		return svc.SearchTranscripts(ctx, args)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		args.Query = strings.Join(positional, " ")
+		if err := a.validated(
+			checkRegex("--git-origin", args.GitOrigin), checkRegex("--project", args.ProjectPath),
+			checkNotNegative("--limit", args.Limit),
+		); err != nil {
+			return err
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringVar(&args.SessionID, "session", "", "only this session")
+	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
+	f.StringVar(&args.ProjectPath, "project", "", "only sessions whose project path matches this regular expression")
+	f.IntVar(&args.Limit, "limit", 0, "maximum lines (default 20, at most 500)")
 	return c
 }
 

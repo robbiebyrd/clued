@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,10 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"blobs are ordered by type and name and account scoped", blobsOrdering},
 		{"bash events filter by regex, session and account, newest first", bashEvents},
 		{"bash events reject an invalid regex", bashEventsInvalidRegex},
+		{"file events select tracked and measured file events by path, newest first", fileEvents},
+		{"error lines select flagged lines by type and session, newest first", errorLines},
+		{"search transcripts ranks lines by their indexed words, scoped to the account", searchTranscripts},
+		{"usage totals count each message once, by session, model or day", usageTotals},
 		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
@@ -1008,4 +1013,179 @@ func deleteAccount(t *testing.T, s session.Store) {
 	eq(t, "b's subagents", len(ok(s.SubagentIDs(ctx, "b", "s-b"))), 1)
 	eq(t, "b's bash events", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "b", PatternRe: "."}))), 1)
 	eq(t, "a second delete", ok(s.DeleteAccount(ctx, "a")), int64(0))
+}
+
+func fileEvents(t *testing.T, s session.Store) {
+	tracked := func(sid, acc, tool, path string, at time.Time) session.Doc {
+		return session.Doc{"session_id": sid, "account_id": acc, "hook_event_name": "PreToolUse", "tool_name": tool, "tool_use_id": "tu-" + sid + tool,
+			"tool_input": session.Doc{"file_path": path}, "created_at": at,
+			"enrichments": session.Doc{"file-tracker": session.Doc{"file_path": path, "operation": strings.ToLower(tool)}}}
+	}
+	for _, ev := range []session.Doc{
+		tracked("s1", "acc", "Read", "/repo/main.go", t0),
+		tracked("s1", "acc", "Edit", "/repo/main.go", t0.Add(time.Minute)),
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": "PostToolUse", "tool_name": "Edit", "tool_use_id": "tu-s1Edit",
+			"tool_input": session.Doc{"file_path": "/repo/main.go", "old_string": "a", "new_string": "b\nc"}, "created_at": t0.Add(2 * time.Minute),
+			"enrichments": session.Doc{"edit-diff-stats": session.Doc{"lines_added": 2, "lines_removed": 1, "net_change": 1}}},
+		tracked("s2", "acc", "Write", "/repo/README.md", t0.Add(3*time.Minute)),
+		tracked("s3", "other", "Read", "/repo/main.go", t0.Add(4*time.Minute)),
+		// A PostToolUse without diff stats and a PreToolUse without a tracked path are not file events.
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": "PostToolUse", "tool_name": "Read", "tool_input": session.Doc{"file_path": "/repo/main.go"}, "created_at": t0},
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": session.Doc{"command": "cat main.go"}, "created_at": t0},
+	} {
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	kinds := func(q session.FileQuery) []string {
+		var out []string
+		for _, d := range ok(s.FileEvents(ctx, q)) {
+			ev, _ := d.String("hook_event_name")
+			tool, _ := d.String("tool_name")
+			out = append(out, ev+":"+tool)
+		}
+		return out
+	}
+	eq(t, "path regex, newest first, own account", kinds(session.FileQuery{AccountID: "acc", PathRe: "MAIN\\.go$", Limit: 10}),
+		[]string{"PostToolUse:Edit", "PreToolUse:Edit", "PreToolUse:Read"})
+	eq(t, "every file", len(ok(s.FileEvents(ctx, session.FileQuery{AccountID: "acc", Limit: 10}))), 4)
+	eq(t, "session scoping", kinds(session.FileQuery{AccountID: "acc", SessionIDs: []string{"s2"}, Limit: 10}), []string{"PreToolUse:Write"})
+	eq(t, "limit", len(ok(s.FileEvents(ctx, session.FileQuery{AccountID: "acc", Limit: 1}))), 1)
+	got := ok(s.FileEvents(ctx, session.FileQuery{AccountID: "acc", PathRe: "main", Limit: 1}))[0]
+	eq(t, "diff stats", num(got.Map("enrichments").Map("edit-diff-stats")["lines_added"]), 2)
+	eq(t, "file path", got.ToolInput()["file_path"], "/repo/main.go")
+	eq(t, "tool use id", got["tool_use_id"], "tu-s1Edit")
+	if _, err := s.FileEvents(ctx, session.FileQuery{AccountID: "acc", PathRe: "(", Limit: 1}); err == nil {
+		t.Error("FileEvents accepted an invalid regex")
+	}
+}
+
+func errorLines(t *testing.T, s session.Store) {
+	flag := func(sid string, seq int, acc string, errType any) {
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, seq, "user", acc)}))
+		var id any
+		for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "error-flag", 0)) {
+			if d["session_id"] == sid && num(d["seq"]) == seq {
+				id = d["_id"]
+			}
+		}
+		result := session.Doc{"is_error": errType != nil, "error_type": errType}
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "error-flag", result))
+		time.Sleep(5 * time.Millisecond) // created_at orders the lines
+	}
+	flag("s1", 0, "acc", "tool_failure")
+	flag("s1", 1, "acc", nil)
+	flag("s1", 2, "acc", "error_text")
+	flag("s2", 0, "acc", "hook_error")
+	flag("s3", 0, "other", "tool_failure")
+	keys := func(q session.ErrorQuery) []string {
+		var out []string
+		for _, d := range ok(s.ErrorLines(ctx, q)) {
+			sid, _ := d.String("session_id")
+			typ, _ := d.Map("enrichments").Map("error-flag").String("error_type")
+			out = append(out, fmt.Sprintf("%s/%d/%s", sid, num(d["seq"]), typ))
+		}
+		return out
+	}
+	eq(t, "errors only, newest first, own account", keys(session.ErrorQuery{AccountID: "acc", Limit: 10}),
+		[]string{"s2/0/hook_error", "s1/2/error_text", "s1/0/tool_failure"})
+	eq(t, "types", keys(session.ErrorQuery{AccountID: "acc", Types: []string{"tool_failure", "hook_error"}, Limit: 10}),
+		[]string{"s2/0/hook_error", "s1/0/tool_failure"})
+	eq(t, "session scoping", keys(session.ErrorQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 1}), []string{"s1/2/error_text"})
+	got := ok(s.ErrorLines(ctx, session.ErrorQuery{AccountID: "acc", Limit: 1}))[0]
+	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "line", "seq", "session_id"})
+}
+
+func searchTranscripts(t *testing.T, s session.Store) {
+	index := func(sid string, seq int, acc, text string) {
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, seq, "assistant", acc)}))
+		var id any
+		for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "search-text", 0)) {
+			if d["session_id"] == sid && num(d["seq"]) == seq {
+				id = d["_id"]
+			}
+		}
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "search-text", text))
+	}
+	index("s1", 0, "acc", "the oauth migration broke the oauth login flow")
+	index("s1", 1, "acc", "oauth tokens were rotated today for the whole team")
+	index("s2", 0, "acc", "unrelated build output from the compiler run")
+	index("s3", 0, "other", "oauth migration notes from another account")
+	keys := func(q session.TextQuery) []string {
+		var out []string
+		for _, d := range ok(s.SearchTranscripts(ctx, q)) {
+			sid, _ := d.String("session_id")
+			out = append(out, fmt.Sprintf("%s/%d", sid, num(d["seq"])))
+		}
+		return out
+	}
+	eq(t, "best match first, own account only", keys(session.TextQuery{AccountID: "acc", Query: "oauth migration", Limit: 10}), []string{"s1/0", "s1/1"})
+	eq(t, "case-insensitive", keys(session.TextQuery{AccountID: "acc", Query: "COMPILER", Limit: 10}), []string{"s2/0"})
+	eq(t, "phrase", keys(session.TextQuery{AccountID: "acc", Query: `"oauth login"`, Limit: 10}), []string{"s1/0"})
+	eq(t, "excluded word", keys(session.TextQuery{AccountID: "acc", Query: "oauth -tokens", Limit: 10}), []string{"s1/0"})
+	eq(t, "session scoping", keys(session.TextQuery{AccountID: "acc", Query: "oauth", SessionIDs: []string{"s2"}, Limit: 10}), []string(nil))
+	eq(t, "limit", len(ok(s.SearchTranscripts(ctx, session.TextQuery{AccountID: "acc", Query: "oauth", Limit: 1}))), 1)
+	eq(t, "empty query", len(ok(s.SearchTranscripts(ctx, session.TextQuery{AccountID: "acc", Query: "  ", Limit: 10}))), 0)
+	got := ok(s.SearchTranscripts(ctx, session.TextQuery{AccountID: "acc", Query: "rotated", Limit: 1}))[0]
+	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "score", "seq", "session_id"})
+	if score, isNum := got["score"].(float64); !isNum || score <= 0 {
+		t.Errorf("score = %#v, want a positive float64", got["score"])
+	}
+	eq(t, "indexed text", got.Map("enrichments")["search-text"], "oauth tokens were rotated today for the whole team")
+}
+
+// usageResult has the shape of the usage enricher's result; a struct, as the
+// enricher stores it, so a store must keep it readable by field.
+type usageResult struct {
+	Model                    string `json:"model" bson:"model"`
+	MessageID                string `json:"message_id" bson:"message_id"`
+	Day                      string `json:"day" bson:"day"`
+	InputTokens              int64  `json:"input_tokens" bson:"input_tokens"`
+	CacheCreationInputTokens int64  `json:"cache_creation_input_tokens" bson:"cache_creation_input_tokens"`
+	CacheCreation1hTokens    int64  `json:"cache_creation_1h_tokens" bson:"cache_creation_1h_tokens"`
+	CacheReadInputTokens     int64  `json:"cache_read_input_tokens" bson:"cache_read_input_tokens"`
+	OutputTokens             int64  `json:"output_tokens" bson:"output_tokens"`
+	ContextTokens            int64  `json:"context_tokens" bson:"context_tokens"`
+}
+
+func usageTotals(t *testing.T, s session.Store) {
+	record := func(sid string, seq int, acc string, r usageResult) {
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, seq, "assistant", acc)}))
+		var id any
+		for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "usage", 0)) {
+			if d["session_id"] == sid && num(d["seq"]) == seq {
+				id = d["_id"]
+			}
+		}
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "usage", r))
+	}
+	const sonnet, haiku = "claude-sonnet-4-5", "claude-haiku-4-5"
+	first := usageResult{Model: sonnet, MessageID: "m1", Day: "2026-10-01", InputTokens: 10, CacheCreationInputTokens: 100,
+		CacheCreation1hTokens: 40, CacheReadInputTokens: 1000, OutputTokens: 5, ContextTokens: 1110}
+	record("s1", 0, "acc", first)
+	second := first // the next content block of the same message, with the final output count
+	second.OutputTokens = 50
+	record("s1", 1, "acc", second)
+	record("s1", 2, "acc", usageResult{Model: haiku, MessageID: "m2", Day: "2026-10-02", InputTokens: 1, OutputTokens: 2, ContextTokens: 1})
+	record("s2", 0, "acc", usageResult{Model: sonnet, MessageID: "m3", Day: "2026-10-02", InputTokens: 20, OutputTokens: 30, ContextTokens: 20})
+	record("s3", 0, "other", usageResult{Model: sonnet, MessageID: "m4", Day: "2026-10-02", InputTokens: 999, OutputTokens: 999})
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s2", 1, "user", "acc")})) // no usage
+
+	s1Sonnet := session.UsageTotal{Key: "s1", Model: sonnet, Messages: 1, InputTokens: 10, CacheCreationInputTokens: 100,
+		CacheCreation1hTokens: 40, CacheReadInputTokens: 1000, OutputTokens: 50, PeakContextTokens: 1110}
+	s1Haiku := session.UsageTotal{Key: "s1", Model: haiku, Messages: 1, InputTokens: 1, OutputTokens: 2, PeakContextTokens: 1}
+	s2Sonnet := session.UsageTotal{Key: "s2", Model: sonnet, Messages: 1, InputTokens: 20, OutputTokens: 30, PeakContextTokens: 20}
+	keyed := func(t session.UsageTotal, key string) session.UsageTotal { t.Key = key; return t }
+	bySonnet := keyed(s1Sonnet, sonnet)
+	bySonnet.Add(s2Sonnet)
+
+	eq(t, "by session, each message once, own account", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc"})),
+		[]session.UsageTotal{s1Haiku, s1Sonnet, s2Sonnet})
+	eq(t, "by model", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", GroupBy: session.UsageByModel})),
+		[]session.UsageTotal{keyed(s1Haiku, haiku), bySonnet})
+	eq(t, "by day", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", GroupBy: session.UsageByDay})),
+		[]session.UsageTotal{keyed(s1Sonnet, "2026-10-01"), keyed(s1Haiku, "2026-10-02"), keyed(s2Sonnet, "2026-10-02")})
+	eq(t, "since and until", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", GroupBy: session.UsageByModel, Since: "2026-10-02", Until: "2026-10-02"})),
+		[]session.UsageTotal{keyed(s1Haiku, haiku), keyed(s2Sonnet, sonnet)})
+	eq(t, "session scoping", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", SessionIDs: []string{"s2"}})),
+		[]session.UsageTotal{s2Sonnet})
+	eq(t, "nothing matches", len(ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", Until: "2026-09-30"}))), 0)
 }

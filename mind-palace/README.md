@@ -124,6 +124,7 @@ exit code per kind:
 | 12 | UnknownStep | A story progress operation (or `update`) names a step with no numbered heading |
 | 13 | UnknownCriterion | A criteria operation names a position that doesn't exist |
 | 14 | LinkedStory | `delete` on a story that other stories or plans link to, without `--force` |
+| 15 | BlockedByDependency | starting a document while something it `depends` on is unfinished, or completing it while something that `blocks` it is, without `--force` |
 
 `--format yaml` and `--compact` change the output shape; `--format text`
 prints string results (content, templates) raw.
@@ -141,8 +142,8 @@ every operation of every kind with its JSON Schema; `mind-palace call <op>
 |---|---|
 | Documents | `create`, `get`, `getFrontMatter`, `getContent`, `list`, `update`, `delete`, `validate` |
 | Templates | `getTemplate`, `listTemplates`, `createTemplate`, `updateTemplate`, `deleteTemplate` |
-| Fields | `setTitle`, `setType`, `setStatus`, `getTransitions`, `setPriority`, `setEffort`, `clearEffort`, `setTags`, `addTag`, `removeTag`, `setMilestone`, `setDueDate`, `setPlannedDates`, `setOrder`, `patchFrontMatter`; stories: `setPurpose`, `setAssignee` |
-| Links | `addPlanLink`, `removePlanLink`, `addStoryLink`, `removeStoryLink`, `addSpec`, `removeSpec`, `setWebLink`, `removeWebLink`, `setRepo`, `clearRepo`; stories: `setPlanSections`, `addFile`, `removeFile` |
+| Fields | `setTitle`, `setType`, `setStatus`, `getTransitions`, `ready`, `setPriority`, `setEffort`, `clearEffort`, `setTags`, `addTag`, `removeTag`, `setMilestone`, `setDueDate`, `setPlannedDates`, `setOrder`, `patchFrontMatter`; stories: `setPurpose`, `setAssignee`, `claim` |
+| Links | `addPlanLink`, `removePlanLink`, `addStoryLink`, `removeStoryLink`, `dependencies`, `addSpec`, `removeSpec`, `setWebLink`, `removeWebLink`, `setRepo`, `clearRepo`; stories: `setPlanSections`, `addFile`, `removeFile` |
 | Progress | `getProgress`, `setProgress`, `removeProgress`; plans: `addProgressStory`, `removeProgressStory` |
 | Criteria and work log (stories) | `getCriteria`, `setCriterion`, `addCriterion`, `removeCriterion`, `appendWorkLog` |
 | Storage | `sync`, `getConfig`, `getSchema` |
@@ -163,6 +164,8 @@ Rules that apply to every write:
 - Timestamps are RFC 3339 UTC with millisecond precision (`2026-09-09T14:07:05.352Z`). RFC 3339 in any zone or precision, `YYYY-MM-DD HH:MM:SS UTC` and `YYYY-MM-DD` are accepted on input and normalised.
 - Ids are always the full `AAAA-BBB` form; a short sequence part (`001-abc`) is zero-padded.
 - `delete` refuses while any plan or story links to the document (unless forced); prefer `setStatus archived`.
+- Dependencies are enforced: a document cannot move to `in_progress` while a plan or story it `depends` on is unfinished (not complete, rejected or archived), nor to `complete` while that holds or a document whose `blocks` link names it is unfinished (`BlockedByDependency`, exit 15, listing them; `force` overrides). A story whose last step completes stays in progress while one is open. `ready` lists the documents that can start now, by priority, order and id; `dependencies` lists what holds one up.
+- `claim` (stories) sets the assignee and starts the story in one write, so parallel agents never take the same work: another assignee's story is a `Conflict` (unless forced) and the holder's own claim changes nothing. Claims are serialised in the process and, on the file store, across processes by a lock file under the system temp directory.
 
 ## Entrypoints
 
@@ -208,6 +211,13 @@ Claude Code registration example (`.mcp.json`):
 
 `mcp` and `serve` also expose the session tools; pass `--no-session-tools` when
 another server (for example `session mcp`) already provides them.
+
+`mcp --tools core` (or `MIND_PALACE_MCP_TOOLS=core`) serves only the core
+operations (reading and writing documents, the workflow, criteria, progress,
+links, the ready queue) and leaves the inlined creation schema out of
+`<kind>_create`: 52 tools and about 29 KB of `tools/list`, against 104 tools
+and about 81 KB for `full`, the default. The plugin serves the core tier;
+every operation stays available through the CLI, HTTP and `--tools full`.
 
 ### Review and hooks
 
@@ -347,6 +357,8 @@ to `events.wal` next to the config file and is set only through
 ```bash
 mind-palace session find [--project-path re] [--git-origin re] [--query re] [--limit n]
 mind-palace session search-commands <pattern> [--session id] [--git-origin re] [--limit n]
+mind-palace session search <words…> [--session id] [--git-origin re] [--project re] [--limit n]
+mind-palace session usage [--by session|model|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]
 mind-palace session context <session>
 mind-palace session full <session>
 mind-palace session transcript <session> [--offset n] [--limit n]
@@ -383,7 +395,7 @@ is stamped with the Claude account id (from `claudeAppConfigPath`, or
 primary IP and MAC); queries and restores are scoped to the account.
 
 The enrichment loop runs every 5 seconds over the enrichers in
-`session/enrichers` (six on `hook_events`, twelve on `transcript_lines`;
+`session/enrichers` (six on `hook_events`, fourteen on `transcript_lines`;
 `privacy-redact` is off unless listed in `enabledEnrichers`) and stores results under
 `enrichments.<name>`. Documents an enricher does not apply to are marked
 skipped so they leave its queue; transient write failures are retried; a
@@ -392,7 +404,8 @@ projects and file-history directories and produces equivalent JSON whose key
 order may differ from the original file.
 
 **MCP tools.** `find_sessions`, `get_session_context`, `get_full_session`,
-`search_commands`, `search_memory`, `read_transcript`, `restore_session` and `prime_context`
+`search_commands`, `search_memory`, `file_history`, `find_errors`,
+`search_transcripts`, `usage`, `read_transcript`, `restore_session` and `prime_context`
 (the context collector's report for a `cwd`; see `mind-palace context --help`).
 `session mcp` serves just these; `mind-palace mcp` and `mind-palace serve`
 expose them next to the plan and story tools.

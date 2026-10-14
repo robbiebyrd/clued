@@ -314,15 +314,15 @@ func TestRootGainsOnlySessionGroup(t *testing.T) {
 	if !reflect.DeepEqual(top, wantTop) {
 		t.Errorf("top-level commands = %v, want %v", top, wantTop)
 	}
-	wantPlan := []string{"add-spec", "add-tag", "clear-effort", "clear-repo", "create", "delete", "get", "link", "link-story", "list", "ops", "patch", "progress", "progress-story", "progress-unstory", "remove-progress", "remove-spec", "remove-tag", "remove-web", "schema", "set-due-date", "set-effort", "set-milestone", "set-order", "set-planned", "set-priority", "set-progress", "set-repo", "set-status", "set-tags", "set-title", "set-type", "set-web", "template", "transitions", "unlink", "unlink-story", "update", "validate"}
-	wantStory := []string{"add-criterion", "add-file", "add-spec", "add-tag", "check", "clear-effort", "clear-repo", "create", "criteria", "delete", "get", "link", "link-plan", "list", "log", "ops", "patch", "plan-sections", "progress", "remove-criterion", "remove-file", "remove-progress", "remove-spec", "remove-tag", "remove-web", "schema", "set-assignee", "set-due-date", "set-effort", "set-milestone", "set-order", "set-planned", "set-priority", "set-progress", "set-purpose", "set-repo", "set-status", "set-tags", "set-title", "set-type", "set-web", "template", "transitions", "unlink", "unlink-plan", "update", "validate"}
+	wantPlan := []string{"add-spec", "add-tag", "clear-effort", "clear-repo", "create", "delete", "dependencies", "get", "link", "link-story", "list", "ops", "patch", "progress", "progress-story", "progress-unstory", "ready", "remove-progress", "remove-spec", "remove-tag", "remove-web", "schema", "set-due-date", "set-effort", "set-milestone", "set-order", "set-planned", "set-priority", "set-progress", "set-repo", "set-status", "set-tags", "set-title", "set-type", "set-web", "template", "transitions", "unlink", "unlink-story", "update", "validate"}
+	wantStory := []string{"add-criterion", "add-file", "add-spec", "add-tag", "check", "claim", "clear-effort", "clear-repo", "create", "criteria", "delete", "dependencies", "get", "link", "link-plan", "list", "log", "ops", "patch", "plan-sections", "progress", "ready", "remove-criterion", "remove-file", "remove-progress", "remove-spec", "remove-tag", "remove-web", "schema", "set-assignee", "set-due-date", "set-effort", "set-milestone", "set-order", "set-planned", "set-priority", "set-progress", "set-purpose", "set-repo", "set-status", "set-tags", "set-title", "set-type", "set-web", "template", "transitions", "unlink", "unlink-plan", "update", "validate"}
 	if !reflect.DeepEqual(groups["plan"], wantPlan) {
 		t.Errorf("plan group = %v", groups["plan"])
 	}
 	if !reflect.DeepEqual(groups["story"], wantStory) {
 		t.Errorf("story group = %v", groups["story"])
 	}
-	wantSession := []string{"backfill", "config-pull", "context", "daemon", "find", "full", "login", "logout", "mcp", "memory-ingest", "restore", "search-commands", "search-memory", "transcript", "whoami"}
+	wantSession := []string{"backfill", "config-pull", "context", "daemon", "find", "full", "login", "logout", "mcp", "memory-ingest", "restore", "search", "search-commands", "search-memory", "transcript", "usage", "whoami"}
 	if !reflect.DeepEqual(groups["session"], wantSession) {
 		t.Errorf("session group = %v, want %v", groups["session"], wantSession)
 	}
@@ -506,9 +506,9 @@ func toolNames(t *testing.T, ctx context.Context, cs *mcp.ClientSession) []strin
 	return names
 }
 
-var sessionToolNames = []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "search_memory", "read_transcript", "restore_session", "prime_context"}
+var sessionToolNames = []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "search_memory", "search_transcripts", "usage", "file_history", "find_errors", "read_transcript", "restore_session", "prime_context"}
 
-func TestSessionMCPListsTheEightTools(t *testing.T) {
+func TestSessionMCPListsTheTwelveTools(t *testing.T) {
 	sessionEnv(t, seedSessions(t))
 	rc, cs, ctx := startStdioCommand(t, "session", "--config", filepath.Join(t.TempDir(), "none.json"), "mcp")
 

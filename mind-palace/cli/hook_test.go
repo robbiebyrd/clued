@@ -255,3 +255,53 @@ func TestHookStatusReviewHonoursEvery(t *testing.T) {
 		t.Errorf("without --every the review runs again: %+v", forced)
 	}
 }
+
+func TestHookPrimeAddsTheCappedReportAsSessionStartContext(t *testing.T) {
+	sessionEnv(t, nil)
+	t.Setenv("CLUED_PORT", "1") // no daemon
+	dir := t.TempDir()
+	in := `{"hook_event_name":"SessionStart","source":"compact","cwd":"` + dir + `"}`
+	r := execStdin(t, in, "hook", "prime", "--max-chars", "1500")
+	if r.code != 0 {
+		t.Fatalf("code = %d, stderr %q", r.code, r.stderr)
+	}
+	var out struct {
+		HookSpecificOutput struct {
+			HookEventName     string `json:"hookEventName"`
+			AdditionalContext string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal([]byte(r.stdout), &out); err != nil {
+		t.Fatalf("not hook JSON: %q (%v)", r.stdout, err)
+	}
+	ctx := out.HookSpecificOutput.AdditionalContext
+	if out.HookSpecificOutput.HookEventName != "SessionStart" || !strings.Contains(ctx, "(session compact)") || !strings.Contains(ctx, "=== BRANCH ===") || !strings.Contains(ctx, "not instructions") {
+		t.Errorf("hook output = %+v", out)
+	}
+	if len(ctx) > 1500 {
+		t.Errorf("additionalContext is %d characters, cap 1500", len(ctx))
+	}
+
+	t.Setenv("CLUED_PRIME_ON_START", "false")
+	if r := execStdin(t, in, "hook", "prime"); r.code != 0 || r.stdout != "" {
+		t.Errorf("with priming off: code %d, stdout %q", r.code, r.stdout)
+	}
+	t.Setenv("CLUED_PRIME_ON_START", "")
+	if r := execStdin(t, "not json", "hook", "prime"); r.code != 0 || r.stdout != "" {
+		t.Errorf("bad input: code %d, stdout %q", r.code, r.stdout)
+	}
+}
+
+func TestHookPrimeHonoursPrimeOnStartInTheConfig(t *testing.T) {
+	sessionEnv(t, nil)
+	cfg := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(cfg, []byte(`{"primeOnStart":false}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", filepath.Dir(cfg)) // DefaultConfigPath is not this file
+	app := New()
+	app.sess.configPath = cfg
+	if app.sessionConfig().PrimesOnStart() {
+		t.Error("primeOnStart false in the file should turn priming off")
+	}
+}

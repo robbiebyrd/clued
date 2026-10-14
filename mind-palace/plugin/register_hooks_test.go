@@ -209,6 +209,17 @@ func TestRegisterHooksMirrorsTheBinaryHooks(t *testing.T) {
 			t.Errorf("%s: %q registered %d times after two runs, want 1", ev, cmd, n)
 		}
 	}
+	primes := 0
+	for _, g := range h["SessionStart"] {
+		for _, hk := range g.Hooks {
+			if hk.Command == clued+" hook prime" {
+				primes++
+			}
+		}
+	}
+	if primes != 1 {
+		t.Errorf("SessionStart: hook prime registered %d times after two runs, want 1", primes)
+	}
 	if len(h["Stop"]) != 2 || len(h["UserPromptSubmit"]) != 2 {
 		t.Errorf("Stop = %d groups, UserPromptSubmit = %d groups, want relay plus binary hook", len(h["Stop"]), len(h["UserPromptSubmit"]))
 	}

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -87,6 +88,9 @@ var indexes = []index{
 	{subagentLines, key("account_id", 1, "session_id", 1, "subagent_id", 1, "seq", 1), false},
 	{blobs, key("session_id", 1, "blob_type", 1, "name", 1), true},
 	{blobs, key("account_id", 1, "session_id", 1, "blob_type", 1), false},
+	{hookEvents, key("account_id", 1, "enrichments.file-tracker.file_path", 1), false},
+	{transcriptLines, key("account_id", 1, "enrichments.error-flag.is_error", 1, "created_at", -1), false},
+	{transcriptLines, key("account_id", 1, "enrichments.usage.day", 1), false},
 }
 
 // partialIndexes are unique indexes limited to the documents matching a
@@ -147,6 +151,13 @@ func (s *Store) Connect(ctx context.Context) error {
 		if _, err := s.db.Collection(ix.collection).Indexes().CreateOne(ctx, model); err != nil {
 			s.logger().Warn("clued: index warning", "collection", ix.collection, "keys", fmt.Sprint(ix.keys), "error", err)
 		}
+	}
+	// The one text index of transcript_lines; its account_id prefix
+	// scopes every search to an account, which $text then requires.
+	textIndex := mongo.IndexModel{Keys: key("account_id", 1, "enrichments.search-text", "text"),
+		Options: options.Index().SetName("transcript_text").SetDefaultLanguage("none")}
+	if _, err := s.db.Collection(transcriptLines).Indexes().CreateOne(ctx, textIndex); err != nil {
+		s.logger().Warn("clued: index warning", "collection", transcriptLines, "keys", "text", "error", err)
 	}
 	for _, ix := range partialIndexes {
 		model := mongo.IndexModel{Keys: ix.keys, Options: options.Index().SetUnique(true).SetPartialFilterExpression(ix.partial)}
@@ -495,6 +506,125 @@ func (s *Store) BashEvents(ctx context.Context, q session.CommandQuery) ([]sessi
 	}
 	projection := key("_id", 0, "session_id", 1, "tool_input", 1, "created_at", 1)
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
+func (s *Store) FileEvents(ctx context.Context, q session.FileQuery) ([]session.Doc, error) {
+	path := key("$type", "string")
+	if q.PathRe != "" {
+		re, err := regexFilter(q.PathRe)
+		if err != nil {
+			return nil, err
+		}
+		path = re
+	}
+	filter := key("account_id", q.AccountID, "$or", bson.A{
+		key("enrichments.file-tracker.file_path", path),
+		key("hook_event_name", "PostToolUse", "tool_input.file_path", path, "enrichments.edit-diff-stats", key("$exists", true)),
+	})
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	projection := key("_id", 0, "session_id", 1, "hook_event_name", 1, "tool_name", 1, "tool_use_id", 1, "tool_input.file_path", 1,
+		"enrichments.file-tracker", 1, "enrichments.edit-diff-stats", 1, "created_at", 1)
+	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
+func (s *Store) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]session.Doc, error) {
+	if strings.TrimSpace(q.Query) == "" {
+		return []session.Doc{}, nil
+	}
+	filter := key("account_id", q.AccountID, "$text", key("$search", q.Query))
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	score := key("$meta", "textScore")
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "score", score, "enrichments.search-text", 1, "created_at", 1)
+	return s.find(ctx, transcriptLines, filter, projection, key("score", score, "created_at", -1), 0, q.Limit)
+}
+
+// usageCounters are the counters of the usage enrichment a total sums.
+var usageCounters = []string{"input_tokens", "cache_creation_input_tokens", "cache_creation_1h_tokens", "cache_read_input_tokens", "output_tokens"}
+
+// UsageTotals groups the lines of each message (session and message id)
+// into one, keeping the largest value of each counter, then sums the
+// messages by group and model.
+func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
+	match := key("account_id", q.AccountID, "enrichments.usage.message_id", key("$type", "string"))
+	if len(q.SessionIDs) > 0 {
+		match = append(match, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	if q.Since != "" || q.Until != "" {
+		day := bson.D{}
+		if q.Since != "" {
+			day = append(day, bson.E{Key: "$gte", Value: q.Since})
+		}
+		if q.Until != "" {
+			day = append(day, bson.E{Key: "$lte", Value: q.Until})
+		}
+		match = append(match, bson.E{Key: "enrichments.usage.day", Value: day})
+	}
+	perMessage := key("_id", key("s", "$session_id", "m", "$enrichments.usage.message_id"),
+		"model", key("$max", "$enrichments.usage.model"),
+		"day", key("$min", "$enrichments.usage.day"),
+		"context_tokens", key("$max", "$enrichments.usage.context_tokens"))
+	perGroup := key("_id", key("k", "$_id.s", "model", "$model"),
+		"messages", key("$sum", 1),
+		"peak_context_tokens", key("$max", "$context_tokens"))
+	switch q.GroupBy {
+	case session.UsageByModel:
+		perGroup[0].Value = key("k", "$model", "model", "$model")
+	case session.UsageByDay:
+		perGroup[0].Value = key("k", "$day", "model", "$model")
+	}
+	out := key("_id", 0, "key", key("$ifNull", bson.A{"$_id.k", ""}), "model", key("$ifNull", bson.A{"$_id.model", ""}),
+		"messages", 1, "peak_context_tokens", key("$ifNull", bson.A{"$peak_context_tokens", 0}))
+	for _, c := range usageCounters {
+		perMessage = append(perMessage, bson.E{Key: c, Value: key("$max", "$enrichments.usage."+c)})
+		perGroup = append(perGroup, bson.E{Key: c, Value: key("$sum", "$"+c)})
+		out = append(out, bson.E{Key: c, Value: 1})
+	}
+	pipeline := bson.A{
+		key("$match", match),
+		key("$group", perMessage),
+		key("$group", perGroup),
+		key("$project", out),
+		key("$sort", key("key", 1, "model", 1)),
+	}
+	cur, err := s.coll(transcriptLines).Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		Key                      string `bson:"key"`
+		Model                    string `bson:"model"`
+		Messages                 int64  `bson:"messages"`
+		InputTokens              int64  `bson:"input_tokens"`
+		CacheCreationInputTokens int64  `bson:"cache_creation_input_tokens"`
+		CacheCreation1hTokens    int64  `bson:"cache_creation_1h_tokens"`
+		CacheReadInputTokens     int64  `bson:"cache_read_input_tokens"`
+		OutputTokens             int64  `bson:"output_tokens"`
+		PeakContextTokens        int64  `bson:"peak_context_tokens"`
+	}
+	if err := cur.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	totals := make([]session.UsageTotal, len(rows))
+	for i, r := range rows {
+		totals[i] = session.UsageTotal(r)
+	}
+	return totals, nil
+}
+
+func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session.Doc, error) {
+	filter := key("account_id", q.AccountID, "enrichments.error-flag.is_error", true)
+	if len(q.Types) > 0 {
+		filter = append(filter, bson.E{Key: "enrichments.error-flag.error_type", Value: key("$in", q.Types)})
+	}
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "line", 1, "enrichments.error-flag", 1, "created_at", 1)
+	return s.find(ctx, transcriptLines, filter, projection, key("created_at", -1, "seq", -1), 0, q.Limit)
 }
 
 // --- transcript, subagent lines and blobs ---

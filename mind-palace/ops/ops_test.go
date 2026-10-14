@@ -24,10 +24,10 @@ func newPalace(t *testing.T) *service.Palace {
 func TestRegistrySchemasAndNames(t *testing.T) {
 	regs := All()
 	palace := newPalace(t)
-	if n := len(regs[kind.Plan].List()); n != 46 {
+	if n := len(regs[kind.Plan].List()); n != 48 {
 		t.Errorf("expected every plan operation, got %d", n)
 	}
-	if n := len(regs[kind.Story].List()); n != 54 {
+	if n := len(regs[kind.Story].List()); n != 57 {
 		t.Errorf("expected every story operation, got %d", n)
 	}
 	for _, k := range kind.All() {

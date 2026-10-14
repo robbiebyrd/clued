@@ -46,10 +46,12 @@ Every plan and story carries `tags`, `milestone`, `due_date`,
 `planned_start`, `planned_end` and `order` in its front matter (always
 present, empty until set); stories also take an `assignee` as
 `provider:handle` (`github:robbiebyrd`). Set them on creation inside
-`frontMatter`, or later with `plan_setTags` / `plan_addTag` /
-`plan_removeTag`, `plan_setMilestone`, `plan_setDueDate`,
-`plan_setPlannedDates`, `plan_setOrder` and (stories) `story_setAssignee`;
-`plan_list` and `story_list` filter on `tag`, `milestone` and `assignee`.
+`frontMatter`, or later in one call with `plan_patchFrontMatter` /
+`story_patchFrontMatter` (`{"tags": […], "milestone": "…", "due_date":
+"…", "order": 3}`) and (stories) `story_setAssignee`; `plan_list` and
+`story_list` filter on `tag`, `milestone` and `assignee`. The plugin serves
+the core tool tier, which leaves out the single-field setters (tags,
+milestone, dates, order); `mind-palace mcp --tools full` serves them.
 Dates are `YYYY-MM-DD`.
 
 ## Linking a design doc
