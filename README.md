@@ -54,7 +54,13 @@ for the plan and story service in depth.
 3. Reload if prompted: `/reload-plugins`
 4. Configure: `/clued-setup`. The wizard detects your platform and asks
    where the data goes: a local MongoDB, a clued server in containers on
-   this machine, or a clued server someone else runs. For a MongoDB it asks how
+   this machine, a clued server someone else runs, or Clued Cloud, the
+   hosted service at https://clued.cloud. In a Claude Code cloud container
+   (Claude Code on the web) it offers only Clued Cloud and a clued server, and
+   links the environment instead of the container: `CLUED_SERVER_URL` and
+   `CLUED_SERVER_TOKEN` in the environment's settings link every new
+   container without a config file or a browser approval
+   ([details](docs/server.md#claude-code-cloud-containers)). For a MongoDB it asks how
    to run it (local binary, Docker or remote), installs and starts it,
    installs `mind-palace`, writes `~/.claude/plugins/data/clued/config.json`
    and starts the daemon. For the server in containers it runs
@@ -93,8 +99,8 @@ then `/reload-plugins`.
 | Piece | Role |
 |---|---|
 | `hooks.json` | Registers the hooks below for every Claude Code hook event; no manual edit of `settings.json` is needed |
-| `hooks/check-setup` | SessionStart: prints one system message when the config file or the `mind-palace` binary is missing; in remote mode also when the server is unreachable, rejects the token, or the token does not cover this repository's project |
-| `hooks/session-start` | SessionStart (async): re-runs `register-hooks` and `install-remember-listener`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` and a `session memory-ingest`. In remote mode it starts no daemon: the SessionStart event goes through `scripts/clued hook relay` and the backfill runs against the server |
+| `hooks/check-setup` | SessionStart: prints one system message when the config file (and an environment that names a server) or the `mind-palace` binary is missing, or when a Claude Code cloud container has no server; in remote mode also when the server is unreachable, rejects the token, or the token does not cover this repository's project |
+| `hooks/session-start` | SessionStart (async): re-runs `register-hooks` and `install-remember-listener`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` and a `session memory-ingest`. In remote mode, and in a Claude Code cloud container, it starts no daemon: in remote mode the SessionStart event goes through `scripts/clued hook relay` and the backfill runs against the server |
 | `hooks/install-remember-listener` | Run by `session-start`: writes clued's listener into the `hooks.d/after_save` and `hooks.d/after_consolidate` directories of every installed [claude-remember](https://github.com/Digital-Process-Tools/claude-remember) plugin (see [claude-remember summaries](#claude-remember-summaries)); a plugin update that removes it is healed on the next start |
 | `scripts/clued session memory-ingest` | SessionEnd (async), the claude-remember listener, and `session-start`: posts the summaries claude-remember wrote since the last run to the daemon as `MemorySaved` events (in remote mode, to the server through the relay) |
 | `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later. In remote mode it runs `scripts/clued hook relay` instead |

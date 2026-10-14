@@ -669,6 +669,23 @@ The same header selects the project for the service API under `/api/v1`
 request without it is `400 invalid`, one for a project outside the token's
 list is `403 forbidden`.
 
+## Claude Code cloud containers
+
+A Claude Code cloud container (Claude Code on the web, `CLAUDE_CODE_REMOTE=true`)
+is reclaimed when its session ends, so the plugin never runs local mode there:
+`session-start` starts no daemon, `event-relay` buffers nothing, and
+`check-setup` asks for Clued Cloud (`https://clued.cloud`) or a clued server
+until one is configured. `/clued-setup` offers only those two and links the
+environment rather than the container: the user creates a token (on the
+cloud's **Linked clients** page, `/links`, or with `server token create`) and
+adds `CLUED_SERVER_URL` and `CLUED_SERVER_TOKEN` (and `CLUED_SERVER_CA_FILE`
+for a private CA kept in the repository) as environment variables in the
+environment's settings. Every new container of that environment starts
+linked, with no config file and no browser approval; the environment's
+network access must allow the server's host. Revoking that token unlinks all
+of them; `session logout` in one container would do the same, so it is not
+the way to unlink there.
+
 ## Cloud container walkthrough
 
 The scenario that motivated the server: a Claude Code session in a cloud

@@ -41,6 +41,13 @@ if [[ -n "$SERVER_URL" ]]; then
   exit 0
 fi
 
+# A Claude Code cloud container never runs local mode: it is reclaimed after
+# the session, so no daemon or MongoDB is started here (check-setup tells the
+# user to link it to clued cloud or a clued server).
+if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
+  exit 0
+fi
+
 daemon_ok() {
   curl -sf --max-time 1 "http://127.0.0.1:${PORT}/health" &>/dev/null
 }

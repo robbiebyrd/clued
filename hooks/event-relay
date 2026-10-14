@@ -28,6 +28,12 @@ fi
 
 BODY=$(cat)
 
+# A Claude Code cloud container without a server runs no daemon (see
+# session-start): a WAL there would only fill a disk that is thrown away.
+if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
+  exit 0
+fi
+
 if ! printf '%s' "$BODY" | /usr/bin/curl -sf -X POST "http://127.0.0.1:${PORT}/event" \
   -H "Content-Type: application/json" \
   --data-binary @- 2>/dev/null; then
