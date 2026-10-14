@@ -167,6 +167,10 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 	logger := slog.New(slog.NewTextHandler(a.Stderr, nil))
 
 	sessionCfg := session.LoadConfig(o.SessionConfig)
+	// The server stores sessions itself. The session config is often this
+	// machine's client config, which names a server (perhaps this one) in
+	// remote mode; serving from it would relay every write to that server.
+	sessionCfg.ServerURL, sessionCfg.ServerToken, sessionCfg.ServerCAFile = "", "", ""
 	cfg, err := a.serverDocumentConfig(o)
 	if err != nil {
 		return a.fail(&service.Error{Kind: service.KindBadRequest, Message: err.Error()})

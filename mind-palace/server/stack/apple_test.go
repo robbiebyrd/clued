@@ -42,8 +42,8 @@ func TestInitAppleRuntimeWritesTheScriptsAndTheAgent(t *testing.T) {
 
 	script, _ := os.ReadFile(up)
 	for _, want := range []string{
-		"#!/usr/bin/env bash\n", "set -euo pipefail\n", "DIR='" + opts.Dir + "'\n", "PROXY='nginx'\n", "PORT=8443\n",
-		"SERVER_IMAGE='ghcr.io/robbiebyrd/clued-server:v9.9.9'\n", "NGINX_IMAGE='" + DefaultNginxImage + "'\n", "MONGO_IMAGE='" + DefaultMongoImage + "'\n",
+		"#!/usr/bin/env bash\n", "set -euo pipefail\n", "DIR=" + shellQuote(opts.Dir) + "\n", "PROXY=nginx\n", "PORT=8443\n",
+		"SERVER_IMAGE=ghcr.io/robbiebyrd/clued-server:v9.9.9\n", "NGINX_IMAGE=" + DefaultNginxImage + "\n", "MONGO_IMAGE=" + DefaultMongoImage + "\n",
 		"CONTAINERS=(clued-mongo clued-server clued-nginx)\n", "container system start", "container volume create \"$VOLUME\"",
 		`--publish "0.0.0.0:${PORT}:443"`, "--user 0:0", `--mount "type=bind,source=${DIR},target=/etc/clued,readonly"`,
 		"CLUED_MONGO_URL=mongodb://${MONGO_IP}:27017", "s#clued-server:8443#${SERVER_IP}:8443#g", "launchctl load -w",

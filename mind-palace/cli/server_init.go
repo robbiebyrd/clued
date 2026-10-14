@@ -44,10 +44,14 @@ CLI installed.
 plain HTTP for another terminator (Caddy, Traefik, an nginx of your own, an
 ingress). --no-tls skips the CA and uses the tls/cert.pem and tls/key.pem you
 supply (mkcert, a real CA). Rerunning regenerates the runtime's files, the
-nginx and storage files and keeps tls/ and tokens.json; --force renews the
-certificates; a token whose name exists is not minted again. Every value in
-the generated files is literal: change the image, the port or the user by
-rerunning with the matching flag.
+nginx and storage files and keeps tls/ and tokens.json; --force reissues the
+server certificate under the same CA (kept while it covers every host, so a
+machine that trusts it keeps trusting the server); --new-ca replaces the CA
+too; a token whose name exists is not minted again. The CA is
+name-constrained to the hosts: trusted on a machine (server trust), it
+vouches for this server and nothing else. Every value in the generated files
+is literal: change the image, the port or the user by rerunning with the
+matching flag.
 
 The server image defaults to the release of the plugin that runs this
 command (CLUED_PLUGIN_VERSION, set by scripts/clued) and to :latest
@@ -77,7 +81,8 @@ otherwise.`,
 	f.IntVar(&o.Port, "port", stack.DefaultPort, "port published on this host")
 	f.StringArrayVar(&o.Hosts, "host", nil, "extra name or address the certificate covers (repeatable)")
 	f.BoolVar(&o.NoTLS, "no-tls", false, "generate no CA or certificate; tls/cert.pem and tls/key.pem are supplied")
-	f.BoolVar(&o.Force, "force", false, "renew the CA and certificate even when they exist")
+	f.BoolVar(&o.Force, "force", false, "reissue the server certificate even when it exists (the CA is kept while it covers every host)")
+	f.BoolVar(&o.NewCA, "new-ca", false, "replace the CA too; every machine that trusted the old one must trust the new one")
 	f.StringVar(&o.TokenName, "name", "", "name of the token to mint (default: this host's name)")
 	f.StringArrayVar(&o.Projects, "project", nil, "project slug the token may use (repeatable; default '*')")
 	f.StringVar(&o.Account, "account", "", "account id the token binds (default: a new one)")

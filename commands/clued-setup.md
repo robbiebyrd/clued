@@ -50,27 +50,42 @@ Wait for their answer before continuing.
 
 ### clued server in containers on this machine — generate and start the stack
 
-Do this after Step 5 (it needs the binary). Find the container runtime:
+Do this after Step 5 (it needs the binary).
+
+**1. Check for conflicts and find the runtime first.** One machine can host this stack next to other
+clued pieces, but not on the same port, and an earlier stack must be recognised
+rather than overwritten:
 
 ```bash
 command -v docker && docker info 2>&1 | head -1 && docker compose version                 # Docker
 sw_vers -productVersion 2>/dev/null; command -v container && container system status    # Apple Containers (macOS 26 or later)
+test -f ~/.clued-server/stack.json -o -f ~/.clued-server/docker-compose.yml && echo "stack: already generated at ~/.clued-server" || echo "stack: none yet"
+docker ps --format '{{.Names}}\t{{.Ports}}' 2>/dev/null | grep -E 'clued|8443|8080' || container ls 2>/dev/null | grep clued || echo "no clued containers running"
+for port in 8443 8080 8085; do (echo >/dev/tcp/127.0.0.1/$port) 2>/dev/null && echo "port $port: in use" || echo "port $port: free"; done
 ```
 
-Docker is the runtime whenever it is installed; Apple Containers is used only when Docker is not installed and the Mac has the `container` CLI. `server init --runtime auto` (the default) applies the same rule, and `--runtime compose|apple` forces one. If Docker is installed but not running, ask the user to start Docker Desktop (or the daemon) and confirm before continuing. If neither is installed, ask the user to install Docker Desktop, or on macOS 26 Apple Containers (`brew install --cask container`, then `container system start`), and confirm before continuing. Then generate the stack directory, `~/.clued-server`:
+- Docker is the runtime whenever it is installed; Apple Containers is used only when Docker is not installed and the Mac has the `container` CLI. `server init --runtime auto` (the default) applies the same rule, and `--runtime compose|apple` forces one.
+- Docker not running: ask the user to start Docker Desktop (or the daemon) and confirm before continuing. Neither installed: ask the user to install Docker Desktop, or on macOS 26 Apple Containers (`brew install --cask container`, then `container system start`), and confirm before continuing.
+- A stack already generated: this machine was set up before. Rerunning `server init` keeps its CA, certificate and tokens (below), so it is safe; do not delete `~/.clued-server`.
+- **Port 8443 in use** by something that is not this stack's `clued-nginx` container: pick another port and pass `--port <n>` to `server init` (for example 9443); every URL below then uses it.
+- **Port 8080** belongs to a local **clued cloud** (`clued-cloud serve` or the clued-cloud repository's `docker compose up`). It does not conflict: the stack uses 8443 and its own Compose project (`clued`), containers (`clued-nginx`, `clued-server`, `clued-mongo`) and volume (`clued_clued_mongo_data`; `clued_mongo_data` on Apple Containers), while the cloud uses port 8080, the `clued-cloud` project and its own MongoDB volume. Neither publishes its MongoDB. The one thing they share is this machine's `config.json`, which names **one** server: see "One machine, two servers" in Step 6 before switching it.
+- **Port 8085** is the local capture daemon (local MongoDB mode). The stack never uses it; leave it alone.
+
+**2. Generate the stack directory**, `~/.clued-server`:
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/clued" server init --name "$(hostname -s 2>/dev/null || hostname)"
 ```
 
-It writes the runtime's files (Docker: `docker-compose.yml` with the services `nginx`, `clued-server` and `mongo`, every value literal; Apple Containers: `up.sh`, `down.sh` and `launchd/com.robbiebyrd.clued-server.plist`, an agent `up.sh` installs so the stack starts at login), `stack.json` (which runtime runs the stack), `nginx/clued.conf`, `mind-palace.config.yaml`, a private CA with a certificate for `localhost` and this host's name under `tls/`, and mints the first token into `tokens.json`. The JSON result carries what the next steps need:
+It writes the runtime's files (Docker: `docker-compose.yml` with the services `nginx`, `clued-server` and `mongo`, every value literal; Apple Containers: `up.sh`, `down.sh` and `launchd/com.robbiebyrd.clued-server.plist`, an agent `up.sh` installs so the stack starts at login), `stack.json` (which runtime runs the stack), `nginx/clued.conf`, `mind-palace.config.yaml`, a private CA with a certificate for `localhost`, `127.0.0.1`, `::1` and this host's name under `tls/`, and mints the first token into `tokens.json`. The CA is name-constrained to those names: trusted on this machine (step 4), it vouches for this server and nothing else. The JSON result carries what the next steps need:
 
-- `runtime` (`compose` or `apple`), `server_url` (`https://localhost:8443`), `ca_file` (`~/.clued-server/tls/ca.pem`), `token.token` (printed once; never echo it, never put it on a command line), `up`, `down`, `logs` and `health`.
+- `runtime` (`compose` or `apple`), `server_url` (`https://localhost:8443`), `ca_file` (`~/.clued-server/tls/ca.pem`), `ca_fingerprint`, `token.token` (printed once; never echo it, never put it on a command line), `up`, `down`, `logs` and `health`.
 - If `token` is absent and `notes` says the name already exists, this machine was set up before: reuse the token already in `config.json`, or mint another with `"${CLAUDE_PLUGIN_ROOT}/scripts/clued" server token create --tokens ~/.clued-server/tokens.json --name <another name> --project '*'` and use its `token`.
+- A rerun keeps `tls/` and `tokens.json`. `--force` reissues the server certificate under the **same** CA (kept while it covers every host), so a machine that already trusts the CA keeps trusting the server; only `--new-ca`, or a `--host` the CA does not cover, makes a new CA, and the result's `notes` then say "the CA changed": do step 4 again on this machine and give other clients the new `ca.pem`.
 
-Options to offer only when the user asks: `--runtime compose|apple` to force a runtime; `--port <n>` for another public port; `--host <name>` (repeatable) for every other name or address other machines will use in the URL (the certificate must cover it; rerun with `--force` to add one later); `--proxy none` to leave nginx out and publish the server as plain HTTP on `127.0.0.1:8443` for a terminator the user runs (Caddy, Traefik, their own nginx; the local client then uses `http://127.0.0.1:8443` and other machines go through their terminator); `--no-tls` to use certificates they supply as `~/.clued-server/tls/cert.pem` and `key.pem` (mkcert, a real CA; then no `serverCaFile` is written).
+Options to offer only when the user asks: `--runtime compose|apple` to force a runtime; `--port <n>` for another public port; `--host <name>` (repeatable) for every other name or address other machines will use in the URL (the certificate must cover it; rerun with `--force` to add one later); `--proxy none` to leave nginx out and publish the server as plain HTTP on `127.0.0.1:8443` for a terminator the user runs (Caddy, Traefik, their own nginx; the local client then uses `http://127.0.0.1:8443` and other machines go through their terminator); `--no-tls` to use certificates they supply as `~/.clued-server/tls/cert.pem` and `key.pem` (mkcert, a real CA; then no `serverCaFile` is written and step 4 is skipped).
 
-Start it with the result's `up` command and wait for the health check (the first start pulls the images; on Apple Containers `up.sh` also starts `container system` when needed and installs the launchd agent):
+**3. Start it** with the result's `up` command and wait for the health check (the first start pulls the images; on Apple Containers `up.sh` also starts `container system` when needed and installs the launchd agent):
 
 ```bash
 docker compose -f ~/.clued-server/docker-compose.yml up -d    # runtime compose
@@ -80,7 +95,47 @@ for i in $(seq 1 60); do curl -sf --cacert ~/.clued-server/tls/ca.pem https://lo
 
 (`--proxy none`: `curl -sf http://127.0.0.1:8443/health`; `--no-tls`: without `--cacert`.) If it never answers, show the result's `logs` command (`docker compose -f ~/.clued-server/docker-compose.yml logs clued-server nginx`, or `container logs clued-server`) to the user; the usual causes are a port already in use (rerun `server init --port <other>`, then `up` again: `bash ~/.clued-server/up.sh --recreate` on Apple Containers) and the image tag not yet published (the generated files pin the plugin's release; rerun `server init --image ghcr.io/robbiebyrd/clued-server:latest` and `up` again to work around it).
 
+**4. Trust the CA on this machine.** The plugin's own client trusts the server through `serverCaFile` (Step 6) and needs nothing more; this step is for browsers, `curl` without `--cacert`, other MCP clients and tools. Ask once:
+
+> "Should this machine trust the clued server's certificate, so browsers, curl and other tools accept https://localhost:8443? (The CA only vouches for this server's names.) (yes/no)"
+
+On yes:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" server trust
+```
+
+It installs `~/.clued-server/tls/ca.pem` where this platform keeps trusted roots: the macOS login keychain (macOS may show a password dialog: tell the user to approve it), the Linux system store (`update-ca-certificates`, `update-ca-trust` or `trust`) plus the NSS databases Chrome and Firefox use on Linux, or the Windows user Root store (Windows asks to confirm). Read the result:
+
+- `pending` empty and `verified: true`: done; `curl https://localhost:8443/health` now works without `--cacert`.
+- `pending` lists commands (the Linux system store needs root, or the keychain could not show its dialog): show them to the user and ask them to run them in their own terminal, or in this prompt prefixed with `!` so the password prompt reaches them, then run `"${CLAUDE_PLUGIN_ROOT}/scripts/clued" server trust` again to check (it reports `verified`).
+- `notes` names what it could not reach (certutil missing for Chrome and Firefox on Linux: `libnss3-tools` on Debian and Ubuntu, `nss-tools` on Fedora). Firefox on macOS and Windows reads the system roots.
+- A browser that was open before keeps its old view until it restarts.
+
+`server trust --dry-run` lists the commands without running them; `server trust --remove` takes the CA out of the same stores (`/clued-uninstall` does it).
+
 Then continue with Step 6, "clued server", using `server_url`, the token and `ca_file`.
+
+### clued server from a source checkout (developers)
+
+For someone working on the server itself: the same HTTPS endpoint, served by the binary built from their checkout instead of the published image, with no Docker. Do this only when the user asks for it, or when `devRepoPath` is set in the config (the shim then builds and runs the checkout).
+
+1. Do the conflict check of step 1 above. Port 8443 must be free: stop the container stack first if it runs (`docker compose -f ~/.clued-server/docker-compose.yml stop`, or `bash ~/.clued-server/down.sh` on Apple Containers), or use another port everywhere below.
+2. Generate the certificates and the token the same way, without starting anything: `"${CLAUDE_PLUGIN_ROOT}/scripts/clued" server init --name "$(hostname -s 2>/dev/null || hostname)"` (the compose file or scripts it writes are simply not used).
+3. Trust the CA as in step 4 above (optional).
+4. Run the server from the checkout in its own terminal (it serves until Ctrl-C), with sessions, plans and stories in memory:
+
+   ```bash
+   cd <checkout>/mind-palace
+   go run ./cmd/mind-palace server run --addr 127.0.0.1:8443 \
+     --tls-cert ~/.clued-server/tls/cert.pem --tls-key ~/.clued-server/tls/key.pem \
+     --tokens ~/.clued-server/tokens.json --store memory
+   ```
+
+   To keep data, drop `--store memory` and give it a MongoDB: sessions go where `CLUED_MONGO_URL` and `CLUED_DB_NAME` say, plans and stories to the storage of the config passed with `--config`. Copy `~/.clued-server/mind-palace.config.yaml` to `~/.clued-server/dev.config.yaml`, change its `uri` to `mongodb://127.0.0.1:27017` and its `database` to `clued_server_dev_docs`, and run `CLUED_MONGO_URL=mongodb://127.0.0.1:27017 CLUED_DB_NAME=clued_server_dev go run ./cmd/mind-palace --config ~/.clued-server/dev.config.yaml server run …` with the same TLS and token flags. Keep these databases apart from the `claude_sessions` a local-mode daemon writes and the `clued_cloud` a local clued cloud writes. The server ignores the `serverUrl` and `serverToken` of the config file it reads, so it never relays to itself.
+5. Check it: `curl -sf --cacert ~/.clued-server/tls/ca.pem https://localhost:8443/health`.
+
+Then continue with Step 6, "clued server", exactly as for the container stack.
 
 ---
 
@@ -273,6 +328,22 @@ For the container stack of Step 3 nothing is asked: the URL is the `server_url` 
 1. **The server URL**, e.g. `https://clued.example.com` (no trailing path). It must be `https://`: the binary refuses a plain `http://` URL unless the host is `localhost`, `127.0.0.1` or `::1`. If the user gives `http://` for another host, stop and explain that the token and the transcripts would cross the network in clear; only on a private network they trust may they add `"serverInsecure": true` to the file by hand.
 2. **The token** the server operator minted (`mind-palace server token create --name <name> --project <slug>`; it is printed once). Never echo it back, never put it on a command line, never log it.
 3. **A CA file** (optional): only when the server uses a certificate from a private CA, the path of its PEM bundle; it is trusted in addition to the system roots. Skip the key otherwise.
+
+**Before writing, look at the config this machine already has.** The heredoc replaces the whole file:
+
+```bash
+test -f ~/.claude/plugins/data/clued/config.json && jq '{serverUrl, linked: (.serverToken != null), redactAtCapture, statusLine}' ~/.claude/plugins/data/clued/config.json || echo "no config yet"
+```
+
+If it already names a `serverUrl` other than the one about to be written (a clued cloud such as `http://localhost:8080`, another server), say so and ask before replacing it: the plugin talks to **one** server at a time, and replacing the file drops that link (its token stays valid on that server until revoked). On yes, keep a copy first so the user can switch back, then write the file:
+
+```bash
+cp -p ~/.claude/plugins/data/clued/config.json ~/.claude/plugins/data/clued/config.json.bak-$(date +%Y%m%d%H%M%S)
+```
+
+Keep any other keys the old file set that the heredoc below does not (`statusLine`, `redactPatterns`, `excludePaths`, `modelPrices`, `otelEndpoint`, `otelHeaders`, `retentionDays`): add them back to the new file.
+
+**One machine, two servers.** A developer can run the clued server stack (8443) and a clued cloud (8080) side by side; they do not share ports, Compose projects, containers or MongoDB volumes. Only the client config is shared. To point one shell, or one test, at the other server without touching the file, set `CLUED_SERVER_URL` and `CLUED_SERVER_TOKEN` (and `CLUED_SERVER_CA_FILE`) in that shell; they override the file. To switch the plugin for good, restore the backup or rerun this step.
 
 Write the file with the heredoc below so the token never appears in a command line, and keep it private: it is the only credential on this machine. `mongoUrl` stays at its default and is ignored while `serverUrl` is set (`dbName` and `port` likewise; they are kept so the file can go back to local mode by removing the two server keys).
 

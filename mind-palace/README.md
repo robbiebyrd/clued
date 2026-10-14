@@ -370,6 +370,8 @@ mind-palace session whoami                      # remote mode: the token's name,
 mind-palace hook relay                          # remote mode, run by the hooks: store one event, push the transcript delta
 mind-palace server run [--addr] [--tls-cert --tls-key | --behind-proxy]   # the clued server
 mind-palace server token create|list|revoke|grant                        # its bearer tokens
+mind-palace server init [--runtime] [--host] [--force] [--new-ca]        # the container stack under ~/.clued-server
+mind-palace server trust [--remove] [--dry-run]                          # trust the stack's CA on this machine
 ```
 
 **Remote mode.** With `serverUrl` and `serverToken` set (env
@@ -438,7 +440,7 @@ expose them next to the plan and story tools.
 | `server/sessionapi` | The `session.Store` port over HTTP (`/api/v1/session/…`), every route scoped to the token's account |
 | `server/storeapi` | The `store.Store` port over HTTP (`/api/v1/projects/{project}/store/…`); the raw document transport behind `store/remotestore` |
 | `server/projects` | Project slugs derived from a git origin and one `store.Store` per project built from the server's storage definitions |
-| `server/stack` | The container stack `mind-palace server init` generates (nginx front-end, clued server, MongoDB) as a Docker Compose file or, for Apple Containers, as start and stop scripts with a launchd agent; its nginx and storage configs, a private CA with a server certificate, and the first token |
+| `server/stack` | The container stack `mind-palace server init` generates (nginx front-end, clued server, MongoDB) as a Docker Compose file or, for Apple Containers, as start and stop scripts with a launchd agent; its nginx and storage configs, a private name-constrained CA with a server certificate, the first token, and the trust-store plan behind `server trust` |
 | `remote` | The HTTP client the remote adapters share: base URL, bearer token, CA file, the plain-`http://`-off-loopback refusal, envelope decoding into typed errors |
 | `clientcfg` | Opens the plan and story services as the client does: the repository's config plus, in remote mode, the `clued-server` store as a secondary store; resolves the project slug (`remote.project`, git origin, directory name) |
 | `session`, `session/*` | Claude Code session capture: config (local and remote mode), MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |

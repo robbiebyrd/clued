@@ -101,7 +101,7 @@ func TestServerInitFlagsAndErrors(t *testing.T) {
 		t.Errorf("apple result = %v", res)
 	}
 	up, err := os.ReadFile(filepath.Join(dir, stack.UpScript))
-	if err != nil || !strings.Contains(string(up), "SERVER_IMAGE='clued-server:dev'\n") {
+	if err != nil || !strings.Contains(string(up), "SERVER_IMAGE=clued-server:dev\n") {
 		t.Errorf("up.sh = %s (%v)", up, err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, stack.ComposeFile)); err == nil {

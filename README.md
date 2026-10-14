@@ -60,8 +60,13 @@ for the plan and story service in depth.
    and starts the daemon. For the server in containers it runs
    `mind-palace server init` (the server, its MongoDB and an nginx HTTPS
    front-end under `~/.clued-server`, with a private CA and a first token,
-   with Docker or, on a Mac without Docker, Apple Containers), starts the
-   stack and fills the config from the result. For a server
+   with Docker or, on a Mac without Docker, Apple Containers), first
+   checking that no other stack, clued cloud or daemon holds its ports,
+   starts the stack, offers to trust the CA on this machine
+   (`mind-palace server trust`: the keychain, the system store, Chrome and
+   Firefox) and fills the config from the result, asking before it replaces
+   another server's. A developer can run the server from a source checkout
+   with the same certificates instead. For a server
    elsewhere it asks for the URL and the token. In both server modes the
    config is written at `0600`, the token is checked with `mind-palace
    session whoami`, the hooks are registered and no daemon starts.
@@ -79,7 +84,9 @@ Remove it again with `/clued-uninstall`, which detects what is present and
 asks before stopping the daemon (local mode only) or the server stack,
 removing the config and downloaded binary, the relay's catch-up state and
 log, and (optionally) the MongoDB binaries, the containers and volumes of
-the server stack, and the data.
+the server stack, and the data. It does not remove the plugin itself; finish
+with `/plugin uninstall clued@clued` (and `/plugin marketplace remove clued`),
+then `/reload-plugins`.
 
 ## What the plugin installs
 
@@ -371,8 +378,10 @@ origin (`github.com__owner__repo`), and the token lists the projects it may
 use (`*` for all). Enrichment runs on the server. The server is hosted on a
 machine of your own with the Compose stack `mind-palace server init`
 generates (the server, `mongo:8` and an nginx front-end that terminates
-TLS with a generated CA, or `--proxy none` for a terminator of your own) or
-from the binary; running it either way, TLS and reverse-proxy setups, token
+TLS with a generated CA, name-constrained to the stack's hosts, that
+`mind-palace server trust` installs in this machine's trust stores, or
+`--proxy none` for a terminator of your own) or from the binary; running it
+either way, from a source checkout, next to a local clued cloud, TLS and reverse-proxy setups, token
 management and the HTTPS `/mcp` endpoint are described in
 [`docs/server.md`](docs/server.md).
 

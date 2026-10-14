@@ -25,11 +25,6 @@ const (
 	mongoVolume     = "clued_mongo_data"
 )
 
-// shellQuote quotes s as one bash word.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
-}
-
 // upScript renders up.sh for opts (defaults applied).
 func upScript(opts Options) string {
 	var b strings.Builder
