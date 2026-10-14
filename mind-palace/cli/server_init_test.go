@@ -31,8 +31,11 @@ func TestServerInitPreparesTheStackAndItsCertificateServesTLS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(compose), "ghcr.io/robbiebyrd/clued-server:v9.9.9}") || !strings.Contains(string(compose), `"${CLUED_PUBLIC_PORT:-9443}:443"`) {
+	if !strings.Contains(string(compose), "image: ghcr.io/robbiebyrd/clued-server:v9.9.9\n") || !strings.Contains(string(compose), `"9443:443"`) {
 		t.Errorf("compose should pin the plugin's release and the port:\n%s", compose)
+	}
+	if res["runtime"] != stack.RuntimeCompose || res["up"] != "docker compose -f "+filepath.Join(dir, stack.ComposeFile)+" up -d" || !strings.HasPrefix(res["down"].(string), "docker compose -f ") {
+		t.Errorf("runtime = %v, up = %v, down = %v", res["runtime"], res["up"], res["down"])
 	}
 
 	// The generated certificate is what nginx presents; the server can
@@ -82,16 +85,34 @@ func TestServerInitFlagsAndErrors(t *testing.T) {
 		t.Errorf("result = %v", res)
 	}
 	compose, _ := os.ReadFile(filepath.Join(dir, stack.ComposeFile))
-	if !strings.Contains(string(compose), "image: ${CLUED_SERVER_IMAGE:-clued-server:dev}") {
+	if !strings.Contains(string(compose), "image: clued-server:dev\n") {
 		t.Errorf("--image ignored:\n%s", compose)
 	}
 	res = serverResult(t, runServer(t, "init", "--dir", t.TempDir(), "--no-token", "--proxy", "nginx"))
 	compose, _ = os.ReadFile(res["compose_file"].(string))
-	if !strings.Contains(string(compose), stack.DefaultServerImage+":latest}") {
+	if !strings.Contains(string(compose), "image: "+stack.DefaultServerImage+":latest\n") {
 		t.Errorf("without a plugin version the image should be :latest:\n%s", compose)
 	}
 
-	r := runServer(t, "init", "--dir", t.TempDir(), "--proxy", "caddy")
+	// --runtime apple writes the scripts instead of a compose file.
+	dir = t.TempDir()
+	res = serverResult(t, runServer(t, "init", "--dir", dir, "--runtime", "apple", "--no-token", "--image", "clued-server:dev"))
+	if res["runtime"] != stack.RuntimeApple || res["compose_file"] != nil || res["up"] != "bash "+filepath.Join(dir, stack.UpScript) || res["down"] != "bash "+filepath.Join(dir, stack.DownScript) || res["logs"] != "container logs clued-server" {
+		t.Errorf("apple result = %v", res)
+	}
+	up, err := os.ReadFile(filepath.Join(dir, stack.UpScript))
+	if err != nil || !strings.Contains(string(up), "SERVER_IMAGE='clued-server:dev'\n") {
+		t.Errorf("up.sh = %s (%v)", up, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, stack.ComposeFile)); err == nil {
+		t.Error("--runtime apple wrote a compose file")
+	}
+	r := runServer(t, "init", "--dir", t.TempDir(), "--runtime", "podman")
+	if r.code == 0 || !strings.Contains(r.stderr, "podman") {
+		t.Errorf("bad runtime accepted: %+v", r)
+	}
+
+	r = runServer(t, "init", "--dir", t.TempDir(), "--proxy", "caddy")
 	if r.code == 0 || !strings.Contains(r.stderr, `"ok": false`) || !strings.Contains(r.stderr, "caddy") {
 		t.Errorf("bad proxy accepted: %+v", r)
 	}

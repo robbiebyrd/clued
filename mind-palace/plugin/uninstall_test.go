@@ -234,6 +234,50 @@ func TestUninstallStopsTheServerStack(t *testing.T) {
 		}
 	})
 
+	t.Run("an Apple Containers stack stops through down.sh", func(t *testing.T) {
+		home := remoteHome(t, "https://localhost:8443", remoteToken)
+		stack := writeStack(t, home)
+		os.Remove(filepath.Join(stack, "docker-compose.yml"))
+		logFile := filepath.Join(t.TempDir(), "down.log")
+		writeExecutable(t, stack, "down.sh", "#!/bin/sh\necho \"down $*\" >> "+logFile+"\nexit 0\n")
+		binDir, dockerLog := fakeDocker(t, 0)
+		env := []string{"HOME=" + home, "PATH=" + binDir + ":/usr/bin:/bin", "CLUED_PORT=" + port}
+		r := runScript(t, hook(t, "uninstall"), "", env, "--keep-config")
+		if r.code != 0 || !strings.Contains(r.stdout, "server stack stopped") || strings.Contains(r.stdout, "removed with its data") {
+			t.Fatalf("got %+v", r)
+		}
+		if calls, _ := os.ReadFile(logFile); string(calls) != "down \n" {
+			t.Errorf("down.sh calls = %q, want one call without arguments", calls)
+		}
+		if _, err := os.Stat(dockerLog); !os.IsNotExist(err) {
+			t.Errorf("docker was called for an Apple stack")
+		}
+		if _, err := os.Stat(filepath.Join(stack, "tokens.json")); err != nil {
+			t.Errorf("the stack directory should be kept: %v", err)
+		}
+
+		r = runScript(t, hook(t, "uninstall"), "", env, "--purge-server", "--keep-config")
+		if r.code != 0 || !strings.Contains(r.stdout, "removed with its data") {
+			t.Fatalf("got %+v", r)
+		}
+		if calls, _ := os.ReadFile(logFile); !strings.HasSuffix(string(calls), "down --volumes\n") {
+			t.Errorf("down.sh calls = %q, want down --volumes last", calls)
+		}
+		mustNotExist(t, stack, "stack directory")
+
+		// A failing down.sh keeps the directory.
+		stack = writeStack(t, home)
+		os.Remove(filepath.Join(stack, "docker-compose.yml"))
+		writeExecutable(t, stack, "down.sh", "#!/bin/sh\nexit 1\n")
+		r = runScript(t, hook(t, "uninstall"), "", env, "--purge-server", "--keep-config")
+		if r.code != 0 || !strings.Contains(r.stderr, "could not stop the server stack") {
+			t.Fatalf("got %+v", r)
+		}
+		if _, err := os.Stat(filepath.Join(stack, "tokens.json")); err != nil {
+			t.Errorf("a stack that could not be stopped must not be removed: %v", err)
+		}
+	})
+
 	t.Run("no stack, no docker call", func(t *testing.T) {
 		home := remoteHome(t, "https://localhost:8443", remoteToken)
 		binDir, logFile := fakeDocker(t, 0)

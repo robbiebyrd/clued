@@ -438,7 +438,7 @@ expose them next to the plan and story tools.
 | `server/sessionapi` | The `session.Store` port over HTTP (`/api/v1/session/…`), every route scoped to the token's account |
 | `server/storeapi` | The `store.Store` port over HTTP (`/api/v1/projects/{project}/store/…`); the raw document transport behind `store/remotestore` |
 | `server/projects` | Project slugs derived from a git origin and one `store.Store` per project built from the server's storage definitions |
-| `server/stack` | The Docker Compose stack `mind-palace server init` generates (nginx front-end, clued server, MongoDB), its nginx and storage configs, a private CA with a server certificate, and the first token |
+| `server/stack` | The container stack `mind-palace server init` generates (nginx front-end, clued server, MongoDB) as a Docker Compose file or, for Apple Containers, as start and stop scripts with a launchd agent; its nginx and storage configs, a private CA with a server certificate, and the first token |
 | `remote` | The HTTP client the remote adapters share: base URL, bearer token, CA file, the plain-`http://`-off-loopback refusal, envelope decoding into typed errors |
 | `clientcfg` | Opens the plan and story services as the client does: the repository's config plus, in remote mode, the `clued-server` store as a secondary store; resolves the project slug (`remote.project`, git origin, directory name) |
 | `session`, `session/*` | Claude Code session capture: config (local and remote mode), MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |

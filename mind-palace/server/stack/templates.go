@@ -87,8 +87,9 @@ func composeYAML(opts Options) string {
 	} else {
 		w("#   curl http://127.0.0.1:%d/health\n", opts.Port)
 	}
-	w("#\n# CLUED_SERVER_IMAGE, CLUED_PUBLIC_PORT and CLUED_SERVER_USER override the\n")
-	w("# image, the published port and the user without regenerating.\n")
+	w("#\n# Every value is literal (no variable interpolation, which not every compose\n")
+	w("# implementation supports): change the image, the port or the user by\n")
+	w("# rerunning `server init --image/--port` and `up -d` again.\n")
 	w("name: clued\n\n")
 	w("services:\n")
 
@@ -101,19 +102,19 @@ func composeYAML(opts Options) string {
 		w("    container_name: clued-nginx\n")
 		w("    restart: unless-stopped\n")
 		w("    depends_on:\n      - clued-server\n")
-		w("    ports:\n      - \"${CLUED_PUBLIC_PORT:-%d}:443\"\n", opts.Port)
+		w("    ports:\n      - \"%d:443\"\n", opts.Port)
 		w("    volumes:\n")
 		w("      - ./nginx/clued.conf:/etc/nginx/conf.d/default.conf:ro\n")
 		w("      - ./tls:/etc/nginx/tls:ro\n\n")
 	}
 
 	w("  clued-server:\n")
-	w("    image: ${CLUED_SERVER_IMAGE:-%s}\n", opts.ServerImage)
+	w("    image: %s\n", opts.ServerImage)
 	w("    container_name: clued-server\n")
 	w("    restart: unless-stopped\n")
 	w("    # The token file is 0600 and owned by whoever minted it; the container\n")
 	w("    # runs as that user so it can read it.\n")
-	w("    user: \"${CLUED_SERVER_USER:-%s}\"\n", composeUser(opts))
+	w("    user: \"%s\"\n", composeUser(opts))
 	w("    depends_on:\n      mongo:\n        condition: service_healthy\n")
 	w("    environment:\n")
 	w("      CLUED_SERVER_ADDR: 0.0.0.0:8443\n")
@@ -130,7 +131,7 @@ func composeYAML(opts Options) string {
 	}
 	w("      CLUED_SERVER_BEHIND_PROXY: \"true\"\n")
 	if opts.Proxy == ProxyNone {
-		w("    ports:\n      - \"127.0.0.1:${CLUED_PUBLIC_PORT:-%d}:8443\"\n", opts.Port)
+		w("    ports:\n      - \"127.0.0.1:%d:8443\"\n", opts.Port)
 	}
 	w("    volumes:\n")
 	w("      - ./tokens.json:/etc/clued/tokens.json:ro\n")

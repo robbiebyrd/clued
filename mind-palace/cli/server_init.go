@@ -2,6 +2,8 @@ package cli
 
 import (
 	"os"
+	osexec "os/exec"
+	"runtime"
 
 	"github.com/spf13/cobra"
 
@@ -13,29 +15,39 @@ import (
 // names the release whose server image the stack should run.
 const envPluginVersion = "CLUED_PLUGIN_VERSION"
 
-// serverInitCmd is `server init`: prepares the Docker Compose stack that
+// runtimeAuto is the --runtime value that lets stack.DetectRuntime choose.
+const runtimeAuto = "auto"
+
+// serverInitCmd is `server init`: prepares the container stack that
 // /clued-setup starts to host the server on this machine.
 func (a *App) serverInitCmd() *cobra.Command {
 	var o stack.Options
-	var image string
+	var image, rt string
 	cmd := &cobra.Command{
-		Use:   "init [--dir ~/.clued-server] [--proxy nginx|none] [--port 8443] [--host name]... [--name token]",
-		Short: "Prepare a Docker Compose stack: the server, MongoDB, an nginx TLS front-end, a CA and a token",
-		Long: `Writes the directory a Docker Compose deployment of the clued server runs
-from (default ~/.clued-server): docker-compose.yml with the server, its
-MongoDB and, by default, an nginx service that terminates TLS on --port;
-nginx/clued.conf; mind-palace.config.yaml (plans and stories in MongoDB,
-per project); a private CA and a server certificate under tls/ covering
-localhost, this host's name and every --host; and a first token in
-tokens.json, printed once. Start it with the "up" command of the result and
-point the plugin at "server_url" with "ca_file" as serverCaFile.
+		Use:   "init [--dir ~/.clued-server] [--runtime auto|compose|apple] [--proxy nginx|none] [--port 8443] [--host name]... [--name token]",
+		Short: "Prepare a container stack: the server, MongoDB, an nginx TLS front-end, a CA and a token",
+		Long: `Writes the directory a container deployment of the clued server runs from
+(default ~/.clued-server): the server, its MongoDB and, by default, an nginx
+container that terminates TLS on --port, as docker-compose.yml (--runtime
+compose) or as up.sh, down.sh and a launchd agent driving Apple's container
+CLI (--runtime apple, macOS 26); nginx/clued.conf; mind-palace.config.yaml
+(plans and stories in MongoDB, per project); a private CA and a server
+certificate under tls/ covering localhost, this host's name and every
+--host; a first token in tokens.json, printed once; and stack.json saying
+which runtime runs the stack. Start it with the "up" command of the result
+(stop it with "down") and point the plugin at "server_url" with "ca_file" as
+serverCaFile. --runtime auto, the default, picks compose when docker is on
+the PATH and apple only when it is not and this is a Mac with the container
+CLI installed.
 
 --proxy none leaves nginx out and publishes the server on 127.0.0.1:--port as
 plain HTTP for another terminator (Caddy, Traefik, an nginx of your own, an
 ingress). --no-tls skips the CA and uses the tls/cert.pem and tls/key.pem you
-supply (mkcert, a real CA). Rerunning regenerates the compose, nginx and
-storage files and keeps tls/ and tokens.json; --force renews the
-certificates; a token whose name exists is not minted again.
+supply (mkcert, a real CA). Rerunning regenerates the runtime's files, the
+nginx and storage files and keeps tls/ and tokens.json; --force renews the
+certificates; a token whose name exists is not minted again. Every value in
+the generated files is literal: change the image, the port or the user by
+rerunning with the matching flag.
 
 The server image defaults to the release of the plugin that runs this
 command (CLUED_PLUGIN_VERSION, set by scripts/clued) and to :latest
@@ -45,6 +57,10 @@ otherwise.`,
 			o.ServerImage = image
 			if o.ServerImage == "" {
 				o.ServerImage = stack.DefaultServerImage + ":" + serverImageTag(os.Getenv(envPluginVersion))
+			}
+			o.Runtime = rt
+			if o.Runtime == runtimeAuto {
+				o.Runtime = stack.DetectRuntime(runtime.GOOS, osexec.LookPath)
 			}
 			res, err := stack.Init(o)
 			if err != nil {
@@ -56,6 +72,7 @@ otherwise.`,
 	}
 	f := cmd.Flags()
 	f.StringVar(&o.Dir, "dir", "", "stack directory (default: ~/.clued-server)")
+	f.StringVar(&rt, "runtime", runtimeAuto, "container runtime: compose (docker compose), apple (Apple's container CLI, macOS 26), or auto (compose when docker is installed, else apple on a Mac with the container CLI)")
 	f.StringVar(&o.Proxy, "proxy", stack.ProxyNginx, "front-end: nginx terminates TLS, none publishes the server on loopback for another terminator")
 	f.IntVar(&o.Port, "port", stack.DefaultPort, "port published on this host")
 	f.StringArrayVar(&o.Hosts, "host", nil, "extra name or address the certificate covers (repeatable)")
