@@ -2,12 +2,13 @@
 id: 0021-hr9
 title: 'Link a machine to a clued cloud: session login, logout and config-pull'
 type: feat
-status: in_progress
+status: complete
 priority: "1"
 effort: M
 created: "2026-10-13T18:13:17.698Z"
-updated: "2026-10-13T18:13:17.847Z"
+updated: "2026-10-14T19:12:20.223Z"
 started: "2026-10-13T18:13:17.698Z"
+completed: "2026-10-14T19:12:20.223Z"
 tags:
   - cloud
   - session
@@ -61,7 +62,7 @@ Starts the device flow, prints the link and code on stderr, polls until approval
 ## Acceptance Criteria
 
 - [x] VERIFY: cd mind-palace && go test -race -run 'TestSessionLogin|TestSessionConfigPull|TestUpdateConfigFile' ./cli/ ./session/
-- [ ] [MANUAL] On a machine with the plugin, `/clued-setup` option 4 against a running clued cloud links the machine after approving in a browser and `session whoami` names the account
+- [x] [MANUAL] On a machine with the plugin, `/clued-setup` option 4 against a running clued cloud links the machine after approving in a browser and `session whoami` names the account
 
 ## Work Log
 

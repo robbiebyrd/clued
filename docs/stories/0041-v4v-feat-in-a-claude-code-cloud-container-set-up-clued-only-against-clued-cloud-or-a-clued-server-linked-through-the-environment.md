@@ -2,12 +2,13 @@
 id: 0041-v4v
 title: In a Claude Code cloud container, set up clued only against Clued Cloud or a clued server, linked through the environment
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: S
 created: "2026-10-14T15:13:44.214Z"
-updated: "2026-10-14T15:13:52.392Z"
+updated: "2026-10-14T19:12:20.137Z"
 started: "2026-10-14T15:13:44.214Z"
+completed: "2026-10-14T19:12:20.137Z"
 tags:
   - setup
   - cloud
@@ -57,7 +58,7 @@ README, docs/server.md (Claude Code cloud containers) and PROTOCOL.md 2.2 to 2.4
 ## Acceptance Criteria
 
 - [x] VERIFY: `go test ./plugin/` passes, including the cloud-container cases: the check-setup message, no setup nag for a server from the environment, no daemon from session-start, no WAL from event-relay
-- [ ] [MANUAL] In a Claude Code cloud container with CLUED_SERVER_URL=https://clued.cloud and CLUED_SERVER_TOKEN set in the environment's settings, a new session is linked without /clued-setup and `session whoami` names the token
+- [x] [MANUAL] In a Claude Code cloud container with CLUED_SERVER_URL=https://clued.cloud and CLUED_SERVER_TOKEN set in the environment's settings, a new session is linked without /clued-setup and `session whoami` names the token
 
 ## Work Log
 

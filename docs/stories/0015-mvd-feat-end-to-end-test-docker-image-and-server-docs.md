@@ -3,12 +3,13 @@ id: 0015-mvd
 title: End-to-end test, Docker image published to GHCR, and server docs
 purpose: Prove the whole remote loop in one test and ship the server as a published image with documentation.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: L
 created: "2026-10-12T20:09:05.261Z"
-updated: "2026-10-12T22:33:59.260Z"
+updated: "2026-10-14T19:12:20.416Z"
 started: "2026-10-12T21:36:17.235Z"
+completed: "2026-10-14T19:12:20.416Z"
 tags:
   - server
   - remote
@@ -73,7 +74,7 @@ Binary and Docker setups, token management (`create`, `grant`, `revoke`), TLS an
 - [x] VERIFY: cd mind-palace && go test -race -run Remote ./cli/
 - [x] VERIFY: docker build -f Dockerfile.server -t clued-server .
 - [x] The end-to-end test passes with no environment variables and covers event, transcript, plan fan-out and sync after restart
-- [ ] [MANUAL] A `v*` tag publishes `ghcr.io/robbiebyrd/clued-server:<tag>` and the compose file pulls it
+- [x] [MANUAL] A `v*` tag publishes `ghcr.io/robbiebyrd/clued-server:<tag>` and the compose file pulls it
 
 ## Files
 

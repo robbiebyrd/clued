@@ -2,12 +2,13 @@
 id: 0022-ur2
 title: Build each release target in its own CI job and assemble the server image from the binaries
 type: chor
-status: in_progress
+status: complete
 priority: "1"
 effort: S
 created: "2026-10-13T18:21:11.717Z"
-updated: "2026-10-13T18:37:13.201Z"
+updated: "2026-10-14T19:12:20.315Z"
 started: "2026-10-13T18:21:11.717Z"
+completed: "2026-10-14T19:12:20.315Z"
 tags:
   - ci
   - release
@@ -50,7 +51,7 @@ The `binaries` job is a matrix over the targets (a step checks it matches the sc
 ## Acceptance Criteria
 
 - [x] VERIFY: diff <(scripts/build-binaries.sh --targets) <(python3 -c 'import yaml; print("\n".join(yaml.safe_load(open(".github/workflows/mind-palace.yml"))["jobs"]["binaries"]["strategy"]["matrix"]["target"]))')
-- [ ] [MANUAL] The next push runs seven `binaries` jobs side by side, `image` assembles both platforms from their artifacts, and a release carries the same bytes in the image and in the assets
+- [x] [MANUAL] The next push runs seven `binaries` jobs side by side, `image` assembles both platforms from their artifacts, and a release carries the same bytes in the image and in the assets
 
 ## Work Log
 
