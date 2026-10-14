@@ -6,7 +6,7 @@ status: in_progress
 priority: "2"
 effort: XL
 created: "2026-10-14T03:12:18.334Z"
-updated: "2026-10-14T04:47:02.338Z"
+updated: "2026-10-14T04:52:53.398Z"
 tags:
   - session
   - privacy
@@ -39,6 +39,11 @@ progress:
     status: pending
     stories:
       - 0031-nwf
+  "10":
+    status: pending
+    stories:
+      - 0032-fj6
+      - 0034-chs
 ---
 
 # Capture-time privacy, token-capped results, export and OpenTelemetry

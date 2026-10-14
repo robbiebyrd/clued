@@ -254,6 +254,7 @@ prints JSON.
 | `session search-commands <pattern> [--session id] [--git-origin re] [--limit n]` | Search the Bash commands run in sessions |
 | `session search <words…> [--session id] [--git-origin re] [--project re] [--limit n]` | Ranked search over the text of transcript lines (what `search_transcripts` does) |
 | `session export [--session id]... [--project re] [--since day] [--format md\|html\|jsonl\|zip] [--out path] [--force] [--raw]` | Write sessions to Markdown, a self-contained HTML page, Claude Code's JSONL, or a zip of many (which `session import` reads back); redacted unless `--raw` |
+| `session otel-export [--session id]... [--project re] [--since day]` | Send sessions to `otelEndpoint` as traces (older sessions, or after an outage; spans sent before are skipped) |
 | `session import <file.jsonl\|export.zip>` | Read a JSONL transcript or a zip export back into the store |
 | `session forget [--session id]... [--project re] [--before day]` | Delete captured sessions from the store (local MongoDB or the server) with everything stored for them; at least one criterion |
 | `session usage [--by session\|model\|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]` | Token usage and estimated cost (what `usage` does) |
@@ -331,6 +332,8 @@ sessions and other machines can search it:
 | `redactPatterns` | `[]` | | More regular expressions to mask with `redactAtCapture` (e-mail addresses, internal host names) |
 | `excludePaths` | `[]` | | Globs over the session's directory (`["~/work/client-*"]`): sessions in or below a match are never stored |
 | `retentionDays` | `0` | | MongoDB deletes captured documents after this many days |
+| `otelEndpoint` | (none) | `CLUED_OTEL_ENDPOINT` | An OTLP/HTTP collector (Grafana Alloy, Langfuse, Phoenix, an OpenTelemetry Collector) that receives each session as a trace when it ends: a span per prompt turn, tool use and subagent, with token usage, under the GenAI conventions |
+| `otelHeaders` | `{}` | | Headers for the collector (`Authorization`); never logged |
 | `modelPrices` | (none) | | Prices for the `usage` cost estimates by model id prefix, in US dollars per million tokens: `{"<model id prefix>": {"input": 3, "output": 15}}`, optionally with `cacheRead` (default 0.1× `input`) and `longPrompt` (`{"input", "output", "cacheRead"}` for messages whose prompt is over 100,000 tokens). They come before the built-in table, so they also correct it |
 | `primeOnStart` | `true` | `CLUED_PRIME_ON_START` | Start every session (and every session after compaction) with the prime report as context; `false` leaves it to `/clued-prime` |
 

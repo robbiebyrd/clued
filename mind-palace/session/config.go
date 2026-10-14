@@ -57,6 +57,14 @@ type Config struct {
 	// that many days after they were stored (a TTL index on created_at,
 	// last_seen for sessions).
 	RetentionDays int `json:"retentionDays,omitempty"`
+
+	// OTelEndpoint, when set, is the OTLP/HTTP collector (e.g.
+	// http://localhost:4318) each session's trace is sent to when it ends
+	// (session/otel); CLUED_OTEL_ENDPOINT overrides it. OTelHeaders are sent
+	// with every request (an Authorization header); they are secrets and
+	// never logged.
+	OTelEndpoint string            `json:"otelEndpoint,omitempty"`
+	OTelHeaders  map[string]string `json:"otelHeaders,omitempty"`
 }
 
 // RedactsAtCapture reports whether captured data is redacted before it is
@@ -148,6 +156,7 @@ func LoadConfig(path string) Config {
 			cfg.PrimeOnStart = &b
 		}
 	}
+	setFromEnv(&cfg.OTelEndpoint, "CLUED_OTEL_ENDPOINT")
 	if v := os.Getenv("CLUED_REDACT_AT_CAPTURE"); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
 			cfg.RedactAtCapture = &b

@@ -471,3 +471,36 @@ func TestHookRelayDropsAnExcludedSession(t *testing.T) {
 		}
 	}
 }
+
+func TestHookRelaySendsTheTraceAtSessionEnd(t *testing.T) {
+	var got []map[string]any
+	var auth string
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		got, auth = append(got, body), r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer collector.Close()
+	backing := memsession.New()
+	srv := newRelayServer(t, backing)
+	configPath, projectsDir := relayConfig(t, srv.srv.URL, relayToken)
+	withConfig(t, configPath, map[string]any{"otelEndpoint": collector.URL, "otelHeaders": map[string]string{"Authorization": "Bearer otlp-token"}})
+	tp := transcript(t, projectsDir, "sid-o", `{"type":"user","n":1}`)
+
+	runRelay(t, configPath, hookEvent("PostToolUse", "sid-o", tp))
+	if len(got) != 0 {
+		t.Fatalf("a trace was sent before the session ended")
+	}
+	runRelay(t, configPath, hookEvent("SessionEnd", "sid-o", tp))
+	if len(got) != 1 || auth != "Bearer otlp-token" {
+		t.Fatalf("collector requests = %d, Authorization %q", len(got), auth)
+	}
+	raw, _ := json.Marshal(got[0])
+	if !strings.Contains(string(raw), `"invoke_agent claude-code"`) || !strings.Contains(string(raw), `"sid-o"`) {
+		t.Errorf("the trace does not describe the session: %s", raw)
+	}
+	if log, _ := os.ReadFile(filepath.Join(filepath.Dir(configPath), "relay.log")); strings.Contains(string(log), "otlp-token") {
+		t.Error("the OTLP header reached the log")
+	}
+}

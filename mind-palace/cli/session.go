@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
@@ -28,6 +29,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 	"github.com/robbiebyrd/clued/mind-palace/session/mongosession"
+	"github.com/robbiebyrd/clued/mind-palace/session/otel"
 	"github.com/robbiebyrd/clued/mind-palace/session/query"
 	"github.com/robbiebyrd/clued/mind-palace/session/redact"
 	"github.com/robbiebyrd/clued/mind-palace/session/remotesession"
@@ -142,7 +144,7 @@ func (a *App) sessionCmd() *cobra.Command {
 	}
 	c.PersistentFlags().StringVar(&a.sess.configPath, "config", session.DefaultConfigPath(), "clued config file")
 	c.AddCommand(
-		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionForgetCmd(), a.sessionExportCmd(), a.sessionImportCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
+		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionForgetCmd(), a.sessionExportCmd(), a.sessionImportCmd(), a.sessionOTelExportCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
 		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
 		a.sessionSearchMemoryCmd(), a.sessionMemoryIngestCmd(),
@@ -429,6 +431,69 @@ mode 0600 and never replaces another unless --force.`,
 	return c
 }
 
+func (a *App) sessionOTelExportCmd() *cobra.Command {
+	var ids []string
+	var project, since string
+	c := &cobra.Command{
+		Use:   "otel-export [--session id]... [--project re] [--since day]",
+		Short: "Send sessions to the OpenTelemetry collector as traces",
+		Long: `Sends each session's trace (a span for the session, each prompt turn, tool
+use and subagent, with token usage) to otelEndpoint as OTLP/HTTP JSON. The
+daemon and the relay do this when a session ends; this command sends
+older sessions or resends after an outage. Spans sent before are skipped
+(the state is under <config dir>/otel).`,
+		Args: cobra.NoArgs,
+	}
+	run := a.sessionAction(func(ctx context.Context, store session.Store, svc *query.Service) (any, error) {
+		cfg := a.sessionConfig()
+		exp := otel.New(cfg)
+		if exp == nil {
+			return nil, errors.New("no otelEndpoint is configured")
+		}
+		if len(ids) == 0 {
+			found, err := svc.FindSessions(ctx, query.FindSessionsArgs{ProjectPath: project, Limit: 500})
+			if err != nil {
+				return nil, err
+			}
+			cutoff, _ := (query.ForgetArgs{Before: since}).BeforeTime()
+			for _, d := range found {
+				if seen, _ := d["last_seen"].(time.Time); !cutoff.IsZero() && seen.Before(cutoff) {
+					continue
+				}
+				if id, _ := d.String("session_id"); id != "" {
+					ids = append(ids, id)
+				}
+			}
+		}
+		out := []otel.Sent{}
+		for _, id := range ids {
+			sent, err := exp.ExportSession(ctx, store, svc.AccountID, id)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, sent)
+		}
+		return out, nil
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if err := a.validated(checkRegex("--project", project)); err != nil {
+			return err
+		}
+		if _, err := (query.ForgetArgs{Before: since}).BeforeTime(); err != nil {
+			return a.sessionBadRequest("--since: " + err.Error())
+		}
+		if a.sessionConfig().OTelEndpoint == "" {
+			return a.sessionBadRequest("no otelEndpoint is configured (set it in the config file or CLUED_OTEL_ENDPOINT)")
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringSliceVar(&ids, "session", nil, "send this session (repeatable)")
+	f.StringVar(&project, "project", "", "send sessions whose project path matches this regular expression")
+	f.StringVar(&since, "since", "", "send sessions last seen on or after this day (YYYY-MM-DD, UTC) or RFC 3339 time")
+	return c
+}
+
 func (a *App) sessionImportCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "import <file.jsonl|export.zip>",
@@ -692,6 +757,7 @@ func (a *App) sessionDaemonCmd() *cobra.Command {
 					return gitinfo.Origin(ctx, dir), gitinfo.Branch(ctx, dir)
 				},
 				Logger: slog.New(slog.NewTextHandler(a.Stderr, nil)),
+				OTel:   otel.New(cfg),
 			})
 			// daemon.Run does not report the address it bound, so the configured one is printed.
 			fmt.Fprintf(a.Stderr, "clued daemon listening on http://%s\n", addr)
