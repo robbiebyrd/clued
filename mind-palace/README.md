@@ -404,8 +404,8 @@ projects and file-history directories and produces equivalent JSON whose key
 order may differ from the original file.
 
 **MCP tools.** `find_sessions`, `get_session_context`, `get_full_session`,
-`search_commands`, `search_memory`, `file_history`, `find_errors`,
-`search_transcripts`, `usage`, `read_transcript`, `restore_session` and `prime_context`
+`search_commands`, `search_memory`, `file_history`, `find_errors`, `get_limits`,
+`get_activities`, `search_transcripts`, `usage`, `read_transcript`, `restore_session` and `prime_context`
 (the context collector's report for a `cwd`; see `mind-palace context --help`).
 `session mcp` serves just these; `mind-palace mcp` and `mind-palace serve`
 expose them next to the plan and story tools.

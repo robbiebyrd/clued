@@ -639,6 +639,21 @@ func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session
 	return s.find(ctx, transcriptLines, filter, projection, key("created_at", -1, "seq", -1), 0, q.Limit)
 }
 
+func (s *Store) Activities(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	filter := key("account_id", q.AccountID, "enrichments.activity-kind", key("$exists", true))
+	if len(q.Kinds) > 0 {
+		filter = append(filter, bson.E{Key: "enrichments.activity-kind.kind", Value: key("$in", q.Kinds)})
+	}
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	if !q.Since.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
+	}
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "line.timestamp", 1, "enrichments.activity-kind", 1, "created_at", 1)
+	return s.find(ctx, transcriptLines, filter, projection, key("created_at", -1, "seq", -1), 0, q.Limit)
+}
+
 // --- transcript, subagent lines and blobs ---
 
 func (s *Store) UpsertTranscriptLines(ctx context.Context, lines []session.TranscriptLine) error {

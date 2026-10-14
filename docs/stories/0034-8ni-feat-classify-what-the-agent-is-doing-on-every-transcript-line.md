@@ -3,11 +3,13 @@ id: 0034-8ni
 title: Classify what the agent is doing on every transcript line
 purpose: Every captured transcript line carries an activity kind (user, response, thinking, bash, edit, read, task, commit) so a session reads as a timeline of what the agent did.
 type: feat
-status: pending
+status: complete
 priority: "2"
 effort: S
 created: "2026-10-14T04:28:51.337Z"
-updated: "2026-10-14T04:28:51.337Z"
+updated: "2026-10-14T04:44:53.726Z"
+started: "2026-10-14T04:31:49.442Z"
+completed: "2026-10-14T04:44:53.726Z"
 tags:
   - sessions
   - enrichment
@@ -19,11 +21,11 @@ planned_end: ""
 order: 0
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
 ---
 
 # Classify what the agent is doing on every transcript line
@@ -50,10 +52,10 @@ Add `session.Store.Activities(ctx, ActivityQuery{AccountID, SessionIDs, Kinds, S
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/enrichers/ -run ActivityKind
-- [ ] VERIFY: cd mind-palace && go test -race ./session/... ./server/sessionapi/ ./cli/
-- [ ] `get_activities` on a captured session lists user, response, thinking, bash, edit, read and task entries in order with the documented labels and details
-- [ ] PROTOCOL.md documents the enrichment's fields, the store method, the route and the tool
+- [x] VERIFY: cd mind-palace && go test -race ./session/enrichers/ -run ActivityKind
+- [x] VERIFY: cd mind-palace && go test -race ./session/... ./server/sessionapi/ ./cli/
+- [x] `get_activities` on a captured session lists user, response, thinking, bash, edit, read and task entries in order with the documented labels and details
+- [x] PROTOCOL.md documents the enrichment's fields, the store method, the route and the tool
 
 ## Files
 
@@ -64,3 +66,5 @@ Add `session.Store.Activities(ctx, ActivityQuery{AccountID, SessionIDs, Kinds, S
 - `PROTOCOL.md` - sections 6.1 and 7.3
 
 ## Work Log
+
+### 2026-10-14T04:44:48.000Z - Added the activity-kind enricher (kinds user, response, thinking, bash, commit, edit, read, task, tool, result, other with label, detail, tool_name, tool_use_id, is_error, blocks), Store.Activities in the memory, Mongo and remote stores with POST /activities and a conformance case, query.Service.Activities collapsing consecutive tool repeats, the get_activities tool (14 tools, 12 on the server), `session activities`, and the docs (PROTOCOL.md 6.1.1, 7.3, 9; README). gofmt, vet and `go test -race ./...` pass.

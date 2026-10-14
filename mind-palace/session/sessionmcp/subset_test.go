@@ -33,12 +33,12 @@ func TestSubsetDropsTheToolsThatNeedTheLocalDisk(t *testing.T) {
 				t.Errorf("remote subset still lists %s", absent)
 			}
 		}
-		for _, present := range []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "search_memory", "search_transcripts", "usage", "file_history", "find_errors", "get_limits", "read_transcript"} {
+		for _, present := range []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "search_memory", "search_transcripts", "usage", "file_history", "find_errors", "get_limits", "get_activities", "read_transcript"} {
 			if !names[present] {
 				t.Errorf("remote subset lacks %s", present)
 			}
 		}
-		if len(names) != 11 {
+		if len(names) != 12 {
 			t.Errorf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "find_sessions", obj{}))); n != 4 {
@@ -46,12 +46,12 @@ func TestSubsetDropsTheToolsThatNeedTheLocalDisk(t *testing.T) {
 		}
 		// Subset(false) is the full set, and AddTools honours the subset too.
 		full := newTools(seeded(t), session.Config{}).Subset(false)
-		if n := len(toolNames(t, connectClient(t, full.Server(), nil))); n != 13 {
-			t.Errorf("full set has %d tools, want 13", n)
+		if n := len(toolNames(t, connectClient(t, full.Server(), nil))); n != 14 {
+			t.Errorf("full set has %d tools, want 14", n)
 		}
 		shared := mcp.NewServer(&mcp.Implementation{Name: "shared", Version: "1"}, nil)
 		remote.AddTools(shared, "pfx_")
-		if names := toolNames(t, connectClient(t, shared, nil)); len(names) != 11 || names["pfx_restore_session"] || !names["pfx_find_sessions"] {
+		if names := toolNames(t, connectClient(t, shared, nil)); len(names) != 12 || names["pfx_restore_session"] || !names["pfx_find_sessions"] {
 			t.Errorf("prefixed subset = %v", names)
 		}
 		if remote.Instructions() != sessionmcp.RemoteInstructions || full.Instructions() != sessionmcp.Instructions {

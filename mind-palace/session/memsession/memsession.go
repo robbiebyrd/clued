@@ -570,6 +570,42 @@ func (s *Store) ErrorLines(_ context.Context, q session.ErrorQuery) ([]session.D
 	return out, nil
 }
 
+func (s *Store) Activities(_ context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	inSessions, inKinds := setOf(q.SessionIDs), setOf(q.Kinds)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(transcriptLines, func(d session.Doc) bool {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			return false
+		}
+		activity := d.Map("enrichments").Map("activity-kind")
+		if activity == nil {
+			return false
+		}
+		if kind, _ := activity.String("kind"); len(inKinds) > 0 && !inKinds[kind] {
+			return false
+		}
+		return q.Since.IsZero() || !timeOf(d, "created_at").Before(q.Since)
+	})
+	sort.SliceStable(found, func(i, j int) bool {
+		ti, tj := timeOf(found[i], "created_at"), timeOf(found[j], "created_at")
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return intOf(found[i], "seq") > intOf(found[j], "seq")
+	})
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		p := project(d, "session_id", "seq", "created_at")
+		if ts, ok := d.Line()["timestamp"]; ok {
+			p["line"] = session.Doc{"timestamp": ts}
+		}
+		p["enrichments"] = session.Doc{"activity-kind": deepCopy(d.Map("enrichments")["activity-kind"])}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
 func setOf(values []string) map[string]bool {
 	out := map[string]bool{}
 	for _, v := range values {

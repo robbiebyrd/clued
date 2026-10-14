@@ -124,7 +124,7 @@ func (a *App) sessionCmd() *cobra.Command {
 		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
 		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
-		a.sessionSearchMemoryCmd(), a.sessionLimitsCmd(), a.sessionMemoryIngestCmd(),
+		a.sessionSearchMemoryCmd(), a.sessionLimitsCmd(), a.sessionActivitiesCmd(), a.sessionMemoryIngestCmd(),
 		a.sessionLoginCmd(), a.sessionLogoutCmd(), a.sessionConfigPullCmd(),
 	)
 	return c
@@ -264,6 +264,37 @@ func (a *App) sessionLimitsCmd() *cobra.Command {
 	f.StringVar(&args.ProjectPath, "project-path", "", "only sessions whose project path matches this regular expression")
 	f.StringVar(&args.Since, "since", "", "only samples after this RFC 3339 time, or within this duration back from now (e.g. 24h)")
 	f.IntVar(&args.Limit, "limit", 0, "maximum samples (default 20, at most 500)")
+	return c
+}
+
+// sessionActivitiesCmd is `session activities`: the timeline the
+// activity-kind enricher labelled, what the get_activities tool returns.
+func (a *App) sessionActivitiesCmd() *cobra.Command {
+	var args query.ActivitiesArgs
+	c := &cobra.Command{
+		Use:   "activities [--session id] [--git-origin re] [--project-path re] [--kind k]… [--since t] [--limit n]",
+		Short: "Show what the agent did (prompts, replies, thoughts, commands, edits, reads, tasks, commits), newest first, repeats collapsed",
+		Args:  cobra.NoArgs,
+	}
+	run := a.sessionAction(func(ctx context.Context, _ session.Store, svc *query.Service) (any, error) {
+		return svc.Activities(ctx, args)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if err := a.validated(
+			checkRegex("--git-origin", args.GitOrigin), checkRegex("--project-path", args.ProjectPath),
+			checkNotNegative("--limit", args.Limit),
+		); err != nil {
+			return err
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringVar(&args.SessionID, "session", "", "only this session")
+	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
+	f.StringVar(&args.ProjectPath, "project-path", "", "only sessions whose project path matches this regular expression")
+	f.StringArrayVar(&args.Kinds, "kind", nil, "only this activity kind (user, response, thinking, bash, commit, edit, read, task, tool, result, other); repeatable")
+	f.StringVar(&args.Since, "since", "", "only lines after this RFC 3339 time, or within this duration back from now (e.g. 24h)")
+	f.IntVar(&args.Limit, "limit", 0, "maximum lines read before repeats are collapsed (default 50, at most 500)")
 	return c
 }
 

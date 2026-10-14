@@ -7,7 +7,7 @@ status: pending
 priority: "3"
 effort: M
 created: "2026-10-14T04:28:51.552Z"
-updated: "2026-10-14T04:28:51.552Z"
+updated: "2026-10-14T04:31:49.403Z"
 tags:
   - sessions
   - digest
@@ -17,6 +17,9 @@ due_date: ""
 planned_start: ""
 planned_end: ""
 order: 0
+links:
+  stories:
+    - ["0034-8ni", "depends"]
 progress:
   "1":
     status: pending

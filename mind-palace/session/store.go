@@ -99,6 +99,19 @@ type LimitQuery struct {
 	Limit      int       `json:"limit"`
 }
 
+// ActivityQuery selects the transcript lines the activity-kind enricher has
+// labelled (enrichments.activity-kind), newest first. Kinds keeps only
+// those activity kinds (user, response, thinking, bash, commit, edit, read,
+// task, tool, result, other); empty Kinds and SessionIDs mean no filter and
+// a zero Since no lower bound on created_at.
+type ActivityQuery struct {
+	AccountID  string    `json:"-"`
+	SessionIDs []string  `json:"sessionIds"`
+	Kinds      []string  `json:"kinds"`
+	Since      time.Time `json:"since"`
+	Limit      int       `json:"limit"`
+}
+
 // LimitsEventName is the hook_event_name of a status-line sample (`mind-palace
 // hook status`): the context window's fill, the subscription's usage
 // windows, the model and the cost of the session at that moment, under
@@ -182,6 +195,10 @@ type Store interface {
 	// rate_limits, cost, sampled_at and created_at of the LimitsSampled
 	// events matching the query, newest first.
 	LimitSamples(ctx context.Context, q LimitQuery) ([]Doc, error)
+	// Activities projects session_id, seq, line.timestamp,
+	// enrichments.activity-kind and created_at of the lines ActivityQuery
+	// selects, newest first (created_at, then seq, descending).
+	Activities(ctx context.Context, q ActivityQuery) ([]Doc, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of

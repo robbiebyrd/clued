@@ -140,6 +140,10 @@ func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session
 	return s.docs(ctx, "POST", prefix+"/error-lines", q)
 }
 
+func (s *Store) Activities(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/activities", q)
+}
+
 func (s *Store) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]session.Doc, error) {
 	return s.docs(ctx, "POST", prefix+"/transcript-search", q)
 }

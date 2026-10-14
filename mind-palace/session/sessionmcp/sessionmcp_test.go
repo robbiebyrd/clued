@@ -274,6 +274,14 @@ const toolSchemas = `{
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
       "since":{"type":"string","description":"Only samples after this RFC 3339 time, or within this duration back from now (e.g. 24h)"},
       "limit":{"type":"number","description":"Max samples to return (default 20, max 500)"}}}},
+  "get_activities": {"description": "The timeline of what the agent did in previous sessions, newest first: each transcript line's activity (user, response, thinking, bash, commit, edit, read, task, tool, result or other) with a label (the tool's name) and a detail (the prompt or reply's start, the command, the file's base name, the search pattern, the sub-agent's description, the commit message's first line); consecutive repeats of one tool activity are one entry with a count. Built from the activity-kind enrichment.",
+    "inputSchema": {"type":"object","properties":{
+      "session_id":{"type":"string","description":"Restrict to one session"},
+      "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
+      "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
+      "kinds":{"type":"array","items":{"type":"string","enum":["user","response","thinking","bash","commit","edit","read","task","tool","result","other"]},"description":"Only these activity kinds"},
+      "since":{"type":"string","description":"Only lines after this RFC 3339 time, or within this duration back from now (e.g. 24h)"},
+      "limit":{"type":"number","description":"Max lines to read before collapsing repeats (default 50, max 500)"}}}},
   "read_transcript": {"description": "Read transcript lines of a session in order, paginated by offset/limit.",
     "inputSchema": {"type":"object","properties":{
       "session_id":{"type":"string"},
@@ -642,7 +650,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 13 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] || !names["pfx_get_limits"] {
+		if len(names) != 14 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] || !names["pfx_get_limits"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {

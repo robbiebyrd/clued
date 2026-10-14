@@ -58,6 +58,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
 		{"usage events filter by session, time and account, newest first", limitSamples},
+		{"activities select labelled lines by kind, session and time, newest first", activities},
 		{"full session joins sub-collections and strips redundant fields", fullSessionShape},
 		{"full session of a session with nothing else has empty arrays", fullSessionEmpty},
 		{"full session is not found for a missing or foreign session", fullSessionNotFound},
@@ -1153,6 +1154,52 @@ func errorLines(t *testing.T, s session.Store) {
 	eq(t, "session scoping", keys(session.ErrorQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 1}), []string{"s1/2/error_text"})
 	got := ok(s.ErrorLines(ctx, session.ErrorQuery{AccountID: "acc", Limit: 1}))[0]
 	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "line", "seq", "session_id"})
+}
+
+func activities(t *testing.T, s session.Store) {
+	label := func(sid string, seq int, acc, kind string, enrich bool) {
+		line := tl(sid, seq, "assistant", acc)
+		line.Line = map[string]any{"type": "assistant", "timestamp": fmt.Sprintf("2026-10-14T10:00:%02dZ", seq)}
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{line}))
+		if !enrich {
+			return
+		}
+		var id any
+		for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "activity-kind", 0)) {
+			if d["session_id"] == sid && num(d["seq"]) == seq {
+				id = d["_id"]
+			}
+		}
+		result := session.Doc{"kind": kind, "label": kind, "detail": "d-" + kind, "tool_name": "", "tool_use_id": ""}
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "activity-kind", result))
+		time.Sleep(5 * time.Millisecond) // created_at orders the lines
+	}
+	label("s1", 0, "acc", "user", true)
+	label("s1", 1, "acc", "bash", true)
+	label("s1", 2, "acc", "edit", false)
+	label("s2", 0, "acc", "response", true)
+	label("s3", 0, "other", "user", true)
+	keys := func(q session.ActivityQuery) []string {
+		var out []string
+		for _, d := range ok(s.Activities(ctx, q)) {
+			sid, _ := d.String("session_id")
+			kind, _ := d.Map("enrichments").Map("activity-kind").String("kind")
+			out = append(out, fmt.Sprintf("%s/%d/%s", sid, num(d["seq"]), kind))
+		}
+		return out
+	}
+	eq(t, "labelled lines only, newest first, own account", keys(session.ActivityQuery{AccountID: "acc", Limit: 10}),
+		[]string{"s2/0/response", "s1/1/bash", "s1/0/user"})
+	eq(t, "kinds", keys(session.ActivityQuery{AccountID: "acc", Kinds: []string{"user", "bash"}, Limit: 10}),
+		[]string{"s1/1/bash", "s1/0/user"})
+	eq(t, "session scoping and limit", keys(session.ActivityQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 1}), []string{"s1/1/bash"})
+	got := ok(s.Activities(ctx, session.ActivityQuery{AccountID: "acc", Limit: 1}))[0]
+	eq(t, "projection", sortedKeys(got), []string{"created_at", "enrichments", "line", "seq", "session_id"})
+	eq(t, "line keeps only its timestamp", sortedKeys(got.Map("line")), []string{"timestamp"})
+	eq(t, "timestamp", got.Map("line")["timestamp"], "2026-10-14T10:00:00Z")
+	eq(t, "detail", got.Map("enrichments").Map("activity-kind")["detail"], "d-response")
+	since := timeOf(t, got, "created_at")
+	eq(t, "since", keys(session.ActivityQuery{AccountID: "acc", Since: since, Limit: 10}), []string{"s2/0/response"})
 }
 
 func searchTranscripts(t *testing.T, s session.Store) {

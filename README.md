@@ -193,6 +193,7 @@ off.
 | `file-tracker` | `hook_events` | The file each file tool targets, its language and artifact kind (plan, spec, doc, test, config, code) |
 | `prompt-features` | `hook_events` | Word count, slash-command name and intent of a user prompt |
 | `tool-classifier` | `hook_events` | A category and read-only flag for each tool call |
+| `activity-kind` | `transcript_lines` | What the agent was doing: `user`, `response`, `thinking`, `bash`, `commit`, `edit`, `read`, `task`, `tool`, `result` or `other`, with a label (the tool's name) and a detail (the prompt or reply's start, the command, the file's base name, the pattern, the sub-agent's description, the commit message's first line); for `get_activities` |
 | `attachment-extractor` | `transcript_lines` | Path, language and size of an attached file |
 | `code-language-detector` | `transcript_lines` | Languages of fenced code blocks |
 | `error-flag` | `transcript_lines` | Lines that report an error (failed hook, failed tool, error text) |
@@ -219,6 +220,7 @@ off.
 | `search_commands` | Search the Bash commands run in previous sessions |
 | `search_memory` | Search the claude-remember summaries, handoffs and identity notes captured as `MemorySaved` events across every session and machine of the account: regex over the text, optional `kind`, `session_id`, `git_origin` or `project_path` scope |
 | `get_limits` | The context-window and usage-limit samples the status line captured (`LimitsSampled` events): used percentage and window size, the five-hour and seven-day limits with their reset times, model and cost, newest first; scoped by `session_id`, `git_origin`, `project_path` or `since` |
+| `get_activities` | The timeline of what the agent did, newest first: each line's activity kind, label and detail, consecutive repeats of one tool activity collapsed into an entry with a count; scoped by `session_id`, `git_origin`, `project_path`, `kinds` or `since`; built from the `activity-kind` enrichment |
 | `file_history` | Which sessions touched a file (regex over the path): per session the files, how often it read, edited or wrote them, the lines its edits added and removed, first and last touch; built from the `file-tracker` and `edit-diff-stats` enrichments |
 | `find_errors` | Transcript lines that reported an error (failed hook, failed tool result, error text), newest first, optionally of one type and scoped to a session, repository or project; built from the `error-flag` enrichment |
 | `search_transcripts` | Search what was said in previous sessions (prompts, replies, tool calls and results) by words, best match first, with a snippet of each line: any word matches, `"quoted phrases"` must appear, `-words` are excluded; optionally scoped to a session, repository or project. Built from the `search-text` enrichment and, in MongoDB, its text index |
@@ -241,6 +243,7 @@ prints JSON.
 | `session search <words…> [--session id] [--git-origin re] [--project re] [--limit n]` | Ranked search over the text of transcript lines (what `search_transcripts` does) |
 | `session usage [--by session\|model\|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]` | Token usage and estimated cost (what `usage` does) |
 | `session limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]` | The status line's context and usage-limit samples (what `get_limits` does) |
+| `session activities [--session id] [--git-origin re] [--project-path re] [--kind k]... [--since t] [--limit n]` | What the agent did, newest first, repeats collapsed (what `get_activities` does) |
 | `session search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]` | Search the memory records ingested from claude-remember |
 | `session memory-ingest [--dir d]... [--cwd c] [--session id] [--quiet]` | Post the new records of the working directory's claude-remember store(s) to the daemon (what the hooks run) |
 | `session context <session>` | Metadata, recent commands, first and last transcript lines |

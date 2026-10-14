@@ -443,12 +443,42 @@ read-only.
 | `search_transcripts` | `query` (required: words, any of which matches, `"quoted phrases"` that must appear, `-words` to exclude; matching ignores case), `session_id`, `git_origin` (regex), `project_path` (regex), `limit` (default 20, max 500) | transcript lines ranked by relevance (MongoDB text score; term frequency in the in-memory store), best first: `session_id`, `seq`, `score`, `snippet` (240 characters around the first matching word), `project_path`, `git_origin`, `created_at`. It searches the `search-text` enrichment, so a line is found once the enricher has run on it |
 | `usage` | `group_by` (`session`, the default, `model` or `day`), `session_id`, `git_origin` (regex), `project_path` (regex), `since` and `until` (inclusive UTC days, `YYYY-MM-DD`), `limit` (groups, default 50, max 500) | `{"group_by", "groups", "total", "unpriced_models"}`. Each group has `key` (the session id, model or day), `messages`, `input_tokens`, `cache_creation_input_tokens`, `cache_creation_1h_tokens`, `cache_read_input_tokens`, `output_tokens`, `peak_context_tokens` (the largest input context of one message), `cost_usd` and, unless grouped by model, `models` (the same counters per model). Every assistant message counts once (the lines of one message repeat its usage). `cost_usd` is an estimate at list prices (cache writes 1.25× the input price, 2× for the one-hour cache, cache reads 0.1×) from the built-in table and the config's `modelPrices`, rounded to 0.0001; it covers the priced models only and is `null` when none is priced; the others are listed in `unpriced_models`. Groups come costliest first, or in day order by day; `total` covers every group |
 | `get_limits` | `session_id`, `git_origin` (regex), `project_path` (regex), `since` (an RFC 3339 time, or a duration back from now such as `24h`), `limit` (default 20, max 500) | `LimitsSampled` samples newest first: `session_id`, `project_path`, `git_origin`, `cwd`, `model`, `version`, `context_window`, `rate_limits`, `cost`, `sampled_at`, `created_at` (section 5.1) |
+| `get_activities` | `session_id`, `git_origin` (regex), `project_path` (regex), `kinds` (list of `user`, `response`, `thinking`, `bash`, `commit`, `edit`, `read`, `task`, `tool`, `result`, `other`), `since` (an RFC 3339 time, or a duration back from now such as `24h`), `limit` (lines read, default 50, max 500) | the timeline, newest first: per line `session_id`, `seq`, `kind`, `label`, `detail`, `tool_name`, `tool_use_id`, `is_error`, `blocks` (the `activity-kind` enrichment, section 6.1.1), `count` (consecutive repeats of one `bash`, `commit`, `edit`, `read`, `task` or `tool` activity with the same label and detail in one session are one entry; `seq`, `tool_use_id` and `timestamp` are the newest's), `timestamp` (the line's own), `project_path`, `git_origin`, `created_at` |
 | `read_transcript` | `session_id` (required), `offset` (default 0), `limit` (default 200, max 500) | transcript lines in order |
 | `restore_session` | `session_id` (required), `project_path` (override), `projects_dir` (override) | rebuilds the JSONL, subagent files, tool-result blobs and file-history backups on the local disk |
 | `prime_context` | `cwd`, `no_store`, `no_docs`, `no_snapshot` | the plain-text report with the sections ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, MEMORY, BUILD |
 
 The clued server's `/mcp` endpoint offers the same tools minus
 `restore_session` and `prime_context`, which need the local disk.
+
+#### 6.1.1 The `activity-kind` enrichment
+
+The `activity-kind` enricher labels every transcript line with what the
+agent was doing, stored under `enrichments.activity-kind`:
+
+```json
+{"kind": "bash", "label": "Bash", "detail": "go test ./...", "tool_name": "Bash", "tool_use_id": "toolu_…", "is_error": false, "blocks": ["response"]}
+```
+
+| `kind` | When | `label` | `detail` (at most 300 characters, one line) |
+|---|---|---|---|
+| `user` | a user message whose content is text | `user` | the prompt |
+| `response` | an assistant text block | `response` | the text |
+| `thinking` | a thinking or redacted thinking block | `thinking` | the thought |
+| `bash` | a `Bash` tool call | `Bash` | the command, terminal escapes stripped |
+| `commit` | a `Bash` call whose command runs `git commit` | `Bash` | the first line of the `-m`/`--message` message (quoted, or a `$(cat <<'EOF' …)` here-document), else the commit stage of the command |
+| `edit` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | the tool | the file's base name |
+| `read` | `Read` | `Read` | the file's base name |
+| `read` | `Glob`, `Grep` | the tool | the pattern |
+| `task` | `Task`, `Agent` | the tool | the `description`, else the start of the `prompt` |
+| `tool` | any other tool call | the tool | the first of `url`, `query`, `pattern`, `description`, `skill`, `command`, `file_path`, `prompt` in the input |
+| `result` | a `tool_result` block | `result` | the start of the result's text; `is_error` is the block's |
+| `other` | everything else: system, summary, attachment, `last-prompt` and other sidecar lines, a message without content | the line's `type`, with `:subtype` or `:attachment type` when present | empty |
+
+`tool_name` and `tool_use_id` are set for a tool call, `tool_use_id` for a
+result. A message with several content blocks takes the kind of its first
+block; the kinds of the rest are listed in `blocks` (absent when there is
+only one). `is_error` and `blocks` are stored only when set.
 
 ### 6.2 `mind-palace`: the plan and story tools
 
@@ -656,6 +686,7 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 | `POST /error-lines` | `{"types", "sessionIds", "limit"}` | transcript lines with `enrichments.error-flag.is_error` |
 | `POST /usage-totals` | `{"groupBy", "sessionIds", "since", "until"}` | `[{"key", "model", "messages", "input_tokens", "cache_creation_input_tokens", "cache_creation_1h_tokens", "cache_read_input_tokens", "output_tokens", "peak_context_tokens"}]`, one per group and model, sorted by key and model; a `groupBy` other than `session`, `model`, `day` or empty is 400 |
 | `POST /limit-samples` | `{"sessionIds", "since" (RFC 3339, zero for none), "limit"}` | `LimitsSampled` events, newest first, projected to `session_id`, `cwd`, `model`, `version`, `context_window`, `rate_limits`, `cost`, `sampled_at`, `created_at` |
+| `POST /activities` | `{"sessionIds", "kinds", "since" (RFC 3339, zero for none), "limit"}` | transcript lines with an `enrichments.activity-kind`, of those kinds, newest first (`created_at`, then `seq`), projected to `session_id`, `seq`, `line.timestamp`, `enrichments.activity-kind`, `created_at` |
 | `POST /transcript-search` | `{"query", "sessionIds", "limit"}` | transcript lines whose `enrichments.search-text` matches, best first, with `score`; only `session_id`, `seq`, `score`, `created_at` and `enrichments.search-text` are returned |
 
 The query bodies use the camel-case keys above. The server decodes keys
@@ -893,6 +924,7 @@ find [--project-path re] [--git-origin re] [--query re] [--limit n]
 search-commands <pattern> [--session id] [--git-origin re] [--limit n]
 search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]
 limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]
+activities [--session id] [--git-origin re] [--project-path re] [--kind k]… [--since t] [--limit n]
 context <session>                         full <session>                         transcript <session> [--offset n] [--limit n]
 restore <session> [--project-path p] [--projects-dir d]                          backfill
 memory-ingest [--dir d]… [--cwd c] [--session id] [--quiet]
