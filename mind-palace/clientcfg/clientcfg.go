@@ -101,6 +101,13 @@ func RemoteStorageDef(sc session.Config, project string) (config.StorageDef, boo
 		remotestore.OptionToken:   sc.ServerToken,
 		remotestore.OptionProject: project,
 	}
+	if sc.ServerToken == "" && sc.ServerKey != "" {
+		delete(opts, remotestore.OptionToken)
+		opts[remotestore.OptionKey] = sc.ServerKey
+		if sc.TokenCache != "" {
+			opts[remotestore.OptionTokenCache] = sc.TokenCache
+		}
+	}
 	if sc.ServerCAFile != "" {
 		opts[remotestore.OptionCAFile] = sc.ServerCAFile
 	}
@@ -116,7 +123,7 @@ func Redact(def config.StorageDef) config.StorageDef {
 	out := def
 	out.Options = make(map[string]string, len(def.Options))
 	for k, v := range def.Options {
-		if k != remotestore.OptionToken {
+		if k != remotestore.OptionToken && k != remotestore.OptionKey {
 			out.Options[k] = v
 		}
 	}

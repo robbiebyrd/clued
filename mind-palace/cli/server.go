@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -64,20 +65,37 @@ func (a *App) serverTokenCmd() *cobra.Command {
 func (a *App) serverTokenCreateCmd() *cobra.Command {
 	var name, account string
 	var projects []string
+	var environment bool
+	var ttl time.Duration
 	cmd := &cobra.Command{
-		Use:   "create --name <name> [--project <slug>]... [--account <id>]",
-		Short: "Mint a token and print it once; the file keeps only its SHA-256",
+		Use:   "create --name <name> [--project <slug>]... [--account <id>] [--environment [--ttl 24h]]",
+		Short: "Mint a token (or an environment key) and print it once; the file keeps only its SHA-256",
 		Long: `Creates a token bound to an account and a list of projects and prints the
 raw token exactly once: it is not stored and cannot be shown again. The
 account defaults to a new random id; pass --account to let several machines
-share one. --project '*' grants every project.`,
+share one. --project '*' grants every project.
+
+--environment creates an environment key instead, for a Claude Code cloud
+environment (CLUED_SERVER_KEY): it authenticates nothing but
+POST /api/v1/token/exchange, which trades it for a token with the key's
+account and projects that lives --ttl (24h by default, 1h to 168h), one per
+container. Revoking the key revokes those tokens too.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if name == "" {
 				return a.fail(&service.Error{Kind: service.KindBadRequest, Message: "--name is required"})
 			}
 			tf := auth.OpenTokenFile(serverTokensPath(cmd))
-			raw, err := tf.Create(name, account, projects)
+			if ttl != 0 && !environment {
+				return a.fail(&service.Error{Kind: service.KindBadRequest, Message: "--ttl applies to --environment keys only"})
+			}
+			var raw string
+			var err error
+			if environment {
+				raw, err = tf.CreateEnvironmentKey(name, account, projects, ttl)
+			} else {
+				raw, err = tf.Create(name, account, projects)
+			}
 			if err != nil {
 				return a.fail(&service.Error{Kind: service.KindBadRequest, Message: err.Error(), Cause: err})
 			}
@@ -85,20 +103,26 @@ share one. --project '*' grants every project.`,
 			if err != nil {
 				return a.fail(err)
 			}
-			a.print(a.Stdout, map[string]any{"ok": true, "result": map[string]any{
+			result := map[string]any{
 				"name":       tok.Name,
 				"account_id": tok.AccountID,
 				"projects":   tok.Projects,
 				"created":    tok.Created,
 				"token":      raw,
 				"file":       tf.Path(),
-			}})
+			}
+			if environment {
+				result["kind"], result["token_ttl"] = tok.Kind, tok.TokenTTL
+			}
+			a.print(a.Stdout, map[string]any{"ok": true, "result": result})
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "token name (unique within the file)")
 	cmd.Flags().StringArrayVar(&projects, "project", nil, "project slug the token may use (repeatable; '*' for all)")
 	cmd.Flags().StringVar(&account, "account", "", "account id to bind (default: a new random id)")
+	cmd.Flags().BoolVar(&environment, "environment", false, "create an environment key, exchanged for short-lived tokens (CLUED_SERVER_KEY)")
+	cmd.Flags().DurationVar(&ttl, "ttl", 0, "lifetime of the tokens an environment key is exchanged for (default 24h)")
 	return cmd
 }
 

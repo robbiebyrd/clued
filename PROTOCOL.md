@@ -877,8 +877,9 @@ written atomically with mode 0600 and re-read when it changes):
 
 A matching token yields the principal (`name`, `account_id`, `projects`)
 the handlers read. `projects` lists the project slugs the token may use;
-`*` allows every project. Comparison is constant-time and a revoked token
-never matches.
+`*` allows every project. Comparison is constant-time; a revoked token, an
+expired one (`expires` passed) and an environment key (`"kind":
+"environment"`, section 7.11) never match.
 
 ```
 GET /health          → 200 {"ok": true, "service": "clued-server", "version": "<version>", "auth": "bearer"}
@@ -1168,6 +1169,46 @@ once per account, session, name, sequence and timestamp, so an exporter's
 retry stores nothing new; `DeleteSessions` and `DeleteAccount` remove the
 events with the rest, and `retentionDays` expires them by `created_at`.
 
+### 7.11 Environment keys and the token exchange
+
+An environment key is the credential of a Claude Code cloud environment
+(`CLUED_SERVER_KEY` in its settings): it authenticates no route but the
+exchange, which trades it for a token of the key's account and projects
+that expires, one per container. `server token create --environment --name
+<name> [--project <slug>]… [--ttl 24h]` mints one into the token file
+(`"kind": "environment"`, `"token_ttl": "24h"`; `--ttl` from `1h` to
+`168h`); its output adds `kind` and `token_ttl`. Clued Cloud mints them on
+its Linked clients page.
+
+```
+POST /api/v1/token/exchange
+Authorization: Bearer <environment key>
+{"client_name": "<host>", "client_info": {"source": "exchange", "host": "<host>"}}
+→ 200 {"ok": true, "result": {"token": "<raw>", "token_id": "<name>", "name": "<name>", "account_id": "…", "expires_at": "<RFC3339>"}}
+```
+
+The route needs no other authentication. A key that is unknown, revoked or
+not an environment key (a token sent as one) is 401 `unauthorized`; more
+than 60 exchanges of one key in an hour is 429 `rate_limited` with
+`Retry-After`; a body over 64 KiB is 413. A server whose `CluedOptions.Exchange`
+is nil (and an older server) answers 404. The clued server names the token
+`<key>@<client>-<4 hex>` (the client name reduced to letters, digits, `.`,
+`-` and `_`, at most 40) with `"parent": "<key>"` and `"expires"` set,
+and drops exchanged tokens that expired more than a day before the next
+exchange. Revoking the key (`server token revoke <key>`) revokes every token
+exchanged for it; `DELETE /api/v1/me/tokens/current` from a container
+revokes only its own.
+
+The client (`remote.Client`, configured with `serverKey` and no
+`serverToken`) exchanges on its first request and keeps the token in
+`<config dir>/server-token.json` (mode 0600: `server`, `key_hash`, the
+SHA-256 of the key, `token`, `token_id`, `expires_at`) under the lock file
+`server-token.json.lock`, so the processes of one session exchange once. A
+cached token is used while it belongs to the same server and key and has
+more than ten minutes left; a request refused with 401 is retried once
+with a fresh exchange. Plans and stories (`clientcfg`, the `clued` store
+driver's `key` and `tokenCache` options) use the same exchange.
+
 ## 8. The remote client
 
 `remote.Client` (`remote/client.go`) is what every remote adapter uses:
@@ -1271,7 +1312,7 @@ Server (`mind-palace server …`):
 
 ```
 run [--addr host:port] [--tls-cert file --tls-key file | --behind-proxy] [--tokens file] [--session-config file] [--store memory] [--version v]
-token create --name <name> [--project <slug>]… [--account <id>] [--tokens file]
+token create --name <name> [--project <slug>]… [--account <id>] [--environment [--ttl 24h]] [--tokens file]
 token list | token revoke <name> | token grant <name> --project <slug>…
 device list | device approve <code> [--name n] [--project slug]… | device deny <code>   (each takes --server, --token, --ca-file, --insecure; defaults from the clued config)
 init [--dir ~/.clued-server] [--runtime auto|compose|apple] [--proxy nginx|none] [--port 8443] [--host name]… [--name token] [--no-tls] [--force] [--new-ca] [--no-token] [--account id] [--image ref] [--nginx-image ref] [--mongo-image ref]
@@ -1407,6 +1448,7 @@ the environment:
 | `walPath` | `CLUED_WAL_PATH` | `<config dir>/events.wal` | the write-ahead log |
 | `serverUrl` | `CLUED_SERVER_URL` | | remote mode when set |
 | `serverToken` | `CLUED_SERVER_TOKEN` | | the bearer token |
+| `serverKey` | `CLUED_SERVER_KEY` | | an environment key: with no `serverToken`, the client exchanges it for a short-lived token (section 7.11), cached in `<config dir>/server-token.json` |
 | `serverCaFile` | `CLUED_SERVER_CA_FILE` | | extra CA certificate (PEM) |
 | `serverInsecure` | `CLUED_SERVER_INSECURE` | `false` | allow `http://` off loopback |
 | `primeOnStart` | `CLUED_PRIME_ON_START` | `true` | `hook prime` adds the prime report to every session start |

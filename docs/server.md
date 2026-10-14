@@ -676,15 +676,26 @@ is reclaimed when its session ends, so the plugin never runs local mode there:
 `session-start` starts no daemon, `event-relay` buffers nothing, and
 `check-setup` asks for Clued Cloud (`https://clued.cloud`) or a clued server
 until one is configured. `/clued-setup` offers only those two and links the
-environment rather than the container: the user creates a token (on the
-cloud's **Linked clients** page, `/links`, or with `server token create`) and
-adds `CLUED_SERVER_URL` and `CLUED_SERVER_TOKEN` (and `CLUED_SERVER_CA_FILE`
+environment rather than the container: the user creates an **environment
+key** (on the cloud's **Linked clients** page, `/links`, or with
+`mind-palace server token create --environment --name <name> --project '*'`)
+and adds `CLUED_SERVER_URL` and `CLUED_SERVER_KEY` (and `CLUED_SERVER_CA_FILE`
 for a private CA kept in the repository) as environment variables in the
 environment's settings. Every new container of that environment starts
 linked, with no config file and no browser approval; the environment's
-network access must allow the server's host. Revoking that token unlinks all
-of them; `session logout` in one container would do the same, so it is not
-the way to unlink there.
+network access must allow the server's host.
+
+The key is not a token: no route but `POST /api/v1/token/exchange` accepts
+it. Each container trades it at its first request for a token of its own,
+which expires after the key's lifetime (24 hours by default, `--ttl` from 1h
+to 168h), is cached in `~/.claude/plugins/data/clued/server-token.json` and
+is renewed ten minutes before it ends. The containers show up one by one in
+`server token list` (`parent` names the key) or on the Linked clients page;
+`server token revoke <key>` (or revoking the key there) cuts all of them off
+at their next request, while `session logout` in a container revokes only
+its own token. `CLUED_SERVER_TOKEN` with a plain token still works, for a
+server without the exchange; it covers every container and never expires.
+Section 7.11 of [`PROTOCOL.md`](../PROTOCOL.md) has the exchange's details.
 
 ## Cloud container walkthrough
 

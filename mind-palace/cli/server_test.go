@@ -195,3 +195,28 @@ func TestServerGroupHelp(t *testing.T) {
 		}
 	}
 }
+
+func TestServerTokenCreateEnvironmentKey(t *testing.T) {
+	t.Setenv("CLUED_SERVER_TOKENS", "")
+	path := filepath.Join(t.TempDir(), "tokens.json")
+	res := serverResult(t, runServer(t, "token", "create", "--tokens", path, "--name", "cloud-env", "--project", "*", "--environment", "--ttl", "8h"))
+	if res["kind"] != auth.KindEnvironment || res["token_ttl"] != "8h0m0s" || res["token"] == "" {
+		t.Fatalf("result = %v", res)
+	}
+	key, _ := res["token"].(string)
+	if _, ok := auth.OpenTokenFile(path).Lookup(key); ok {
+		t.Error("the environment key authenticates as a token")
+	}
+	list := serverList(t, runServer(t, "token", "list", "--tokens", path))
+	if len(list) != 1 || list[0]["kind"] != auth.KindEnvironment || list[0]["token_ttl"] != "8h0m0s" {
+		t.Errorf("list = %v", list)
+	}
+	for _, args := range [][]string{
+		{"--name", "plain", "--ttl", "8h"},
+		{"--name", "short", "--environment", "--ttl", "10m"},
+	} {
+		if r := runServer(t, append([]string{"token", "create", "--tokens", path}, args...)...); r.code != 2 {
+			t.Errorf("%v: %+v", args, r)
+		}
+	}
+}

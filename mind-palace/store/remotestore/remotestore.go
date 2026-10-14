@@ -49,6 +49,10 @@ const (
 	OptionProject  = "project"
 	OptionCAFile   = "caFile"
 	OptionInsecure = "insecure"
+	// OptionKey is an environment key, exchanged for a token when
+	// OptionToken is empty; OptionTokenCache is where that token is kept.
+	OptionKey        = "key"
+	OptionTokenCache = "tokenCache"
 )
 
 func init() {
@@ -69,10 +73,13 @@ type Store struct {
 // The server is not contacted until Init.
 func New(def config.StorageDef) (*Store, error) {
 	opt := func(name string) string { return strings.TrimSpace(def.Options[name]) }
-	for _, required := range []string{OptionURL, OptionToken, OptionProject} {
+	for _, required := range []string{OptionURL, OptionProject} {
 		if opt(required) == "" {
 			return nil, fmt.Errorf("remotestore: storage %q: option %q is required", def.Name, required)
 		}
+	}
+	if opt(OptionToken) == "" && opt(OptionKey) == "" {
+		return nil, fmt.Errorf("remotestore: storage %q: option %q (or %q) is required", def.Name, OptionToken, OptionKey)
 	}
 	insecure := false
 	if raw := opt(OptionInsecure); raw != "" {
@@ -85,6 +92,8 @@ func New(def config.StorageDef) (*Store, error) {
 	client, err := remote.New(session.Config{
 		ServerURL:      opt(OptionURL),
 		ServerToken:    opt(OptionToken),
+		ServerKey:      opt(OptionKey),
+		TokenCache:     opt(OptionTokenCache),
 		ServerCAFile:   opt(OptionCAFile),
 		ServerInsecure: insecure,
 	})

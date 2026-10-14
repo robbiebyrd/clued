@@ -110,6 +110,10 @@ type CluedOptions struct {
 	// PathDeviceDeny and PathMeCurrentToken behind it. Nil leaves those
 	// routes unserved (404), as with a token source that mints nothing.
 	Device *device.Flow
+	// Exchange, when set, serves PathTokenExchange without authentication:
+	// it trades an environment key for a short-lived token (the clued
+	// server's token file, or the cloud's accounts). Nil leaves it unserved.
+	Exchange auth.Exchanger
 	// ClientConfig, when set, serves PathMeConfig: the client settings a
 	// linked machine applies with `session config-pull` (config.json keys
 	// such as enabledEnrichers) and when they last changed.
@@ -220,6 +224,9 @@ func NewClued(opts CluedOptions) *Clued {
 		})
 	})
 	routes.public(mux)
+	if opts.Exchange != nil {
+		mux.Handle("POST "+PathTokenExchange, exchangeHandler(opts.Exchange))
+	}
 	mux.Handle("/", auth.Middleware(opts.Tokens)(notePrincipal(protected)))
 
 	c.Handler = requestLog(opts.Logger, mux)

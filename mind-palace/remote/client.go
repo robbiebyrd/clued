@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
@@ -90,6 +91,13 @@ type Client struct {
 	token   string
 	http    *http.Client
 
+	// key and cache are the environment key and the token cache file of an
+	// exchanging client (see exchange.go); mu guards token and expires.
+	key     string
+	cache   string
+	mu      sync.Mutex
+	expires time.Time
+
 	// Timeout bounds each Do call, in addition to the caller's context.
 	Timeout time.Duration
 }
@@ -117,12 +125,16 @@ func New(cfg session.Config) (*Client, error) {
 		}
 		transport.TLSClientConfig.RootCAs = pool
 	}
-	return &Client{
+	c := &Client{
 		baseURL: base,
 		token:   cfg.ServerToken,
 		http:    &http.Client{Transport: transport},
 		Timeout: DefaultTimeout,
-	}, nil
+	}
+	if cfg.ServerToken == "" && cfg.ServerKey != "" {
+		c.key, c.cache = cfg.ServerKey, cfg.TokenCache
+	}
+	return c, nil
 }
 
 // FromConfig returns the client for cfg when a server URL is configured and
@@ -148,8 +160,17 @@ func FromConfigE(cfg session.Config) (*Client, error) {
 // BaseURL is the server URL without a trailing slash.
 func (c *Client) BaseURL() string { return c.baseURL }
 
-// Token is the bearer token sent with every request.
-func (c *Client) Token() string { return c.token }
+// Token is the bearer token sent with every request; for a client that
+// exchanges an environment key it is the key until the first exchange,
+// which keeps it usable as an identity (a cache key) before any request.
+func (c *Client) Token() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.token == "" {
+		return c.key
+	}
+	return c.token
+}
 
 // checkURL validates the server URL against the scheme rule and returns it
 // without a trailing slash.
@@ -224,14 +245,41 @@ type envelopeError struct {
 // Errors: 401 wraps ErrUnauthorized, 403 ErrForbidden, 413 ErrTooLarge, an
 // envelope error of kind not_found wraps ErrNotFound, any other failure is a
 // *Error, and a transport failure wraps the *url.Error so errors.As works.
+//
+// A client built with an environment key and no token gets its bearer from
+// the server's token exchange (see exchange.go) and, when a request made
+// with an exchanged token is refused with 401, exchanges once more and
+// retries it once.
 func (c *Client) Do(ctx context.Context, method, path string, in, out any) error {
-	var body io.Reader
+	var payload []byte
 	if in != nil {
 		b, err := json.Marshal(in)
 		if err != nil {
 			return fmt.Errorf("remote: encoding %s %s body: %w", method, path, err)
 		}
-		body = bytes.NewReader(b)
+		payload = b
+	}
+	token, err := c.bearer(ctx)
+	if err != nil {
+		return err
+	}
+	err = c.send(ctx, method, path, payload, out, token)
+	if c.key != "" && errors.Is(err, ErrUnauthorized) {
+		token, rerr := c.renew(ctx, token)
+		if rerr != nil {
+			// The exchange says why (a revoked key, no exchange at all).
+			return rerr
+		}
+		err = c.send(ctx, method, path, payload, out, token)
+	}
+	return err
+}
+
+// send performs one request with token as the bearer ("" sends none).
+func (c *Client) send(ctx context.Context, method, path string, payload []byte, out any, token string) error {
+	var body io.Reader
+	if payload != nil {
+		body = bytes.NewReader(payload)
 	}
 	timeout := c.Timeout
 	if timeout <= 0 {
@@ -244,8 +292,8 @@ func (c *Client) Do(ctx context.Context, method, path string, in, out any) error
 	if err != nil {
 		return fmt.Errorf("remote: building %s %s: %w", method, path, err)
 	}
-	if c.token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.token)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	req.Header.Set("User-Agent", "clued/"+Version)
 	req.Header.Set("Accept", "application/json")
