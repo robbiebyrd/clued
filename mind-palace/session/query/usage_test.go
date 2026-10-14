@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"math"
 	"testing"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
@@ -154,5 +155,26 @@ func TestSessionContextCarriesTheSessionsUsage(t *testing.T) {
 	must(t, json.Unmarshal(b, &out))
 	if v, present := out["usage"]; !present || v != nil {
 		t.Errorf("usage of a session without usage = %v (present %v)", v, present)
+	}
+}
+
+func TestUsagePricesLongPromptsAtTheirOwnRate(t *testing.T) {
+	st := memsession.New()
+	seedSession(t, st, account, "s1", "/repo/a", "", t0)
+	short := assistant("m1", "claude-haiku-5-5", "2026-10-14T10:00:00Z", 1000, 1000)
+	long := assistant("m2", "claude-haiku-5-5", "2026-10-14T10:01:00Z", 200_000, 1000)
+	must(t, st.UpsertTranscriptLines(ctx, []session.TranscriptLine{
+		{SessionID: "s1", Seq: 0, AccountID: account, Line: short},
+		{SessionID: "s1", Seq: 1, AccountID: account, Line: long},
+	}))
+	must(t, enrich.Pass(ctx, st, []session.Enricher{enrichers.Usage}, slog.New(slog.NewTextHandler(io.Discard, nil))))
+	r := usage(t, &query.Service{Store: st, AccountID: account}, query.UsageArgs{})
+	if len(r.Groups) != 1 || len(r.Groups[0].Models) != 1 || r.Groups[0].Models[0].Messages != 2 {
+		t.Fatalf("groups = %+v", r.Groups)
+	}
+	// short: (1000 + 0.1×1000 read)×$0.10 + 1000×$0.50; long: (200000 + 1000 read at $0.05)… per million
+	want := (1000*0.10+1000*0.01+1000*0.50)/1e6 + (200_000*0.50+1000*0.05+1000*2.50)/1e6
+	if got := cost(r.Total.CostUSD); got != math.Round(want*1e4)/1e4 {
+		t.Errorf("cost = %v, want %v", got, want)
 	}
 }

@@ -547,7 +547,7 @@ var usageCounters = []string{"input_tokens", "cache_creation_input_tokens", "cac
 
 // UsageTotals groups the lines of each message (session and message id)
 // into one, keeping the largest value of each counter, then sums the
-// messages by group and model.
+// messages by group, model and (with LongPromptTokens) prompt length.
 func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
 	match := key("account_id", q.AccountID, "enrichments.usage.message_id", key("$type", "string"))
 	if len(q.SessionIDs) > 0 {
@@ -567,17 +567,21 @@ func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]sessio
 		"model", key("$max", "$enrichments.usage.model"),
 		"day", key("$min", "$enrichments.usage.day"),
 		"context_tokens", key("$max", "$enrichments.usage.context_tokens"))
-	perGroup := key("_id", key("k", "$_id.s", "model", "$model"),
+	long := any(false)
+	if q.LongPromptTokens > 0 {
+		long = key("$gt", bson.A{key("$ifNull", bson.A{"$context_tokens", 0}), q.LongPromptTokens})
+	}
+	perGroup := key("_id", key("k", "$_id.s", "model", "$model", "long", long),
 		"messages", key("$sum", 1),
 		"peak_context_tokens", key("$max", "$context_tokens"))
 	switch q.GroupBy {
 	case session.UsageByModel:
-		perGroup[0].Value = key("k", "$model", "model", "$model")
+		perGroup[0].Value = key("k", "$model", "model", "$model", "long", long)
 	case session.UsageByDay:
-		perGroup[0].Value = key("k", "$day", "model", "$model")
+		perGroup[0].Value = key("k", "$day", "model", "$model", "long", long)
 	}
 	out := key("_id", 0, "key", key("$ifNull", bson.A{"$_id.k", ""}), "model", key("$ifNull", bson.A{"$_id.model", ""}),
-		"messages", 1, "peak_context_tokens", key("$ifNull", bson.A{"$peak_context_tokens", 0}))
+		"messages", 1, "peak_context_tokens", key("$ifNull", bson.A{"$peak_context_tokens", 0}), "long_prompt", "$_id.long")
 	for _, c := range usageCounters {
 		perMessage = append(perMessage, bson.E{Key: c, Value: key("$max", "$enrichments.usage."+c)})
 		perGroup = append(perGroup, bson.E{Key: c, Value: key("$sum", "$"+c)})
@@ -588,7 +592,7 @@ func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]sessio
 		key("$group", perMessage),
 		key("$group", perGroup),
 		key("$project", out),
-		key("$sort", key("key", 1, "model", 1)),
+		key("$sort", key("key", 1, "model", 1, "long_prompt", 1)),
 	}
 	cur, err := s.coll(transcriptLines).Aggregate(ctx, pipeline)
 	if err != nil {
@@ -604,6 +608,7 @@ func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]sessio
 		CacheReadInputTokens     int64  `bson:"cache_read_input_tokens"`
 		OutputTokens             int64  `bson:"output_tokens"`
 		PeakContextTokens        int64  `bson:"peak_context_tokens"`
+		LongPrompt               bool   `bson:"long_prompt"`
 	}
 	if err := cur.All(ctx, &rows); err != nil {
 		return nil, err

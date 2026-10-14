@@ -220,7 +220,7 @@ off.
 | `file_history` | Which sessions touched a file (regex over the path): per session the files, how often it read, edited or wrote them, the lines its edits added and removed, first and last touch; built from the `file-tracker` and `edit-diff-stats` enrichments |
 | `find_errors` | Transcript lines that reported an error (failed hook, failed tool result, error text), newest first, optionally of one type and scoped to a session, repository or project; built from the `error-flag` enrichment |
 | `search_transcripts` | Search what was said in previous sessions (prompts, replies, tool calls and results) by words, best match first, with a snippet of each line: any word matches, `"quoted phrases"` must appear, `-words` are excluded; optionally scoped to a session, repository or project. Built from the `search-text` enrichment and, in MongoDB, its text index |
-| `usage` | Token usage and estimated cost (US dollars at list prices) by session, model or day, each message counted once, optionally scoped to a session, repository, project or range of days; built from the `usage` enrichment. Models the price table does not know have no cost until `modelPrices` names them |
+| `usage` | Token usage and estimated cost (US dollars at list prices) by session, model or day, each message counted once, optionally scoped to a session, repository, project or range of days; built from the `usage` enrichment. The built-in prices are the ones on Anthropic's pricing page (Claude 5.x, 4.x and Haiku 3.5, with each model's cache-read price and Claude Haiku 5.5's price for prompts over 100,000 tokens); other models have no cost until `modelPrices` names them |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
 | `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |
@@ -308,7 +308,7 @@ sessions and other machines can search it:
 | `serverToken` | | `CLUED_SERVER_TOKEN` | The bearer token the server minted; the file is written `0600` because of it |
 | `serverCaFile` | | `CLUED_SERVER_CA_FILE` | PEM bundle trusted in addition to the system roots (a private CA) |
 | `serverInsecure` | `false` | `CLUED_SERVER_INSECURE` | Allow a plain `http://` server URL off loopback; never set it outside a network you trust |
-| `modelPrices` | (none) | | Prices for the `usage` cost estimates by model id prefix, in US dollars per million tokens: `{"<model id prefix>": {"input": 3, "output": 15}}`. They come before the built-in table (Claude 3 and 4 models), so they also correct it |
+| `modelPrices` | (none) | | Prices for the `usage` cost estimates by model id prefix, in US dollars per million tokens: `{"<model id prefix>": {"input": 3, "output": 15}}`, optionally with `cacheRead` (default 0.1× `input`) and `longPrompt` (`{"input", "output", "cacheRead"}` for messages whose prompt is over 100,000 tokens). They come before the built-in table, so they also correct it |
 | `primeOnStart` | `true` | `CLUED_PRIME_ON_START` | Start every session (and every session after compaction) with the prime report as context; `false` leaves it to `/clued-prime` |
 
 A leading `~/` is expanded in every path. Unknown keys are ignored, so a

@@ -784,7 +784,8 @@ func storable(v any) any {
 }
 
 // UsageTotals keeps, per session and message id, the largest value of each
-// counter of the usage enrichment, then sums the messages by group and model.
+// counter of the usage enrichment, then sums the messages by group, model
+// and (with LongPromptTokens) prompt length.
 func (s *Store) UsageTotals(_ context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
 	inSessions := setOf(q.SessionIDs)
 	type message struct{ session, id string }
@@ -825,11 +826,14 @@ func (s *Store) UsageTotals(_ context.Context, q session.UsageQuery) ([]session.
 		t.PeakContextTokens = max(t.PeakContextTokens, numOf(u, "context_tokens"))
 	}
 	s.mu.Unlock()
-	type group struct{ key, model string }
+	type group struct {
+		key, model string
+		long       bool
+	}
 	groups := map[group]*session.UsageTotal{}
 	for _, k := range order {
 		e := messages[k]
-		g := group{k.session, e.model}
+		g := group{k.session, e.model, q.LongPromptTokens > 0 && e.total.PeakContextTokens > q.LongPromptTokens}
 		switch q.GroupBy {
 		case session.UsageByModel:
 			g.key = e.model
@@ -838,7 +842,7 @@ func (s *Store) UsageTotals(_ context.Context, q session.UsageQuery) ([]session.
 		}
 		t := groups[g]
 		if t == nil {
-			t = &session.UsageTotal{Key: g.key, Model: g.model}
+			t = &session.UsageTotal{Key: g.key, Model: g.model, LongPrompt: g.long}
 			groups[g] = t
 		}
 		e.total.Messages = 1

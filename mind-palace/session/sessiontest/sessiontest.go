@@ -1188,4 +1188,8 @@ func usageTotals(t *testing.T, s session.Store) {
 	eq(t, "session scoping", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", SessionIDs: []string{"s2"}})),
 		[]session.UsageTotal{s2Sonnet})
 	eq(t, "nothing matches", len(ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", Until: "2026-09-30"}))), 0)
+	long := keyed(s1Sonnet, sonnet)
+	long.LongPrompt = true
+	eq(t, "split by prompt length", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", GroupBy: session.UsageByModel, LongPromptTokens: 1000})),
+		[]session.UsageTotal{keyed(s1Haiku, haiku), keyed(s2Sonnet, sonnet), long})
 }
