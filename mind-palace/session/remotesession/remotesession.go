@@ -144,6 +144,17 @@ func (s *Store) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]s
 	return s.docs(ctx, "POST", prefix+"/transcript-search", q)
 }
 
+func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
+	var out []session.UsageTotal
+	if err := s.do(ctx, "POST", prefix+"/usage-totals", q, &out); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = []session.UsageTotal{}
+	}
+	return out, nil
+}
+
 // --- transcript, subagent lines and blobs ---
 
 // UpsertTranscriptLines sends the lines in batches of at most MaxLines, in

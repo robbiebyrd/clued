@@ -53,6 +53,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"file events select tracked and measured file events by path, newest first", fileEvents},
 		{"error lines select flagged lines by type and session, newest first", errorLines},
 		{"search transcripts ranks lines by their indexed words, scoped to the account", searchTranscripts},
+		{"usage totals count each message once, by session, model or day", usageTotals},
 		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
@@ -1129,4 +1130,62 @@ func searchTranscripts(t *testing.T, s session.Store) {
 		t.Errorf("score = %#v, want a positive float64", got["score"])
 	}
 	eq(t, "indexed text", got.Map("enrichments")["search-text"], "oauth tokens were rotated today for the whole team")
+}
+
+// usageResult has the shape of the usage enricher's result; a struct, as the
+// enricher stores it, so a store must keep it readable by field.
+type usageResult struct {
+	Model                    string `json:"model" bson:"model"`
+	MessageID                string `json:"message_id" bson:"message_id"`
+	Day                      string `json:"day" bson:"day"`
+	InputTokens              int64  `json:"input_tokens" bson:"input_tokens"`
+	CacheCreationInputTokens int64  `json:"cache_creation_input_tokens" bson:"cache_creation_input_tokens"`
+	CacheCreation1hTokens    int64  `json:"cache_creation_1h_tokens" bson:"cache_creation_1h_tokens"`
+	CacheReadInputTokens     int64  `json:"cache_read_input_tokens" bson:"cache_read_input_tokens"`
+	OutputTokens             int64  `json:"output_tokens" bson:"output_tokens"`
+	ContextTokens            int64  `json:"context_tokens" bson:"context_tokens"`
+}
+
+func usageTotals(t *testing.T, s session.Store) {
+	record := func(sid string, seq int, acc string, r usageResult) {
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, seq, "assistant", acc)}))
+		var id any
+		for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "usage", 0)) {
+			if d["session_id"] == sid && num(d["seq"]) == seq {
+				id = d["_id"]
+			}
+		}
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "usage", r))
+	}
+	const sonnet, haiku = "claude-sonnet-4-5", "claude-haiku-4-5"
+	first := usageResult{Model: sonnet, MessageID: "m1", Day: "2026-10-01", InputTokens: 10, CacheCreationInputTokens: 100,
+		CacheCreation1hTokens: 40, CacheReadInputTokens: 1000, OutputTokens: 5, ContextTokens: 1110}
+	record("s1", 0, "acc", first)
+	second := first // the next content block of the same message, with the final output count
+	second.OutputTokens = 50
+	record("s1", 1, "acc", second)
+	record("s1", 2, "acc", usageResult{Model: haiku, MessageID: "m2", Day: "2026-10-02", InputTokens: 1, OutputTokens: 2, ContextTokens: 1})
+	record("s2", 0, "acc", usageResult{Model: sonnet, MessageID: "m3", Day: "2026-10-02", InputTokens: 20, OutputTokens: 30, ContextTokens: 20})
+	record("s3", 0, "other", usageResult{Model: sonnet, MessageID: "m4", Day: "2026-10-02", InputTokens: 999, OutputTokens: 999})
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s2", 1, "user", "acc")})) // no usage
+
+	s1Sonnet := session.UsageTotal{Key: "s1", Model: sonnet, Messages: 1, InputTokens: 10, CacheCreationInputTokens: 100,
+		CacheCreation1hTokens: 40, CacheReadInputTokens: 1000, OutputTokens: 50, PeakContextTokens: 1110}
+	s1Haiku := session.UsageTotal{Key: "s1", Model: haiku, Messages: 1, InputTokens: 1, OutputTokens: 2, PeakContextTokens: 1}
+	s2Sonnet := session.UsageTotal{Key: "s2", Model: sonnet, Messages: 1, InputTokens: 20, OutputTokens: 30, PeakContextTokens: 20}
+	keyed := func(t session.UsageTotal, key string) session.UsageTotal { t.Key = key; return t }
+	bySonnet := keyed(s1Sonnet, sonnet)
+	bySonnet.Add(s2Sonnet)
+
+	eq(t, "by session, each message once, own account", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc"})),
+		[]session.UsageTotal{s1Haiku, s1Sonnet, s2Sonnet})
+	eq(t, "by model", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", GroupBy: session.UsageByModel})),
+		[]session.UsageTotal{keyed(s1Haiku, haiku), bySonnet})
+	eq(t, "by day", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", GroupBy: session.UsageByDay})),
+		[]session.UsageTotal{keyed(s1Sonnet, "2026-10-01"), keyed(s1Haiku, "2026-10-02"), keyed(s2Sonnet, "2026-10-02")})
+	eq(t, "since and until", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", GroupBy: session.UsageByModel, Since: "2026-10-02", Until: "2026-10-02"})),
+		[]session.UsageTotal{keyed(s1Haiku, haiku), keyed(s2Sonnet, sonnet)})
+	eq(t, "session scoping", ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", SessionIDs: []string{"s2"}})),
+		[]session.UsageTotal{s2Sonnet})
+	eq(t, "nothing matches", len(ok(s.UsageTotals(ctx, session.UsageQuery{AccountID: "acc", Until: "2026-09-30"}))), 0)
 }

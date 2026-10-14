@@ -322,7 +322,7 @@ func TestRootGainsOnlySessionGroup(t *testing.T) {
 	if !reflect.DeepEqual(groups["story"], wantStory) {
 		t.Errorf("story group = %v", groups["story"])
 	}
-	wantSession := []string{"backfill", "config-pull", "context", "daemon", "find", "full", "login", "logout", "mcp", "memory-ingest", "restore", "search", "search-commands", "search-memory", "transcript", "whoami"}
+	wantSession := []string{"backfill", "config-pull", "context", "daemon", "find", "full", "login", "logout", "mcp", "memory-ingest", "restore", "search", "search-commands", "search-memory", "transcript", "usage", "whoami"}
 	if !reflect.DeepEqual(groups["session"], wantSession) {
 		t.Errorf("session group = %v, want %v", groups["session"], wantSession)
 	}
@@ -506,9 +506,9 @@ func toolNames(t *testing.T, ctx context.Context, cs *mcp.ClientSession) []strin
 	return names
 }
 
-var sessionToolNames = []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "search_memory", "search_transcripts", "file_history", "find_errors", "read_transcript", "restore_session", "prime_context"}
+var sessionToolNames = []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "search_memory", "search_transcripts", "usage", "file_history", "find_errors", "read_transcript", "restore_session", "prime_context"}
 
-func TestSessionMCPListsTheElevenTools(t *testing.T) {
+func TestSessionMCPListsTheTwelveTools(t *testing.T) {
 	sessionEnv(t, seedSessions(t))
 	rc, cs, ctx := startStdioCommand(t, "session", "--config", filepath.Join(t.TempDir(), "none.json"), "mcp")
 

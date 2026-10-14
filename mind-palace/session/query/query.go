@@ -29,6 +29,9 @@ const (
 type Service struct {
 	Store     session.Store
 	AccountID string
+	// Prices are the model prices (by model id prefix) that override the
+	// built-in table for the usage estimates; nil keeps the table.
+	Prices map[string]session.ModelPrice
 }
 
 // FindSessionsArgs are the find_sessions tool parameters.
@@ -100,6 +103,9 @@ type Context struct {
 	FirstLines   []session.Doc `json:"first_lines"`
 	LastLines    []session.Doc `json:"last_lines"`
 	RecentMemory []MemoryHit   `json:"recent_memory"`
+	// Usage is the session's token usage and estimated cost (see Usage);
+	// null when no usage is recorded for it.
+	Usage *UsageGroup `json:"usage"`
 }
 
 // withDefault returns n, or def when n is not positive, never above maxLimit.
@@ -315,7 +321,15 @@ func (s *Service) SessionContext(ctx context.Context, sessionID string) (Context
 	if err != nil {
 		return Context{}, err
 	}
-	return Context{Session: sessionSummary(stored), TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent}, nil
+	usage, err := s.Usage(ctx, UsageArgs{SessionID: sessionID})
+	if err != nil {
+		return Context{}, err
+	}
+	c := Context{Session: sessionSummary(stored), TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent}
+	if len(usage.Groups) > 0 {
+		c.Usage = &usage.Groups[0]
+	}
+	return c, nil
 }
 
 // sessionSummary keeps the six fields the context reports; git_origin is

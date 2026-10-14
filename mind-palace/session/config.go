@@ -37,6 +37,11 @@ type Config struct {
 	// report to new, resumed, cleared and compacted sessions; unset means
 	// on. CLUED_PRIME_ON_START (a boolean) overrides it.
 	PrimeOnStart *bool `json:"primeOnStart,omitempty"`
+
+	// ModelPrices adds or overrides model prices (US dollars per million
+	// input and output tokens, by model id prefix) for the usage cost
+	// estimates; see DefaultModelPrices.
+	ModelPrices map[string]ModelPrice `json:"modelPrices,omitempty"`
 }
 
 // PrimesOnStart reports whether sessions start with the prime report.

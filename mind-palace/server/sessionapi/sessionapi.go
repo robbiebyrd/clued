@@ -28,6 +28,7 @@
 //	POST /file-events                    FileEvents             body: session.FileQuery
 //	POST /error-lines                    ErrorLines             body: session.ErrorQuery
 //	POST /transcript-search              SearchTranscripts      body: session.TextQuery
+//	POST /usage-totals                   UsageTotals            body: session.UsageQuery
 //	GET  /sessions/{id}/full             FullSession
 //
 // The query structs (SessionQuery, LineQuery, CommandQuery, MemoryQuery) use
@@ -129,6 +130,7 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/file-events", a.fileEvents)
 	route("POST", "/error-lines", a.errorLines)
 	route("POST", "/transcript-search", a.searchTranscripts)
+	route("POST", "/usage-totals", a.usageTotals)
 	mux.HandleFunc(Prefix+"/", func(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusNotFound, KindNotFound, fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))
 	})
@@ -504,6 +506,32 @@ func (a *api) searchTranscripts(w http.ResponseWriter, r *http.Request, account 
 		return
 	}
 	ok(w, docs(found))
+}
+
+func (a *api) usageTotals(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.UsageQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	if !session.ValidUsageGroup(q.GroupBy) {
+		invalid(w, fmt.Sprintf("groupBy %q is not session, model or day", q.GroupBy))
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	totals, err := a.store.UsageTotals(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	if totals == nil {
+		totals = []session.UsageTotal{}
+	}
+	ok(w, totals)
 }
 
 // --- transcript lines ---

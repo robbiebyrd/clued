@@ -158,6 +158,9 @@ type Store interface {
 	// SearchTranscripts projects session_id, seq, score (higher is better),
 	// enrichments.search-text and created_at of the lines TextQuery matches.
 	SearchTranscripts(ctx context.Context, q TextQuery) ([]Doc, error)
+	// UsageTotals sums enrichments.usage of the lines UsageQuery selects, each
+	// message once: one total per group and model, sorted by key and model.
+	UsageTotals(ctx context.Context, q UsageQuery) ([]UsageTotal, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of

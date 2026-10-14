@@ -2,11 +2,12 @@
 id: 0029-h4q
 title: Report token usage and estimated cost per session, model and day
 type: feat
-status: ready
+status: in_progress
 priority: "2"
 effort: M
 created: "2026-10-14T03:13:00.705Z"
-updated: "2026-10-14T03:13:00.705Z"
+updated: "2026-10-14T03:58:19.758Z"
+started: "2026-10-14T03:58:19.396Z"
 tags:
   - session
   - usage
@@ -24,11 +25,11 @@ links:
     - ["0007-w5t", "included"]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
 ---
 
 # Report token usage and estimated cost per session, model and day
@@ -53,8 +54,10 @@ MCP `usage`, `mind-palace session usage`, totals in `get_session_context`.
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/...
-- [ ] VERIFY: An assistant message split over several lines counts once
-- [ ] VERIFY: `usage` groups by session, model and day
+- [x] VERIFY: cd mind-palace && go test -race ./session/...
+- [x] VERIFY: An assistant message split over several lines counts once
+- [x] VERIFY: `usage` groups by session, model and day
 
 ## Work Log
+
+### 2026-10-14T03:58:19.758Z - Added the usage enricher (token counters, model, message id, UTC day per assistant line; synthetic lines skipped), UsageTotals on the session.Store port (Mongo two-stage $group, in-memory equivalent, POST /usage-totals, remote adapter, sessiontest case), the usage MCP tool, session usage and a usage block in get_session_context. Deviation: the cost is computed when queried, not stored by the enricher, so the config's new modelPrices key (and later price changes) apply to past sessions; models outside the built-in Claude 3/4 table report tokens without cost and are listed in unpriced_models. The enrichment loop covers backfilled lines too. Also fixed: the in-memory store kept enricher result structs as Go values, so file_history and find_errors found nothing under --store memory; it now keeps their JSON document, as MongoDB keeps their BSON. JSONTimes now promotes embedded struct fields as encoding/json does.

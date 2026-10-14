@@ -21,6 +21,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
+	"github.com/robbiebyrd/clued/mind-palace/session/enrichers"
 	"github.com/robbiebyrd/clued/mind-palace/session/sessionmcp"
 	"github.com/robbiebyrd/clued/mind-palace/session/sessiontest"
 )
@@ -243,6 +244,15 @@ const toolSchemas = `{
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
       "limit":{"type":"number","description":"Max lines to return (default 20, max 500)"}},"required":["query"]}},
+  "usage": {"description": "Token usage and estimated cost (US dollars, at list prices) of previous sessions, grouped by session, model or day, each assistant message counted once. Groups come costliest first (in day order by day) with a per-model breakdown; models without a known price have no cost and are listed in unpriced_models.",
+    "inputSchema": {"type":"object","properties":{
+      "group_by":{"type":"string","enum":["session","model","day"],"description":"How to group the totals (default session)"},
+      "session_id":{"type":"string","description":"Restrict to one session"},
+      "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
+      "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
+      "since":{"type":"string","description":"First day to count, YYYY-MM-DD (UTC)"},
+      "until":{"type":"string","description":"Last day to count, YYYY-MM-DD (UTC)"},
+      "limit":{"type":"number","description":"Max groups to return (default 50, max 500); the total covers every group"}}}},
   "file_history": {"description": "Which previous sessions touched a file: for each session (most recent first) the matching files, how often it read, edited or wrote them, the lines its edits added and removed, and when it first and last touched them. Built from the file-tracker and edit-diff-stats enrichments.",
     "inputSchema": {"type":"object","properties":{
       "path":{"type":"string","description":"Case-insensitive regex matched against the file path (e.g. \\bauth/session\\.go$)"},
@@ -275,7 +285,7 @@ const toolSchemas = `{
       "no_snapshot":{"type":"boolean","description":"Do not post the report to the daemon as a ContextCollected event"}}}}
 }`
 
-func TestToolListHasTheElevenToolsWithTheProtocolSchemas(t *testing.T) {
+func TestToolListHasTheTwelveToolsWithTheProtocolSchemas(t *testing.T) {
 	eachStore(t, func(t *testing.T) {
 		var want map[string]struct {
 			Description string `json:"description"`
@@ -625,7 +635,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 11 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
+		if len(names) != 12 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {
@@ -826,6 +836,41 @@ func TestSearchTranscripts(t *testing.T) {
 		}
 		if got := text(t, call(t, cs, "search_transcripts", obj{"query": "   "})); got != "[]" {
 			t.Errorf("blank query: %s", got)
+		}
+	})
+}
+
+func TestUsageTool(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		st := seeded(t)
+		ctx := context.Background()
+		for _, d := range must2(st.Unenriched(ctx, "transcript_lines", "usage", 0)) {
+			if d["session_id"] != "sess-3" {
+				continue
+			}
+			// Every line of sess-3 repeats one message, as the blocks of one reply do.
+			r := enrichers.UsageResult{Model: "claude-mine-1", MessageID: "msg-1", Day: "2026-10-03", InputTokens: 1000, OutputTokens: 100, ContextTokens: 1000}
+			must(t, st.SetEnrichment(ctx, "transcript_lines", d["_id"], "usage", r))
+		}
+		cfg := session.Config{ModelPrices: map[string]session.ModelPrice{"claude-mine": {Input: 1000, Output: 10000}}}
+		cs := connectClient(t, newTools(st, cfg).Server(), nil)
+		report := okJSON[obj](t, call(t, cs, "usage", obj{"group_by": "day"}))
+		groups, _ := report["groups"].([]any)
+		if len(groups) != 1 {
+			t.Fatalf("usage = %v", report)
+		}
+		g := groups[0].(obj)
+		// 1000 input at $1000 and 100 output at $10000 per million tokens.
+		if g["key"] != "2026-10-03" || g["messages"] != float64(1) || g["output_tokens"] != float64(100) || g["cost_usd"] != float64(2) {
+			t.Errorf("group = %v", g)
+		}
+		if got := okJSON[obj](t, call(t, cs, "usage", obj{"session_id": "sess-1"})); len(got["groups"].([]any)) != 0 {
+			t.Errorf("a session without usage = %v", got)
+		}
+		wantError(t, call(t, cs, "usage", obj{"group_by": "week"}), `group_by "week" is not session, model or day`)
+		ctxReport := okJSON[obj](t, call(t, cs, "get_session_context", obj{"session_id": "sess-3"}))
+		if u, _ := ctxReport["usage"].(obj); u == nil || u["output_tokens"] != float64(100) {
+			t.Errorf("get_session_context usage = %v", ctxReport["usage"])
 		}
 	})
 }

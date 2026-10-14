@@ -41,3 +41,25 @@ func TestJSONTimesFormatsEveryTimeWithThreeFractionalDigits(t *testing.T) {
 		t.Fatalf("got  %s\nwant %s", b, want)
 	}
 }
+
+func TestJSONTimesPromotesEmbeddedStructFields(t *testing.T) {
+	type inner struct {
+		A  int       `json:"a"`
+		B  string    `json:"b"`
+		At time.Time `json:"at"`
+	}
+	type outer struct {
+		B string `json:"b"`
+		inner
+		Named inner `json:"named"`
+	}
+	got := session.JSONTimes(outer{B: "outer", inner: inner{A: 1, B: "inner", At: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)}})
+	b, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"a":1,"at":"2026-01-02T03:04:05.000Z","b":"outer","named":{"a":0,"at":"0001-01-01T00:00:00.000Z","b":""}}`
+	if string(b) != want {
+		t.Errorf("JSONTimes = %s, want %s", b, want)
+	}
+}

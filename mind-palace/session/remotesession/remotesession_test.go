@@ -255,6 +255,10 @@ func (h *harness) SearchTranscripts(ctx context.Context, q session.TextQuery) ([
 	return h.as(q.AccountID).SearchTranscripts(ctx, q)
 }
 
+func (h *harness) UsageTotals(ctx context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
+	return h.as(q.AccountID).UsageTotals(ctx, q)
+}
+
 func (h *harness) FullSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
 	return h.as(accountID).FullSession(ctx, accountID, sessionID)
 }

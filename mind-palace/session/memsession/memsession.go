@@ -5,6 +5,7 @@ package memsession
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -209,6 +210,21 @@ func timeOf(d session.Doc, key string) time.Time {
 func intOf(d session.Doc, key string) int {
 	n, _ := d[key].(int)
 	return n
+}
+
+// numOf reads a number of any type a stored or decoded document holds.
+func numOf(d session.Doc, key string) int64 {
+	switch n := d[key].(type) {
+	case int:
+		return int64(n)
+	case int32:
+		return int64(n)
+	case int64:
+		return n
+	case float64:
+		return int64(n)
+	}
+	return 0
 }
 
 func strOf(d session.Doc, key string) string {
@@ -740,8 +756,100 @@ func (s *Store) setEnrichmentField(collection string, id any, field string, valu
 		e = session.Doc{}
 		d["enrichments"] = e
 	}
-	e[field] = deepCopy(value)
+	e[field] = storable(value)
 	return nil
+}
+
+// storable is how the store keeps an enrichment result: documents and plain
+// values as they are, anything else (an enricher's result struct) as the
+// document its JSON encodes, the way MongoDB keeps the BSON of the struct,
+// so reads find the same fields in both stores.
+func storable(v any) any {
+	switch v.(type) {
+	case nil, bool, string, int, int32, int64, float64, time.Time, session.Doc, map[string]any, []any:
+		return deepCopy(v)
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return deepCopy(v)
+	}
+	var out any
+	if err := json.Unmarshal(b, &out); err != nil {
+		return deepCopy(v)
+	}
+	if m, ok := out.(map[string]any); ok {
+		return session.Doc(m)
+	}
+	return out
+}
+
+// UsageTotals keeps, per session and message id, the largest value of each
+// counter of the usage enrichment, then sums the messages by group and model.
+func (s *Store) UsageTotals(_ context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
+	inSessions := setOf(q.SessionIDs)
+	type message struct{ session, id string }
+	type entry struct {
+		total      session.UsageTotal
+		day, model string
+	}
+	messages := map[message]*entry{}
+	order := []message{}
+	s.mu.Lock()
+	for _, d := range s.cols[transcriptLines] {
+		u := d.Map("enrichments").Map("usage")
+		id, _ := u.String("message_id")
+		if u == nil || id == "" || !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			continue
+		}
+		day, _ := u.String("day")
+		if (q.Since != "" && day < q.Since) || (q.Until != "" && day > q.Until) {
+			continue
+		}
+		k := message{strOf(d, "session_id"), id}
+		e := messages[k]
+		if e == nil {
+			e = &entry{day: day}
+			messages[k] = e
+			order = append(order, k)
+		}
+		if model, _ := u.String("model"); model > e.model {
+			e.model = model
+		}
+		e.day = min(e.day, day)
+		t := &e.total
+		t.InputTokens = max(t.InputTokens, numOf(u, "input_tokens"))
+		t.CacheCreationInputTokens = max(t.CacheCreationInputTokens, numOf(u, "cache_creation_input_tokens"))
+		t.CacheCreation1hTokens = max(t.CacheCreation1hTokens, numOf(u, "cache_creation_1h_tokens"))
+		t.CacheReadInputTokens = max(t.CacheReadInputTokens, numOf(u, "cache_read_input_tokens"))
+		t.OutputTokens = max(t.OutputTokens, numOf(u, "output_tokens"))
+		t.PeakContextTokens = max(t.PeakContextTokens, numOf(u, "context_tokens"))
+	}
+	s.mu.Unlock()
+	type group struct{ key, model string }
+	groups := map[group]*session.UsageTotal{}
+	for _, k := range order {
+		e := messages[k]
+		g := group{k.session, e.model}
+		switch q.GroupBy {
+		case session.UsageByModel:
+			g.key = e.model
+		case session.UsageByDay:
+			g.key = e.day
+		}
+		t := groups[g]
+		if t == nil {
+			t = &session.UsageTotal{Key: g.key, Model: g.model}
+			groups[g] = t
+		}
+		e.total.Messages = 1
+		t.Add(e.total)
+	}
+	out := make([]session.UsageTotal, 0, len(groups))
+	for _, t := range groups {
+		out = append(out, *t)
+	}
+	session.SortUsage(out)
+	return out, nil
 }
 
 // SearchTranscripts scores lines the way a Mongo text index with no

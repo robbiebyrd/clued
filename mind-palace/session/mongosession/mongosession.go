@@ -90,6 +90,7 @@ var indexes = []index{
 	{blobs, key("account_id", 1, "session_id", 1, "blob_type", 1), false},
 	{hookEvents, key("account_id", 1, "enrichments.file-tracker.file_path", 1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.error-flag.is_error", 1, "created_at", -1), false},
+	{transcriptLines, key("account_id", 1, "enrichments.usage.day", 1), false},
 }
 
 // partialIndexes are unique indexes limited to the documents matching a
@@ -539,6 +540,79 @@ func (s *Store) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]s
 	score := key("$meta", "textScore")
 	projection := key("_id", 0, "session_id", 1, "seq", 1, "score", score, "enrichments.search-text", 1, "created_at", 1)
 	return s.find(ctx, transcriptLines, filter, projection, key("score", score, "created_at", -1), 0, q.Limit)
+}
+
+// usageCounters are the counters of the usage enrichment a total sums.
+var usageCounters = []string{"input_tokens", "cache_creation_input_tokens", "cache_creation_1h_tokens", "cache_read_input_tokens", "output_tokens"}
+
+// UsageTotals groups the lines of each message (session and message id)
+// into one, keeping the largest value of each counter, then sums the
+// messages by group and model.
+func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
+	match := key("account_id", q.AccountID, "enrichments.usage.message_id", key("$type", "string"))
+	if len(q.SessionIDs) > 0 {
+		match = append(match, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	if q.Since != "" || q.Until != "" {
+		day := bson.D{}
+		if q.Since != "" {
+			day = append(day, bson.E{Key: "$gte", Value: q.Since})
+		}
+		if q.Until != "" {
+			day = append(day, bson.E{Key: "$lte", Value: q.Until})
+		}
+		match = append(match, bson.E{Key: "enrichments.usage.day", Value: day})
+	}
+	perMessage := key("_id", key("s", "$session_id", "m", "$enrichments.usage.message_id"),
+		"model", key("$max", "$enrichments.usage.model"),
+		"day", key("$min", "$enrichments.usage.day"),
+		"context_tokens", key("$max", "$enrichments.usage.context_tokens"))
+	perGroup := key("_id", key("k", "$_id.s", "model", "$model"),
+		"messages", key("$sum", 1),
+		"peak_context_tokens", key("$max", "$context_tokens"))
+	switch q.GroupBy {
+	case session.UsageByModel:
+		perGroup[0].Value = key("k", "$model", "model", "$model")
+	case session.UsageByDay:
+		perGroup[0].Value = key("k", "$day", "model", "$model")
+	}
+	out := key("_id", 0, "key", key("$ifNull", bson.A{"$_id.k", ""}), "model", key("$ifNull", bson.A{"$_id.model", ""}),
+		"messages", 1, "peak_context_tokens", key("$ifNull", bson.A{"$peak_context_tokens", 0}))
+	for _, c := range usageCounters {
+		perMessage = append(perMessage, bson.E{Key: c, Value: key("$max", "$enrichments.usage."+c)})
+		perGroup = append(perGroup, bson.E{Key: c, Value: key("$sum", "$"+c)})
+		out = append(out, bson.E{Key: c, Value: 1})
+	}
+	pipeline := bson.A{
+		key("$match", match),
+		key("$group", perMessage),
+		key("$group", perGroup),
+		key("$project", out),
+		key("$sort", key("key", 1, "model", 1)),
+	}
+	cur, err := s.coll(transcriptLines).Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		Key                      string `bson:"key"`
+		Model                    string `bson:"model"`
+		Messages                 int64  `bson:"messages"`
+		InputTokens              int64  `bson:"input_tokens"`
+		CacheCreationInputTokens int64  `bson:"cache_creation_input_tokens"`
+		CacheCreation1hTokens    int64  `bson:"cache_creation_1h_tokens"`
+		CacheReadInputTokens     int64  `bson:"cache_read_input_tokens"`
+		OutputTokens             int64  `bson:"output_tokens"`
+		PeakContextTokens        int64  `bson:"peak_context_tokens"`
+	}
+	if err := cur.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	totals := make([]session.UsageTotal, len(rows))
+	for i, r := range rows {
+		totals[i] = session.UsageTotal(r)
+	}
+	return totals, nil
 }
 
 func (s *Store) ErrorLines(ctx context.Context, q session.ErrorQuery) ([]session.Doc, error) {
