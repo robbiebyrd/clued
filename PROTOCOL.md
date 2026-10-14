@@ -383,9 +383,9 @@ command prints `{"ok": true, "result": {"dirs": […], "scanned": n, "posted": n
 
 `mind-palace session mcp [--mcp-tool-prefix p]` serves an MCP server named
 `clued` (version `1.0.0`). Every tool returns JSON text; a failure is a tool
-error carrying the message. All tools except `restore_session` and
-`forget_session` are marked read-only; `forget_session` is marked
-destructive.
+error carrying the message. All tools except `restore_session`,
+`export_session` and `forget_session` are marked read-only;
+`forget_session` is marked destructive.
 
 **Token budgets.** Every tool but `restore_session` and `forget_session`
 takes `max_tokens`, the approximate size of its result in tokens, estimated
@@ -420,6 +420,7 @@ malformed one, is an error.
 | `read_transcript` | `session_id` (required), `offset` (default 0), `limit` (default 200, max 500), `max_tokens`, `cursor` (overrides `offset`) | transcript lines in order |
 | `get_lines` | `session_id` (required), `seqs` (required, 1 to 100 seq numbers), `max_tokens`, `cursor` | the whole transcript lines with those seqs, in seq order; a seq the transcript lacks is left out |
 | `restore_session` | `session_id` (required), `project_path` (override), `projects_dir` (override) | rebuilds the JSONL, subagent files, tool-result blobs and file-history backups on the local disk |
+| `export_session` | `session_id` (required), `format` (`md`, the default, `html` or `jsonl`), `out` (default `<clued data dir>/exports/<session_id>.<format>`) | `{"path", "format", "sessions", "redacted": true}`: the file written (mode `0600`; an existing file is an error), always redacted with the capture rules and `redactPatterns`; not offered by the server's `/mcp` |
 | `forget_session` | `session_id`, `session_ids`, `project_path` (regex), `before` (a day, `YYYY-MM-DD` UTC, or an RFC 3339 time); at least one, all must hold | `{"sessions": [ids], "documents": n}`: the sessions deleted from the store with their hook events, transcript and subagent lines and blobs; marked destructive, not offered by the server's `/mcp` |
 | `prime_context` | `cwd`, `no_store`, `no_docs`, `no_snapshot`, `max_tokens` | the plain-text report with the sections ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, MEMORY, BUILD |
 
@@ -871,11 +872,29 @@ search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-p
 search <words…> [--session id] [--git-origin re] [--project re] [--limit n]
 usage [--by session|model|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]
 forget [--session id]… [--project re] [--before day|time]
+export [--session id]… [--project re] [--since day|time] [--format md|html|jsonl|zip] [--out path] [--force] [--raw]
+import <file.jsonl|export.zip>
 context <session>                         full <session>                         transcript <session> [--offset n] [--limit n]
 restore <session> [--project-path p] [--projects-dir d]                          backfill
 memory-ingest [--dir d]… [--cwd c] [--session id] [--quiet]
 login --server URL [--name NAME] [--ca-file PEM] [--insecure] [--wait 15m]      logout [--keep-config]      config-pull [--quiet]
 ```
+
+`session export` writes one session as Markdown (`md`), a self-contained
+HTML page (`html`, inline CSS, no scripts) or Claude Code's JSONL (`jsonl`,
+one stored line per row as `restore` writes it), or any number of sessions
+as a `zip` holding, per session, `<id>/session.json` (format
+`clued-session/1`: the session record, its transcript and subagent lines,
+blobs with content and hook events), `<id>/<id>.jsonl` and `<id>/<id>.md`.
+It is redacted with the capture rules and `redactPatterns` unless `--raw`,
+written with mode `0600`, and never replaces a file unless `--force`; it
+prints `{"path", "format", "sessions", "redacted"}`. `session import` reads
+a JSONL transcript (the session id from the file name or the lines'
+`sessionId`, the project from their `cwd`) or such a zip into the store
+through the capture wrapper (so `redactAtCapture` and `excludePaths`
+apply); lines and blobs are upserted, hook events are inserted only for a
+session the store did not hold, and it prints `{"sessions", "lines",
+"subagent_lines", "blobs", "hook_events"}`.
 
 Server (`mind-palace server …`):
 

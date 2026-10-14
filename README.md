@@ -231,6 +231,7 @@ off.
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
 | `get_lines` | Whole transcript lines by their seq numbers: search first (`search_transcripts`, `find_errors`), then fetch only the lines needed |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
+| `export_session` | Write one session to a redacted Markdown, HTML or JSONL file and return its path; not offered by the server's `/mcp` |
 | `forget_session` | Delete captured sessions (by id, project path or last seen before a day) with everything stored for them; not offered by the server's `/mcp` |
 | `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |
 
@@ -252,6 +253,8 @@ prints JSON.
 | `session find [--project-path re] [--git-origin re] [--query re] [--limit n]` | Find sessions, newest first |
 | `session search-commands <pattern> [--session id] [--git-origin re] [--limit n]` | Search the Bash commands run in sessions |
 | `session search <words…> [--session id] [--git-origin re] [--project re] [--limit n]` | Ranked search over the text of transcript lines (what `search_transcripts` does) |
+| `session export [--session id]... [--project re] [--since day] [--format md\|html\|jsonl\|zip] [--out path] [--force] [--raw]` | Write sessions to Markdown, a self-contained HTML page, Claude Code's JSONL, or a zip of many (which `session import` reads back); redacted unless `--raw` |
+| `session import <file.jsonl\|export.zip>` | Read a JSONL transcript or a zip export back into the store |
 | `session forget [--session id]... [--project re] [--before day]` | Delete captured sessions from the store (local MongoDB or the server) with everything stored for them; at least one criterion |
 | `session usage [--by session\|model\|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]` | Token usage and estimated cost (what `usage` does) |
 | `session search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]` | Search the memory records ingested from claude-remember |

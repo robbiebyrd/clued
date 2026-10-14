@@ -213,6 +213,11 @@ func ids(list []obj) []string {
 }
 
 const toolSchemas = `{
+  "export_session": {"description": "Write one session to a file people read or share: Markdown (md), a self-contained HTML page (html) or Claude Code's JSONL (jsonl). Secrets are masked as capture-time redaction masks them. Returns the file's path; an existing file is never replaced.",
+    "inputSchema": {"type":"object","properties":{
+      "format":{"description":"File format (default md)","enum":["md","html","jsonl"],"type":"string"},
+      "out":{"description":"File to write (default \u003cclued data dir\u003e/exports/\u003csession_id\u003e.\u003cformat\u003e)","type":"string"},
+      "session_id":{"type":"string"}},"required":["session_id"]}},
   "file_history": {"description": "Which previous sessions touched a file: for each session (most recent first) the matching files, how often it read, edited or wrote them, the lines its edits added and removed, and when it first and last touched them. Built from the file-tracker and edit-diff-stats enrichments. The result is cut to about 4000 tokens (max_tokens): a cut result says \"truncated\": true (a list becomes {\"items\", \"truncated\", \"next\"}), and its next, passed as cursor, continues it.",
     "inputSchema": {"type":"object","properties":{
       "cursor":{"description":"The next value of a truncated result, to continue after it (the other arguments must stay the same)","type":"string"},
@@ -320,7 +325,7 @@ const toolSchemas = `{
       "until":{"description":"Last day to count, YYYY-MM-DD (UTC)","type":"string"}}}}
 }`
 
-func TestToolListHasTheFourteenToolsWithTheProtocolSchemas(t *testing.T) {
+func TestToolListHasTheFifteenToolsWithTheProtocolSchemas(t *testing.T) {
 	eachStore(t, func(t *testing.T) {
 		var want map[string]struct {
 			Description string `json:"description"`
@@ -348,7 +353,7 @@ func TestToolListHasTheFourteenToolsWithTheProtocolSchemas(t *testing.T) {
 			if !reflect.DeepEqual(got, w.InputSchema) {
 				t.Errorf("%s inputSchema = %s", tool.Name, raw)
 			}
-			readOnly := tool.Name != "restore_session" && tool.Name != "forget_session"
+			readOnly := tool.Name != "restore_session" && tool.Name != "forget_session" && tool.Name != "export_session"
 			if tool.Annotations == nil || tool.Annotations.ReadOnlyHint != readOnly {
 				t.Errorf("%s ReadOnlyHint want %v, annotations %+v", tool.Name, readOnly, tool.Annotations)
 			}
@@ -674,7 +679,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 14 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
+		if len(names) != 15 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {

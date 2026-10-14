@@ -3,6 +3,7 @@ package sessionmcp_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -223,5 +224,29 @@ func TestUsageAndFindSessionsHonourTheBudget(t *testing.T) {
 		if _, ok := report["total"]; !ok {
 			t.Errorf("usage lost its total: %v", report)
 		}
+	})
+}
+
+func TestExportSessionWritesARedactedFileOnce(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		st := storeUnderTest
+		seedSession(t, st, account, "exp", "/home/user/exp", "")
+		must(t, st.UpsertTranscriptLines(context.Background(), []session.TranscriptLine{{SessionID: "exp", Seq: 0, AccountID: account,
+			Line: map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": "key sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123"}}}}))
+		cs := connectClient(t, newTools(st, session.Config{}).Server(), nil)
+		out := t.TempDir() + "/exp.html"
+		res := okJSON[obj](t, call(t, cs, "export_session", obj{"session_id": "exp", "format": "html", "out": out}))
+		if res["path"] != out || res["redacted"] != true {
+			t.Errorf("export_session = %v", res)
+		}
+		raw, err := os.ReadFile(out)
+		must(t, err)
+		if strings.Contains(string(raw), "sk-ant-api03") || !strings.Contains(string(raw), "<!doctype html>") {
+			t.Errorf("the exported page is not a redacted HTML page")
+		}
+		if again := call(t, cs, "export_session", obj{"session_id": "exp", "format": "html", "out": out}); !again.IsError {
+			t.Error("export_session replaced an existing file")
+		}
+		wantError(t, call(t, cs, "export_session", obj{"session_id": "exp", "format": "zip"}), `format "zip" is not md, html or jsonl`)
 	})
 }

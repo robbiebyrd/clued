@@ -23,6 +23,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/backfill"
 	"github.com/robbiebyrd/clued/mind-palace/session/daemon"
+	"github.com/robbiebyrd/clued/mind-palace/session/export"
 	"github.com/robbiebyrd/clued/mind-palace/session/gitinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
@@ -141,7 +142,7 @@ func (a *App) sessionCmd() *cobra.Command {
 	}
 	c.PersistentFlags().StringVar(&a.sess.configPath, "config", session.DefaultConfigPath(), "clued config file")
 	c.AddCommand(
-		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionForgetCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
+		a.sessionFindCmd(), a.sessionSearchCommandsCmd(), a.sessionSearchCmd(), a.sessionUsageCmd(), a.sessionForgetCmd(), a.sessionExportCmd(), a.sessionImportCmd(), a.sessionContextCmd(), a.sessionFullCmd(),
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
 		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
 		a.sessionSearchMemoryCmd(), a.sessionMemoryIngestCmd(),
@@ -379,6 +380,72 @@ func (a *App) sessionSearchCommandsCmd() *cobra.Command {
 	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
 	f.IntVar(&args.Limit, "limit", 0, "maximum commands (default 20, at most 500)")
 	return c
+}
+
+func (a *App) sessionExportCmd() *cobra.Command {
+	var o export.Options
+	var since string
+	c := &cobra.Command{
+		Use:   "export [--session id]... [--project re] [--since day] [--format md|html|jsonl|zip] [--out path] [--force] [--raw]",
+		Short: "Write sessions to Markdown, HTML, Claude Code's JSONL or a zip",
+		Long: `Writes the account's sessions to a file: one session as Markdown (md), a
+self-contained HTML page (html) or Claude Code's JSONL (jsonl), or any
+number as a zip holding, per session, session.json (what session import
+reads back), the JSONL and the Markdown. Sessions are named by --session,
+else matched by --project and --since. The export is redacted with the
+capture rules and redactPatterns unless --raw. The file is written with
+mode 0600 and never replaces another unless --force.`,
+		Args: cobra.NoArgs,
+	}
+	run := a.sessionAction(func(ctx context.Context, store session.Store, svc *query.Service) (any, error) {
+		cfg := a.sessionConfig()
+		o.RedactPatterns, o.Prices = cfg.RedactPatterns, cfg.ModelPrices
+		return export.Run(ctx, store, svc.AccountID, o)
+	})
+	c.RunE = func(cmd *cobra.Command, positional []string) error {
+		if err := a.validated(checkRegex("--project", o.ProjectPathRe)); err != nil {
+			return err
+		}
+		if !export.ValidFormat(o.Format) {
+			return a.sessionBadRequest(fmt.Sprintf("--format %q is not md, html, jsonl or zip", o.Format))
+		}
+		if since != "" {
+			at, err := (query.ForgetArgs{Before: since}).BeforeTime()
+			if err != nil {
+				return a.sessionBadRequest("--since: " + err.Error())
+			}
+			o.Since = at
+		}
+		return run(cmd, positional)
+	}
+	f := c.Flags()
+	f.StringSliceVar(&o.SessionIDs, "session", nil, "export this session (repeatable)")
+	f.StringVar(&o.ProjectPathRe, "project", "", "export sessions whose project path matches this regular expression")
+	f.StringVar(&since, "since", "", "export sessions last seen on or after this day (YYYY-MM-DD, UTC) or RFC 3339 time")
+	f.StringVar(&o.Format, "format", export.Markdown, "md, html, jsonl or zip")
+	f.StringVar(&o.Out, "out", "", "file to write (default <session id>.<format>, or clued-sessions-<day>.zip)")
+	f.BoolVar(&o.Force, "force", false, "replace the file when it exists")
+	f.BoolVar(&o.Raw, "raw", false, "do not redact the export")
+	return c
+}
+
+func (a *App) sessionImportCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "import <file.jsonl|export.zip>",
+		Short: "Read a JSONL transcript or a zip export back into the store",
+		Long: `Reads a Claude Code JSONL transcript (the session id from the file name or
+its lines, the project from their cwd) or a zip written by session export
+into the store, under this machine's account. Lines and blobs are upserted,
+so importing twice changes nothing; hook events are imported only for a
+session the store did not hold. What is imported is redacted and excluded
+as capture is (redactAtCapture, excludePaths).`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return a.sessionAction(func(ctx context.Context, store session.Store, svc *query.Service) (any, error) {
+				return export.Import(ctx, store, svc.AccountID, args[0])
+			})(cmd, args)
+		},
+	}
 }
 
 func (a *App) sessionForgetCmd() *cobra.Command {

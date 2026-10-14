@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -25,6 +26,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/collect/sources/sessionsource"
 	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/session"
+	"github.com/robbiebyrd/clued/mind-palace/session/export"
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 	"github.com/robbiebyrd/clued/mind-palace/session/query"
@@ -41,10 +43,11 @@ const Instructions = `Session tools query and restore previously captured Claude
 // that need no local disk, as the clued server's HTTPS endpoint offers them.
 const RemoteInstructions = `Session tools query previously captured Claude Code sessions: find_sessions, get_session_context, get_full_session, search_commands, search_memory, search_transcripts, usage, file_history, find_errors and read_transcript. Every result is JSON text; a failure is reported as a tool error with its message.`
 
-// localTools are the tools Subset(true) leaves out: restore_session writes
-// the local filesystem, prime_context probes the local repository and
-// forget_session deletes, which a remote agent should not be offered.
-var localTools = map[string]bool{"restore_session": true, "prime_context": true, "forget_session": true}
+// localTools are the tools Subset(true) leaves out: restore_session and
+// export_session write the local filesystem, prime_context probes the
+// local repository and forget_session deletes, which a remote agent should
+// not be offered.
+var localTools = map[string]bool{"restore_session": true, "prime_context": true, "forget_session": true, "export_session": true}
 
 // Tools serves the session tools for one account over a lazily connected store.
 type Tools struct {
@@ -260,6 +263,12 @@ func (t *Tools) specs() []toolSpec {
 			handler:     t.restoreHandler(),
 		},
 		{
+			name:        "export_session",
+			description: "Write one session to a file people read or share: Markdown (md), a self-contained HTML page (html) or Claude Code's JSONL (jsonl). Secrets are masked as capture-time redaction masks them. Returns the file's path; an existing file is never replaced.",
+			schema:      `{"type":"object","properties":{"session_id":{"type":"string"},"format":{"type":"string","enum":["md","html","jsonl"],"description":"File format (default md)"},"out":{"type":"string","description":"File to write (default <clued data dir>/exports/<session_id>.<format>)"}},"required":["session_id"]}`,
+			handler:     t.exportHandler(),
+		},
+		{
 			name:        "forget_session",
 			description: "Delete previously captured sessions from the store, with their transcript, subagent lines, blobs and hook events: by id, by project path, or last seen before a day. Criteria given together must all hold; at least one is required. Claude Code's own transcript files are not touched. This cannot be undone.",
 			schema:      `{"type":"object","properties":{"session_id":{"type":"string","description":"Forget this session"},"session_ids":{"type":"array","items":{"type":"string"},"description":"Forget these sessions"},"project_path":{"type":"string","description":"Forget sessions whose project path matches this regex"},"before":{"type":"string","description":"Forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time"}}}`,
@@ -421,6 +430,54 @@ func (t *Tools) restoreHandler() mcp.ToolHandler {
 			return failure(err), nil
 		}
 		res, err := restore.Session(ctx, store, t.account(ctx), args, t.cfg.FileHistoryDir)
+		if err != nil {
+			return failure(err), nil
+		}
+		return success(res)
+	}
+}
+
+type exportArgs struct {
+	SessionID string `json:"session_id"`
+	Format    string `json:"format"`
+	Out       string `json:"out"`
+}
+
+// exportHandler writes one session, always redacted: an agent is never
+// handed a raw copy to share.
+func (t *Tools) exportHandler() mcp.ToolHandler {
+	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		var args exportArgs
+		if len(req.Params.Arguments) > 0 {
+			if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+				return failure(err), nil
+			}
+		}
+		if args.Format == "" {
+			args.Format = export.Markdown
+		}
+		if args.Format == export.Zip || !export.ValidFormat(args.Format) {
+			return failure(fmt.Errorf("format %q is not md, html or jsonl", args.Format)), nil
+		}
+		if args.SessionID == "" || !filepath.IsLocal(args.SessionID) || strings.ContainsAny(args.SessionID, `/\`) {
+			return failure(fmt.Errorf("session_id %q is not a single path element", args.SessionID)), nil
+		}
+		out := args.Out
+		if out == "" {
+			dir := filepath.Join(filepath.Dir(session.DefaultConfigPath()), "exports")
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				return failure(err), nil
+			}
+			out = filepath.Join(dir, args.SessionID+"."+args.Format)
+		}
+		store, err := t.getStore(ctx)
+		if err != nil {
+			return failure(err), nil
+		}
+		res, err := export.Run(ctx, store, t.account(ctx), export.Options{
+			SessionIDs: []string{args.SessionID}, Format: args.Format, Out: out,
+			RedactPatterns: t.cfg.RedactPatterns, Prices: t.cfg.ModelPrices,
+		})
 		if err != nil {
 			return failure(err), nil
 		}
