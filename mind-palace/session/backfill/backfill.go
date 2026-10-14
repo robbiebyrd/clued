@@ -14,6 +14,7 @@ import (
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/modeltrack"
+	"github.com/robbiebyrd/clued/mind-palace/session/sidecar"
 )
 
 const concurrency = 5
@@ -142,6 +143,9 @@ func processSession(ctx context.Context, store session.Store, t transcript, acco
 		if _, err := modeltrack.Lines(ctx, store, accountID, batch, ""); err != nil {
 			return 0, err
 		}
+	}
+	if err := (&sidecar.Tracker{}).Lines(ctx, store, accountID, t.sessionID, batch); err != nil {
+		return 0, err
 	}
 	return len(batch), nil
 }

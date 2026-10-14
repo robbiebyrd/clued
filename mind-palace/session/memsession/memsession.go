@@ -333,6 +333,22 @@ func (s *Store) SetModel(_ context.Context, accountID, sessionID, model string, 
 	return previous, true, nil
 }
 
+func (s *Store) SetSessionMeta(_ context.Context, accountID, sessionID string, fields session.Doc) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d := s.ownedSession(accountID, sessionID)
+	if d == nil {
+		return session.ErrNotFound
+	}
+	for k, v := range fields {
+		d[k] = deepCopy(v)
+	}
+	return nil
+}
+
 func (s *Store) SetLiveState(_ context.Context, accountID, sessionID, state, reason string, at time.Time) (string, bool, error) {
 	if state == "" {
 		return "", false, nil
@@ -444,12 +460,19 @@ func (s *Store) FindSessions(_ context.Context, q session.SessionQuery) ([]sessi
 	if err != nil {
 		return nil, err
 	}
+	titleRe, err := compileRe(q.TitleRe)
+	if err != nil {
+		return nil, err
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	inStates := setOf(q.LiveStates)
 	found := s.filter(sessions, func(d session.Doc) bool {
 		if len(inStates) > 0 && !inStates[strOf(d, "live_state")] {
+			return false
+		}
+		if !matches(titleRe, d, "title") {
 			return false
 		}
 		lastSeen := timeOf(d, "last_seen")
@@ -467,7 +490,8 @@ func (s *Store) FindSessions(_ context.Context, q session.SessionQuery) ([]sessi
 	}
 	out := []session.Doc{}
 	for _, d := range page(found, 0, limit) {
-		out = append(out, project(d, "session_id", "project_path", "git_origin", "cwd", "model", "live_state", "live_state_at", "live_state_reason", "started_at", "last_seen"))
+		out = append(out, project(d, "session_id", "project_path", "git_origin", "cwd", "model", "live_state", "live_state_at", "live_state_reason",
+			"title", "title_kind", "slug", "permission_mode", "pr_link", "worktree", "entrypoint", "claude_version", "started_at", "last_seen"))
 	}
 	return out, nil
 }
@@ -711,8 +735,10 @@ func (s *Store) Activities(_ context.Context, q session.ActivityQuery) ([]sessio
 			p["line"] = session.Doc{"timestamp": ts}
 		}
 		p["enrichments"] = session.Doc{"activity-kind": deepCopy(d.Map("enrichments")["activity-kind"])}
-		if detail, ok := d.Map("enrichments")["tool-result-detail"]; ok {
-			p["enrichments"].(session.Doc)["tool-result-detail"] = deepCopy(detail)
+		for _, name := range []string{"tool-result-detail", "system-record"} {
+			if detail, ok := d.Map("enrichments")[name]; ok {
+				p["enrichments"].(session.Doc)[name] = deepCopy(detail)
+			}
 		}
 		out = append(out, p)
 	}

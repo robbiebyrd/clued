@@ -292,7 +292,7 @@ func (a *App) sessionActivitiesCmd() *cobra.Command {
 	f.StringVar(&args.SessionID, "session", "", "only this session")
 	f.StringVar(&args.GitOrigin, "git-origin", "", "only sessions whose git origin matches this regular expression")
 	f.StringVar(&args.ProjectPath, "project-path", "", "only sessions whose project path matches this regular expression")
-	f.StringArrayVar(&args.Kinds, "kind", nil, "only this activity kind (user, response, thinking, bash, commit, edit, read, task, tool, result, other, state); repeatable")
+	f.StringArrayVar(&args.Kinds, "kind", nil, "only this activity kind (user, response, thinking, bash, commit, edit, read, task, tool, result, compaction, api_error, turn, other, state); repeatable")
 	f.StringVar(&args.Since, "since", "", "only lines after this RFC 3339 time, or within this duration back from now (e.g. 24h)")
 	f.BoolVar(&args.IncludeRejected, "include-rejected", false, "keep the tool calls the harness refused to run, and their results")
 	f.IntVar(&args.Limit, "limit", 0, "maximum lines read before repeats are collapsed (default 50, at most 500)")
@@ -372,7 +372,7 @@ func (a *App) validated(checks ...error) error {
 func (a *App) sessionFindCmd() *cobra.Command {
 	var args query.FindSessionsArgs
 	c := &cobra.Command{
-		Use:   "find [--project-path re] [--git-origin re] [--query re] [--live-state s] [--hotness h] [--limit n]",
+		Use:   "find [--project-path re] [--git-origin re] [--query re] [--title re] [--live-state s] [--hotness h] [--limit n]",
 		Short: "Find sessions by project path, git origin, text, live state or hotness, newest first",
 		Args:  cobra.NoArgs,
 	}
@@ -382,7 +382,7 @@ func (a *App) sessionFindCmd() *cobra.Command {
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
 		if err := a.validated(
 			checkRegex("--project-path", args.ProjectPath), checkRegex("--git-origin", args.GitOrigin),
-			checkRegex("--query", args.Query), checkNotNegative("--limit", args.Limit),
+			checkRegex("--query", args.Query), checkRegex("--title", args.Title), checkNotNegative("--limit", args.Limit),
 		); err != nil {
 			return err
 		}
@@ -392,6 +392,7 @@ func (a *App) sessionFindCmd() *cobra.Command {
 	f.StringVar(&args.ProjectPath, "project-path", "", "regular expression matching the project path")
 	f.StringVar(&args.GitOrigin, "git-origin", "", "regular expression matching the git origin")
 	f.StringVar(&args.Query, "query", "", "regular expression matching the project path or working directory")
+	f.StringVar(&args.Title, "title", "", "regular expression matching the session's title")
 	f.StringVar(&args.LiveState, "live-state", "", "only sessions in this live state: working, waiting or ended")
 	f.StringVar(&args.Hotness, "hotness", "", "only sessions last active within this grade: hot (30 minutes), warm (an hour), cool (earlier today, UTC) or cold")
 	f.IntVar(&args.Limit, "limit", 0, "maximum sessions (default 10, at most 500)")

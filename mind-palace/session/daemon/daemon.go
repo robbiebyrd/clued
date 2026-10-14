@@ -22,6 +22,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/session/enrich"
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
 	"github.com/robbiebyrd/clued/mind-palace/session/modeltrack"
+	"github.com/robbiebyrd/clued/mind-palace/session/sidecar"
 	"github.com/robbiebyrd/clued/mind-palace/session/tail"
 )
 
@@ -230,6 +231,7 @@ func (d *Daemon) background(fn func()) {
 func (d *Daemon) tailTranscript(sessionID, path string) (stop func()) {
 	seq := 0
 	model := "" // the model the lines last named, so each change is recorded once
+	meta := &sidecar.Tracker{}
 	return tail.TailFile(path, func(raw string) {
 		var line any
 		if err := json.Unmarshal([]byte(raw), &line); err != nil {
@@ -248,6 +250,9 @@ func (d *Daemon) tailTranscript(sessionID, path string) (stop func()) {
 		}
 		if model, err = modeltrack.Lines(d.ctx, d.opts.Store, d.opts.AccountID, lines, model); err != nil && d.ctx.Err() == nil {
 			d.log.Error("record session model failed", "session_id", sessionID, "err", err)
+		}
+		if err := meta.Lines(d.ctx, d.opts.Store, d.opts.AccountID, sessionID, lines); err != nil && d.ctx.Err() == nil {
+			d.log.Error("record session metadata failed", "session_id", sessionID, "err", err)
 		}
 	}, d.opts.Tail)
 }

@@ -13,6 +13,7 @@
 //	POST /sessions/{id}/git              SetGitInfoIfMissing    body: {"origin", "branch"}
 //	POST /sessions/{id}/model            SetModel               body: {"model", "at"} → {"previous", "changed"}
 //	POST /sessions/{id}/state            SetLiveState           body: {"state", "reason", "at"} → {"previous", "changed"}
+//	POST /sessions/{id}/meta             SetSessionMeta         body: {"fields": {…}}
 //	GET  /sessions/{id}                  GetSession
 //	POST /sessions/find                  FindSessions           body: session.SessionQuery
 //	POST /hook-events                    InsertHookEvent        body: [session.Doc, …], in order
@@ -122,6 +123,7 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/sessions/{id}/git", a.setGitInfo)
 	route("POST", "/sessions/{id}/model", a.setModel)
 	route("POST", "/sessions/{id}/state", a.setLiveState)
+	route("POST", "/sessions/{id}/meta", a.setSessionMeta)
 	route("GET", "/sessions/{id}", a.getSession)
 	route("GET", "/sessions/{id}/full", a.fullSession)
 	route("POST", "/hook-events", a.insertHookEvents)
@@ -457,6 +459,32 @@ func (a *api) setLiveState(w http.ResponseWriter, r *http.Request, account strin
 	}
 	ok(w, map[string]any{"previous": previous, "changed": changed})
 }
+
+// setSessionMeta sets sidecar fields on a session the account owns.
+func (a *api) setSessionMeta(w http.ResponseWriter, r *http.Request, account string) {
+	id := r.PathValue("id")
+	var body struct {
+		Fields session.Doc `json:"fields"`
+	}
+	if !idOrInvalid(w, "session id", id) || !a.decode(w, r, &body) {
+		return
+	}
+	for k := range body.Fields {
+		if !sessionMetaFields[k] {
+			invalid(w, fmt.Sprintf("field %q is not session metadata", k))
+			return
+		}
+	}
+	if err := a.store.SetSessionMeta(writeCtx(r), account, id, body.Fields); err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, map[string]any{"session_id": id})
+}
+
+// sessionMetaFields are the session fields SetSessionMeta may set over
+// the transport.
+var sessionMetaFields = map[string]bool{"title": true, "title_kind": true, "slug": true, "permission_mode": true, "pr_link": true, "worktree": true, "entrypoint": true, "claude_version": true}
 
 func (a *api) stateChanges(w http.ResponseWriter, r *http.Request, account string) {
 	var q session.ActivityQuery

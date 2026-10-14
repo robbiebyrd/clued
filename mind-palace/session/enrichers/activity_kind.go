@@ -2,9 +2,11 @@ package enrichers
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 )
@@ -33,7 +35,12 @@ const (
 	ActivityTask     = "task"
 	ActivityTool     = "tool"
 	ActivityResult   = "result"
-	ActivityOther    = "other"
+	// The system records a timeline shows: a compaction of the context, an
+	// API error, the duration of a turn.
+	ActivityCompaction = "compaction"
+	ActivityAPIError   = "api_error"
+	ActivityTurn       = "turn"
+	ActivityOther      = "other"
 )
 
 // ActivityKindResult is what the activity-kind enricher stores. Kind is one
@@ -95,8 +102,29 @@ func classifyActivity(doc session.Doc) ActivityKindResult {
 }
 
 // otherActivity is the activity of a line that is neither a prompt nor a
-// message of the agent: its label is the line's type (or subtype).
+// message of the agent: a system record a timeline shows (a compaction, an
+// API error, a turn's duration) has a kind of its own; anything else is
+// "other" with the line's type (or subtype) as its label.
 func otherActivity(line session.Doc) ActivityKindResult {
+	if t, _ := line.String("type"); t == "system" {
+		r := readSystemRecord(line)
+		switch r.Subtype {
+		case "compact_boundary":
+			detail := r.Trigger
+			if r.PreTokens > 0 {
+				detail = strings.TrimSpace(fmt.Sprintf("%s %d tokens", r.Trigger, r.PreTokens))
+			}
+			return ActivityKindResult{Kind: ActivityCompaction, Label: ActivityCompaction, Detail: detail}
+		case "api_error":
+			detail := r.Message
+			if r.Status > 0 {
+				detail = strings.TrimSpace(fmt.Sprintf("%d %s", r.Status, r.Message))
+			}
+			return ActivityKindResult{Kind: ActivityAPIError, Label: ActivityAPIError, Detail: detail}
+		case "turn_duration":
+			return ActivityKindResult{Kind: ActivityTurn, Label: ActivityTurn, Detail: (time.Duration(r.DurationMs) * time.Millisecond).String()}
+		}
+	}
 	label, _ := line.String("type")
 	if sub, ok := line.String("subtype"); ok && sub != "" {
 		label += ":" + sub

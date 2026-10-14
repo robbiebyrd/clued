@@ -39,6 +39,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"get session is scoped to the account", getSessionScoping},
 		{"set model writes the model on a change and reports the previous one", setModel},
 		{"set live state writes the state on a change and reports the previous one", setLiveState},
+		{"set session meta sets the given fields and find sessions filters by title", setSessionMeta},
 		{"state changes select SessionStateChanged events by session and time, newest first", stateChanges},
 		{"find sessions filters by live state and last-seen bounds", findSessionsByStateAndTime},
 		{"last model before finds the newest assistant line's model under a seq or time", lastModelBefore},
@@ -385,6 +386,34 @@ func setModel(t *testing.T, s session.Store) {
 
 	found := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 5}))
 	eq(t, "find sessions projects the model", found[0]["model"], "claude-b")
+}
+
+func setSessionMeta(t *testing.T, s session.Store) {
+	seedSessions(t, s)
+	must(t, s.SetSessionMeta(ctx, "acc", "a", session.Doc{"title": "Fix the build", "title_kind": "ai", "entrypoint": "cli", "claude_version": "2.1.0"}))
+	must(t, s.SetSessionMeta(ctx, "acc", "a", session.Doc{"title": "Release work", "title_kind": "custom", "pr_link": "https://x/pull/1", "worktree": session.Doc{"path": "/w"}}))
+	must(t, s.SetSessionMeta(ctx, "acc", "b", session.Doc{"title": "Build the thing", "slug": "sunny", "permission_mode": "plan"}))
+	must(t, s.SetSessionMeta(ctx, "acc", "a", nil))
+	if err := s.SetSessionMeta(ctx, "other", "a", session.Doc{"title": "x"}); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("foreign account: err = %v, want ErrNotFound", err)
+	}
+	if err := s.SetSessionMeta(ctx, "acc", "missing", session.Doc{"title": "x"}); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("missing session: err = %v, want ErrNotFound", err)
+	}
+	a := ok(s.GetSession(ctx, "acc", "a"))
+	eq(t, "later fields replace earlier ones", []any{a["title"], a["title_kind"], a["entrypoint"], a["claude_version"], a["pr_link"]}, []any{"Release work", "custom", "cli", "2.1.0", "https://x/pull/1"})
+	eq(t, "nested field", a.Map("worktree")["path"], "/w")
+	eq(t, "other sessions untouched", ok(s.GetSession(ctx, "acc", "c"))["title"], nil)
+
+	found := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", TitleRe: "build", Limit: 10}))
+	eq(t, "title filter is a case-insensitive regex", strs(found, "session_id"), []string{"b"})
+	eq(t, "projection", []any{found[0]["title"], found[0]["slug"], found[0]["permission_mode"]}, []any{"Build the thing", "sunny", "plan"})
+	all := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 10}))
+	eq(t, "no title filter", strs(all, "session_id"), []string{"b", "c", "a"})
+	eq(t, "pr_link projected", all[2]["pr_link"], "https://x/pull/1")
+	if _, err := s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", TitleRe: "(", Limit: 10}); err == nil {
+		t.Error("an invalid title regex must be an error")
+	}
 }
 
 func setLiveState(t *testing.T, s session.Store) {

@@ -104,6 +104,13 @@ func (s *Store) SetModel(ctx context.Context, _ string, sessionID, model string,
 	return out.Previous, out.Changed, nil
 }
 
+func (s *Store) SetSessionMeta(ctx context.Context, _ string, sessionID string, fields session.Doc) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	return s.do(ctx, "POST", sessionPath(sessionID, "/meta"), map[string]any{"fields": fields}, nil)
+}
+
 func (s *Store) SetLiveState(ctx context.Context, _ string, sessionID, state, reason string, at time.Time) (string, bool, error) {
 	if state == "" {
 		return "", false, nil

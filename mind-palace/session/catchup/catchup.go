@@ -15,6 +15,7 @@ import (
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/modeltrack"
+	"github.com/robbiebyrd/clued/mind-palace/session/sidecar"
 	"github.com/robbiebyrd/clued/mind-palace/session/tail"
 )
 
@@ -155,6 +156,11 @@ func pushTranscript(ctx context.Context, store session.Store, p Paths, transcrip
 		if st.Model, err = modeltrack.Lines(ctx, store, p.AccountID, batch, st.Model); err != nil {
 			return err
 		}
+		meta := &sidecar.Tracker{Known: st.Meta}
+		if err := meta.Lines(ctx, store, p.AccountID, p.SessionID, batch); err != nil {
+			return err
+		}
+		st.Meta = meta.Known
 	}
 	if end > st.Offset {
 		st.Offset = end // trailing blank lines

@@ -3,11 +3,13 @@ id: 0039-gk4
 title: 'Capture the transcript''s system and sidecar records: turn duration, API errors, compaction, titles, PR link, permission mode, entrypoint'
 purpose: The records Claude Code writes beside the messages (turn timings, API errors, compaction boundaries, the session's title, its pull request, its permission mode and how it was started) become session fields and events instead of unread lines.
 type: feat
-status: pending
+status: complete
 priority: "2"
 effort: S
 created: "2026-10-14T04:28:51.517Z"
-updated: "2026-10-14T04:28:51.517Z"
+updated: "2026-10-14T05:34:10.542Z"
+started: "2026-10-14T05:22:27.740Z"
+completed: "2026-10-14T05:34:10.542Z"
 tags:
   - sessions
   - transcript
@@ -19,11 +21,11 @@ planned_end: ""
 order: 0
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
 ---
 
 # Capture the transcript's system and sidecar records: turn duration, API errors, compaction, titles, PR link, permission mode, entrypoint
@@ -50,10 +52,10 @@ A `system-record` enricher on transcript lines stores the subtype and its payloa
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/... ./server/sessionapi/
-- [ ] A transcript with an ai-title, a pr-link, a permission-mode change, two turn_duration records and a compact_boundary yields a session with title, pr_link and permission_mode set, two timed turns and a compaction entry in the timeline
-- [ ] `find_sessions` returns `title`, `entrypoint` and `pr_link` and filters by title
-- [ ] PROTOCOL.md documents the session fields and the enrichment
+- [x] VERIFY: cd mind-palace && go test -race ./session/... ./server/sessionapi/
+- [x] A transcript with an ai-title, a pr-link, a permission-mode change, two turn_duration records and a compact_boundary yields a session with title, pr_link and permission_mode set, two timed turns and a compaction entry in the timeline
+- [x] `find_sessions` returns `title`, `entrypoint` and `pr_link` and filters by title
+- [x] PROTOCOL.md documents the session fields and the enrichment
 
 ## Files
 
@@ -64,3 +66,5 @@ A `system-record` enricher on transcript lines stores the subtype and its payloa
 - `PROTOCOL.md` - sections 4.3, 6.1 and 7.3
 
 ## Work Log
+
+### 2026-10-14T05:31:27.457Z - Added session/sidecar (Meta reads custom-title, ai-title, slug, permission-mode/mode, pr-link, worktree-state and the entrypoint and version of message lines; Tracker writes each change once and never lets a generated title replace a custom one), Store.SetSessionMeta (memory, Mongo, remote with POST /sessions/{id}/meta limited to the metadata fields, conformance case) with a titleRe filter on FindSessions and the fields projected, tracking in the daemon's tailer, the relay's catch-up (state keeps `meta`) and the backfill; the system-record enricher (turn_duration, api_error, compact_boundary, stop_hook_summary, away_summary); error-flag's api_error type (find_errors enum); activity kinds compaction, api_error and turn; get_session_context `turns` (count, total, mean, longest) from the turn records. `usage` does not report turns: its groups span sessions, models or days and the turn records are per session; get_session_context carries them. Docs in PROTOCOL.md 4.3, 4.7, 6.1, 6.1.1, 6.1.4, 7.3, 9 and README. gofmt, vet and `go test -race ./...` pass.

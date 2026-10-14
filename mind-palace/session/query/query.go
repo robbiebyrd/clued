@@ -54,6 +54,8 @@ type FindSessionsArgs struct {
 	ProjectPath string `json:"project_path,omitempty"`
 	GitOrigin   string `json:"git_origin,omitempty"`
 	Query       string `json:"query,omitempty"`
+	// Title keeps only sessions whose title matches this regex.
+	Title string `json:"title,omitempty"`
 	// LiveState keeps only sessions in that live state (working, waiting,
 	// ended); Hotness only those of that grade (hot, warm, cool, cold).
 	LiveState string `json:"live_state,omitempty"`
@@ -154,6 +156,18 @@ type Context struct {
 	// Usage is the session's token usage and estimated cost (see Usage);
 	// null when no usage is recorded for it.
 	Usage *UsageGroup `json:"usage"`
+	// Turns is the session's pace from its turn_duration records; null
+	// when none is recorded.
+	Turns *TurnStats `json:"turns"`
+}
+
+// TurnStats sums the turn_duration records of a session: how many turns,
+// their total and mean duration in milliseconds, and the longest.
+type TurnStats struct {
+	Turns     int   `json:"turns"`
+	TotalMs   int64 `json:"total_ms"`
+	MeanMs    int64 `json:"mean_ms"`
+	LongestMs int64 `json:"longest_ms"`
 }
 
 // withDefault returns n, or def when n is not positive, never above maxLimit.
@@ -173,6 +187,7 @@ func (s *Service) FindSessions(ctx context.Context, args FindSessionsArgs) ([]se
 		ProjectPathRe: args.ProjectPath,
 		GitOriginRe:   args.GitOrigin,
 		QueryRe:       args.Query,
+		TitleRe:       args.Title,
 		Limit:         withDefault(args.Limit, defaultSessionLimit),
 	}
 	if args.LiveState != "" {
@@ -513,13 +528,57 @@ func (s *Service) SessionContext(ctx context.Context, sessionID string) (Context
 	if err != nil {
 		return Context{}, err
 	}
+	turns, err := s.turnStats(ctx, sessionID)
+	if err != nil {
+		return Context{}, err
+	}
 	summary := sessionSummary(stored)
 	addHotness(summary, s.now())
-	c := Context{Session: summary, TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent}
+	c := Context{Session: summary, TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent, Turns: turns}
 	if len(usage.Groups) > 0 {
 		c.Usage = &usage.Groups[0]
 	}
 	return c, nil
+}
+
+// turnScan bounds the turn records summed for one session.
+const turnScan = maxLimit
+
+// turnStats sums the session's turn_duration records (the lines the
+// activity-kind enricher labelled "turn", with their system-record); nil
+// when there is none.
+func (s *Service) turnStats(ctx context.Context, sessionID string) (*TurnStats, error) {
+	lines, err := s.Store.Activities(ctx, session.ActivityQuery{AccountID: s.AccountID, SessionIDs: []string{sessionID}, Kinds: []string{"turn"}, Limit: turnScan})
+	if err != nil {
+		return nil, err
+	}
+	var st TurnStats
+	for _, l := range lines {
+		ms := toInt64(l.Map("enrichments").Map("system-record")["duration_ms"])
+		st.Turns++
+		st.TotalMs += ms
+		st.LongestMs = max(st.LongestMs, ms)
+	}
+	if st.Turns == 0 {
+		return nil, nil
+	}
+	st.MeanMs = st.TotalMs / int64(st.Turns)
+	return &st, nil
+}
+
+// toInt64 reads a stored number whatever its decoded type.
+func toInt64(v any) int64 {
+	switch n := v.(type) {
+	case int:
+		return int64(n)
+	case int32:
+		return int64(n)
+	case int64:
+		return n
+	case float64:
+		return int64(n)
+	}
+	return 0
 }
 
 // sessionSummary keeps the fields the context reports; git_origin is
@@ -528,7 +587,8 @@ func (s *Service) SessionContext(ctx context.Context, sessionID string) (Context
 // and live_state_reason once a state is.
 func sessionSummary(stored session.Doc) session.Doc {
 	out := session.Doc{"git_origin": nil}
-	for _, k := range []string{"session_id", "project_path", "git_origin", "cwd", "model", "model_changed_at", "live_state", "live_state_at", "live_state_reason", "started_at", "last_seen"} {
+	for _, k := range []string{"session_id", "project_path", "git_origin", "cwd", "model", "model_changed_at", "live_state", "live_state_at", "live_state_reason",
+		"title", "title_kind", "slug", "permission_mode", "pr_link", "worktree", "entrypoint", "claude_version", "started_at", "last_seen"} {
 		if v, ok := stored[k]; ok {
 			out[k] = v
 		}

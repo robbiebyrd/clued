@@ -375,6 +375,24 @@ func (s *Store) SetModel(ctx context.Context, accountID, sessionID, model string
 	return previous, true, nil
 }
 
+func (s *Store) SetSessionMeta(ctx context.Context, accountID, sessionID string, fields session.Doc) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	set := bson.D{}
+	for k, v := range fields {
+		set = append(set, bson.E{Key: k, Value: v})
+	}
+	res, err := s.coll(sessions).UpdateOne(ctx, key("session_id", sessionID, "account_id", accountID), key("$set", set))
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return session.ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) SetLiveState(ctx context.Context, accountID, sessionID, state, reason string, at time.Time) (string, bool, error) {
 	if state == "" {
 		return "", false, nil
@@ -490,7 +508,7 @@ func (s *Store) findOne(ctx context.Context, col string, filter bson.D) (session
 
 func (s *Store) FindSessions(ctx context.Context, q session.SessionQuery) ([]session.Doc, error) {
 	filter := key("account_id", q.AccountID)
-	for _, f := range []struct{ field, pattern string }{{"project_path", q.ProjectPathRe}, {"git_origin", q.GitOriginRe}} {
+	for _, f := range []struct{ field, pattern string }{{"project_path", q.ProjectPathRe}, {"git_origin", q.GitOriginRe}, {"title", q.TitleRe}} {
 		if f.pattern == "" {
 			continue
 		}
@@ -524,7 +542,8 @@ func (s *Store) FindSessions(ctx context.Context, q session.SessionQuery) ([]ses
 	if limit <= 0 || limit > maxSessions {
 		limit = maxSessions
 	}
-	projection := key("_id", 0, "session_id", 1, "project_path", 1, "git_origin", 1, "cwd", 1, "model", 1, "live_state", 1, "live_state_at", 1, "live_state_reason", 1, "started_at", 1, "last_seen", 1)
+	projection := key("_id", 0, "session_id", 1, "project_path", 1, "git_origin", 1, "cwd", 1, "model", 1, "live_state", 1, "live_state_at", 1, "live_state_reason", 1,
+		"title", 1, "title_kind", 1, "slug", 1, "permission_mode", 1, "pr_link", 1, "worktree", 1, "entrypoint", 1, "claude_version", 1, "started_at", 1, "last_seen", 1)
 	return s.find(ctx, sessions, filter, projection, key("last_seen", -1), 0, limit)
 }
 
@@ -747,7 +766,7 @@ func (s *Store) Activities(ctx context.Context, q session.ActivityQuery) ([]sess
 	if !q.Since.IsZero() {
 		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
 	}
-	projection := key("_id", 0, "session_id", 1, "seq", 1, "line.timestamp", 1, "enrichments.activity-kind", 1, "enrichments.tool-result-detail", 1, "created_at", 1)
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "line.timestamp", 1, "enrichments.activity-kind", 1, "enrichments.tool-result-detail", 1, "enrichments.system-record", 1, "created_at", 1)
 	return s.find(ctx, transcriptLines, filter, projection, key("created_at", -1, "seq", -1), 0, q.Limit)
 }
 

@@ -19,6 +19,8 @@ type SessionQuery struct {
 	ProjectPathRe string `json:"projectPathRe"`
 	GitOriginRe   string `json:"gitOriginRe"`
 	QueryRe       string `json:"queryRe"`
+	// TitleRe keeps only sessions whose title matches (case-insensitive).
+	TitleRe string `json:"titleRe,omitempty"`
 	// LiveStates keeps only sessions whose live_state is one of these
 	// (working, waiting, ended); empty means no filter.
 	LiveStates []string `json:"liveStates,omitempty"`
@@ -193,9 +195,17 @@ type Store interface {
 	// changed true; the same state writes nothing. An empty state is
 	// ignored; a session the account does not have is ErrNotFound.
 	SetLiveState(ctx context.Context, accountID, sessionID, state, reason string, at time.Time) (previous string, changed bool, err error)
+	// SetSessionMeta sets the given fields (the session metadata the
+	// transcript's sidecar records carry: title, title_kind, slug,
+	// permission_mode, pr_link, worktree, entrypoint, claude_version) on
+	// the session; empty fields write nothing; a session the account does
+	// not have is ErrNotFound.
+	SetSessionMeta(ctx context.Context, accountID, sessionID string, fields Doc) error
 	// FindSessions projects session_id, project_path, git_origin, cwd,
-	// model, live_state, live_state_at, live_state_reason, started_at and
-	// last_seen, sorted by last_seen descending.
+	// model, live_state, live_state_at, live_state_reason, title,
+	// title_kind, slug, permission_mode, pr_link, worktree, entrypoint,
+	// claude_version, started_at and last_seen, sorted by last_seen
+	// descending.
 	FindSessions(ctx context.Context, q SessionQuery) ([]Doc, error)
 	// InsertHookEvent stores one event as given. A MemorySaved event whose
 	// memory.hash the account already holds is dropped without error.
@@ -236,9 +246,10 @@ type Store interface {
 	// events matching the query, newest first.
 	LimitSamples(ctx context.Context, q LimitQuery) ([]Doc, error)
 	// Activities projects session_id, seq, line.timestamp,
-	// enrichments.activity-kind, enrichments.tool-result-detail (when
-	// present) and created_at of the lines ActivityQuery selects, newest
-	// first (created_at, then seq, descending).
+	// enrichments.activity-kind, enrichments.tool-result-detail and
+	// enrichments.system-record (when present) and created_at of the
+	// lines ActivityQuery selects, newest first (created_at, then seq,
+	// descending).
 	Activities(ctx context.Context, q ActivityQuery) ([]Doc, error)
 	// StateChanges projects session_id, from, to, reason, at and
 	// created_at of the SessionStateChanged events the query's SessionIDs,

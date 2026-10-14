@@ -8,7 +8,8 @@ import (
 )
 
 // ErrorFlagResult is the stored result of the error-flag enricher. ErrorType is
-// hook_error, tool_failure, error_text, or nil when the line is not an error.
+// hook_error, api_error (a system record of that subtype), tool_failure,
+// error_text, or nil when the line is not an error.
 // Rejected marks a tool result the harness wrote to refuse the call, which
 // then never ran, with Rejection saying why (permission_denied,
 // blocked_by_hook, input_validation, user_declined, symlink, other) and
@@ -40,6 +41,11 @@ var ErrorFlag = session.Enricher{
 		}
 		if attType, _ := doc.Attachment().String("type"); attType == "hook_error" {
 			return errorOfType("hook_error"), nil
+		}
+		if t, _ := doc.Line().String("type"); t == "system" {
+			if sub, _ := doc.Line().String("subtype"); sub == "api_error" {
+				return errorOfType("api_error"), nil
+			}
 		}
 
 		content := doc.Content()

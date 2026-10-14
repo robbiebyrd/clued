@@ -172,6 +172,10 @@ func (h *harness) SetModel(ctx context.Context, accountID, sessionID, model stri
 	return h.as(accountID).SetModel(ctx, accountID, sessionID, model, at)
 }
 
+func (h *harness) SetSessionMeta(ctx context.Context, accountID, sessionID string, fields session.Doc) error {
+	return h.as(accountID).SetSessionMeta(ctx, accountID, sessionID, fields)
+}
+
 func (h *harness) SetLiveState(ctx context.Context, accountID, sessionID, state, reason string, at time.Time) (string, bool, error) {
 	return h.as(accountID).SetLiveState(ctx, accountID, sessionID, state, reason, at)
 }

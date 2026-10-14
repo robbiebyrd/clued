@@ -213,15 +213,16 @@ func ids(list []obj) []string {
 }
 
 const toolSchemas = `{
-  "find_sessions": {"description": "Find previous Claude Code sessions, newest first. Filters match (case-insensitive regex) against project path, cwd, and git origin, or keep one live state (working: mid-turn; waiting: yielded to the user; ended) or hotness (hot: active in the last 30 minutes; warm: the last hour; cool: earlier today, UTC; cold: before that). Each session carries its model, live_state and hotness once known.",
+  "find_sessions": {"description": "Find previous Claude Code sessions, newest first. Filters match (case-insensitive regex) against project path, cwd, and git origin, or keep one live state (working: mid-turn; waiting: yielded to the user; ended) or hotness (hot: active in the last 30 minutes; warm: the last hour; cool: earlier today, UTC; cold: before that). Each session carries its model, live_state and hotness once known, and the title, slug, permission mode, pull request link, worktree, entrypoint and Claude Code version its transcript's records set.",
     "inputSchema": {"type":"object","properties":{
       "project_path":{"type":"string","description":"Regex matched against the session project path"},
       "git_origin":{"type":"string","description":"Regex matched against the git remote origin URL"},
       "query":{"type":"string","description":"Regex matched against project path or cwd"},
+      "title":{"type":"string","description":"Regex matched against the session's title (the custom or generated one)"},
       "live_state":{"type":"string","enum":["working","waiting","ended"],"description":"Only sessions in this live state"},
       "hotness":{"type":"string","enum":["hot","warm","cool","cold"],"description":"Only sessions last active within this grade"},
       "limit":{"type":"number","description":"Max sessions to return (default 10, max 500)"}}}},
-  "get_session_context": {"description": "Summarise one session: metadata, its most recent distinct Bash commands, and the first/last transcript lines.",
+  "get_session_context": {"description": "Summarise one session: metadata (with its model, live state, hotness, title, pull request link, permission mode and entrypoint once known), its most recent distinct Bash commands, the first/last transcript lines, its latest memory records, its usage and its turns (count, total, mean and longest duration).",
     "inputSchema": {"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"]}},
   "get_full_session": {"description": "Return the complete record for one session: metadata, all transcript lines, all subagent lines, blob metadata (content excluded), and all hook events.",
     "inputSchema": {"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"]}},
@@ -264,9 +265,9 @@ const toolSchemas = `{
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
       "include_rejected":{"type":"boolean","description":"Count the calls the harness refused to run (left out by default)"},
       "limit":{"type":"number","description":"Max sessions to return (default 10, max 500)"}},"required":["path"]}},
-  "find_errors": {"description": "Transcript lines that reported an error (a failed hook, a failed tool result, or error text), newest first, with the start of their text and their session. Built from the error-flag enrichment.",
+  "find_errors": {"description": "Transcript lines that reported an error (a failed hook, an API error record, a failed tool result, or error text), newest first, with the start of their text and their session. Built from the error-flag enrichment.",
     "inputSchema": {"type":"object","properties":{
-      "type":{"type":"string","enum":["hook_error","tool_failure","error_text"],"description":"Restrict to one kind of error"},
+      "type":{"type":"string","enum":["hook_error","api_error","tool_failure","error_text"],"description":"Restrict to one kind of error"},
       "session_id":{"type":"string","description":"Restrict to one session"},
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
@@ -278,12 +279,12 @@ const toolSchemas = `{
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
       "since":{"type":"string","description":"Only samples after this RFC 3339 time, or within this duration back from now (e.g. 24h)"},
       "limit":{"type":"number","description":"Max samples to return (default 20, max 500)"}}}},
-  "get_activities": {"description": "The timeline of what the agent did in previous sessions, newest first: each transcript line's activity (user, response, thinking, bash, commit, edit, read, task, tool, result or other) with a label (the tool's name) and a detail (the prompt or reply's start, the command, the file's base name, the search pattern, the sub-agent's description, the commit message's first line), and the session's state changes (kind state: the label is the state entered, working, waiting or ended, the detail the hook that set it); consecutive repeats of one tool activity are one entry with a count; a result entry carries the tool-result-detail (the edit's file, span and line counts, the command's exit code and interruption, the read's range, the sub-agent's description) and its summary as the detail. Built from the activity-kind and tool-result-detail enrichments and the SessionStateChanged events.",
+  "get_activities": {"description": "The timeline of what the agent did in previous sessions, newest first: each transcript line's activity (user, response, thinking, bash, commit, edit, read, task, tool, result, compaction, api_error, turn or other) with a label (the tool's name) and a detail (the prompt or reply's start, the command, the file's base name, the search pattern, the sub-agent's description, the commit message's first line), and the session's state changes (kind state: the label is the state entered, working, waiting or ended, the detail the hook that set it); consecutive repeats of one tool activity are one entry with a count; a result entry carries the tool-result-detail (the edit's file, span and line counts, the command's exit code and interruption, the read's range, the sub-agent's description) and its summary as the detail. Built from the activity-kind and tool-result-detail enrichments and the SessionStateChanged events.",
     "inputSchema": {"type":"object","properties":{
       "session_id":{"type":"string","description":"Restrict to one session"},
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
-      "kinds":{"type":"array","items":{"type":"string","enum":["user","response","thinking","bash","commit","edit","read","task","tool","result","other","state"]},"description":"Only these activity kinds"},
+      "kinds":{"type":"array","items":{"type":"string","enum":["user","response","thinking","bash","commit","edit","read","task","tool","result","compaction","api_error","turn","other","state"]},"description":"Only these activity kinds"},
       "since":{"type":"string","description":"Only lines after this RFC 3339 time, or within this duration back from now (e.g. 24h)"},
       "include_rejected":{"type":"boolean","description":"Keep the tool calls the harness refused to run, and their results (left out by default)"},
       "limit":{"type":"number","description":"Max lines to read before collapsing repeats (default 50, max 500)"}}}},

@@ -111,7 +111,7 @@ func TestActivityKindResultsAndOtherLines(t *testing.T) {
 		label string
 	}{
 		{"empty", session.Doc{}, "other"},
-		{"system", session.Doc{"line": map[string]any{"type": "system", "subtype": "compact_boundary"}}, "system:compact_boundary"},
+		{"system", session.Doc{"line": map[string]any{"type": "system", "subtype": "stop_hook_summary"}}, "system:stop_hook_summary"},
 		{"hook attachment", session.Doc{"line": map[string]any{"type": "attachment", "attachment": map[string]any{"type": "hook_success"}}}, "attachment:hook_success"},
 		{"last prompt", session.Doc{"line": map[string]any{"type": "last-prompt", "display": "x", "sessionId": "s"}}, "last-prompt"},
 		{"summary", session.Doc{"line": map[string]any{"type": "summary", "summary": "…"}}, "summary"},
@@ -137,4 +137,21 @@ func equalActivity(a, b ActivityKindResult) bool {
 		}
 	}
 	return a.Kind == b.Kind && a.Label == b.Label && a.Detail == b.Detail && a.ToolName == b.ToolName && a.ToolUseID == b.ToolUseID && a.IsError == b.IsError
+}
+
+func TestActivityKindSystemRecords(t *testing.T) {
+	cases := []struct {
+		name string
+		doc  session.Doc
+		want ActivityKindResult
+	}{
+		{"compaction", session.Doc{"line": map[string]any{"type": "system", "subtype": "compact_boundary", "compactMetadata": map[string]any{"trigger": "auto", "preTokens": 791988.0}}}, ActivityKindResult{Kind: "compaction", Label: "compaction", Detail: "auto 791988 tokens"}},
+		{"api error", session.Doc{"line": map[string]any{"type": "system", "subtype": "api_error", "error": map[string]any{"status": 529.0, "message": "Overloaded"}}}, ActivityKindResult{Kind: "api_error", Label: "api_error", Detail: "529 Overloaded"}},
+		{"turn", session.Doc{"line": map[string]any{"type": "system", "subtype": "turn_duration", "durationMs": 12345.0}}, ActivityKindResult{Kind: "turn", Label: "turn", Detail: "12.345s"}},
+	}
+	for _, c := range cases {
+		if got := activityOf(t, c.doc); !equalActivity(got, c.want) {
+			t.Errorf("%s: got %+v, want %+v", c.name, got, c.want)
+		}
+	}
 }
