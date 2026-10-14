@@ -172,6 +172,14 @@ func (h *harness) SetModel(ctx context.Context, accountID, sessionID, model stri
 	return h.as(accountID).SetModel(ctx, accountID, sessionID, model, at)
 }
 
+func (h *harness) SetLiveState(ctx context.Context, accountID, sessionID, state, reason string, at time.Time) (string, bool, error) {
+	return h.as(accountID).SetLiveState(ctx, accountID, sessionID, state, reason, at)
+}
+
+func (h *harness) StateChanges(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).StateChanges(ctx, q)
+}
+
 func (h *harness) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
 	return h.as("").LastModelBefore(ctx, sessionID, seq, at)
 }

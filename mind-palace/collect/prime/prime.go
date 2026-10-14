@@ -425,6 +425,12 @@ func SessionBody(snap *SessionSnapshot) string {
 	if snap.Model != "" {
 		lines = append(lines, "model: "+snap.Model)
 	}
+	if snap.LiveState != "" {
+		lines = append(lines, "state: "+snap.LiveState)
+	}
+	if snap.Hotness != "" {
+		lines = append(lines, "hotness: "+snap.Hotness)
+	}
 	if !snap.StartedAt.IsZero() {
 		lines = append(lines, "started: "+snap.StartedAt.UTC().Format(time.RFC3339))
 	}

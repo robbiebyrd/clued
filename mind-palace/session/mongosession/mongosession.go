@@ -375,6 +375,39 @@ func (s *Store) SetModel(ctx context.Context, accountID, sessionID, model string
 	return previous, true, nil
 }
 
+func (s *Store) SetLiveState(ctx context.Context, accountID, sessionID, state, reason string, at time.Time) (string, bool, error) {
+	if state == "" {
+		return "", false, nil
+	}
+	filter := key("session_id", sessionID, "account_id", accountID, "live_state", key("$ne", state))
+	update := key("$set", key("live_state", state, "live_state_at", at, "live_state_reason", reason))
+	var before bson.D
+	err := s.coll(sessions).FindOneAndUpdate(ctx, filter, update, options.FindOneAndUpdate().SetProjection(key("_id", 0, "live_state", 1))).Decode(&before)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		if _, gerr := s.GetSession(ctx, accountID, sessionID); gerr != nil {
+			return "", false, gerr
+		}
+		return state, false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	previous, _ := session.Doc(normalizeDoc(before)).String("live_state")
+	return previous, true, nil
+}
+
+func (s *Store) StateChanges(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	filter := key("hook_event_name", session.StateChangedEventName, "account_id", q.AccountID)
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	if !q.Since.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
+	}
+	projection := key("_id", 0, "session_id", 1, "from", 1, "to", 1, "reason", 1, "at", 1, "created_at", 1)
+	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
 func (s *Store) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
 	filter := key("session_id", sessionID, "line.type", "assistant",
 		"line.message.model", key("$exists", true, "$nin", bson.A{"", session.SyntheticModel}))
@@ -462,11 +495,24 @@ func (s *Store) FindSessions(ctx context.Context, q session.SessionQuery) ([]ses
 		}
 		filter = append(filter, bson.E{Key: "$or", Value: bson.A{key("project_path", re), key("cwd", re)}})
 	}
+	if len(q.LiveStates) > 0 {
+		filter = append(filter, bson.E{Key: "live_state", Value: key("$in", q.LiveStates)})
+	}
+	if !q.LastSeenFrom.IsZero() || !q.LastSeenBefore.IsZero() {
+		bounds := bson.D{}
+		if !q.LastSeenFrom.IsZero() {
+			bounds = append(bounds, bson.E{Key: "$gte", Value: q.LastSeenFrom})
+		}
+		if !q.LastSeenBefore.IsZero() {
+			bounds = append(bounds, bson.E{Key: "$lt", Value: q.LastSeenBefore})
+		}
+		filter = append(filter, bson.E{Key: "last_seen", Value: bounds})
+	}
 	limit := q.Limit
 	if limit <= 0 || limit > maxSessions {
 		limit = maxSessions
 	}
-	projection := key("_id", 0, "session_id", 1, "project_path", 1, "git_origin", 1, "cwd", 1, "model", 1, "started_at", 1, "last_seen", 1)
+	projection := key("_id", 0, "session_id", 1, "project_path", 1, "git_origin", 1, "cwd", 1, "model", 1, "live_state", 1, "live_state_at", 1, "live_state_reason", 1, "started_at", 1, "last_seen", 1)
 	return s.find(ctx, sessions, filter, projection, key("last_seen", -1), 0, limit)
 }
 
@@ -515,7 +561,7 @@ func (s *Store) LimitSamples(ctx context.Context, q session.LimitQuery) ([]sessi
 	if !q.Since.IsZero() {
 		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
 	}
-	projection := key("_id", 0, "session_id", 1, "cwd", 1, "model", 1, "version", 1, "context_window", 1, "rate_limits", 1, "cost", 1, "sampled_at", 1, "created_at", 1)
+	projection := key("_id", 0, "session_id", 1, "cwd", 1, "model", 1, "version", 1, "context_window", 1, "rate_limits", 1, "cost", 1, "live_state", 1, "sampled_at", 1, "created_at", 1)
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
 }
 

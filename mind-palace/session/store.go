@@ -19,7 +19,15 @@ type SessionQuery struct {
 	ProjectPathRe string `json:"projectPathRe"`
 	GitOriginRe   string `json:"gitOriginRe"`
 	QueryRe       string `json:"queryRe"`
-	Limit         int    `json:"limit"`
+	// LiveStates keeps only sessions whose live_state is one of these
+	// (working, waiting, ended); empty means no filter.
+	LiveStates []string `json:"liveStates,omitempty"`
+	// LastSeenFrom and LastSeenBefore bound last_seen (inclusive from,
+	// exclusive before); a zero time is no bound. The query service turns a
+	// hotness (hot, warm, cool, cold) into these.
+	LastSeenFrom   time.Time `json:"lastSeenFrom,omitempty"`
+	LastSeenBefore time.Time `json:"lastSeenBefore,omitempty"`
+	Limit          int       `json:"limit"`
 }
 
 // LineQuery selects transcript lines. An empty AccountID means no account filter.
@@ -125,6 +133,12 @@ const LimitsEventName = "LimitsSampled"
 // ("transcript" or "limits") and "at".
 const ModelChangedEventName = "ModelChanged"
 
+// StateChangedEventName is the hook_event_name of the event recorded when
+// a session's live state changes: "from" (the previous state, "" at
+// first), "to" (working, waiting or ended), "reason" (the hook event that
+// set it, such as "Stop" or "PreToolUse:AskUserQuestion") and "at".
+const StateChangedEventName = "SessionStateChanged"
+
 // MemoryEventName is the hook_event_name of an ingested memory record. Such
 // an event carries the record under "memory" with a "hash" that identifies
 // its text; a store keeps one event per account and hash.
@@ -172,8 +186,16 @@ type Store interface {
 	SetModel(ctx context.Context, accountID, sessionID, model string, at time.Time) (previous string, changed bool, err error)
 	// GetSession returns ErrNotFound when the session does not exist.
 	GetSession(ctx context.Context, accountID, sessionID string) (Doc, error)
+	// SetLiveState records the session's live state (working, waiting,
+	// ended) with the hook event that set it as the reason: when the
+	// stored state differs, it sets live_state, live_state_at (to at) and
+	// live_state_reason and reports the previous state ("" when none) with
+	// changed true; the same state writes nothing. An empty state is
+	// ignored; a session the account does not have is ErrNotFound.
+	SetLiveState(ctx context.Context, accountID, sessionID, state, reason string, at time.Time) (previous string, changed bool, err error)
 	// FindSessions projects session_id, project_path, git_origin, cwd,
-	// model, started_at and last_seen, sorted by last_seen descending.
+	// model, live_state, live_state_at, live_state_reason, started_at and
+	// last_seen, sorted by last_seen descending.
 	FindSessions(ctx context.Context, q SessionQuery) ([]Doc, error)
 	// InsertHookEvent stores one event as given. A MemorySaved event whose
 	// memory.hash the account already holds is dropped without error.
@@ -217,6 +239,10 @@ type Store interface {
 	// enrichments.activity-kind and created_at of the lines ActivityQuery
 	// selects, newest first (created_at, then seq, descending).
 	Activities(ctx context.Context, q ActivityQuery) ([]Doc, error)
+	// StateChanges projects session_id, from, to, reason, at and
+	// created_at of the SessionStateChanged events the query's SessionIDs,
+	// Since and Limit select (Kinds is ignored), newest first.
+	StateChanges(ctx context.Context, q ActivityQuery) ([]Doc, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of

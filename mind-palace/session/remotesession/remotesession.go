@@ -104,6 +104,24 @@ func (s *Store) SetModel(ctx context.Context, _ string, sessionID, model string,
 	return out.Previous, out.Changed, nil
 }
 
+func (s *Store) SetLiveState(ctx context.Context, _ string, sessionID, state, reason string, at time.Time) (string, bool, error) {
+	if state == "" {
+		return "", false, nil
+	}
+	var out struct {
+		Previous string `json:"previous"`
+		Changed  bool   `json:"changed"`
+	}
+	if err := s.do(ctx, "POST", sessionPath(sessionID, "/state"), map[string]any{"state": state, "reason": reason, "at": at}, &out); err != nil {
+		return "", false, err
+	}
+	return out.Previous, out.Changed, nil
+}
+
+func (s *Store) StateChanges(ctx context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/state-changes", q)
+}
+
 func (s *Store) LastModelBefore(ctx context.Context, sessionID string, seq int, at time.Time) (string, error) {
 	var model string
 	body := map[string]any{"session_id": sessionID, "seq": seq}
@@ -294,7 +312,7 @@ func (s *Store) strList(ctx context.Context, method, path string, in any) ([]str
 }
 
 // timeKeys are the document fields the stores hold as times.
-var timeKeys = []string{"created_at", "last_seen", "started_at", "model_changed_at", "at"}
+var timeKeys = []string{"created_at", "last_seen", "started_at", "model_changed_at", "live_state_at", "at"}
 
 // joinedLists are the sub-collections a full session carries.
 var joinedLists = []string{"transcript_lines", "subagent_lines", "blobs", "hook_events"}

@@ -38,6 +38,9 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"git info is written only when git_origin is missing", gitInfoIfMissing},
 		{"get session is scoped to the account", getSessionScoping},
 		{"set model writes the model on a change and reports the previous one", setModel},
+		{"set live state writes the state on a change and reports the previous one", setLiveState},
+		{"state changes select SessionStateChanged events by session and time, newest first", stateChanges},
+		{"find sessions filters by live state and last-seen bounds", findSessionsByStateAndTime},
 		{"last model before finds the newest assistant line's model under a seq or time", lastModelBefore},
 		{"find sessions filters by account and regexes", findSessionsFilters},
 		{"find sessions projects, orders by last_seen and limits", findSessionsOrdering},
@@ -381,6 +384,101 @@ func setModel(t *testing.T, s session.Store) {
 
 	found := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 5}))
 	eq(t, "find sessions projects the model", found[0]["model"], "claude-b")
+}
+
+func setLiveState(t *testing.T, s session.Store) {
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s1", AccountID: "acc", LastSeen: t0}))
+	previous, changed, err := s.SetLiveState(ctx, "acc", "s1", "working", "UserPromptSubmit", t0)
+	must(t, err)
+	eq(t, "first state", []any{previous, changed}, []any{"", true})
+	got := ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "state stored", []any{got["live_state"], got["live_state_reason"]}, []any{"working", "UserPromptSubmit"})
+	if !timeOf(t, got, "live_state_at").Equal(t0) {
+		t.Errorf("live_state_at = %v, want %v", got["live_state_at"], t0)
+	}
+
+	previous, changed, err = s.SetLiveState(ctx, "acc", "s1", "working", "PreToolUse", t0.Add(time.Minute))
+	must(t, err)
+	eq(t, "same state", []any{previous, changed}, []any{"working", false})
+	got = ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "same state keeps the reason", got["live_state_reason"], "UserPromptSubmit")
+
+	previous, changed, err = s.SetLiveState(ctx, "acc", "s1", "waiting", "Stop", t0.Add(time.Hour))
+	must(t, err)
+	eq(t, "changed state", []any{previous, changed}, []any{"working", true})
+	got = ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "new state", []any{got["live_state"], got["live_state_reason"]}, []any{"waiting", "Stop"})
+	if !timeOf(t, got, "live_state_at").Equal(t0.Add(time.Hour)) {
+		t.Errorf("live_state_at = %v", got["live_state_at"])
+	}
+
+	if _, _, err := s.SetLiveState(ctx, "other", "s1", "ended", "SessionEnd", t0); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("foreign account: err = %v, want ErrNotFound", err)
+	}
+	if _, _, err := s.SetLiveState(ctx, "acc", "missing", "ended", "SessionEnd", t0); !errors.Is(err, session.ErrNotFound) {
+		t.Errorf("missing session: err = %v, want ErrNotFound", err)
+	}
+	previous, changed, err = s.SetLiveState(ctx, "acc", "s1", "", "x", t0)
+	must(t, err)
+	eq(t, "empty state is ignored", []any{previous, changed}, []any{"", false})
+
+	found := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 5}))
+	eq(t, "find sessions projects the state", []any{found[0]["live_state"], found[0]["live_state_reason"]}, []any{"waiting", "Stop"})
+	if !timeOf(t, found[0], "live_state_at").Equal(t0.Add(time.Hour)) {
+		t.Errorf("projected live_state_at = %v", found[0]["live_state_at"])
+	}
+}
+
+func stateChanges(t *testing.T, s session.Store) {
+	change := func(sid, acc, from, to string, at time.Time) session.Doc {
+		return session.Doc{"session_id": sid, "account_id": acc, "hook_event_name": session.StateChangedEventName, "from": from, "to": to, "reason": "Stop", "at": at, "created_at": at}
+	}
+	for _, ev := range []session.Doc{
+		change("s1", "acc", "", "working", t0),
+		change("s1", "acc", "working", "waiting", t0.Add(time.Minute)),
+		change("s2", "acc", "", "working", t0.Add(2*time.Minute)),
+		change("s3", "other", "", "working", t0.Add(3*time.Minute)),
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": "Stop", "created_at": t0.Add(4 * time.Minute)},
+	} {
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	tos := func(q session.ActivityQuery) []string {
+		var out []string
+		for _, d := range ok(s.StateChanges(ctx, q)) {
+			sid, _ := d.String("session_id")
+			to, _ := d.String("to")
+			out = append(out, sid+"/"+to)
+		}
+		return out
+	}
+	eq(t, "own account's changes, newest first", tos(session.ActivityQuery{AccountID: "acc", Limit: 10}), []string{"s2/working", "s1/waiting", "s1/working"})
+	eq(t, "session scoping", tos(session.ActivityQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 10}), []string{"s1/waiting", "s1/working"})
+	eq(t, "since and limit", tos(session.ActivityQuery{AccountID: "acc", Since: t0.Add(time.Minute), Limit: 1}), []string{"s2/working"})
+	got := ok(s.StateChanges(ctx, session.ActivityQuery{AccountID: "acc", SessionIDs: []string{"s1"}, Limit: 1}))[0]
+	eq(t, "projection", sortedKeys(got), []string{"at", "created_at", "from", "reason", "session_id", "to"})
+	eq(t, "from", got["from"], "working")
+	if !timeOf(t, got, "at").Equal(t0.Add(time.Minute)) {
+		t.Errorf("at = %v", got["at"])
+	}
+}
+
+func findSessionsByStateAndTime(t *testing.T, s session.Store) {
+	seedSessions(t, s) // a: t0+1h, b: t0+3h, c: t0+2h
+	_, _, err := s.SetLiveState(ctx, "acc", "a", "waiting", "Stop", t0)
+	must(t, err)
+	_, _, err = s.SetLiveState(ctx, "acc", "b", "working", "PreToolUse", t0)
+	must(t, err)
+	find := func(q session.SessionQuery) []string {
+		q.AccountID, q.Limit = "acc", 10
+		return strs(ok(s.FindSessions(ctx, q)), "session_id")
+	}
+	eq(t, "one state", find(session.SessionQuery{LiveStates: []string{"waiting"}}), []string{"a"})
+	eq(t, "several states", find(session.SessionQuery{LiveStates: []string{"waiting", "working"}}), []string{"b", "a"})
+	eq(t, "a state no session has", find(session.SessionQuery{LiveStates: []string{"ended"}}), []string{})
+	eq(t, "last seen from (inclusive)", find(session.SessionQuery{LastSeenFrom: t0.Add(2 * time.Hour)}), []string{"b", "c"})
+	eq(t, "last seen before (exclusive)", find(session.SessionQuery{LastSeenBefore: t0.Add(2 * time.Hour)}), []string{"a"})
+	eq(t, "both bounds", find(session.SessionQuery{LastSeenFrom: t0.Add(time.Hour), LastSeenBefore: t0.Add(3 * time.Hour)}), []string{"c", "a"})
+	eq(t, "bounds with a state", find(session.SessionQuery{LiveStates: []string{"working"}, LastSeenBefore: t0.Add(2 * time.Hour)}), []string{})
 }
 
 func lastModelBefore(t *testing.T, s session.Store) {

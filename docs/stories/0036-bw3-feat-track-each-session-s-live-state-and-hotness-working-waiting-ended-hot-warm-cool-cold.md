@@ -3,11 +3,13 @@ id: 0036-bw3
 title: 'Track each session''s live state and hotness: working, waiting, ended, hot, warm, cool, cold'
 purpose: A session's state (whether the agent is mid-turn or waiting on the user) and its transitions are captured as they happen, and its hotness is reported from when it was last active.
 type: feat
-status: pending
+status: complete
 priority: "2"
 effort: M
 created: "2026-10-14T04:28:51.415Z"
-updated: "2026-10-14T04:31:49.425Z"
+updated: "2026-10-14T05:07:23.105Z"
+started: "2026-10-14T04:56:44.738Z"
+completed: "2026-10-14T05:07:23.105Z"
 tags:
   - sessions
   - hooks
@@ -22,13 +24,13 @@ links:
     - ["0034-8ni", "depends"]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Track each session's live state and hotness: working, waiting, ended, hot, warm, cool, cold
@@ -59,10 +61,10 @@ The prime report's SESSION section names the state and hotness of the newest ses
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/... ./server/sessionapi/ ./cli/
-- [ ] Replaying a hook sequence of UserPromptSubmit, PreToolUse, PostToolUse, Stop, UserPromptSubmit, PreToolUse(AskUserQuestion), SessionEnd produces the states working, waiting, working, waiting, ended with one SessionStateChanged event per change
-- [ ] `find_sessions` returns `live_state` and `hotness` and filters on them; a session last seen 10 minutes ago is hot, 50 minutes ago warm, earlier today cool, yesterday cold
-- [ ] PROTOCOL.md documents the states, the transitions table, the session fields and the event
+- [x] VERIFY: cd mind-palace && go test -race ./session/... ./server/sessionapi/ ./cli/
+- [x] Replaying a hook sequence of UserPromptSubmit, PreToolUse, PostToolUse, Stop, UserPromptSubmit, PreToolUse(AskUserQuestion), SessionEnd produces the states working, waiting, working, waiting, ended with one SessionStateChanged event per change
+- [x] `find_sessions` returns `live_state` and `hotness` and filters on them; a session last seen 10 minutes ago is hot, 50 minutes ago warm, earlier today cool, yesterday cold
+- [x] PROTOCOL.md documents the states, the transitions table, the session fields and the event
 
 ## Files
 
@@ -73,3 +75,5 @@ The prime report's SESSION section names the state and hotness of the newest ses
 - `PROTOCOL.md` - sections 4.2, 6.1 and 7.3
 
 ## Work Log
+
+### 2026-10-14T05:06:14.378Z - Added session/livestate (StateOf transitions, Observe, Hotness, Window), Store.SetLiveState and StateChanges (memory, Mongo, remote with POST /sessions/{id}/state and /state-changes, conformance cases), SessionQuery live-state and last-seen filters, SessionStateChanged events recorded by the ingest service (daemon and relay) with LimitsSampled samples stamped with live_state, hotness computed at query time in find_sessions (live_state and hotness filters, `session find --live-state --hotness`) and get_session_context, state entries in get_activities (kind state), the prime SESSION section's state and hotness lines, and docs (PROTOCOL.md 4.2, 4.6, 5.1, 6.1, 7.3, 9; README). Tests counting hook events now expect the state-change event. gofmt, vet and `go test -race ./...` pass.

@@ -7,10 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
+	"github.com/robbiebyrd/clued/mind-palace/session/livestate"
 )
 
 const (
@@ -34,6 +36,17 @@ type Service struct {
 	// Prices are the model prices (by model id prefix) that override the
 	// built-in table for the usage estimates; nil keeps the table.
 	Prices map[string]session.ModelPrice
+	// Now is the clock the hotness grades and the time bounds use; nil is
+	// time.Now.
+	Now func() time.Time
+}
+
+// now is the service's clock.
+func (s *Service) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return time.Now()
 }
 
 // FindSessionsArgs are the find_sessions tool parameters.
@@ -41,7 +54,11 @@ type FindSessionsArgs struct {
 	ProjectPath string `json:"project_path,omitempty"`
 	GitOrigin   string `json:"git_origin,omitempty"`
 	Query       string `json:"query,omitempty"`
-	Limit       int    `json:"limit,omitempty"`
+	// LiveState keeps only sessions in that live state (working, waiting,
+	// ended); Hotness only those of that grade (hot, warm, cool, cold).
+	LiveState string `json:"live_state,omitempty"`
+	Hotness   string `json:"hotness,omitempty"`
+	Limit     int    `json:"limit,omitempty"`
 }
 
 // SearchCommandsArgs are the search_commands tool parameters.
@@ -85,6 +102,7 @@ type LimitSample struct {
 	ContextWindow session.Doc `json:"context_window,omitempty"`
 	RateLimits    session.Doc `json:"rate_limits,omitempty"`
 	Cost          session.Doc `json:"cost,omitempty"`
+	LiveState     string      `json:"live_state,omitempty"`
 	SampledAt     string      `json:"sampled_at,omitempty"`
 	CreatedAt     time.Time   `json:"created_at"`
 }
@@ -147,13 +165,31 @@ func withDefault(n, def int) int {
 // FindSessions returns the matching sessions, newest first, each with the
 // number of transcript lines captured as event_count.
 func (s *Service) FindSessions(ctx context.Context, args FindSessionsArgs) ([]session.Doc, error) {
-	docs, err := s.Store.FindSessions(ctx, session.SessionQuery{
+	now := s.now()
+	q := session.SessionQuery{
 		AccountID:     s.AccountID,
 		ProjectPathRe: args.ProjectPath,
 		GitOriginRe:   args.GitOrigin,
 		QueryRe:       args.Query,
 		Limit:         withDefault(args.Limit, defaultSessionLimit),
-	})
+	}
+	if args.LiveState != "" {
+		if !slices.Contains(livestate.States, args.LiveState) {
+			return nil, fmt.Errorf("live_state must be one of %s: %q", strings.Join(livestate.States, ", "), args.LiveState)
+		}
+		q.LiveStates = []string{args.LiveState}
+	}
+	if args.Hotness != "" {
+		from, before, ok := livestate.Window(args.Hotness, now)
+		if !ok {
+			return nil, fmt.Errorf("hotness must be one of %s: %q", strings.Join(livestate.Grades, ", "), args.Hotness)
+		}
+		if !from.IsZero() && !before.IsZero() && !from.Before(before) {
+			return []session.Doc{}, nil // no session can be in that grade right now
+		}
+		q.LastSeenFrom, q.LastSeenBefore = from, before
+	}
+	docs, err := s.Store.FindSessions(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -162,8 +198,16 @@ func (s *Service) FindSessions(ctx context.Context, args FindSessionsArgs) ([]se
 		if d["event_count"], err = s.Store.CountTranscriptLines(ctx, s.AccountID, id); err != nil {
 			return nil, err
 		}
+		addHotness(d, now)
 	}
 	return docs, nil
+}
+
+// addHotness sets the session's hotness grade from its last_seen time.
+func addHotness(d session.Doc, now time.Time) {
+	if lastSeen, ok := d["last_seen"].(time.Time); ok {
+		d["hotness"] = livestate.Hotness(lastSeen, now)
+	}
 }
 
 // SearchCommands returns Bash commands matching the pattern, newest first,
@@ -272,6 +316,7 @@ func (s *Service) Limits(ctx context.Context, args LimitsArgs) ([]LimitSample, e
 		}
 		cwd, _ := ev.String("cwd")
 		version, _ := ev.String("version")
+		liveState, _ := ev.String("live_state")
 		sampledAt, _ := ev.String("sampled_at")
 		createdAt, _ := ev["created_at"].(time.Time)
 		out = append(out, LimitSample{
@@ -284,6 +329,7 @@ func (s *Service) Limits(ctx context.Context, args LimitsArgs) ([]LimitSample, e
 			ContextWindow: docOrNil(ev, "context_window"),
 			RateLimits:    docOrNil(ev, "rate_limits"),
 			Cost:          docOrNil(ev, "cost"),
+			LiveState:     liveState,
 			SampledAt:     sampledAt,
 			CreatedAt:     createdAt,
 		})
@@ -435,7 +481,9 @@ func (s *Service) SessionContext(ctx context.Context, sessionID string) (Context
 	if err != nil {
 		return Context{}, err
 	}
-	c := Context{Session: sessionSummary(stored), TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent}
+	summary := sessionSummary(stored)
+	addHotness(summary, s.now())
+	c := Context{Session: summary, TopCommands: topCommands, FirstLines: first, LastLines: last, RecentMemory: recent}
 	if len(usage.Groups) > 0 {
 		c.Usage = &usage.Groups[0]
 	}
@@ -444,10 +492,11 @@ func (s *Service) SessionContext(ctx context.Context, sessionID string) (Context
 
 // sessionSummary keeps the fields the context reports; git_origin is
 // always present, null when the session has none; model and
-// model_changed_at appear once a model is known.
+// model_changed_at appear once a model is known, live_state, live_state_at
+// and live_state_reason once a state is.
 func sessionSummary(stored session.Doc) session.Doc {
 	out := session.Doc{"git_origin": nil}
-	for _, k := range []string{"session_id", "project_path", "git_origin", "cwd", "model", "model_changed_at", "started_at", "last_seen"} {
+	for _, k := range []string{"session_id", "project_path", "git_origin", "cwd", "model", "model_changed_at", "live_state", "live_state_at", "live_state_reason", "started_at", "last_seen"} {
 		if v, ok := stored[k]; ok {
 			out[k] = v
 		}

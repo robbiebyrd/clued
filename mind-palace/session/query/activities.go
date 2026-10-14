@@ -2,6 +2,7 @@ package query
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
@@ -21,10 +22,16 @@ type ActivitiesArgs struct {
 	Limit       int      `json:"limit,omitempty"`
 }
 
+// ActivityState is the kind of the entries made from SessionStateChanged
+// events: Label is the state entered (working, waiting, ended), Detail the
+// hook event that set it, Seq is -1 and Timestamp the change's time.
+const ActivityState = "state"
+
 // Activity is one entry of the timeline: a transcript line's activity-kind
-// enrichment with where it happened. Count is how many consecutive lines
-// of the same tool activity (same kind, label and detail in one session)
-// the entry stands for; Seq is the newest of them.
+// enrichment, or a session state change, with where it happened. Count is
+// how many consecutive lines of the same tool activity (same kind, label
+// and detail in one session) the entry stands for; Seq is the newest of
+// them (-1 for a state change, which is no line).
 type Activity struct {
 	SessionID   string    `json:"session_id"`
 	Seq         int       `json:"seq"`
@@ -47,10 +54,11 @@ type Activity struct {
 var collapsibleKinds = map[string]bool{"bash": true, "commit": true, "edit": true, "read": true, "task": true, "tool": true}
 
 // Activities returns the timeline of the scope, newest first: the lines the
-// activity-kind enricher labelled, optionally of some kinds and after
-// args.Since, with consecutive identical tool activities collapsed into one
-// entry carrying their count. The limit bounds the lines read, before they
-// are collapsed.
+// activity-kind enricher labelled and the session's state changes
+// (SessionStateChanged events, kind "state"), optionally of some kinds and
+// after args.Since, with consecutive identical tool activities collapsed
+// into one entry carrying their count. The limit bounds the lines and the
+// state changes read, each before they are merged and collapsed.
 func (s *Service) Activities(ctx context.Context, args ActivitiesArgs) ([]Activity, error) {
 	since, err := parseSince(args.Since, time.Now())
 	if err != nil {
@@ -63,27 +71,52 @@ func (s *Service) Activities(ctx context.Context, args ActivitiesArgs) ([]Activi
 	if scoped && len(sessionIDs) == 0 {
 		return []Activity{}, nil
 	}
-	lines, err := s.Store.Activities(ctx, session.ActivityQuery{
+	q := session.ActivityQuery{
 		AccountID:  s.AccountID,
 		SessionIDs: sessionIDs,
-		Kinds:      args.Kinds,
 		Since:      since,
 		Limit:      withDefault(args.Limit, defaultActivityLimit),
-	})
-	if err != nil {
-		return nil, err
+	}
+	wantLines, wantStates := len(args.Kinds) == 0, len(args.Kinds) == 0
+	for _, k := range args.Kinds {
+		if k == ActivityState {
+			wantStates = true
+		} else {
+			wantLines = true
+			q.Kinds = append(q.Kinds, k)
+		}
+	}
+	var entries []Activity
+	if wantLines {
+		lines, err := s.Store.Activities(ctx, q)
+		if err != nil {
+			return nil, err
+		}
+		for _, l := range lines {
+			entries = append(entries, activityOf(l))
+		}
+	}
+	if wantStates {
+		changes, err := s.Store.StateChanges(ctx, q)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range changes {
+			entries = append(entries, stateActivityOf(c))
+		}
+		if wantLines {
+			slices.SortStableFunc(entries, func(a, b Activity) int { return b.CreatedAt.Compare(a.CreatedAt) })
+		}
 	}
 	sessions := map[string]session.Doc{}
-	out := make([]Activity, 0, len(lines))
-	for _, l := range lines {
-		id, _ := l.String("session_id")
-		if _, known := sessions[id]; !known {
-			if sessions[id], err = s.sessionOrNil(ctx, id); err != nil {
+	out := make([]Activity, 0, len(entries))
+	for _, a := range entries {
+		if _, known := sessions[a.SessionID]; !known {
+			if sessions[a.SessionID], err = s.sessionOrNil(ctx, a.SessionID); err != nil {
 				return nil, err
 			}
 		}
-		a := activityOf(l)
-		a.ProjectPath, a.GitOrigin = stringPtr(sessions[id], "project_path"), stringPtr(sessions[id], "git_origin")
+		a.ProjectPath, a.GitOrigin = stringPtr(sessions[a.SessionID], "project_path"), stringPtr(sessions[a.SessionID], "git_origin")
 		if n := len(out); n > 0 && sameActivity(out[n-1], a) {
 			out[n-1].Count++
 			continue
@@ -91,6 +124,19 @@ func (s *Service) Activities(ctx context.Context, args ActivitiesArgs) ([]Activi
 		out = append(out, a)
 	}
 	return out, nil
+}
+
+// stateActivityOf reads a SessionStateChanged event as a timeline entry.
+func stateActivityOf(c session.Doc) Activity {
+	id, _ := c.String("session_id")
+	to, _ := c.String("to")
+	reason, _ := c.String("reason")
+	createdAt, _ := c["created_at"].(time.Time)
+	var ts string
+	if at, ok := c["at"].(time.Time); ok {
+		ts = at.UTC().Format(time.RFC3339Nano)
+	}
+	return Activity{SessionID: id, Seq: -1, Kind: ActivityState, Label: to, Detail: reason, Count: 1, Timestamp: ts, CreatedAt: createdAt}
 }
 
 // activityOf reads the stored activity of one projected line.

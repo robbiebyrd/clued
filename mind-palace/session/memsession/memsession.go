@@ -333,6 +333,45 @@ func (s *Store) SetModel(_ context.Context, accountID, sessionID, model string, 
 	return previous, true, nil
 }
 
+func (s *Store) SetLiveState(_ context.Context, accountID, sessionID, state, reason string, at time.Time) (string, bool, error) {
+	if state == "" {
+		return "", false, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d := s.ownedSession(accountID, sessionID)
+	if d == nil {
+		return "", false, session.ErrNotFound
+	}
+	previous := strOf(d, "live_state")
+	if previous == state {
+		return previous, false, nil
+	}
+	d["live_state"], d["live_state_at"], d["live_state_reason"] = state, at, reason
+	return previous, true, nil
+}
+
+func (s *Store) StateChanges(_ context.Context, q session.ActivityQuery) ([]session.Doc, error) {
+	inSessions := setOf(q.SessionIDs)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	found := s.filter(hookEvents, func(d session.Doc) bool {
+		if strOf(d, "hook_event_name") != session.StateChangedEventName || !owned(d, q.AccountID) {
+			return false
+		}
+		if len(inSessions) > 0 && !inSessions[strOf(d, "session_id")] {
+			return false
+		}
+		return q.Since.IsZero() || !timeOf(d, "created_at").Before(q.Since)
+	})
+	sort.SliceStable(found, func(i, j int) bool { return timeOf(found[i], "created_at").After(timeOf(found[j], "created_at")) })
+	out := []session.Doc{}
+	for _, d := range page(found, 0, q.Limit) {
+		out = append(out, project(d, "session_id", "from", "to", "reason", "at", "created_at"))
+	}
+	return out, nil
+}
+
 func (s *Store) LastModelBefore(_ context.Context, sessionID string, seq int, at time.Time) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -379,7 +418,15 @@ func (s *Store) FindSessions(_ context.Context, q session.SessionQuery) ([]sessi
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	inStates := setOf(q.LiveStates)
 	found := s.filter(sessions, func(d session.Doc) bool {
+		if len(inStates) > 0 && !inStates[strOf(d, "live_state")] {
+			return false
+		}
+		lastSeen := timeOf(d, "last_seen")
+		if !q.LastSeenFrom.IsZero() && lastSeen.Before(q.LastSeenFrom) || !q.LastSeenBefore.IsZero() && !lastSeen.Before(q.LastSeenBefore) {
+			return false
+		}
 		return owned(d, q.AccountID) && matches(projectRe, d, "project_path") &&
 			matches(originRe, d, "git_origin") && matches(queryRe, d, "project_path", "cwd")
 	})
@@ -391,7 +438,7 @@ func (s *Store) FindSessions(_ context.Context, q session.SessionQuery) ([]sessi
 	}
 	out := []session.Doc{}
 	for _, d := range page(found, 0, limit) {
-		out = append(out, project(d, "session_id", "project_path", "git_origin", "cwd", "model", "started_at", "last_seen"))
+		out = append(out, project(d, "session_id", "project_path", "git_origin", "cwd", "model", "live_state", "live_state_at", "live_state_reason", "started_at", "last_seen"))
 	}
 	return out, nil
 }
@@ -459,7 +506,7 @@ func (s *Store) MemoryEvents(_ context.Context, q session.MemoryQuery) ([]sessio
 }
 
 // limitProjection is what LimitSamples returns of a LimitsSampled event.
-var limitProjection = []string{"session_id", "cwd", "model", "version", "context_window", "rate_limits", "cost", "sampled_at", "created_at"}
+var limitProjection = []string{"session_id", "cwd", "model", "version", "context_window", "rate_limits", "cost", "live_state", "sampled_at", "created_at"}
 
 func (s *Store) LimitSamples(_ context.Context, q session.LimitQuery) ([]session.Doc, error) {
 	inSessions := map[string]bool{}

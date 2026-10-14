@@ -213,11 +213,13 @@ func ids(list []obj) []string {
 }
 
 const toolSchemas = `{
-  "find_sessions": {"description": "Find previous Claude Code sessions, newest first. Filters match (case-insensitive regex) against project path, cwd, and git origin.",
+  "find_sessions": {"description": "Find previous Claude Code sessions, newest first. Filters match (case-insensitive regex) against project path, cwd, and git origin, or keep one live state (working: mid-turn; waiting: yielded to the user; ended) or hotness (hot: active in the last 30 minutes; warm: the last hour; cool: earlier today, UTC; cold: before that). Each session carries its model, live_state and hotness once known.",
     "inputSchema": {"type":"object","properties":{
       "project_path":{"type":"string","description":"Regex matched against the session project path"},
       "git_origin":{"type":"string","description":"Regex matched against the git remote origin URL"},
       "query":{"type":"string","description":"Regex matched against project path or cwd"},
+      "live_state":{"type":"string","enum":["working","waiting","ended"],"description":"Only sessions in this live state"},
+      "hotness":{"type":"string","enum":["hot","warm","cool","cold"],"description":"Only sessions last active within this grade"},
       "limit":{"type":"number","description":"Max sessions to return (default 10, max 500)"}}}},
   "get_session_context": {"description": "Summarise one session: metadata, its most recent distinct Bash commands, and the first/last transcript lines.",
     "inputSchema": {"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"]}},
@@ -274,12 +276,12 @@ const toolSchemas = `{
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
       "since":{"type":"string","description":"Only samples after this RFC 3339 time, or within this duration back from now (e.g. 24h)"},
       "limit":{"type":"number","description":"Max samples to return (default 20, max 500)"}}}},
-  "get_activities": {"description": "The timeline of what the agent did in previous sessions, newest first: each transcript line's activity (user, response, thinking, bash, commit, edit, read, task, tool, result or other) with a label (the tool's name) and a detail (the prompt or reply's start, the command, the file's base name, the search pattern, the sub-agent's description, the commit message's first line); consecutive repeats of one tool activity are one entry with a count. Built from the activity-kind enrichment.",
+  "get_activities": {"description": "The timeline of what the agent did in previous sessions, newest first: each transcript line's activity (user, response, thinking, bash, commit, edit, read, task, tool, result or other) with a label (the tool's name) and a detail (the prompt or reply's start, the command, the file's base name, the search pattern, the sub-agent's description, the commit message's first line), and the session's state changes (kind state: the label is the state entered, working, waiting or ended, the detail the hook that set it); consecutive repeats of one tool activity are one entry with a count. Built from the activity-kind enrichment and the SessionStateChanged events.",
     "inputSchema": {"type":"object","properties":{
       "session_id":{"type":"string","description":"Restrict to one session"},
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
-      "kinds":{"type":"array","items":{"type":"string","enum":["user","response","thinking","bash","commit","edit","read","task","tool","result","other"]},"description":"Only these activity kinds"},
+      "kinds":{"type":"array","items":{"type":"string","enum":["user","response","thinking","bash","commit","edit","read","task","tool","result","other","state"]},"description":"Only these activity kinds"},
       "since":{"type":"string","description":"Only lines after this RFC 3339 time, or within this duration back from now (e.g. 24h)"},
       "limit":{"type":"number","description":"Max lines to read before collapsing repeats (default 50, max 500)"}}}},
   "read_transcript": {"description": "Read transcript lines of a session in order, paginated by offset/limit.",

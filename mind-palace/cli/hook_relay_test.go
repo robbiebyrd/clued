@@ -176,8 +176,8 @@ func TestHookRelayStoresTheEventAndPushesTheTranscript(t *testing.T) {
 		t.Errorf("session = cwd %v transcript %v", full["cwd"], full["transcript_path"])
 	}
 	events := full["hook_events"].([]session.Doc)
-	if len(events) != 1 || events[0]["hook_event_name"] != "PostToolUse" || events[0]["tool_name"] != "Bash" {
-		t.Errorf("hook_events = %v", events)
+	if len(events) != 2 || events[0]["hook_event_name"] != "PostToolUse" || events[0]["tool_name"] != "Bash" || events[1]["hook_event_name"] != session.StateChangedEventName || events[1]["to"] != "working" {
+		t.Errorf("hook_events = %v, want the event and the state change it caused", events)
 	}
 	lines := full["transcript_lines"].([]session.Doc)
 	if len(lines) != 2 || lines[1].Map("line")["n"] != float64(2) {
@@ -199,8 +199,10 @@ func TestHookRelayStoresTheEventAndPushesTheTranscript(t *testing.T) {
 	if n := srv.count("PUT", sessionapi.Prefix+"/transcript-lines"); n != 1 {
 		t.Errorf("a relay without new lines pushed the transcript (%d pushes)", n)
 	}
-	if n := srv.count("POST", sessionapi.Prefix+"/hook-events"); n != 2 {
-		t.Errorf("hook event posts = %d, want 2", n)
+	// Three posts: the first event, its state change, and the second event
+	// (the state did not change again).
+	if n := srv.count("POST", sessionapi.Prefix+"/hook-events"); n != 3 {
+		t.Errorf("hook event posts = %d, want 3", n)
 	}
 
 	// Stop runs the catch-up as well and delivers the line written since.
@@ -323,7 +325,7 @@ func TestHookRelayFlushesTheWALOnceTheServerIsBack(t *testing.T) {
 	for _, ev := range full["hook_events"].([]session.Doc) {
 		names = append(names, ev["hook_event_name"].(string))
 	}
-	if strings.Join(names, ",") != "PreToolUse,PostToolUse" {
+	if strings.Join(names, ",") != "PreToolUse,PostToolUse,SessionStateChanged" {
 		t.Errorf("hook events = %v, want the buffered one replayed before the new one", names)
 	}
 }

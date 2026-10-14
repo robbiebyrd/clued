@@ -12,6 +12,7 @@
 //	POST /sessions/{id}/touch            TouchSession           body: {"at": RFC3339}
 //	POST /sessions/{id}/git              SetGitInfoIfMissing    body: {"origin", "branch"}
 //	POST /sessions/{id}/model            SetModel               body: {"model", "at"} → {"previous", "changed"}
+//	POST /sessions/{id}/state            SetLiveState           body: {"state", "reason", "at"} → {"previous", "changed"}
 //	GET  /sessions/{id}                  GetSession
 //	POST /sessions/find                  FindSessions           body: session.SessionQuery
 //	POST /hook-events                    InsertHookEvent        body: [session.Doc, …], in order
@@ -33,6 +34,7 @@
 //	POST /usage-totals                   UsageTotals            body: session.UsageQuery
 //	POST /limit-samples                  LimitSamples           body: session.LimitQuery
 //	POST /activities                     Activities             body: session.ActivityQuery
+//	POST /state-changes                  StateChanges           body: session.ActivityQuery
 //	GET  /sessions/{id}/full             FullSession
 //
 // The query structs (SessionQuery, LineQuery, CommandQuery, MemoryQuery) use
@@ -118,6 +120,7 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/sessions/{id}/touch", a.touchSession)
 	route("POST", "/sessions/{id}/git", a.setGitInfo)
 	route("POST", "/sessions/{id}/model", a.setModel)
+	route("POST", "/sessions/{id}/state", a.setLiveState)
 	route("GET", "/sessions/{id}", a.getSession)
 	route("GET", "/sessions/{id}/full", a.fullSession)
 	route("POST", "/hook-events", a.insertHookEvents)
@@ -139,6 +142,7 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/usage-totals", a.usageTotals)
 	route("POST", "/limit-samples", a.limitSamples)
 	route("POST", "/activities", a.activities)
+	route("POST", "/state-changes", a.stateChanges)
 	mux.HandleFunc(Prefix+"/", func(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusNotFound, KindNotFound, fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))
 	})
@@ -424,6 +428,51 @@ func (a *api) setModel(w http.ResponseWriter, r *http.Request, account string) {
 		return
 	}
 	ok(w, map[string]any{"previous": previous, "changed": changed})
+}
+
+// setLiveState records the live state of a session the account owns.
+func (a *api) setLiveState(w http.ResponseWriter, r *http.Request, account string) {
+	id := r.PathValue("id")
+	var body struct {
+		State  string    `json:"state"`
+		Reason string    `json:"reason"`
+		At     time.Time `json:"at"`
+	}
+	if !idOrInvalid(w, "session id", id) || !a.decode(w, r, &body) {
+		return
+	}
+	if body.State == "" {
+		invalid(w, `"state" is required`)
+		return
+	}
+	if body.At.IsZero() {
+		body.At = time.Now()
+	}
+	previous, changed, err := a.store.SetLiveState(writeCtx(r), account, id, body.State, body.Reason, body.At)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, map[string]any{"previous": previous, "changed": changed})
+}
+
+func (a *api) stateChanges(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.ActivityQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	found, err := a.store.StateChanges(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, docs(found))
 }
 
 func (a *api) lastModelBefore(w http.ResponseWriter, r *http.Request, _ string) {
