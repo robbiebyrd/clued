@@ -28,6 +28,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/service"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/enrich"
+	"github.com/robbiebyrd/clued/mind-palace/session/otlp"
 	"github.com/robbiebyrd/clued/mind-palace/session/sessionmcp"
 	"github.com/robbiebyrd/clued/mind-palace/store"
 )
@@ -126,7 +127,9 @@ type Clued struct {
 
 // NewClued composes the clued server onto one mux: GET /health without
 // authentication, and behind auth.Middleware the whoami route, the session
-// transport under sessionapi.Prefix, the store transport under
+// transport under sessionapi.Prefix, Claude Code's OTLP/HTTP logs and
+// metrics at otlp.PathLogs and otlp.PathMetrics (stored under the token's
+// account for the sessions it holds), the store transport under
 // storeapi.Prefix, and, for the project each request names (see
 // RequestProject), the service API under httpapi.Prefix, the WebSocket at
 // PathWS and the MCP endpoint at PathMCP. The MCP endpoint serves the plan
@@ -185,6 +188,16 @@ func NewClued(opts CluedOptions) *Clued {
 			return p.AccountID, ok
 		},
 	}))
+	ingest := otlp.Handler(otlp.Options{
+		Store:  opts.Sessions,
+		Logger: opts.Logger,
+		Account: func(r *http.Request) (string, bool) {
+			p, ok := auth.FromContext(r.Context())
+			return p.AccountID, ok && p.AccountID != ""
+		},
+	})
+	protected.Handle(otlp.PathLogs, ingest)
+	protected.Handle(otlp.PathMetrics, ingest)
 	protected.Handle(storeapi.Prefix+"/", storeapi.Handler(storeapi.Options{
 		Open: func(ctx context.Context, project string) (store.Store, error) {
 			p, _ := auth.FromContext(ctx)

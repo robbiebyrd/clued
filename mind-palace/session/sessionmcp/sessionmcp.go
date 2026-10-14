@@ -166,7 +166,7 @@ func (t *Tools) specs() []toolSpec {
 		},
 		{
 			name:        "get_session_context",
-			description: "Summarise one session: metadata (with its model, live state, hotness, title, pull request link, permission mode and entrypoint once known), its most recent distinct Bash commands, the first/last transcript lines, its latest memory records, its usage and its turns (count, total, mean and longest duration). When it is cut, the first and last lines are trimmed and next is a read_transcript cursor at the first line left out.",
+			description: "Summarise one session: metadata (with its model, live state, hotness, title, pull request link, permission mode and entrypoint once known), its most recent distinct Bash commands, the first/last transcript lines, its latest memory records, its usage, its turns (count, total, mean and longest duration) and, when Claude Code exported OpenTelemetry events for it, their telemetry (API requests, cost, tokens and time, API errors, tool calls by tool). When it is cut, the first and last lines are trimmed and next is a read_transcript cursor at the first line left out.",
 			schema:      `{"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"]}`,
 			readOnly:    true,
 			budget:      query.DefaultReadTokens,

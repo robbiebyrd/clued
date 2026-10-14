@@ -217,3 +217,25 @@ func (s *Store) UpsertBlob(ctx context.Context, b session.Blob) error {
 	}
 	return s.Store.UpsertBlob(ctx, b)
 }
+
+// InsertOtelEvents drops the events of excluded sessions and redacts every
+// string of the attributes that are kept.
+func (s *Store) InsertOtelEvents(ctx context.Context, events []session.OtelEvent) (int, error) {
+	kept := make([]session.OtelEvent, 0, len(events))
+	for _, e := range events {
+		if s.isExcluded(e.SessionID) {
+			continue
+		}
+		if s.R != nil {
+			masked, fired := s.R.Value(e.Attributes)
+			if len(fired) > 0 {
+				e.Attributes, e.Redacted = masked.(session.Doc), Merge(e.Redacted, fired)
+			}
+		}
+		kept = append(kept, e)
+	}
+	if len(kept) == 0 {
+		return 0, nil
+	}
+	return s.Store.InsertOtelEvents(ctx, kept)
+}

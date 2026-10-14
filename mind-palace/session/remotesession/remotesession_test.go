@@ -300,6 +300,31 @@ func (h *harness) LimitSamples(ctx context.Context, q session.LimitQuery) ([]ses
 	return h.as(q.AccountID).LimitSamples(ctx, q)
 }
 
+// InsertOtelEvents sends each account's events with that account's token.
+func (h *harness) InsertOtelEvents(ctx context.Context, events []session.OtelEvent) (int, error) {
+	byAccount := map[string][]session.OtelEvent{}
+	var order []string
+	for _, e := range events {
+		if _, seen := byAccount[e.AccountID]; !seen {
+			order = append(order, e.AccountID)
+		}
+		byAccount[e.AccountID] = append(byAccount[e.AccountID], e)
+	}
+	total := 0
+	for _, account := range order {
+		n, err := h.as(account).InsertOtelEvents(ctx, byAccount[account])
+		total += n
+		if err != nil {
+			return total, err
+		}
+	}
+	return total, nil
+}
+
+func (h *harness) OtelEvents(ctx context.Context, q session.OtelQuery) ([]session.Doc, error) {
+	return h.as(q.AccountID).OtelEvents(ctx, q)
+}
+
 func (h *harness) FullSession(ctx context.Context, accountID, sessionID string) (session.Doc, error) {
 	return h.as(accountID).FullSession(ctx, accountID, sessionID)
 }

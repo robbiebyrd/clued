@@ -258,6 +258,28 @@ func (s *Store) SubagentLines(ctx context.Context, _ string, sessionID, subagent
 	return s.docs(ctx, "POST", prefix+"/subagent-lines/query", body)
 }
 
+func (s *Store) InsertOtelEvents(ctx context.Context, events []session.OtelEvent) (int, error) {
+	if len(events) == 0 {
+		return 0, nil
+	}
+	var out struct {
+		Inserted int `json:"inserted"`
+	}
+	err := s.do(ctx, "POST", prefix+"/otel-events", events, &out)
+	return out.Inserted, err
+}
+
+// OtelEvents restores the event's own timestamp and sequence beside the
+// times every document has.
+func (s *Store) OtelEvents(ctx context.Context, q session.OtelQuery) ([]session.Doc, error) {
+	docs, err := s.docs(ctx, "POST", prefix+"/otel-events/query", q)
+	for _, d := range docs {
+		setTime(d, "timestamp")
+		setInt(d, "sequence")
+	}
+	return docs, err
+}
+
 func (s *Store) UpsertBlob(ctx context.Context, b session.Blob) error {
 	return s.do(ctx, "PUT", prefix+"/blobs", b, nil)
 }

@@ -147,6 +147,18 @@ type ActivityQuery struct {
 	Limit      int       `json:"limit"`
 }
 
+// OtelQuery selects stored OpenTelemetry events, newest first (timestamp,
+// then sequence, descending). Empty SessionIDs and Names mean no filter, an
+// empty PromptID every prompt, and a zero Since no lower bound on timestamp.
+type OtelQuery struct {
+	AccountID  string    `json:"-"`
+	SessionIDs []string  `json:"sessionIds"`
+	PromptID   string    `json:"promptId"`
+	Names      []string  `json:"names"`
+	Since      time.Time `json:"since"`
+	Limit      int       `json:"limit"`
+}
+
 // LimitsEventName is the hook_event_name of a status-line sample (`mind-palace
 // hook status`): the context window's fill, the subscription's usage
 // windows, the model and the cost of the session at that moment, under
@@ -269,6 +281,14 @@ type Store interface {
 	// DeleteSessions deletes the sessions ForgetQuery selects and everything
 	// captured for them; an empty AccountID is ErrNoAccount.
 	DeleteSessions(ctx context.Context, q ForgetQuery) (Forgotten, error)
+
+	// InsertOtelEvents stores the events, each once: an event whose
+	// account, session, name, sequence and timestamp are stored already is
+	// left as it is. It reports how many were new.
+	InsertOtelEvents(ctx context.Context, events []OtelEvent) (int, error)
+	// OtelEvents projects session_id, prompt_id, name, sequence, timestamp,
+	// attributes, redacted and created_at of the events OtelQuery selects.
+	OtelEvents(ctx context.Context, q OtelQuery) ([]Doc, error)
 
 	// LimitSamples projects session_id, cwd, model, version, context_window,
 	// rate_limits, cost, sampled_at and created_at of the LimitsSampled

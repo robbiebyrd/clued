@@ -66,6 +66,8 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
 		{"usage events filter by session, time and account, newest first", limitSamples},
+		{"otel events are stored once and filter by session, name, prompt, time and account, newest first", otelEvents},
+		{"otel events go with their sessions and their account", otelEventsDeleted},
 		{"activities select labelled lines by kind, session and time, newest first", activities},
 		{"rejected tool uses select the lines error-flag marked rejected, newest first", rejectedToolUses},
 		{"full session joins sub-collections and strips redundant fields", fullSessionShape},
@@ -1212,6 +1214,83 @@ func limitSamples(t *testing.T, s session.Store) {
 	if !timeOf(t, got[0], "created_at").Equal(t0.Add(2 * time.Minute)) {
 		t.Errorf("created_at = %v", got[0]["created_at"])
 	}
+}
+
+func otelEvent(sid, account, prompt, name string, seq int64, at time.Time) session.OtelEvent {
+	return session.OtelEvent{AccountID: account, SessionID: sid, PromptID: prompt, Name: name, Sequence: seq, Timestamp: at,
+		Attributes: session.Doc{"model": "claude-fable-5-1", "input_tokens": int64(seq * 10)}}
+}
+
+func otelEvents(t *testing.T, s session.Store) {
+	batch := []session.OtelEvent{
+		otelEvent("s1", "acc", "p1", "api_request", 1, t0),
+		otelEvent("s1", "acc", "p1", "tool_result", 2, t0.Add(time.Second)),
+		otelEvent("s1", "acc", "p2", "api_request", 3, t0.Add(2*time.Second)),
+		otelEvent("s2", "acc", "p3", "api_error", 1, t0.Add(3*time.Second)),
+		otelEvent("s1", "other", "p1", "api_request", 1, t0),
+	}
+	batch[2].Redacted = []string{"api-key"}
+	eq(t, "all new", ok(s.InsertOtelEvents(ctx, batch)), len(batch))
+	// An exporter's retry: the same events again, one of them new.
+	again := append([]session.OtelEvent{}, batch[:2]...)
+	again = append(again, otelEvent("s1", "acc", "p2", "api_request", 4, t0.Add(4*time.Second)))
+	eq(t, "only the new one", ok(s.InsertOtelEvents(ctx, again)), 1)
+	eq(t, "an empty batch", ok(s.InsertOtelEvents(ctx, nil)), 0)
+
+	seqs := func(q session.OtelQuery) []int64 {
+		var out []int64
+		for _, d := range ok(s.OtelEvents(ctx, q)) {
+			out = append(out, int64(num(d["sequence"])))
+		}
+		return out
+	}
+	eq(t, "own account, newest first", seqs(session.OtelQuery{AccountID: "acc"}), []int64{4, 1, 3, 2, 1})
+	eq(t, "session", seqs(session.OtelQuery{AccountID: "acc", SessionIDs: []string{"s1"}}), []int64{4, 3, 2, 1})
+	eq(t, "names", seqs(session.OtelQuery{AccountID: "acc", Names: []string{"api_request"}}), []int64{4, 3, 1})
+	eq(t, "prompt", seqs(session.OtelQuery{AccountID: "acc", PromptID: "p1"}), []int64{2, 1})
+	eq(t, "since", seqs(session.OtelQuery{AccountID: "acc", Since: t0.Add(2 * time.Second)}), []int64{4, 1, 3})
+	eq(t, "limit", seqs(session.OtelQuery{AccountID: "acc", Limit: 2}), []int64{4, 1})
+	eq(t, "the other account", seqs(session.OtelQuery{AccountID: "other"}), []int64{1})
+	eq(t, "unknown session", len(seqs(session.OtelQuery{AccountID: "acc", SessionIDs: []string{"zzz"}})), 0)
+
+	got := ok(s.OtelEvents(ctx, session.OtelQuery{AccountID: "acc", PromptID: "p2", Limit: 1, Since: t0.Add(2 * time.Second), Names: []string{"api_request"}, SessionIDs: []string{"s1"}}))
+	if len(got) != 1 {
+		t.Fatalf("got %d events, want 1", len(got))
+	}
+	eq(t, "projection fields", sortedKeys(got[0]), []string{"attributes", "created_at", "name", "prompt_id", "sequence", "session_id", "timestamp"})
+	eq(t, "name", got[0]["name"], "api_request")
+	eq(t, "model attribute", got[0].Map("attributes")["model"], "claude-fable-5-1")
+	eq(t, "tokens attribute", num(got[0].Map("attributes")["input_tokens"]), 40)
+	if !timeOf(t, got[0], "timestamp").Equal(t0.Add(4 * time.Second)) {
+		t.Errorf("timestamp = %v", got[0]["timestamp"])
+	}
+	redacted := ok(s.OtelEvents(ctx, session.OtelQuery{AccountID: "acc", PromptID: "p2", Names: []string{"api_request"}}))
+	eq(t, "redacted rules kept", len(redacted), 2)
+	if r := redacted[1]["redacted"]; r == nil {
+		t.Errorf("redacted = %v, want the rule names", redacted[1])
+	}
+}
+
+func otelEventsDeleted(t *testing.T, s session.Store) {
+	for _, sid := range []string{"s1", "s2"} {
+		must(t, s.UpsertSession(ctx, session.Session{SessionID: sid, AccountID: "acc", ProjectPath: "/p/" + sid}))
+	}
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s3", AccountID: "other", ProjectPath: "/p/s3"}))
+	ok(s.InsertOtelEvents(ctx, []session.OtelEvent{
+		otelEvent("s1", "acc", "p1", "api_request", 1, t0),
+		otelEvent("s2", "acc", "p2", "api_request", 1, t0),
+		otelEvent("s3", "other", "p3", "api_request", 1, t0),
+	}))
+	ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", SessionIDs: []string{"s1"}}))
+	eq(t, "s1's events go with it", len(ok(s.OtelEvents(ctx, session.OtelQuery{AccountID: "acc", SessionIDs: []string{"s1"}}))), 0)
+	eq(t, "s2's stay", len(ok(s.OtelEvents(ctx, session.OtelQuery{AccountID: "acc", SessionIDs: []string{"s2"}}))), 1)
+	if _, err := s.DeleteAccount(ctx, "acc"); errors.Is(err, session.ErrUnsupported) {
+		return // a client adapter: the operator deletes accounts
+	} else {
+		must(t, err)
+	}
+	eq(t, "the account's events go with it", len(ok(s.OtelEvents(ctx, session.OtelQuery{AccountID: "acc"}))), 0)
+	eq(t, "the other account's stay", len(ok(s.OtelEvents(ctx, session.OtelQuery{AccountID: "other"}))), 1)
 }
 
 func memoryEventsInvalidRegex(t *testing.T, s session.Store) {

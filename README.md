@@ -357,6 +357,12 @@ sessions and other machines can search it:
 | `modelPrices` | (none) | | Prices for the `usage` cost estimates by model id prefix, in US dollars per million tokens: `{"<model id prefix>": {"input": 3, "output": 15}}`, optionally with `cacheRead` (default 0.1× `input`) and `longPrompt` (`{"input", "output", "cacheRead"}` for messages whose prompt is over 100,000 tokens). They come before the built-in table, so they also correct it |
 | `primeOnStart` | `true` | `CLUED_PRIME_ON_START` | Start every session (and every session after compaction) with the prime report as context; `false` leaves it to `/clued-prime` |
 
+`otelEndpoint` sends clued's own traces out. The other direction, Claude
+Code's OpenTelemetry events (API requests with cost and tokens, API errors,
+tool results), comes in at `/v1/logs` on the clued server or the local
+daemon and shows under `telemetry` in `get_session_context`; see
+[Claude Code telemetry](docs/server.md#claude-code-telemetry).
+
 A leading `~/` is expanded in every path. Unknown keys are ignored, so a
 config file from the earlier Node implementation keeps working; its
 `mcpPort` is no longer read (the session tools are served over stdio, not
