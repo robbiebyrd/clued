@@ -97,46 +97,69 @@ docker run --rm -v "$HOME/.clued-server:/etc/clued" --user "$(id -u):$(id -g)" \
   server token create --tokens /etc/clued/tokens.json --name laptop --project '*'
 ```
 
-### The Docker stack: `mind-palace server init`
+### The container stack: `mind-palace server init`
 
-The way to run the server on a machine of your own is the Compose stack that
+The way to run the server on a machine of your own is the stack that
 `mind-palace server init` generates and `/clued-setup` starts for you (its
-"clued server in Docker on this machine" option):
+"clued server in containers on this machine" option). It runs with Docker
+Compose, or with Apple Containers on a Mac (macOS 26 or later) that has no
+Docker:
 
 ```bash
-mind-palace server init --name laptop            # ~/.clued-server, prints the token once
-docker compose -f ~/.clued-server/docker-compose.yml up -d
+mind-palace server init --name laptop                         # ~/.clued-server, prints the token once
+docker compose -f ~/.clued-server/docker-compose.yml up -d    # runtime compose
+bash ~/.clued-server/up.sh                                    # runtime apple
 curl --cacert ~/.clued-server/tls/ca.pem https://localhost:8443/health
 ```
+
+`--runtime auto`, the default, picks `compose` whenever `docker` is on the
+PATH and `apple` only when it is not and the `container` CLI is (`brew
+install --cask container`, then `container system start`); `--runtime
+compose|apple` forces one, and switching removes the other runtime's files.
+The result's `up`, `down`, `logs` and `health` are the commands for the
+runtime chosen.
 
 The directory holds everything the stack needs and is the server's home:
 
 | File | What it is |
 |---|---|
-| `docker-compose.yml` | Three services: `nginx` (publishes `${CLUED_PUBLIC_PORT:-8443}` over HTTPS and forwards to the server), `clued-server` (plain HTTP inside the compose network, `CLUED_SERVER_BEHIND_PROXY=true`, runs as your uid so it can read the token file) and `mongo` (`mongo:8` on the named volume `clued_mongo_data`, not published). The server image is the release of the plugin that ran `init` (`ghcr.io/robbiebyrd/clued-server:v<version>`, `:latest` from a bare binary); `CLUED_SERVER_IMAGE` overrides it without regenerating |
+| `stack.json` | Which runtime runs the stack, the proxy, the port, the server URL and the `up`, `down` and `logs` commands |
+| `docker-compose.yml` | Runtime `compose`. Three services: `nginx` (publishes `--port`, 8443 by default, over HTTPS and forwards to the server), `clued-server` (plain HTTP inside the compose network, `CLUED_SERVER_BEHIND_PROXY=true`, runs as your uid so it can read the token file) and `mongo` (`mongo:8` on the named volume `clued_mongo_data`, not published). The server image is the release of the plugin that ran `init` (`ghcr.io/robbiebyrd/clued-server:v<version>`, `:latest` from a bare binary; `--image` overrides it). Every value is literal, with no `${VAR:-default}` interpolation (Apple's compose plugin, among others, does not support it): change one by rerunning `init` with the matching flag |
+| `up.sh`, `down.sh` | Runtime `apple`. `up.sh` starts `container system` when needed, creates the `clued_mongo_data` volume, starts `clued-mongo`, waits for it with `mongosh`, starts `clued-server` with the MongoDB address from `container inspect` (container names do not resolve inside Apple containers without a DNS domain set up with sudo) and, with nginx, renders `run/nginx/clued.conf` with the server's address and starts `clued-nginx` publishing `--port` on every interface. It is a no-op while the containers run (`up.sh --recreate` replaces them, which a rerun of `init` needs) and installs the launchd agent. The server container runs as root because bind-mounted files appear root-owned inside Apple containers. `down.sh` removes the containers and the agent; `down.sh --volumes` deletes the data too |
+| `launchd/com.robbiebyrd.clued-server.plist` | Runtime `apple`: the agent `up.sh` copies into `~/Library/LaunchAgents` so the stack starts at login (Apple Containers have no restart policy); it logs to `launchd/up.log` |
+| `run/` | Runtime `apple`: the storage and nginx configs rendered with the addresses of the current start |
 | `nginx/clued.conf` | The front-end: TLS 1.2+, the `Authorization` header and WebSocket upgrades passed through, bodies up to the server's 16 MiB cap, hour-long reads for `/ws` |
 | `mind-palace.config.yaml` | The plan and story storage: MongoDB alone, namespaced per project (see [Storage on the server](#storage-on-the-server)) |
 | `tls/ca.pem`, `tls/ca-key.pem` | A private CA, valid ten years and name-constrained to the hosts below (it can sign for this server and nothing else); clients put `ca.pem` in `serverCaFile`, or this machine trusts it with [`server trust`](#trusting-the-ca-on-this-machine) |
 | `tls/cert.pem`, `tls/key.pem` | The server certificate signed by that CA, valid two years, covering `localhost`, `127.0.0.1`, `::1`, this host's name and every `--host` |
 | `tokens.json` | The token file; `init` mints one token named after the host (`--name`, `--project`, `--account` as for `server token create`) and `mind-palace server token …` finds the file here by default |
 
-`init` is safe to rerun: the compose, nginx and storage files are
-regenerated (so a plugin upgrade re-pins the image with another `init`,
-followed by `docker compose … up -d`), `tls/` and `tokens.json` are kept, and
-a token whose name exists is not minted again (`notes` says so). `--force`
-reissues the server certificate, which is how a name is added later. The CA
-is kept while it covers every host and has more than 30 days left, so the
-machines that already trust it keep working; a host outside its name
-constraints needs a new CA, and `--new-ca` asks for one outright. Either way
-`notes` says when the CA changed, and every machine that trusted the old one
-must trust the new one (`server trust` again here, a new `ca.pem` in
-`serverCaFile` elsewhere). The result names the CA file and its SHA-256
-fingerprint (`ca`, `ca_fingerprint`):
+`init` is safe to rerun: the runtime's files and the nginx and storage files
+are regenerated (so a plugin upgrade re-pins the image with another `init`,
+followed by the `up` command again: `docker compose … up -d`, or `up.sh
+--recreate`), `tls/` and `tokens.json` are kept, and a token whose name
+exists is not minted again (`notes` says so). `--force` reissues the server
+certificate, which is how a name is added later. The CA is kept while it
+covers every host and has more than 30 days left, so the machines that
+already trust it keep working; a host outside its name constraints needs a
+new CA, and `--new-ca` asks for one outright. Either way `notes` says when
+the CA changed, and every machine that trusted the old one must trust the
+new one (`server trust` again here, a new `ca.pem` in `serverCaFile`
+elsewhere). The result names the CA file and its SHA-256 fingerprint (`ca`,
+`ca_fingerprint`):
 
 ```bash
 mind-palace server init --host clued.home.arpa --host 192.168.1.20 --force --no-token
-docker compose -f ~/.clued-server/docker-compose.yml up -d --force-recreate nginx
+docker compose -f ~/.clued-server/docker-compose.yml up -d --force-recreate nginx   # or: bash ~/.clued-server/up.sh --recreate
 ```
+
+The Apple runtime follows the `container` command reference and is
+exercised in the tests against a stub of the CLI, not on a Mac: that the
+port published as `0.0.0.0:<port>` is reachable from other machines, and
+that bind-mounted files are root-owned inside the container (why the server
+runs as root there), are what the reference documents. If a start fails,
+`container logs clued-server` and `launchd/up.log` say why, and `--runtime
+compose` with Docker is the fallback.
 
 #### Trusting the CA on this machine
 
@@ -190,12 +213,12 @@ with the `CLUED_SERVER_*` variables.
   [mkcert](https://github.com/FiloSottile/mkcert) for a LAN, or a real CA for
   a public name) and leave `serverCaFile` unset.
 - `--proxy none` leaves nginx out and publishes the server itself as plain
-  HTTP on `127.0.0.1:${CLUED_PUBLIC_PORT:-8443}`, for a terminator you run on
+  HTTP on `127.0.0.1:<port>` (8443 by default), for a terminator you run on
   the host: Caddy or nginx as in [Behind a reverse proxy](#behind-a-reverse-proxy),
   Traefik, or an ingress when the same three services run under Kubernetes.
   A client on that machine may use `http://127.0.0.1:8443` directly (loopback
   needs no TLS); every other client goes through the terminator.
-- Without Docker at all, run the binary as in [From the binary](#from-the-binary)
+- Without containers at all, run the binary as in [From the binary](#from-the-binary)
   behind any of those.
 
 #### From a source checkout
@@ -229,7 +252,7 @@ A clued cloud run on the same machine (`clued-cloud serve`, or its
 
 | | Server stack | clued cloud |
 |---|---|---|
-| Port | `8443` (`CLUED_PUBLIC_PORT`) | `8080` (`--addr`) |
+| Port | `8443` (`server init --port`) | `8080` (`--addr`) |
 | Compose project | `clued` (containers `clued-nginx`, `clued-server`, `clued-mongo`) | `clued-cloud` |
 | MongoDB | the volume `clued_clued_mongo_data`, not published | its own volume, not published |
 
@@ -240,7 +263,8 @@ names one server at a time: `/clued-setup` asks before it replaces a
 server without touching the file.
 
 `/clued-uninstall` (and `hooks/uninstall`) stops the stack with
-`docker compose down`; the MongoDB volume and `~/.clued-server` stay unless
+`docker compose down`, or with `down.sh` on Apple Containers (which also
+removes the launchd agent); the MongoDB volume and `~/.clued-server` stay unless
 `--purge-server` is given, so a reinstall finds the data, the tokens and the
 CA where they were.
 
@@ -436,10 +460,10 @@ override the file, which is how a cloud container is configured without a
 file at all.
 
 `/clued-setup` asks first whether to use a local MongoDB, a clued server in
-Docker on this machine, a clued server someone else runs, or a clued cloud
-(next section). The Docker
-option runs `server init` and `docker compose up` and fills the file from
-the result; the last asks for the URL and token. Both then write the file,
+containers on this machine, a clued server someone else runs, or a clued
+cloud (next section). The container option runs `server init` (Docker, or
+Apple Containers on a Mac without Docker) and the result's `up` command and
+fills the file from the result; the last asks for the URL and token. Both then write the file,
 check the connection and register the hooks, and start no daemon. The
 check is:
 

@@ -9,11 +9,13 @@
 #          its log (<data dir>/relay.log), even with --keep-config
 # macOS:   unloads and removes ~/Library/LaunchAgents/org.mongodb.mongod.plist
 #          when it is present (a local MongoDB install)
-# Server stack (`mind-palace server init`, ~/.clued-server/docker-compose.yml
-#          or $CLUED_SERVER_DIR): stops its containers with `docker compose
-#          down`; the MongoDB volume and the directory (tokens, certificates)
-#          stay unless --purge-server, which also takes the stack's CA out of
-#          this machine's trust stores (`server trust --remove`)
+# Server stack (`mind-palace server init` under ~/.clued-server or
+#          $CLUED_SERVER_DIR): stops its containers with `docker compose
+#          down` (docker-compose.yml) or down.sh (Apple Containers, which
+#          also removes the launchd agent); the MongoDB volume and the
+#          directory (tokens, certificates) stay unless --purge-server,
+#          which also takes the stack's CA out of this machine's trust
+#          stores (`server trust --remove`)
 # Flags:
 #   --keep-config          skip removing ~/.claude/plugins/data/clued/
 #   --keep-mongo-binary    skip removing ~/mongodb/ (tarball install only)
@@ -59,7 +61,7 @@ if [[ -z "$SERVER_URL" ]] && command -v curl &>/dev/null \
   pkill -f 'mind-palace session daemon$' 2>/dev/null && echo "clued: daemon stopped" || true
 fi
 
-# --- The server stack this machine hosts (docker compose, from `server init`) ---
+# --- The server stack this machine hosts (from `server init`: docker compose, or down.sh on Apple Containers) ---
 # untrust_stack_ca takes the stack's CA out of this machine's trust stores
 # (`server trust --remove`) before its directory goes. What it cannot do
 # (root, a keychain dialog) is printed, and the CA is kept as
@@ -86,19 +88,30 @@ untrust_stack_ca() {
 
 STACK_DIR="${CLUED_SERVER_DIR:-${HOME}/.clued-server}"
 STACK_COMPOSE="${STACK_DIR}/docker-compose.yml"
-if [[ $KEEP_SERVER -eq 0 && -f "$STACK_COMPOSE" ]] && command -v docker &>/dev/null; then
+STACK_DOWN="${STACK_DIR}/down.sh"
+STACK_FILE=""
+if [[ $KEEP_SERVER -eq 0 ]]; then
+  if [[ -f "$STACK_DOWN" ]]; then
+    STACK_FILE="$STACK_DOWN"
+    stack_down() { bash "$STACK_DOWN" "$@" &>/dev/null; }
+  elif [[ -f "$STACK_COMPOSE" ]] && command -v docker &>/dev/null; then
+    STACK_FILE="$STACK_COMPOSE"
+    stack_down() { docker compose -f "$STACK_COMPOSE" down "$@" &>/dev/null; }
+  fi
+fi
+if [[ -n "$STACK_FILE" ]]; then
   if [[ $PURGE_SERVER -eq 1 ]]; then
-    if docker compose -f "$STACK_COMPOSE" down --volumes &>/dev/null; then
+    if stack_down --volumes; then
       untrust_stack_ca
       rm -rf "$STACK_DIR"
       echo "clued: server stack stopped and removed with its data (${STACK_DIR})"
     else
-      echo "clued: could not stop the server stack (${STACK_COMPOSE}); is Docker running?" >&2
+      echo "clued: could not stop the server stack (${STACK_FILE}); is its container runtime running?" >&2
     fi
-  elif docker compose -f "$STACK_COMPOSE" down &>/dev/null; then
+  elif stack_down; then
     echo "clued: server stack stopped (its data volume and ${STACK_DIR} are kept; --purge-server removes them)"
   else
-    echo "clued: could not stop the server stack (${STACK_COMPOSE}); is Docker running?" >&2
+    echo "clued: could not stop the server stack (${STACK_FILE}); is its container runtime running?" >&2
   fi
 fi
 

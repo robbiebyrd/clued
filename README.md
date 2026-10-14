@@ -53,15 +53,16 @@ for the plan and story service in depth.
 
 3. Reload if prompted: `/reload-plugins`
 4. Configure: `/clued-setup`. The wizard detects your platform and asks
-   where the data goes: a local MongoDB, a clued server in Docker on this
-   machine, or a clued server someone else runs. For a MongoDB it asks how
+   where the data goes: a local MongoDB, a clued server in containers on
+   this machine, or a clued server someone else runs. For a MongoDB it asks how
    to run it (local binary, Docker or remote), installs and starts it,
    installs `mind-palace`, writes `~/.claude/plugins/data/clued/config.json`
-   and starts the daemon. For the Docker server it runs
+   and starts the daemon. For the server in containers it runs
    `mind-palace server init` (the server, its MongoDB and an nginx HTTPS
-   front-end under `~/.clued-server`, with a private CA and a first token),
-   first checking that no other stack, clued cloud or daemon holds its
-   ports, starts the stack, offers to trust the CA on this machine
+   front-end under `~/.clued-server`, with a private CA and a first token,
+   with Docker or, on a Mac without Docker, Apple Containers), first
+   checking that no other stack, clued cloud or daemon holds its ports,
+   starts the stack, offers to trust the CA on this machine
    (`mind-palace server trust`: the keychain, the system store, Chrome and
    Firefox) and fills the config from the result, asking before it replaces
    another server's. A developer can run the server from a source checkout
@@ -82,8 +83,8 @@ mind-palace session find --limit 3
 Remove it again with `/clued-uninstall`, which detects what is present and
 asks before stopping the daemon (local mode only) or the server stack,
 removing the config and downloaded binary, the relay's catch-up state and
-log, and (optionally) the MongoDB binaries, the Docker containers and
-volumes, and the data. It does not remove the plugin itself; finish
+log, and (optionally) the MongoDB binaries, the containers and volumes of
+the server stack, and the data. It does not remove the plugin itself; finish
 with `/plugin uninstall clued@clued` (and `/plugin marketplace remove clued`),
 then `/reload-plugins`.
 

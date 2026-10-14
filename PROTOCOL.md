@@ -167,8 +167,9 @@ command to fix it.
 Idempotent, always exits 0.
 
 `uninstall [--keep-config] [--keep-mongo-binary] [--keep-server] [--purge-server]`
-stops the daemon in local mode, stops the Docker stack under
-`${CLUED_SERVER_DIR:-~/.clued-server}` (`--purge-server` also removes its
+stops the daemon in local mode, stops the server stack under
+`${CLUED_SERVER_DIR:-~/.clued-server}` with `docker compose down`, or with
+its `down.sh` on Apple Containers (`--purge-server` also removes its
 volume and directory, after `server trust --remove`; root steps it could not
 run are printed and the CA is copied to `~/clued-server-ca.pem` for them),
 removes the macOS launchd plist when present, always removes `catchup/` and
@@ -1210,7 +1211,7 @@ run [--addr host:port] [--tls-cert file --tls-key file | --behind-proxy] [--toke
 token create --name <name> [--project <slug>]… [--account <id>] [--tokens file]
 token list | token revoke <name> | token grant <name> --project <slug>…
 device list | device approve <code> [--name n] [--project slug]… | device deny <code>   (each takes --server, --token, --ca-file, --insecure; defaults from the clued config)
-init [--dir ~/.clued-server] [--proxy nginx|none] [--port 8443] [--host name]… [--name token] [--no-tls] [--force] [--new-ca] [--no-token] [--account id] [--image ref] [--nginx-image ref] [--mongo-image ref]
+init [--dir ~/.clued-server] [--runtime auto|compose|apple] [--proxy nginx|none] [--port 8443] [--host name]… [--name token] [--no-tls] [--force] [--new-ca] [--no-token] [--account id] [--image ref] [--nginx-image ref] [--mongo-image ref]
 trust [--dir ~/.clued-server] [--ca file] [--url https://localhost:8443] [--remove] [--dry-run]
 ```
 
@@ -1218,13 +1219,19 @@ trust [--dir ~/.clued-server] [--ca file] [--url https://localhost:8443] [--remo
 `{"ok": true, "result": {"name", "account_id", "projects", "created", "token", "file"}}`;
 `list`, `revoke` and `grant` print the stored records (hashes, never
 tokens). `device …` acts on a server's device login over its API (section
-7.9) as a machine already linked to it. `init` writes the Compose stack (`docker-compose.yml` with the
-top-level project name `clued`, `nginx/clued.conf`,
-`mind-palace.config.yaml`, a private CA and certificate under `tls/`, the
-first token in `tokens.json`) and prints `{"dir", "compose_file", "proxy",
-"port", "server_url", "ca_file", "hosts", "tls", "ca", "ca_fingerprint",
-"token", "up", "health", "written", "kept", "notes"}`; `up` is the command
-that starts the stack. `tls` is `generated`, `kept`, `supplied` (`--no-tls`)
+7.9) as a machine already linked to it. `init` writes the container stack for the runtime (`--runtime auto`, the
+default, is `compose` when `docker` is on the PATH, else `apple` on a Mac
+with the `container` CLI, else `compose`): `docker-compose.yml` with the
+top-level project name `clued` and literal values (no `${VAR:-default}`),
+or `up.sh`, `down.sh` and `launchd/com.robbiebyrd.clued-server.plist` for
+Apple Containers; plus `stack.json` (the runtime and the commands),
+`nginx/clued.conf`, `mind-palace.config.yaml`, a private CA and certificate
+under `tls/` and the first token in `tokens.json`. The other runtime's
+files are removed. It prints `{"dir", "runtime", "compose_file" (compose
+only), "proxy", "port", "server_url", "ca_file", "hosts", "tls", "ca",
+"ca_fingerprint", "token", "up", "down", "logs", "health", "written",
+"kept", "notes"}`; `up` starts the stack, `down` stops it (the data stays),
+`logs` shows the server's log. `tls` is `generated`, `kept`, `supplied` (`--no-tls`)
 or `none` (`--proxy none`) for the certificates; `ca` is `generated` or `kept` for the CA and `ca_fingerprint`
 its SHA-256 (hex). The CA is name-constrained to `hosts` (critical DNS name
 constraints, one `/32` or `/128` per address). Without `--force` existing

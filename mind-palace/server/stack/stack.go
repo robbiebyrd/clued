@@ -1,13 +1,14 @@
-// Package stack prepares the directory a Docker Compose deployment of the
-// clued server runs from: the compose file with the clued server, its
-// MongoDB and, by default, an nginx front-end that terminates TLS; the nginx
-// configuration; the server's plan and story storage; a private CA with a
-// certificate for the host; and a first bearer token. It is the business
-// logic behind `mind-palace server init`, which /clued-setup runs to host the
-// server on the user's own machine.
+// Package stack prepares the directory a container deployment of the clued
+// server runs from: the clued server, its MongoDB and, by default, an nginx
+// front-end that terminates TLS, as a Docker Compose file (RuntimeCompose)
+// or as start and stop scripts with a launchd agent for Apple Containers
+// (RuntimeApple, apple.go); the nginx configuration; the server's plan and
+// story storage; a private CA with a certificate for the host; and a first
+// bearer token. It is the business logic behind `mind-palace server init`,
+// which /clued-setup runs to host the server on the user's own machine.
 //
-// The clued server itself always serves plain HTTP inside the compose
-// network (CLUED_SERVER_BEHIND_PROXY): with ProxyNginx the nginx service
+// The clued server itself always serves plain HTTP inside the container
+// network (CLUED_SERVER_BEHIND_PROXY): with ProxyNginx the nginx container
 // publishes the public port over HTTPS, with ProxyNone the server is
 // published on loopback only for another terminator on the host (Caddy,
 // Traefik, an nginx of the operator's own, a Kubernetes ingress).
@@ -34,6 +35,15 @@ const (
 	ProxyNone = "none"
 )
 
+// Runtimes.
+const (
+	// RuntimeCompose: a docker-compose.yml started with `docker compose`.
+	RuntimeCompose = "compose"
+	// RuntimeApple: up.sh and down.sh driving Apple's `container` CLI
+	// (macOS 26) and a launchd agent that starts the stack at login.
+	RuntimeApple = "apple"
+)
+
 // Defaults.
 const (
 	DefaultPort        = 8443
@@ -55,12 +65,24 @@ const (
 	CAKeyFile   = "tls/ca-key.pem"
 	CertFile    = "tls/cert.pem"
 	KeyFile     = "tls/key.pem"
+	// StackFile records how the directory's stack is run (runtime, proxy,
+	// port, the up, down and logs commands).
+	StackFile = "stack.json"
+	// The Apple Containers runtime's files; LaunchdLabel is the agent
+	// up.sh installs under ~/Library/LaunchAgents.
+	UpScript     = "up.sh"
+	DownScript   = "down.sh"
+	LaunchdLabel = "com.robbiebyrd.clued-server"
+	LaunchdPlist = "launchd/" + LaunchdLabel + ".plist"
 )
 
 // Options configures Init. Zero values take the defaults above.
 type Options struct {
 	// Dir is the stack directory; "" means ~/.clued-server.
 	Dir string
+	// Runtime is RuntimeCompose (default) or RuntimeApple; DetectRuntime
+	// picks one for the machine.
+	Runtime string
 	// Proxy is ProxyNginx (default) or ProxyNone.
 	Proxy string
 	// Port is the port published on the host: nginx's HTTPS port, or the
@@ -113,8 +135,10 @@ type Token struct {
 
 // Result is what Init prepared.
 type Result struct {
-	Dir         string `json:"dir"`
-	ComposeFile string `json:"compose_file"`
+	Dir     string `json:"dir"`
+	Runtime string `json:"runtime"`
+	// ComposeFile is the compose file (RuntimeCompose only).
+	ComposeFile string `json:"compose_file,omitempty"`
 	Proxy       string `json:"proxy"`
 	Port        int    `json:"port"`
 	// ServerURL is what a client on this machine puts in serverUrl.
@@ -135,8 +159,11 @@ type Result struct {
 	// Token is the minted token, or nil with NoToken or when TokenName
 	// already exists (see Notes).
 	Token *Token `json:"token,omitempty"`
-	// Up is the command that starts the stack.
-	Up string `json:"up"`
+	// Up is the command that starts the stack; Down the one that stops it
+	// (its data stays); Logs the one that shows the server's log.
+	Up   string `json:"up"`
+	Down string `json:"down"`
+	Logs string `json:"logs"`
 	// Health is a command that checks the stack answers.
 	Health string `json:"health"`
 	// Written and Kept list the files Init wrote and left as they were.
@@ -155,10 +182,12 @@ const (
 	TLSNone      = "none"
 )
 
-// Init prepares the stack directory. It is safe to rerun: the compose file,
-// the nginx configuration and the storage configuration are regenerated,
-// the certificates and the token file are kept (Force regenerates the
+// Init prepares the stack directory. It is safe to rerun: the runtime's
+// files (the compose file, or the scripts and the launchd agent), the nginx
+// configuration and the storage configuration are regenerated, the
+// certificates and the token file are kept (Force regenerates the
 // certificates), and a token whose name exists is not minted again.
+// Switching the runtime removes the other runtime's files.
 func Init(opts Options) (Result, error) {
 	opts, err := withDefaults(opts)
 	if err != nil {
@@ -170,12 +199,19 @@ func Init(opts Options) (Result, error) {
 	if err := os.MkdirAll(opts.Dir, 0o755); err != nil {
 		return Result{}, err
 	}
-	for _, sub := range []string{"tls", "nginx"} {
+	subdirs := []string{"tls", "nginx"}
+	if opts.Runtime == RuntimeApple {
+		subdirs = append(subdirs, "launchd")
+	}
+	for _, sub := range subdirs {
 		if err := os.MkdirAll(filepath.Join(opts.Dir, sub), 0o755); err != nil {
 			return Result{}, err
 		}
 	}
-	res := Result{Dir: opts.Dir, ComposeFile: filepath.Join(opts.Dir, ComposeFile), Proxy: opts.Proxy, Port: opts.Port}
+	res := Result{Dir: opts.Dir, Runtime: opts.Runtime, Proxy: opts.Proxy, Port: opts.Port}
+	if opts.Runtime == RuntimeCompose {
+		res.ComposeFile = filepath.Join(opts.Dir, ComposeFile)
+	}
 
 	hosts := certHosts(opts)
 	switch {
@@ -219,18 +255,60 @@ func Init(opts Options) (Result, error) {
 		}
 	}
 
-	files := map[string]string{
-		ConfigFile:  configYAML(),
-		ComposeFile: composeYAML(opts),
+	if opts.Proxy == ProxyNginx {
+		res.ServerURL = fmt.Sprintf("https://localhost:%d", opts.Port)
+		if opts.NoTLS {
+			res.Health = fmt.Sprintf("curl %s/health", res.ServerURL)
+		} else {
+			res.Health = fmt.Sprintf("curl --cacert %s %s/health", filepath.Join(opts.Dir, CAFile), res.ServerURL)
+		}
+	} else {
+		res.ServerURL = fmt.Sprintf("http://127.0.0.1:%d", opts.Port)
+		res.Health = fmt.Sprintf("curl %s/health", res.ServerURL)
+	}
+	// Only the runtime's own files are written; the other runtime's are
+	// removed so the directory says which one runs the stack.
+	files := map[string]string{ConfigFile: configYAML()}
+	modes := map[string]os.FileMode{}
+	var stale []string
+	switch opts.Runtime {
+	case RuntimeApple:
+		files[UpScript], files[DownScript], files[LaunchdPlist] = upScript(opts), downScript(opts), launchdPlist(opts)
+		modes[UpScript], modes[DownScript] = 0o755, 0o755
+		res.Up = fmt.Sprintf("bash %s", filepath.Join(opts.Dir, UpScript))
+		res.Down = fmt.Sprintf("bash %s", filepath.Join(opts.Dir, DownScript))
+		res.Logs = "container logs " + serverContainer
+		res.Notes = append(res.Notes, fmt.Sprintf("Apple Containers: up.sh starts `container system` when needed and installs the launchd agent %s so the stack starts at login (down.sh removes it); the server container runs as root because bind-mounted files appear root-owned inside Apple containers", LaunchdLabel))
+		stale = []string{ComposeFile}
+	default:
+		files[ComposeFile] = composeYAML(opts)
+		res.Up = fmt.Sprintf("docker compose -f %s up -d", res.ComposeFile)
+		res.Down = fmt.Sprintf("docker compose -f %s down", res.ComposeFile)
+		res.Logs = fmt.Sprintf("docker compose -f %s logs %s", res.ComposeFile, serverContainer)
+		if opts.Proxy == ProxyNginx {
+			res.Logs += " nginx"
+		}
+		stale = []string{UpScript, DownScript, LaunchdPlist}
 	}
 	if opts.Proxy == ProxyNginx {
 		files[NginxConf] = nginxConf()
 	} else {
-		_ = os.Remove(filepath.Join(opts.Dir, NginxConf))
+		stale = append(stale, NginxConf)
 	}
+	for _, name := range stale {
+		_ = os.Remove(filepath.Join(opts.Dir, name))
+	}
+	files[StackFile] = stackJSON(opts, res)
 	for name, body := range files {
 		path := filepath.Join(opts.Dir, name)
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		mode := modes[name]
+		if mode == 0 {
+			mode = 0o644
+		}
+		if err := os.WriteFile(path, []byte(body), mode); err != nil {
+			return Result{}, err
+		}
+		if err := os.Chmod(path, mode); err != nil {
 			return Result{}, err
 		}
 		res.Written = append(res.Written, path)
@@ -262,19 +340,23 @@ func Init(opts Options) (Result, error) {
 		res.Notes = append(res.Notes, fmt.Sprintf("no token file yet: mint one with `mind-palace server token create --tokens %s --name <name> --project '*'` before starting the stack", tokens))
 	}
 
-	if opts.Proxy == ProxyNginx {
-		res.ServerURL = fmt.Sprintf("https://localhost:%d", opts.Port)
-		if res.CAFile != "" {
-			res.Health = fmt.Sprintf("curl --cacert %s %s/health", res.CAFile, res.ServerURL)
-		} else {
-			res.Health = fmt.Sprintf("curl %s/health", res.ServerURL)
-		}
-	} else {
-		res.ServerURL = fmt.Sprintf("http://127.0.0.1:%d", opts.Port)
-		res.Health = fmt.Sprintf("curl %s/health", res.ServerURL)
-	}
-	res.Up = fmt.Sprintf("docker compose -f %s up -d", res.ComposeFile)
 	return res, nil
+}
+
+// DetectRuntime picks the runtime for a machine: RuntimeCompose when
+// docker is on the PATH, RuntimeApple when it is not but the machine is a
+// Mac with Apple's container CLI, RuntimeCompose otherwise (the setup then
+// asks for Docker). goos is runtime.GOOS and lookPath exec.LookPath.
+func DetectRuntime(goos string, lookPath func(string) (string, error)) string {
+	if _, err := lookPath("docker"); err == nil {
+		return RuntimeCompose
+	}
+	if goos == "darwin" {
+		if _, err := lookPath("container"); err == nil {
+			return RuntimeApple
+		}
+	}
+	return RuntimeCompose
 }
 
 func withDefaults(opts Options) (Options, error) {
@@ -287,6 +369,13 @@ func withDefaults(opts Options) (Options, error) {
 	}
 	if abs, err := filepath.Abs(opts.Dir); err == nil {
 		opts.Dir = abs
+	}
+	switch opts.Runtime {
+	case "":
+		opts.Runtime = RuntimeCompose
+	case RuntimeCompose, RuntimeApple:
+	default:
+		return opts, fmt.Errorf("stack: runtime %q is not %q or %q", opts.Runtime, RuntimeCompose, RuntimeApple)
 	}
 	switch opts.Proxy {
 	case "":

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -121,22 +122,36 @@ stack's hosts, so trusting it vouches for this server and nothing else.`,
 	return cmd
 }
 
-// stackURL is the stack's local HTTPS URL from its compose file, or "" when
-// it publishes plain HTTP or has none.
+// stackURL is the stack's local HTTPS URL: from stack.json, or for a stack
+// an older init wrote, from the port its compose file publishes on 443;
+// "" when it publishes plain HTTP or has none.
 func stackURL(dir string) string {
+	if raw, err := os.ReadFile(filepath.Join(dir, stack.StackFile)); err == nil {
+		var doc struct {
+			Proxy     string `json:"proxy"`
+			ServerURL string `json:"server_url"`
+		}
+		if json.Unmarshal(raw, &doc) == nil && doc.Proxy == stack.ProxyNginx && strings.HasPrefix(doc.ServerURL, "https://") {
+			return doc.ServerURL
+		}
+		return ""
+	}
 	raw, err := os.ReadFile(filepath.Join(dir, stack.ComposeFile))
 	if err != nil {
 		return ""
 	}
 	for _, line := range strings.Split(string(raw), "\n") {
-		line = strings.TrimSpace(line)
-		// - "${CLUED_PUBLIC_PORT:-8443}:443"
-		if strings.HasSuffix(line, `}:443"`) {
-			if i := strings.Index(line, ":-"); i >= 0 {
-				if j := strings.Index(line[i:], "}"); j > 2 {
-					return "https://localhost:" + line[i+2:i+j]
-				}
-			}
+		// - "8443:443", or - "${CLUED_PUBLIC_PORT:-8443}:443" from an older init.
+		line = strings.Trim(strings.TrimPrefix(strings.TrimSpace(line), "- "), `"`)
+		port, ok := strings.CutSuffix(line, ":443")
+		if !ok {
+			continue
+		}
+		if i := strings.Index(port, ":-"); i >= 0 {
+			port = strings.TrimSuffix(port[i+2:], "}")
+		}
+		if port != "" && !strings.ContainsAny(port, ":${}") {
+			return "https://localhost:" + port
 		}
 	}
 	return ""

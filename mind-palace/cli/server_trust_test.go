@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -101,5 +102,13 @@ func TestStackURLReadsThePublishedPort(t *testing.T) {
 	serverResult(t, runServer(t, "init", "--dir", none, "--name", "laptop", "--no-token", "--proxy", "none"))
 	if got := stackURL(none); got != "" {
 		t.Errorf("stackURL with --proxy none = %q", got)
+	}
+	// A stack an older init wrote has no stack.json and interpolates the port.
+	old := t.TempDir()
+	if err := os.WriteFile(filepath.Join(old, stack.ComposeFile), []byte("services:\n  nginx:\n    ports:\n      - \"${CLUED_PUBLIC_PORT:-9444}:443\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := stackURL(old); got != "https://localhost:9444" {
+		t.Errorf("stackURL of an older compose file = %q", got)
 	}
 }
