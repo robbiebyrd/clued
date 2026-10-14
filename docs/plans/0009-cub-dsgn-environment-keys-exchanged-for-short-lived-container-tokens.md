@@ -2,11 +2,12 @@
 id: 0009-cub
 title: Environment keys exchanged for short-lived container tokens
 type: dsgn
-status: in_progress
+status: complete
 priority: "2"
 effort: L
 created: "2026-10-14T15:31:39.678Z"
-updated: "2026-10-14T15:51:28.354Z"
+updated: "2026-10-14T19:01:39.136Z"
+completed: "2026-10-14T19:01:39.136Z"
 tags:
   - auth
   - cloud
