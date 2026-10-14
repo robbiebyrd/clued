@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
@@ -17,6 +18,7 @@ const (
 	defaultSessionLimit  = 10
 	defaultCommandLimit  = 20
 	defaultMemoryLimit   = 20
+	defaultLimitSamples  = 20
 	contextMemoryCount   = 5
 	defaultLineLimit     = 200
 	topCommandCount      = 10
@@ -59,6 +61,32 @@ type SearchMemoryArgs struct {
 	GitOrigin   string `json:"git_origin,omitempty"`
 	ProjectPath string `json:"project_path,omitempty"`
 	Limit       int    `json:"limit,omitempty"`
+}
+
+// LimitsArgs are the get_limits tool parameters. Since is an RFC 3339 time
+// or a duration back from now ("24h"); empty means no lower bound.
+type LimitsArgs struct {
+	SessionID   string `json:"session_id,omitempty"`
+	GitOrigin   string `json:"git_origin,omitempty"`
+	ProjectPath string `json:"project_path,omitempty"`
+	Since       string `json:"since,omitempty"`
+	Limit       int    `json:"limit,omitempty"`
+}
+
+// LimitSample is one LimitsSampled event (a status-line sample posted by
+// `hook status`) with the project and repository of its session.
+type LimitSample struct {
+	SessionID     string      `json:"session_id"`
+	ProjectPath   *string     `json:"project_path"`
+	GitOrigin     *string     `json:"git_origin"`
+	Cwd           string      `json:"cwd"`
+	Model         session.Doc `json:"model,omitempty"`
+	Version       string      `json:"version,omitempty"`
+	ContextWindow session.Doc `json:"context_window,omitempty"`
+	RateLimits    session.Doc `json:"rate_limits,omitempty"`
+	Cost          session.Doc `json:"cost,omitempty"`
+	SampledAt     string      `json:"sampled_at,omitempty"`
+	CreatedAt     time.Time   `json:"created_at"`
 }
 
 // MemoryHit is one memory record (a claude-remember summary, handoff or
@@ -208,6 +236,88 @@ func (s *Service) SearchMemory(ctx context.Context, args SearchMemoryArgs) ([]Me
 		return nil, err
 	}
 	return s.memoryHits(ctx, events)
+}
+
+// Limits returns the status-line samples of the account, newest first, scoped like
+// SearchMemory and bounded below by args.Since.
+func (s *Service) Limits(ctx context.Context, args LimitsArgs) ([]LimitSample, error) {
+	since, err := parseSince(args.Since, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	sessionIDs, scoped, err := s.scope(ctx, args.SessionID, args.GitOrigin, args.ProjectPath)
+	if err != nil {
+		return nil, err
+	}
+	if scoped && len(sessionIDs) == 0 {
+		return []LimitSample{}, nil
+	}
+	events, err := s.Store.LimitSamples(ctx, session.LimitQuery{
+		AccountID:  s.AccountID,
+		SessionIDs: sessionIDs,
+		Since:      since,
+		Limit:      withDefault(args.Limit, defaultLimitSamples),
+	})
+	if err != nil {
+		return nil, err
+	}
+	sessions := map[string]session.Doc{}
+	out := make([]LimitSample, 0, len(events))
+	for _, ev := range events {
+		id, _ := ev.String("session_id")
+		if _, known := sessions[id]; !known && id != "" {
+			if sessions[id], err = s.sessionOrNil(ctx, id); err != nil {
+				return nil, err
+			}
+		}
+		cwd, _ := ev.String("cwd")
+		version, _ := ev.String("version")
+		sampledAt, _ := ev.String("sampled_at")
+		createdAt, _ := ev["created_at"].(time.Time)
+		out = append(out, LimitSample{
+			SessionID:     id,
+			ProjectPath:   stringPtr(sessions[id], "project_path"),
+			GitOrigin:     stringPtr(sessions[id], "git_origin"),
+			Cwd:           cwd,
+			Model:         docOrNil(ev, "model"),
+			Version:       version,
+			ContextWindow: docOrNil(ev, "context_window"),
+			RateLimits:    docOrNil(ev, "rate_limits"),
+			Cost:          docOrNil(ev, "cost"),
+			SampledAt:     sampledAt,
+			CreatedAt:     createdAt,
+		})
+	}
+	return out, nil
+}
+
+// parseSince reads a lower time bound: empty means none, a duration means
+// that long before now, anything else an RFC 3339 time.
+func parseSince(s string, now time.Time) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}, nil
+	}
+	if d, err := time.ParseDuration(s); err == nil {
+		if d < 0 {
+			d = -d
+		}
+		return now.Add(-d), nil
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("since must be an RFC 3339 time or a duration such as 24h: %q", s)
+	}
+	return t, nil
+}
+
+// docOrNil returns the map under key, or nil when there is none.
+func docOrNil(d session.Doc, key string) session.Doc {
+	m := d.Map(key)
+	if len(m) == 0 {
+		return nil
+	}
+	return m
 }
 
 // memoryHits joins memory events with their sessions.

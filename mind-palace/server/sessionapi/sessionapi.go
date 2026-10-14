@@ -29,6 +29,7 @@
 //	POST /error-lines                    ErrorLines             body: session.ErrorQuery
 //	POST /transcript-search              SearchTranscripts      body: session.TextQuery
 //	POST /usage-totals                   UsageTotals            body: session.UsageQuery
+//	POST /limit-samples                   LimitSamples            body: session.LimitQuery
 //	GET  /sessions/{id}/full             FullSession
 //
 // The query structs (SessionQuery, LineQuery, CommandQuery, MemoryQuery) use
@@ -131,6 +132,7 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/error-lines", a.errorLines)
 	route("POST", "/transcript-search", a.searchTranscripts)
 	route("POST", "/usage-totals", a.usageTotals)
+	route("POST", "/limit-samples", a.limitSamples)
 	mux.HandleFunc(Prefix+"/", func(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusNotFound, KindNotFound, fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))
 	})
@@ -425,6 +427,25 @@ func (a *api) bashEvents(w http.ResponseWriter, r *http.Request, account string)
 	}
 	q.AccountID = account
 	found, err := a.store.BashEvents(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, docs(found))
+}
+
+func (a *api) limitSamples(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.LimitQuery
+	if !a.decode(w, r, &q) {
+		return
+	}
+	for _, sid := range q.SessionIDs {
+		if !idOrInvalid(w, "session id", sid) {
+			return
+		}
+	}
+	q.AccountID = account
+	found, err := a.store.LimitSamples(r.Context(), q)
 	if err != nil {
 		storeError(w, err)
 		return

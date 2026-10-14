@@ -468,6 +468,18 @@ func (s *Store) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]sess
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
 }
 
+func (s *Store) LimitSamples(ctx context.Context, q session.LimitQuery) ([]session.Doc, error) {
+	filter := key("hook_event_name", session.LimitsEventName, "account_id", q.AccountID)
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	if !q.Since.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
+	}
+	projection := key("_id", 0, "session_id", 1, "cwd", 1, "model", 1, "version", 1, "context_window", 1, "rate_limits", 1, "cost", 1, "sampled_at", 1, "created_at", 1)
+	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
 func (s *Store) HookEventIDsByToolUse(ctx context.Context, sessionID string, toolUseIDs []string) ([]string, error) {
 	ids := []string{}
 	if len(toolUseIDs) == 0 {

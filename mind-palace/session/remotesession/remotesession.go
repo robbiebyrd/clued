@@ -155,6 +155,10 @@ func (s *Store) UsageTotals(ctx context.Context, q session.UsageQuery) ([]sessio
 	return out, nil
 }
 
+func (s *Store) LimitSamples(ctx context.Context, q session.LimitQuery) ([]session.Doc, error) {
+	return s.docs(ctx, "POST", prefix+"/limit-samples", q)
+}
+
 // --- transcript, subagent lines and blobs ---
 
 // UpsertTranscriptLines sends the lines in batches of at most MaxLines, in

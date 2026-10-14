@@ -267,6 +267,13 @@ const toolSchemas = `{
       "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
       "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
       "limit":{"type":"number","description":"Max lines to return (default 20, max 500)"}}}},
+  "get_limits": {"description": "Return the context-window and usage-limit samples the status line captured (LimitsSampled events): the context's used percentage and window size, the five-hour and seven-day limits with their reset times, the model and the cost, newest first, across every session and machine of the account unless scoped.",
+    "inputSchema": {"type":"object","properties":{
+      "session_id":{"type":"string","description":"Restrict to one session"},
+      "git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},
+      "project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},
+      "since":{"type":"string","description":"Only samples after this RFC 3339 time, or within this duration back from now (e.g. 24h)"},
+      "limit":{"type":"number","description":"Max samples to return (default 20, max 500)"}}}},
   "read_transcript": {"description": "Read transcript lines of a session in order, paginated by offset/limit.",
     "inputSchema": {"type":"object","properties":{
       "session_id":{"type":"string"},
@@ -635,7 +642,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 12 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] {
+		if len(names) != 13 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] || !names["pfx_get_limits"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {
