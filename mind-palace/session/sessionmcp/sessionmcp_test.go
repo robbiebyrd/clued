@@ -288,6 +288,11 @@ const toolSchemas = `{
       "since":{"type":"string","description":"Only lines after this RFC 3339 time, or within this duration back from now (e.g. 24h)"},
       "include_rejected":{"type":"boolean","description":"Keep the tool calls the harness refused to run, and their results (left out by default)"},
       "limit":{"type":"number","description":"Max lines to read before collapsing repeats (default 50, max 500)"}}}},
+  "get_digest": {"description": "The stored retro digest of one UTC day or a range of days: the first-person summary session digest wrote from the day's activity report (Context, Key Accomplishments, Technical Insights, Major Code Changes, Open Questions / Next Steps; a range has Range Overview, Major Outcomes, Workstreams, Recurring Patterns, Carried-Over / Unfinished Work), with the engine, model and cost that made it. Null when none is stored; digests are also memory records of kind digest for search_memory.",
+    "inputSchema": {"type":"object","properties":{
+      "day":{"type":"string","description":"The day, YYYY-MM-DD (UTC); default yesterday"},
+      "from":{"type":"string","description":"First day of a range, YYYY-MM-DD (with to)"},
+      "to":{"type":"string","description":"Last day of a range, YYYY-MM-DD (with from)"}}}},
   "read_transcript": {"description": "Read transcript lines of a session in order, paginated by offset/limit.",
     "inputSchema": {"type":"object","properties":{
       "session_id":{"type":"string"},
@@ -656,7 +661,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 14 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] || !names["pfx_get_limits"] {
+		if len(names) != 15 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] || !names["pfx_get_limits"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {

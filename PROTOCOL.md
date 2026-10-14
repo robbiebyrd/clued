@@ -517,6 +517,39 @@ The maps are stored as Claude Code sent them; one the input lacks (no
 (section 4.6) when the session's state is known, so a sample says whether
 the session was working or waiting.
 
+### 5.2 Digests
+
+`mind-palace session digest` (section 9) writes the first-person retro of
+a UTC day, or a range of days, from the day's activity report (`session
+report`, the activity timeline of section 6.1.1 rendered as one section
+per session and one `[HH:MM] <icon> <label>: <detail>` row per activity,
+details cut at 120 characters, repeats marked `×N`, a sub-agent's returned
+text indented under its task; kinds `user`, `response`, `bash`, `edit`,
+`thinking`, `task` unless `--include` says otherwise; the estimated size in
+tokens, with a warning past 300,000). The prompt is `templates/daily.md`
+(or `templates/range.md`, which wraps each day's stored digest in
+`<day date="…">`) of `mind-palace/session/digest`, overridden by a file of
+the same name under `~/.claude/plugins/data/clued/digest/`; the `claude`
+engine pipes it to `claude -p --no-session-persistence --output-format
+stream-json --verbose [--model m]` and reads the `result` event's text and
+`total_cost_usd`.
+
+The digest is stored as a `MemorySaved` event (section 5) of kind `digest`,
+so every machine of the account shares it and `search_memory`,
+`get_digest` and the prime report's MEMORY section (which leads with
+yesterday's) find it:
+
+```json
+{"hook_event_name": "MemorySaved", "saved_at": "<RFC3339Nano UTC>",
+ "memory": {"kind": "digest", "file": "digest/2026-10-13.md", "text": "## Context\n…", "hash": "<sha256 of scope|from|to|text>",
+            "scope": "day", "from": "2026-10-13", "to": "2026-10-13", "day": "2026-10-13", "engine": "claude", "model": "claude-fable-5-1", "cost_usd": 0.02, "report_tokens": 1234}}
+```
+
+A range digest has `scope: "range"`, `file: "digest/<from>..<to>.md"` and
+`day` set to its last day. A finished day is answered from the store
+unless `--force`; today is always regenerated; a range generates its
+missing days first and skips days with no sessions.
+
 ## 6. MCP servers over stdio
 
 ### 6.1 `clued`: the session tools
@@ -539,6 +572,7 @@ read-only.
 | `usage` | `group_by` (`session`, the default, `model` or `day`), `session_id`, `git_origin` (regex), `project_path` (regex), `since` and `until` (inclusive UTC days, `YYYY-MM-DD`), `limit` (groups, default 50, max 500) | `{"group_by", "groups", "total", "unpriced_models"}`. Each group has `key` (the session id, model or day), `messages`, `input_tokens`, `cache_creation_input_tokens`, `cache_creation_1h_tokens`, `cache_read_input_tokens`, `output_tokens`, `peak_context_tokens` (the largest input context of one message), `cost_usd` and, unless grouped by model, `models` (the same counters per model). Every assistant message counts once (the lines of one message repeat its usage). `cost_usd` is an estimate at list prices (cache writes 1.25× the input price, 2× for the one-hour cache, cache reads 0.1×) from the built-in table and the config's `modelPrices`, rounded to 0.0001; it covers the priced models only and is `null` when none is priced; the others are listed in `unpriced_models`. Groups come costliest first, or in day order by day; `total` covers every group |
 | `get_limits` | `session_id`, `git_origin` (regex), `project_path` (regex), `since` (an RFC 3339 time, or a duration back from now such as `24h`), `limit` (default 20, max 500) | `LimitsSampled` samples newest first: `session_id`, `project_path`, `git_origin`, `cwd`, `model`, `version`, `context_window`, `rate_limits`, `cost`, `live_state` (when stamped), `sampled_at`, `created_at` (section 5.1) |
 | `get_activities` | `session_id`, `git_origin` (regex), `project_path` (regex), `kinds` (list of `user`, `response`, `thinking`, `bash`, `commit`, `edit`, `read`, `task`, `tool`, `result`, `compaction`, `api_error`, `turn`, `other`, `state`), `since` (an RFC 3339 time, or a duration back from now such as `24h`), `include_rejected` (keep the tool calls the harness refused to run and their results, section 6.1.5), `limit` (lines and state changes read, each, default 50, max 500) | the timeline, newest first: per line `session_id`, `seq`, `kind`, `label`, `detail`, `tool_name`, `tool_use_id`, `is_error`, `blocks` (the `activity-kind` enrichment, section 6.1.1), `count` (consecutive repeats of one `bash`, `commit`, `edit`, `read`, `task` or `tool` activity with the same label and detail in one session are one entry; `seq`, `tool_use_id` and `timestamp` are the newest's), `timestamp` (the line's own), `project_path`, `git_origin`, `created_at`, and on a `result` line `result` (its `tool-result-detail`, section 6.1.3, without `diff`, `stdout`, `stderr`, `result`, `text` and `hunks`) with that enrichment's `summary` as the `detail`; a `SessionStateChanged` event (section 4.6) is an entry of kind `state` whose `label` is the state entered, `detail` the hook that set it, `seq` -1 and `timestamp` the change's `at`, merged by `created_at` |
+| `get_digest` | `day` (YYYY-MM-DD, default yesterday UTC) or `from` and `to` | the stored digest of the period (section 5.2): `scope`, `from`, `to`, `text`, `engine`, `model`, `cost_usd`, `report_tokens`, `cached`, `created_at`; `null` when none is stored |
 | `read_transcript` | `session_id` (required), `offset` (default 0), `limit` (default 200, max 500) | transcript lines in order |
 | `restore_session` | `session_id` (required), `project_path` (override), `projects_dir` (override) | rebuilds the JSONL, subagent files, tool-result blobs and file-history backups on the local disk |
 | `prime_context` | `cwd`, `no_store`, `no_docs`, `no_snapshot` | the plain-text report with the sections ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, MEMORY, BUILD |
@@ -1111,6 +1145,8 @@ search-commands <pattern> [--session id] [--git-origin re] [--include-rejected] 
 search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]
 limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]
 activities [--session id] [--git-origin re] [--project-path re] [--kind k]… [--since t] [--include-rejected] [--limit n]
+report [--day YYYY-MM-DD | --from d --to d] [--include kinds] [--format markdown|json] [--project-path re] [--git-origin re]
+digest [--day YYYY-MM-DD | --from d --to d] [--engine claude|none] [--model m] [--force] [--show] [--include kinds] [--project-path re] [--git-origin re] [--template-dir d]
 context <session>                         full <session>                         transcript <session> [--offset n] [--limit n]
 restore <session> [--project-path p] [--projects-dir d]                          backfill
 memory-ingest [--dir d]… [--cwd c] [--session id] [--quiet]
@@ -1137,6 +1173,13 @@ top-level project name `clued`, `nginx/clued.conf`,
 first token in `tokens.json`) and prints `{"dir", "composeFile", "proxy",
 "port", "serverUrl", "caFile", "hosts", "tls", "token", "up", "health",
 "written", "kept", "notes"}`; `up` is the command that starts the stack.
+
+`report` prints the activity report as Markdown (`--format json` puts its
+structure in the envelope: `period`, `from`, `to`, `sessions` with their
+`rows`, `tokens`, `warning`); `digest` prints the stored or generated
+digest in the envelope, `--engine none` prints the report, a `---` rule
+and the prompt instead and stores nothing, and `--show` prints the stored
+digest or fails with `NotFound` (section 5.2).
 
 Hooks (`mind-palace hook write-guard|stop-guard|status-review|prime|relay`)
 and the status line command (`mind-palace hook status`) are section 2.6.

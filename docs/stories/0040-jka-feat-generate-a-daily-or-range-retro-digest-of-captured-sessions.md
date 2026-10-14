@@ -3,11 +3,13 @@ id: 0040-jka
 title: Generate a daily or range retro digest of captured sessions
 purpose: A day's or a range's sessions are rendered as an activity report and summarised by a model into a short first-person engineering retro, cached per day.
 type: feat
-status: pending
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-14T04:28:51.552Z"
-updated: "2026-10-14T04:31:49.403Z"
+updated: "2026-10-14T05:39:19.556Z"
+started: "2026-10-14T05:34:27.472Z"
+completed: "2026-10-14T05:39:19.556Z"
 tags:
   - sessions
   - digest
@@ -22,11 +24,11 @@ links:
     - ["0034-8ni", "depends"]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
 ---
 
 # Generate a daily or range retro digest of captured sessions
@@ -53,10 +55,10 @@ clued can search and prime from captured sessions but cannot tell the story of a
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/digest/ ./cli/
-- [ ] `session report --day` on seeded sessions renders the documented rows, nests sub-agents, honours `--include` and reports the token estimate
-- [ ] `session digest --engine none` prints the report and the prompt; with a stubbed `claude` on PATH the digest is stored once and returned by `get_digest`, and a range digest wraps the cached dailies
-- [ ] PROTOCOL.md documents the report format, the event and the tools
+- [x] VERIFY: cd mind-palace && go test -race ./session/digest/ ./cli/
+- [x] `session report --day` on seeded sessions renders the documented rows, nests sub-agents, honours `--include` and reports the token estimate
+- [x] `session digest --engine none` prints the report and the prompt; with a stubbed `claude` on PATH the digest is stored once and returned by `get_digest`, and a range digest wraps the cached dailies
+- [x] PROTOCOL.md documents the report format, the event and the tools
 
 ## Files
 
@@ -68,3 +70,5 @@ clued can search and prime from captured sessions but cannot tell the story of a
 - `PROTOCOL.md` - sections 6.1 and 9
 
 ## Work Log
+
+### 2026-10-14T05:39:11.712Z - Added session/digest: Period (day or range), Build renders the activity report from the timeline (one section per session with title, project, repository, model and span; `[HH:MM] <icon> <label>: <detail>` rows, details cut at 120 characters, repeats marked ×N, a sub-agent's returned text under its task; default kinds user, response, bash, edit, thinking, task; token estimate with a warning past 300,000), the embedded daily.md and range.md prompts (overridable from <config dir>/digest/), the claude engine (`claude -p --no-session-persistence --output-format stream-json --verbose`, result text and cost) and Generate with the cache. The digest is stored as a MemorySaved event of kind `digest` rather than a DigestGenerated event: that one choice makes search_memory, get_digest and the prime MEMORY section (which now leads with yesterday's digest) work on the same record, with the scope, from, to, engine, model, cost and report size inside `memory`. `session report`, `session digest` (--engine claude|none, --model, --force, --show, --template-dir; the codex engine was left out, nothing drives it yet) and the get_digest tool (15 tools, 13 on the server). Docs in PROTOCOL.md 5.2, 6.1 and 9, README. gofmt, vet and `go test -race ./...` pass.

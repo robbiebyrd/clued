@@ -246,3 +246,26 @@ func TestTimeOfHandlesEveryRepresentation(t *testing.T) {
 		}
 	}
 }
+
+func TestRecentLeadsWithYesterdaysDigest(t *testing.T) {
+	ctx := context.Background()
+	st := seedSessions(t)
+	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
+	for _, day := range []string{yesterday, "2020-01-01"} {
+		if err := st.InsertHookEvent(ctx, session.Doc{
+			"account_id": testAccount, "hook_event_name": session.MemoryEventName, "created_at": time.Now(),
+			"memory": map[string]any{"kind": "digest", "file": "digest/" + day + ".md", "text": "## Context\nRetro of " + day, "hash": "d-" + day, "day": day, "scope": "day", "from": day, "to": day},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	src := New(connectTo(st), testAccount)
+	defer src.Close(ctx)
+	notes, err := src.Recent(ctx, "/work/alpha", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(notes) != 3 || notes[0].Kind != "digest" || notes[0].Day != yesterday || notes[0].Text != "## Context\nRetro of "+yesterday || notes[1].Kind != "handoff" {
+		t.Fatalf("notes = %+v", notes)
+	}
+}

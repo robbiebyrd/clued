@@ -229,6 +229,7 @@ off.
 | `find_errors` | Transcript lines that reported an error (failed hook, failed tool result, error text), newest first, optionally of one type and scoped to a session, repository or project; built from the `error-flag` enrichment |
 | `search_transcripts` | Search what was said in previous sessions (prompts, replies, tool calls and results) by words, best match first, with a snippet of each line: any word matches, `"quoted phrases"` must appear, `-words` are excluded; optionally scoped to a session, repository or project. Built from the `search-text` enrichment and, in MongoDB, its text index |
 | `usage` | Token usage and estimated cost (US dollars at list prices) by session, model or day, each message counted once, optionally scoped to a session, repository, project or range of days; built from the `usage` enrichment. Models the price table does not know have no cost until `modelPrices` names them |
+| `get_digest` | The stored retro digest of a day or a range (what `session digest` wrote), with its engine, model and cost; null when none |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
 | `restore_session` | Rebuild the main JSONL, subagent files, tool-result blobs and file-history backups on this machine |
 | `prime_context` | The context collector's `prime` report for a `cwd` (see [Context collector](#context-collector)); `no_store`, `no_docs` and `no_snapshot` mirror the CLI flags |
@@ -248,6 +249,8 @@ prints JSON.
 | `session usage [--by session\|model\|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]` | Token usage and estimated cost (what `usage` does) |
 | `session limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]` | The status line's context and usage-limit samples (what `get_limits` does) |
 | `session activities [--session id] [--git-origin re] [--project-path re] [--kind k]... [--since t] [--include-rejected] [--limit n]` | What the agent did, newest first, repeats collapsed (what `get_activities` does) |
+| `session report [--day d \| --from d --to d] [--include kinds] [--format markdown\|json] [--project-path re] [--git-origin re]` | The activity report of a day or a range: one section per session, one `[HH:MM] <icon> <label>: <detail>` row per activity, sub-agents with what they returned, the size in tokens |
+| `session digest [--day d \| --from d --to d] [--engine claude\|none] [--model m] [--force] [--show]` | The first-person retro of a day or a range, written by `claude -p` from the report and kept as a memory record of kind `digest` (`get_digest`, `search_memory`, the prime report's MEMORY section); `--engine none` prints the report and the prompt |
 | `session search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]` | Search the memory records ingested from claude-remember |
 | `session memory-ingest [--dir d]... [--cwd c] [--session id] [--quiet]` | Post the new records of the working directory's claude-remember store(s) to the daemon (what the hooks run) |
 | `session context <session>` | Metadata, recent commands, first and last transcript lines |
