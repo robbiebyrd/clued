@@ -61,6 +61,10 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"search transcripts ranks lines by their indexed words, scoped to the account", searchTranscripts},
 		{"usage totals count each message once, by session, model or day", usageTotals},
 		{"delete sessions forgets the selected sessions and what was captured for them", deleteSessions},
+		{"forget before with limit deletes the oldest first and reports more", forgetWithLimit},
+		{"forget limit zero keeps today's behaviour", forgetLimitZero},
+		{"forget orphans deletes captures without a session record", forgetOrphans},
+		{"forget orphans without before is ignored", forgetOrphansWithoutBefore},
 		{"redacted rule names are stored with lines and blobs", redactedField},
 		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
@@ -1658,6 +1662,118 @@ func deleteSessions(t *testing.T, s session.Store) {
 	if _, err := s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", ProjectPathRe: "("}); err == nil {
 		t.Error("DeleteSessions accepted an invalid regex")
 	}
+}
+
+// seedAged stores sessions s0..s<n-1> of the account (project /p/<id>),
+// last seen an hour apart from t0, each with a hook event and a transcript line.
+func seedAged(t *testing.T, s session.Store, acc string, n int) {
+	t.Helper()
+	for i := 0; i < n; i++ {
+		sid, at := fmt.Sprintf("s%d", i), t0.Add(time.Duration(i)*time.Hour)
+		must(t, s.UpsertSession(ctx, session.Session{SessionID: sid, AccountID: acc, ProjectPath: "/p/" + sid, LastSeen: at}))
+		must(t, s.InsertHookEvent(ctx, bash(sid, acc, "make "+sid, at)))
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, 1, "user", acc)}))
+	}
+}
+
+func forgetWithLimit(t *testing.T, s session.Store) {
+	seedAged(t, s, "acc", 5)
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "recent", AccountID: "acc", LastSeen: t0.Add(48 * time.Hour)}))
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "foreign", AccountID: "other", LastSeen: t0.Add(-time.Hour)}))
+	q := session.ForgetQuery{AccountID: "acc", Before: t0.Add(5 * time.Hour), Limit: 2}
+	for i, want := range []session.Forgotten{
+		{Sessions: []string{"s0", "s1"}, Documents: 6, More: true},
+		{Sessions: []string{"s2", "s3"}, Documents: 6, More: true},
+		{Sessions: []string{"s4"}, Documents: 3},
+		{Sessions: []string{}},
+	} {
+		eq(t, fmt.Sprintf("call %d", i+1), ok(s.DeleteSessions(ctx, q)), want)
+	}
+	_, err := s.GetSession(ctx, "acc", "recent")
+	eq(t, "a recent session stays", err, nil)
+	_, err = s.GetSession(ctx, "other", "foreign")
+	eq(t, "another account's session stays", err, nil)
+
+	// With a project path the limit applies as well.
+	seedAged(t, s, "acc", 3)
+	got := ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", ProjectPathRe: "^/p/", Limit: 2}))
+	eq(t, "project path with a limit", got.Sessions, []string{"s0", "s1"})
+	eq(t, "more by project path", got.More, true)
+}
+
+func forgetLimitZero(t *testing.T, s session.Store) {
+	seedAged(t, s, "acc", 5)
+	got := ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Before: t0.Add(3 * time.Hour)}))
+	eq(t, "every older session", got, session.Forgotten{Sessions: []string{"s0", "s1", "s2"}, Documents: 9})
+	eq(t, "newer stay", len(ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc"}))), 2)
+	got = ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", SessionIDs: []string{"s3", "s4"}, Limit: 1}))
+	eq(t, "a limit is ignored with ids alone", got.Sessions, []string{"s3", "s4"})
+	eq(t, "nothing more", got.More, false)
+}
+
+func forgetOrphans(t *testing.T, s session.Store) {
+	old, before, recent := t0, t0.Add(time.Hour), t0.Add(48*time.Hour)
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "live", AccountID: "acc", LastSeen: recent}))
+	must(t, s.InsertHookEvent(ctx, bash("live", "acc", "make live", old)))
+	must(t, s.InsertHookEvent(ctx, bash("sid-x", "acc", "make sid-x", old)))
+	must(t, s.InsertHookEvent(ctx, bash("sid-new", "acc", "make sid-new", recent)))
+	must(t, s.InsertHookEvent(ctx, bash("sid-y", "other", "make sid-y", old)))
+	ok(s.InsertOtelEvents(ctx, []session.OtelEvent{
+		otelEvent("sid-x", "acc", "p1", "api_request", 1, old),
+		otelEvent("sid-z", "acc", "p2", "api_request", 1, old),
+		otelEvent("sid-y", "other", "p3", "api_request", 1, old),
+	}))
+	digest := memoryEvent("", "acc", "day", "the day's digest", old)
+	delete(digest, "session_id")
+	// A client adapter's server refuses an event without a session id, so
+	// it cannot hold such a digest; a store does.
+	digestStored := s.InsertHookEvent(ctx, digest) == nil
+
+	commands := func(acc string) []string {
+		var out []string
+		for _, d := range ok(s.BashEvents(ctx, session.CommandQuery{AccountID: acc, Limit: 50})) {
+			out = append(out, d.ToolInput()["command"].(string))
+		}
+		sort.Strings(out)
+		return out
+	}
+	otel := func(acc, sid string) int {
+		return len(ok(s.OtelEvents(ctx, session.OtelQuery{AccountID: acc, SessionIDs: []string{sid}})))
+	}
+
+	got := ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Before: before, Orphans: true, Limit: 1}))
+	eq(t, "first batch, one orphan per collection", got.Sessions, []string{"sid-x"})
+	eq(t, "first batch documents", got.Documents, int64(2))
+	eq(t, "first batch has more", got.More, true)
+	got = ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Before: before, Orphans: true, Limit: 1}))
+	eq(t, "second batch", got, session.Forgotten{Sessions: []string{"sid-z"}, Documents: 1})
+
+	eq(t, "orphan otel events are gone", otel("acc", "sid-x")+otel("acc", "sid-z"), 0)
+	eq(t, "kept hook events", commands("acc"), []string{"make live", "make sid-new"})
+	if digestStored {
+		eq(t, "the digest without a session id stays", len(ok(s.MemoryEvents(ctx, session.MemoryQuery{AccountID: "acc", Limit: 10}))), 1)
+	}
+	eq(t, "another account's orphans stay", commands("other"), []string{"make sid-y"})
+	eq(t, "another account's orphan otel events stay", otel("other", "sid-y"), 1)
+	_, err := s.GetSession(ctx, "acc", "live")
+	eq(t, "the live session stays", err, nil)
+
+	// Without Orphans the same query leaves orphans alone.
+	must(t, s.InsertHookEvent(ctx, bash("sid-w", "acc", "make sid-w", old)))
+	eq(t, "no orphans asked", ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Before: before})).Documents, int64(0))
+	eq(t, "orphan kept without Orphans", commands("acc"), []string{"make live", "make sid-new", "make sid-w"})
+	// With a project path no capture is an orphan.
+	eq(t, "no orphans with a project path", ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", ProjectPathRe: "w", Before: before, Orphans: true})).Documents, int64(0))
+	// Orphans of the named ids only.
+	got = ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", SessionIDs: []string{"sid-w", "live"}, Before: before, Orphans: true}))
+	eq(t, "orphans of the named ids", got, session.Forgotten{Sessions: []string{"sid-w"}, Documents: 1})
+}
+
+func forgetOrphansWithoutBefore(t *testing.T, s session.Store) {
+	eq(t, "orphans alone are no criterion", session.ForgetQuery{AccountID: "acc", Orphans: true, Limit: 3}.Empty(), true)
+	must(t, s.InsertHookEvent(ctx, bash("sid-x", "acc", "make sid-x", t0)))
+	eq(t, "nothing deleted", ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Orphans: true})), session.Forgotten{Sessions: []string{}})
+	eq(t, "the orphan stays", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "acc", Limit: 10}))), 1)
 }
 
 func redactedField(t *testing.T, s session.Store) {

@@ -415,6 +415,10 @@ const toolSchemas = `{
           "description": "Forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time",
           "type": "string"
         },
+        "limit": {
+          "description": "With project_path or before: forget at most this many sessions, the oldest first; the result's more is true when others match",
+          "type": "integer"
+        },
         "project_path": {
           "description": "Forget sessions whose project path matches this regex",
           "type": "string"

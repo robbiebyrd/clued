@@ -341,7 +341,7 @@ func (t *Tools) specs() []toolSpec {
 		{
 			name:        "forget_session",
 			description: "Delete previously captured sessions from the store, with their transcript, subagent lines, blobs and hook events: by id, by project path, or last seen before a day. Criteria given together must all hold; at least one is required. Claude Code's own transcript files are not touched. This cannot be undone.",
-			schema:      `{"type":"object","properties":{"session_id":{"type":"string","description":"Forget this session"},"session_ids":{"type":"array","items":{"type":"string"},"description":"Forget these sessions"},"project_path":{"type":"string","description":"Forget sessions whose project path matches this regex"},"before":{"type":"string","description":"Forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time"}}}`,
+			schema:      `{"type":"object","properties":{"session_id":{"type":"string","description":"Forget this session"},"session_ids":{"type":"array","items":{"type":"string"},"description":"Forget these sessions"},"project_path":{"type":"string","description":"Forget sessions whose project path matches this regex"},"before":{"type":"string","description":"Forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time"},"limit":{"type":"integer","description":"With project_path or before: forget at most this many sessions, the oldest first; the result's more is true when others match"}}}`,
 			destructive: true,
 			handler: tool(t, func(ctx context.Context, q *query.Service, args query.ForgetArgs, _ *mcp.CallToolRequest) (any, error) {
 				return q.Forget(ctx, args)
