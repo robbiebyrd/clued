@@ -243,3 +243,52 @@ func TestSessionConfigPullAndLogoutOnAPlainServer(t *testing.T) {
 		t.Errorf("result = %v", res)
 	}
 }
+
+func TestSessionConfigPullAppliesAndClearsTheCaptureHint(t *testing.T) {
+	stub := newCloudStub(t)
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	_ = os.WriteFile(configPath, []byte(`{"serverUrl":"`+stub.srv.URL+`","serverToken":"cloud-token","serverInsecure":true}`), 0o600)
+	pull := func() map[string]any {
+		t.Helper()
+		r := execStdin(t, "", "session", "--config", configPath, "config-pull")
+		if r.code != 0 {
+			t.Fatalf("config-pull: %+v", r)
+		}
+		return result(t, r)
+	}
+
+	stub.config = map[string]any{"captureContent": false}
+	if res := pull(); len(res["updated"].([]any)) != 1 || res["updated"].([]any)[0] != "captureContent" {
+		t.Errorf("pull with the hint = %v", res)
+	}
+	if doc := readConfigDoc(t, configPath); doc["captureContent"] != false || doc["serverToken"] != "cloud-token" {
+		t.Errorf("config after the hint = %v", doc)
+	}
+
+	// The server sends no hint any more (back on full capture): removed.
+	stub.config = map[string]any{}
+	if res := pull(); len(res["removed"].([]any)) != 1 {
+		t.Errorf("pull without the hint = %v", res)
+	}
+	if doc := readConfigDoc(t, configPath); doc["captureContent"] != nil || doc["serverUrl"] != stub.srv.URL {
+		t.Errorf("config after the hint went = %v", doc)
+	}
+
+	// Anything but a boolean is no hint either.
+	stub.config = map[string]any{"captureContent": false}
+	pull()
+	stub.config = map[string]any{"captureContent": "no"}
+	if res := pull(); len(res["updated"].([]any)) != 0 || len(res["removed"].([]any)) != 1 {
+		t.Errorf("pull with a non-boolean hint = %v", res)
+	}
+
+	// logout takes the hint with the server keys.
+	stub.config = map[string]any{"captureContent": false}
+	pull()
+	if r := execStdin(t, "", "session", "--config", configPath, "logout"); r.code != 0 {
+		t.Fatalf("logout: %+v", r)
+	}
+	if doc := readConfigDoc(t, configPath); doc["captureContent"] != nil || doc["serverUrl"] != nil {
+		t.Errorf("config after logout = %v", doc)
+	}
+}

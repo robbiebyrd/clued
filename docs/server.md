@@ -502,7 +502,8 @@ the cloud (the host name by default); `--wait` bounds the wait (15 minutes).
   only).
 - `session config-pull` fetches the account's client settings
   (`GET /api/v1/me/config`: `enabledEnrichers`, `disabledEnrichers`,
-  `projectsDir`, `fileHistoryDir`) into `config.json`; `session-start` runs
+  `projectsDir`, `fileHistoryDir`, and the `captureContent` hint, removed
+  again when the server stops sending it) into `config.json`; `session-start` runs
   it with `--quiet` in remote mode, so settings changed in the cloud's web
   app reach every linked machine at its next session. Against a plain clued
   server the route does not exist and the command is a no-op.

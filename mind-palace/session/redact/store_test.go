@@ -165,3 +165,49 @@ func TestABadPatternIsReportedAndTheRestStillApply(t *testing.T) {
 		t.Error("the built-in rules stopped applying")
 	}
 }
+
+func TestMetadataOnlyCaptureSendsNoContent(t *testing.T) {
+	off := false
+	inner := memsession.New()
+	store, err := redact.FromConfig(inner, session.Config{CaptureContent: &off})
+	must(t, err)
+	stored := capture(t, store, "/repo")
+	for _, s := range secrets {
+		if strings.Contains(stored, s) {
+			t.Errorf("metadata-only capture stored %q", s)
+		}
+	}
+	ctx := context.Background()
+	sid := "11111111-2222-3333-4444-555555555555"
+	n, err := inner.CountTranscriptLines(ctx, account, sid)
+	must(t, err)
+	blobs, err := inner.Blobs(ctx, account, sid)
+	must(t, err)
+	subs, err := inner.SubagentIDs(ctx, account, sid)
+	must(t, err)
+	if n != 0 || len(blobs) != 0 || len(subs) != 0 {
+		t.Errorf("metadata-only capture stored %d lines, %d blobs, %d subagents", n, len(blobs), len(subs))
+	}
+	full, err := inner.FullSession(ctx, account, sid)
+	must(t, err)
+	events, _ := full["hook_events"].([]session.Doc)
+	names := map[string]bool{}
+	for _, ev := range events {
+		name, _ := ev.String("hook_event_name")
+		names[name] = true
+		if ev["prompt"] != nil || ev["tool_input"] != nil {
+			t.Errorf("%s kept its content: %v", name, ev)
+		}
+	}
+	if !names["SessionStart"] || !names["PreToolUse"] || !names["UserPromptSubmit"] || full["cwd"] != "/repo" {
+		t.Errorf("metadata was lost: events %v, session %v", names, full)
+	}
+
+	must(t, store.SetSessionMeta(ctx, account, sid, session.Doc{"title": "Rotate " + secrets[0], "title_kind": "ai", "entrypoint": "cli"}))
+	must(t, store.SetSessionMeta(ctx, account, sid, session.Doc{"title": "only a title"}))
+	rec, err := inner.GetSession(ctx, account, sid)
+	must(t, err)
+	if rec["title"] != nil || rec["title_kind"] != nil || rec["entrypoint"] != "cli" {
+		t.Errorf("session meta under metadata-only capture = %v", rec)
+	}
+}

@@ -448,7 +448,7 @@ expose them next to the plan and story tools.
 | `session/otlp` | Claude Code's own OpenTelemetry logs received at `/v1/logs` (server and daemon; `/v1/metrics` accepted, not stored): the `api_request`, `api_error` and `tool_result` events of known sessions, with an allow-list of attributes, as `session.OtelEvent` |
 | `session/render` | A session as Markdown or a self-contained HTML page (header, turns, tool calls summarised, results folded, errors marked) |
 | `session/export` | `session export` / `export_session` (Markdown, HTML, JSONL, zip; redacted by default) and `session import` |
-| `session/redact` | Capture-time redaction (`redactAtCapture`, `redactPatterns`) and exclusion (`excludePaths`) as a `session.Store` decorator every client store is wrapped in, so no write path stores a secret |
+| `session/redact` | Capture-time redaction (`redactAtCapture`, `redactPatterns`), exclusion (`excludePaths`) and metadata-only capture (`captureContent: false`, `session.WithoutContent`) as a `session.Store` decorator every client store is wrapped in, so no write path stores a secret |
 | `session/ingest` | Hook-event bookkeeping shared by the daemon and `hook relay`: session tracking, stamping, store write, WAL fallback |
 | `session/catchup` | One-shot replacement for the tailers: pushes a session's transcript delta and changed artifact files, with state and lock files per session |
 | `session/remotesession` | `session.Store` over a clued server (one HTTP call per port method to `server/sessionapi`); the query service, restore, backfill and the MCP tools run unchanged on it |

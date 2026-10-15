@@ -221,18 +221,26 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 }
 
 // clientConfigFrom serves the enricher settings of the server's session
-// config as the client settings of GET /api/v1/me/config, dated by the
-// config file's modification time (the start time without a file).
+// config, and its captureContent when set, as the client settings of GET
+// /api/v1/me/config, dated by the config file's modification time (the
+// start time without a file).
 func clientConfigFrom(cfg session.Config, path string, started time.Time) func() (map[string]any, time.Time) {
 	return func() (map[string]any, time.Time) {
 		at := started
 		if fi, err := os.Stat(path); err == nil {
 			at = fi.ModTime()
 		}
-		return map[string]any{
+		out := map[string]any{
 			"enabledEnrichers":  cfg.EnabledEnrichers,
 			"disabledEnrichers": cfg.DisabledEnrichers,
-		}, at
+		}
+		if cfg.CaptureContent != nil {
+			// The server's session store is wrapped by capturing, which
+			// drops content when this is false; telling clients spares them
+			// sending it.
+			out["captureContent"] = *cfg.CaptureContent
+		}
+		return out, at
 	}
 }
 
