@@ -620,8 +620,16 @@ them first:
 
 ```bash
 scripts/build-binaries.sh --target linux/amd64 --target linux/arm64 dist
+scripts/build-binaries.sh --licenses dist
 docker build -f Dockerfile.server -t ghcr.io/robbiebyrd/clued-server:dev .
 ```
+
+`--licenses DIR` saves the licence of every module the binary links under
+`DIR/THIRD_PARTY_LICENSES/` (with `go-licenses` v2.0.1) and packs it as
+`DIR/THIRD_PARTY_LICENSES.tar.gz`; the image carries the tree under
+`/usr/share/licenses/clued-server/` next to clued's `LICENSE` and `NOTICE`,
+and CI fails when a dependency's licence is forbidden, restricted or
+unknown.
 
 Releasing is CI's job and needs no tag pushed by hand: every push to main
 is a release. The `release` job of `.github/workflows/mind-palace.yml` runs
@@ -638,7 +646,7 @@ collects the binaries the matrix built with the version stamped in
 in between took the version they carry, assembles and pushes the server image from the Linux ones as
 `ghcr.io/robbiebyrd/clued-server:v<version>` and `:latest`, and creates the
 release `v<version>` (which creates the tag at that commit) with the
-binaries and `SHA256SUMS`. `scripts/clued` on every machine then downloads
+binaries, `SHA256SUMS` and `THIRD_PARTY_LICENSES.tar.gz`. `scripts/clued` on every machine then downloads
 the asset of exactly that release, so the binary a plugin install runs
 always matches the hooks it shipped with.
 
@@ -653,3 +661,17 @@ LAN database; on a machine reachable from an untrusted network change the
 mapping to `127.0.0.1:27018:27017` or enable authentication.
 `docker-compose.webhook.yml` starts a local webhook.site for inspecting hook
 payloads while developing.
+
+## License
+
+clued (the plugin, the `mind-palace` binary and Go module, the daemon and
+the self-hosted clued server) is licensed under the
+[Apache License 2.0](LICENSE); see [NOTICE](NOTICE). Copyright 2026 Space
+Hippo, LC. Clued Cloud (clued.cloud) is a separate product under
+FSL-1.1-ALv2 and is not part of this repository.
+
+Contributions are accepted under the Developer Certificate of Origin: sign
+off every commit (see [CONTRIBUTING.md](CONTRIBUTING.md#sign-off)).
+Licensing questions go to `legal@clued.cloud`; report security issues
+privately to `security@clued.cloud` (see [SECURITY.md](SECURITY.md)), never
+in a public issue.
