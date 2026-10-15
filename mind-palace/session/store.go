@@ -349,6 +349,18 @@ type Store interface {
 	// rejected (a tool call the harness refused), selected by the query's
 	// SessionIDs, Since and Limit (Kinds is ignored), newest first.
 	RejectedToolUses(ctx context.Context, q ActivityQuery) ([]Doc, error)
+	// ActivityCounts counts the account's transcript lines the
+	// activity-kind enricher labelled, per UTC hour of LineTime and kind
+	// (enrichments.activity-kind.kind), for the hours of CountQuery,
+	// sorted by hour then kind; [] when none.
+	ActivityCounts(ctx context.Context, q CountQuery) ([]HourCount, error)
+	// ErrorCounts counts the account's transcript lines the error-flag
+	// enricher marked as errors, per UTC hour of LineTime and error type,
+	// sorted by hour then type; [] when none.
+	ErrorCounts(ctx context.Context, q CountQuery) ([]HourCount, error)
+	// LimitBuckets sums the account's LimitsSampled events per UTC hour of
+	// created_at (see LimitBucket), sorted by hour; [] when none.
+	LimitBuckets(ctx context.Context, q CountQuery) ([]LimitBucket, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of

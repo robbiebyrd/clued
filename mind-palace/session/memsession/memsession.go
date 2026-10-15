@@ -1189,6 +1189,114 @@ func storable(v any) any {
 	return out
 }
 
+// hourCounts counts the account's transcript lines that keep returns a
+// kind for, per UTC hour of their LineTime.
+func (s *Store) hourCounts(q session.CountQuery, kindOf func(session.Doc) (string, bool)) []session.HourCount {
+	type key struct {
+		hour time.Time
+		kind string
+	}
+	counts := map[key]int64{}
+	s.mu.Lock()
+	for _, d := range s.cols[transcriptLines] {
+		if !owned(d, q.AccountID) {
+			continue
+		}
+		kind, ok := kindOf(d)
+		if !ok {
+			continue
+		}
+		at := session.LineTime(d)
+		if !q.InRange(at) {
+			continue
+		}
+		counts[key{at.Truncate(time.Hour), kind}]++
+	}
+	s.mu.Unlock()
+	out := make([]session.HourCount, 0, len(counts))
+	for k, n := range counts {
+		out = append(out, session.HourCount{Hour: k.hour, Kind: k.kind, Count: n})
+	}
+	session.SortHourCounts(out)
+	return out
+}
+
+func (s *Store) ActivityCounts(_ context.Context, q session.CountQuery) ([]session.HourCount, error) {
+	return s.hourCounts(q, func(d session.Doc) (string, bool) {
+		return d.Map("enrichments").Map("activity-kind").String("kind")
+	}), nil
+}
+
+func (s *Store) ErrorCounts(_ context.Context, q session.CountQuery) ([]session.HourCount, error) {
+	return s.hourCounts(q, func(d session.Doc) (string, bool) {
+		flag := d.Map("enrichments").Map("error-flag")
+		if isErr, _ := flag["is_error"].(bool); !isErr {
+			return "", false
+		}
+		typ, _ := flag.String("error_type")
+		return typ, true
+	}), nil
+}
+
+func (s *Store) LimitBuckets(_ context.Context, q session.CountQuery) ([]session.LimitBucket, error) {
+	buckets := map[time.Time]*session.LimitBucket{}
+	s.mu.Lock()
+	for _, d := range s.cols[hookEvents] {
+		if !owned(d, q.AccountID) || strOf(d, "hook_event_name") != session.LimitsEventName {
+			continue
+		}
+		at := timeOf(d, "created_at").UTC()
+		if !q.InRange(at) {
+			continue
+		}
+		hour := at.Truncate(time.Hour)
+		b := buckets[hour]
+		if b == nil {
+			b = &session.LimitBucket{Hour: hour, FiveHourMax: -1, SevenDayMax: -1, ContextMax: -1, CostUSDMax: -1}
+			buckets[hour] = b
+		}
+		b.Samples++
+		limits := d.Map("rate_limits")
+		for _, f := range []struct {
+			into *float64
+			v    any
+		}{
+			{&b.FiveHourMax, limits.Map("five_hour")["used_percentage"]},
+			{&b.SevenDayMax, limits.Map("seven_day")["used_percentage"]},
+			{&b.ContextMax, d.Map("context_window")["used_percentage"]},
+			{&b.CostUSDMax, d.Map("cost")["total_cost_usd"]},
+		} {
+			if n, ok := number(f.v); ok && (*f.into < 0 || n > *f.into) {
+				*f.into = n
+			}
+		}
+	}
+	s.mu.Unlock()
+	out := make([]session.LimitBucket, 0, len(buckets))
+	for _, b := range buckets {
+		out = append(out, *b)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Hour.Before(out[j].Hour) })
+	return out, nil
+}
+
+// number reads a stored number of any numeric type.
+func number(v any) (float64, bool) {
+	switch n := v.(type) {
+	case int:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	}
+	return 0, false
+}
+
 // embeddingDoc keeps the vector as []int8, as Mongo keeps a binary vector.
 func embeddingDoc(e session.Embedding) session.Doc {
 	return session.Doc{"model": e.Model, "dim": e.Dim, "v": append([]int8(nil), e.V...), "scale": float64(e.Scale)}

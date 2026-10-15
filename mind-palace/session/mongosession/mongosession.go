@@ -126,6 +126,8 @@ var indexes = []index{
 	{transcriptLines, key("account_id", 1, "enrichments.error-flag.is_error", 1, "created_at", -1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.usage.day", 1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.embedding.model", 1, "created_at", 1), false},
+	{transcriptLines, key("account_id", 1, "created_at", 1), false},
+	{hookEvents, key("account_id", 1, "hook_event_name", 1, "created_at", 1), false},
 	{otelEvents, key("account_id", 1, "session_id", 1, "name", 1, "sequence", 1, "timestamp", 1), true},
 	{otelEvents, key("account_id", 1, "session_id", 1, "timestamp", -1), false},
 	{otelEvents, key("account_id", 1, "timestamp", 1), false},
@@ -1090,6 +1092,119 @@ func (s *Store) SetEnrichment(ctx context.Context, collection string, id any, en
 		result = embeddingDoc(*e)
 	}
 	return s.update(ctx, collection, key("_id", objectID(id)), key("enrichments."+enricher, result))
+}
+
+// lineTime is the aggregation expression of session.LineTime: the line's
+// timestamp when it parses as a date, else created_at.
+var lineTime = key("$ifNull", bson.A{
+	key("$dateFromString", key("dateString", "$line.timestamp", "onError", "$created_at", "onNull", "$created_at")),
+	"$created_at",
+})
+
+// rangeOf is a $gte/$lt condition for the query's bounds; nil when it has none.
+func rangeOf(q session.CountQuery) bson.D {
+	var r bson.D
+	if !q.Since.IsZero() {
+		r = append(r, bson.E{Key: "$gte", Value: q.Since})
+	}
+	if !q.Until.IsZero() {
+		r = append(r, bson.E{Key: "$lt", Value: q.Until})
+	}
+	return r
+}
+
+// hourCounts groups the account's transcript lines matching match by UTC
+// hour of their line time and the kind expression. Lines created before
+// Since minus session.LineTimeSlack are not read (index account_id,
+// created_at).
+func (s *Store) hourCounts(ctx context.Context, q session.CountQuery, match bson.D, kind any) ([]session.HourCount, error) {
+	match = append(key("account_id", q.AccountID), match...)
+	if !q.Since.IsZero() {
+		match = append(match, bson.E{Key: "created_at", Value: key("$gte", q.Since.Add(-session.LineTimeSlack))})
+	}
+	pipeline := bson.A{
+		key("$match", match),
+		key("$project", key("_id", 0, "k", kind, "t", lineTime)),
+	}
+	if r := rangeOf(q); r != nil {
+		pipeline = append(pipeline, key("$match", key("t", r)))
+	}
+	pipeline = append(pipeline,
+		key("$group", key("_id", key("h", key("$dateTrunc", key("date", "$t", "unit", "hour", "timezone", "UTC")), "k", "$k"), "n", key("$sum", 1))),
+		key("$sort", key("_id.h", 1, "_id.k", 1)),
+	)
+	cur, err := s.coll(transcriptLines).Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		ID struct {
+			H time.Time `bson:"h"`
+			K string    `bson:"k"`
+		} `bson:"_id"`
+		N int64 `bson:"n"`
+	}
+	if err := cur.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	out := make([]session.HourCount, len(rows))
+	for i, r := range rows {
+		out[i] = session.HourCount{Hour: r.ID.H.UTC(), Kind: r.ID.K, Count: r.N}
+	}
+	session.SortHourCounts(out)
+	return out, nil
+}
+
+func (s *Store) ActivityCounts(ctx context.Context, q session.CountQuery) ([]session.HourCount, error) {
+	return s.hourCounts(ctx, q, key("enrichments.activity-kind.kind", key("$type", "string")), "$enrichments.activity-kind.kind")
+}
+
+func (s *Store) ErrorCounts(ctx context.Context, q session.CountQuery) ([]session.HourCount, error) {
+	return s.hourCounts(ctx, q, key("enrichments.error-flag.is_error", true), key("$ifNull", bson.A{"$enrichments.error-flag.error_type", ""}))
+}
+
+// numberOrNull keeps a numeric field for $max, which ignores nulls.
+func numberOrNull(field string) bson.D {
+	return key("$cond", bson.A{key("$isNumber", field), field, nil})
+}
+
+func (s *Store) LimitBuckets(ctx context.Context, q session.CountQuery) ([]session.LimitBucket, error) {
+	match := key("account_id", q.AccountID, "hook_event_name", session.LimitsEventName)
+	if r := rangeOf(q); r != nil {
+		match = append(match, bson.E{Key: "created_at", Value: r})
+	}
+	pipeline := bson.A{
+		key("$match", match),
+		key("$group", key("_id", key("$dateTrunc", key("date", "$created_at", "unit", "hour", "timezone", "UTC")),
+			"five", key("$max", numberOrNull("$rate_limits.five_hour.used_percentage")),
+			"seven", key("$max", numberOrNull("$rate_limits.seven_day.used_percentage")),
+			"context", key("$max", numberOrNull("$context_window.used_percentage")),
+			"cost", key("$max", numberOrNull("$cost.total_cost_usd")),
+			"n", key("$sum", 1))),
+		key("$project", key("five", key("$ifNull", bson.A{"$five", -1}), "seven", key("$ifNull", bson.A{"$seven", -1}),
+			"context", key("$ifNull", bson.A{"$context", -1}), "cost", key("$ifNull", bson.A{"$cost", -1}), "n", 1)),
+		key("$sort", key("_id", 1)),
+	}
+	cur, err := s.coll(hookEvents).Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		H       time.Time `bson:"_id"`
+		Five    float64   `bson:"five"`
+		Seven   float64   `bson:"seven"`
+		Context float64   `bson:"context"`
+		Cost    float64   `bson:"cost"`
+		N       int64     `bson:"n"`
+	}
+	if err := cur.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	out := make([]session.LimitBucket, len(rows))
+	for i, r := range rows {
+		out[i] = session.LimitBucket{Hour: r.H.UTC(), FiveHourMax: r.Five, SevenDayMax: r.Seven, ContextMax: r.Context, CostUSDMax: r.Cost, Samples: r.N}
+	}
+	return out, nil
 }
 
 // embeddingDoc stores the vector as a BSON int8 binary vector (subtype 9).

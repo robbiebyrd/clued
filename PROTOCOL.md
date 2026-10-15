@@ -991,7 +991,12 @@ older server reads the new keys the same way. No query carries an account.
 
 The enrichment methods of the port (`Unenriched`, `SetEnrichment*`),
 `SearchVectors` (semantic search runs on the server, as its `/mcp`
-`search_semantic` tool) and `DeleteAccount` are not served: enrichment runs on the server, and deleting
+`search_semantic` tool), the hourly aggregates `ActivityCounts`,
+`ErrorCounts` and `LimitBuckets` (for the server's own analytics: counts
+of the account's labelled and error lines per UTC hour of each line's
+`line.timestamp`, else its `created_at`, and per hour of `LimitsSampled`
+events the largest five-hour, seven-day and context percentages and cost,
+`-1` when unknown) and `DeleteAccount` are not served: enrichment runs on the server, and deleting
 an account's data is the operator's job. The remote adapter answers
 `ErrUnsupported` for them.
 
