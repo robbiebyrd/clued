@@ -98,6 +98,23 @@ type TextQuery struct {
 	Limit      int      `json:"limit"`
 }
 
+// MaxVectorHits caps VectorQuery.Limit.
+const MaxVectorHits = 100
+
+// VectorQuery ranks the account's transcript lines that carry an
+// embedding of Model (enrichments.embedding, of len(Vector) numbers) by
+// cosine similarity to Vector, best first. Empty SessionIDs means no
+// session filter and a zero Since no lower bound on created_at. Limit is
+// capped at MaxVectorHits; 0 or less means the cap.
+type VectorQuery struct {
+	AccountID  string    `json:"-"`
+	Model      string    `json:"model"`
+	Vector     []float32 `json:"vector"`
+	SessionIDs []string  `json:"sessionIds"`
+	Since      time.Time `json:"since"`
+	Limit      int       `json:"limit"`
+}
+
 // ForgetQuery selects the account's sessions to delete with everything
 // captured for them (hook events, transcript and subagent lines, blobs,
 // OpenTelemetry events). The criteria are ANDed over the session records:
@@ -293,6 +310,11 @@ type Store interface {
 	// SearchTranscripts projects session_id, seq, score (higher is better),
 	// enrichments.search-text and created_at of the lines TextQuery matches.
 	SearchTranscripts(ctx context.Context, q TextQuery) ([]Doc, error)
+	// SearchVectors projects session_id, seq, score (the cosine
+	// similarity, higher is better), enrichments.search-text and
+	// created_at of the lines VectorQuery ranks; a line with no
+	// embedding, another model's or another length is never returned.
+	SearchVectors(ctx context.Context, q VectorQuery) ([]Doc, error)
 	// UsageTotals sums enrichments.usage of the lines UsageQuery selects, each
 	// message once: one total per group and model, sorted by key and model.
 	UsageTotals(ctx context.Context, q UsageQuery) ([]UsageTotal, error)

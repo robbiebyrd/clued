@@ -87,6 +87,15 @@ func CosineInt8(q []float32, v []int8) float64 {
 	return dot / (math.Sqrt(nq) * math.Sqrt(nv))
 }
 
+// VectorLimit is the limit a VectorQuery applies: n, capped at
+// MaxVectorHits, which 0 or less also means.
+func VectorLimit(n int) int {
+	if n <= 0 || n > MaxVectorHits {
+		return MaxVectorHits
+	}
+	return n
+}
+
 // TopK keeps the k documents with the highest scores pushed into it.
 type TopK struct {
 	k int

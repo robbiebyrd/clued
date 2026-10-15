@@ -306,6 +306,12 @@ func (s *Store) SetEnrichmentSkipped(context.Context, string, any, string) error
 	return session.ErrUnsupported
 }
 
+// SearchVectors is not part of the transport: semantic search runs on the
+// server (the search_semantic tool of its MCP endpoint).
+func (s *Store) SearchVectors(context.Context, session.VectorQuery) ([]session.Doc, error) {
+	return nil, session.ErrUnsupported
+}
+
 // RequeueSkipped is the server's: the enrichment queue is not part of the
 // transport.
 func (s *Store) RequeueSkipped(context.Context, string, string, string) (int64, error) {

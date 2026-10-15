@@ -60,6 +60,12 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"error lines select flagged lines by type and session, newest first", errorLines},
 		{"search transcripts ranks lines by their indexed words, scoped to the account", searchTranscripts},
 		{"usage totals count each message once, by session, model or day", usageTotals},
+		{"search vectors ranks by cosine", searchVectorsRanks},
+		{"search vectors is per account", searchVectorsPerAccount},
+		{"search vectors honours since and session ids", searchVectorsSinceAndSessions},
+		{"search vectors ignores lines without or with another model's embedding", searchVectorsOtherModels},
+		{"search vectors caps limit at 100", searchVectorsLimitCap},
+		{"forget drops vectors", forgetDropsVectors},
 		{"delete sessions forgets the selected sessions and what was captured for them", deleteSessions},
 		{"forget before with limit deletes the oldest first and reports more", forgetWithLimit},
 		{"forget limit zero keeps today's behaviour", forgetLimitZero},
@@ -1785,4 +1791,104 @@ func redactedField(t *testing.T, s session.Store) {
 	b.Redacted = []string{"aws-key"}
 	must(t, s.UpsertBlob(ctx, b))
 	eq(t, "redacted blob", strList(ok(s.Blobs(ctx, "acc", "r"))[0]["redacted"]), []string{"aws-key"})
+}
+
+// embedLine stores a transcript line with its search text and the
+// embedding of vec under model (nil vec: no embedding).
+func embedLine(t *testing.T, s session.Store, sid string, seq int, acc, model string, vec []float32) {
+	t.Helper()
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, seq, "user", acc)}))
+	var id any
+	for _, d := range ok(s.Unenriched(ctx, "transcript_lines", session.EmbeddingName, 0)) {
+		if d["session_id"] == sid && num(d["seq"]) == seq {
+			id = d["_id"]
+		}
+	}
+	must(t, s.SetEnrichment(ctx, "transcript_lines", id, "search-text", fmt.Sprintf("text of %s/%d", sid, seq)))
+	if vec != nil {
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, session.EmbeddingName, session.Quantize(model, vec)))
+	}
+}
+
+func vectorKeys(t *testing.T, s session.Store, q session.VectorQuery) []string {
+	t.Helper()
+	out := []string{}
+	for _, d := range ok(s.SearchVectors(ctx, q)) {
+		sid, _ := d.String("session_id")
+		out = append(out, fmt.Sprintf("%s/%d", sid, num(d["seq"])))
+	}
+	return out
+}
+
+func searchVectorsRanks(t *testing.T, s session.Store) {
+	embedLine(t, s, "s1", 0, "acc", "m", []float32{1, 0, 0})
+	embedLine(t, s, "s1", 1, "acc", "m", []float32{0.6, 0.8, 0})
+	embedLine(t, s, "s1", 2, "acc", "m", []float32{0, 0, 1})
+	embedLine(t, s, "s2", 0, "acc", "m", []float32{-1, 0, 0})
+	q := session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{0.9, 0.1, 0}, Limit: 10}
+	eq(t, "best first", vectorKeys(t, s, q), []string{"s1/0", "s1/1", "s1/2", "s2/0"})
+	got := ok(s.SearchVectors(ctx, q))
+	eq(t, "projection", sortedKeys(got[0]), []string{"created_at", "enrichments", "score", "seq", "session_id"})
+	eq(t, "search text carried", got[0].Map("enrichments")["search-text"], "text of s1/0")
+	timeOf(t, got[0], "created_at")
+	first, _ := got[0]["score"].(float64)
+	last, _ := got[3]["score"].(float64)
+	if first < 0.98 || first > 1.0001 || last > -0.98 {
+		t.Errorf("scores = %v .. %v, want cosine similarities near 0.99 and -0.99", first, last)
+	}
+	eq(t, "limit", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{0, 0, 1}, Limit: 1}), []string{"s1/2"})
+	eq(t, "empty vector", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Limit: 10}), []string{})
+}
+
+func searchVectorsPerAccount(t *testing.T, s session.Store) {
+	embedLine(t, s, "s1", 0, "acc", "m", []float32{1, 0})
+	embedLine(t, s, "s2", 0, "other", "m", []float32{1, 0})
+	eq(t, "own account", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}}), []string{"s1/0"})
+	eq(t, "the other account", vectorKeys(t, s, session.VectorQuery{AccountID: "other", Model: "m", Vector: []float32{1, 0}}), []string{"s2/0"})
+	eq(t, "an account with none", vectorKeys(t, s, session.VectorQuery{AccountID: "nobody", Model: "m", Vector: []float32{1, 0}}), []string{})
+}
+
+func searchVectorsSinceAndSessions(t *testing.T, s session.Store) {
+	embedLine(t, s, "s1", 0, "acc", "m", []float32{1, 0})
+	time.Sleep(10 * time.Millisecond)
+	mid := time.Now()
+	time.Sleep(10 * time.Millisecond)
+	embedLine(t, s, "s1", 1, "acc", "m", []float32{1, 0.1})
+	embedLine(t, s, "s2", 0, "acc", "m", []float32{1, 0.2})
+	v := []float32{1, 0}
+	eq(t, "since", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: v, Since: mid}), []string{"s1/1", "s2/0"})
+	eq(t, "session ids", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: v, SessionIDs: []string{"s1"}}), []string{"s1/0", "s1/1"})
+	eq(t, "both", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: v, SessionIDs: []string{"s1"}, Since: mid}), []string{"s1/1"})
+}
+
+func searchVectorsOtherModels(t *testing.T, s session.Store) {
+	embedLine(t, s, "s1", 0, "acc", "m", []float32{1, 0})
+	embedLine(t, s, "s1", 1, "acc", "", nil)
+	embedLine(t, s, "s1", 2, "acc", "other-model", []float32{1, 0})
+	embedLine(t, s, "s1", 3, "acc", "m", []float32{1, 0, 0})
+	eq(t, "only this model's vectors of this length", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}}), []string{"s1/0"})
+	eq(t, "another model", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "other-model", Vector: []float32{1, 0}}), []string{"s1/2"})
+}
+
+func searchVectorsLimitCap(t *testing.T, s session.Store) {
+	lines := make([]session.TranscriptLine, 0, 120)
+	for i := range 120 {
+		lines = append(lines, tl("s1", i, "user", "acc"))
+	}
+	must(t, s.UpsertTranscriptLines(ctx, lines))
+	for _, d := range ok(s.Unenriched(ctx, "transcript_lines", session.EmbeddingName, 0)) {
+		must(t, s.SetEnrichment(ctx, "transcript_lines", d["_id"], session.EmbeddingName, session.Quantize("m", []float32{1, float32(num(d["seq"])) / 100})))
+	}
+	eq(t, "limit above the cap", len(ok(s.SearchVectors(ctx, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}, Limit: 500}))), session.MaxVectorHits)
+	eq(t, "limit 0 is the cap", len(ok(s.SearchVectors(ctx, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}}))), session.MaxVectorHits)
+	eq(t, "limit below the cap", len(ok(s.SearchVectors(ctx, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}, Limit: 7}))), 7)
+}
+
+func forgetDropsVectors(t *testing.T, s session.Store) {
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s1", AccountID: "acc", LastSeen: t0}))
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s2", AccountID: "acc", LastSeen: t0}))
+	embedLine(t, s, "s1", 0, "acc", "m", []float32{1, 0})
+	embedLine(t, s, "s2", 0, "acc", "m", []float32{1, 0})
+	ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", SessionIDs: []string{"s1"}}))
+	eq(t, "the forgotten session's vectors are gone", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}}), []string{"s2/0"})
 }
