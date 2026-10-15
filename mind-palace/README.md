@@ -328,11 +328,14 @@ Steps, Acceptance Criteria and Work Log sections the service reads).
 
 ## Sessions
 
-The `memory` package captures what the claude-remember plugin writes for a
-project: `mind-palace session memory-ingest` scans the store, posts each new
-record to the daemon as a `MemorySaved` hook event (the store keeps one per
-account and record hash) and `session search-memory` / the `search_memory`
-tool search them across sessions.
+Native memory lives in `session/summary` (the note of each session, made
+by an engine from its activity timeline) and `session/memory` (the day,
+recent and monthly archive roll-ups, notes, handoffs and the pinned note,
+the budgeted bundle the prime report injects, Markdown editing, JSONL
+export and import). Every record is a `MemorySaved` hook event keyed by
+`memory.id` and filed under `memory.project`; `mind-palace session memory
+…`, the `remember`, `forget_memory` and `search_memory` tools and
+[docs/memory.md](../docs/memory.md) describe it.
 
 `mind-palace` also holds the clued session capture: the Claude Code plugin's
 hook events and transcripts are mirrored into MongoDB and queried through the
@@ -444,6 +447,8 @@ expose them next to the plan and story tools.
 | `remote` | The HTTP client the remote adapters share: base URL, bearer token, CA file, the plain-`http://`-off-loopback refusal, envelope decoding into typed errors |
 | `clientcfg` | Opens the plan and story services as the client does: the repository's config plus, in remote mode, the `clued-server` store as a secondary store; resolves the project slug (`remote.project`, git origin, directory name) |
 | `session`, `session/*` | Claude Code session capture: config (local and remote mode), MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
+| `session/summary` | The memory note of one session (`session-summary/<session_id>`, the API Clued Cloud's hosted runner reuses): `Pending`, `Summarize`, `Cached`, `Checkpoint`, the free deterministic `ExtractEngine`, private spans dropped and secrets masked before any engine |
+| `session/memory` | Native memory: `Run` (notes, then day, recent and archive roll-ups, idempotent, locked, capped per day with the extract engine as the fallback), `Bundle`, `Remember`, `Forget`, `EditMarkdown`/`ApplyMarkdown`, `Export`/`Import`, `Status`, `ProjectKey`, `StripPrivate`, and the `hosted` engine's client interface |
 | `session/otel` | A session as an OpenTelemetry trace (GenAI conventions) sent as OTLP/HTTP JSON to `otelEndpoint` when it ends; each span at most once |
 | `session/otlp` | Claude Code's own OpenTelemetry logs received at `/v1/logs` (server and daemon; `/v1/metrics` accepted, not stored): the `api_request`, `api_error` and `tool_result` events of known sessions, with an allow-list of attributes, as `session.OtelEvent` |
 | `session/render` | A session as Markdown or a self-contained HTML page (header, turns, tool calls summarised, results folded, errors marked) |
