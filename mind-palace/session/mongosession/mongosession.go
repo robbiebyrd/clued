@@ -359,6 +359,86 @@ func (s *Store) DeleteSessions(ctx context.Context, q session.ForgetQuery) (sess
 	return out, nil
 }
 
+// PurgeContent deletes the selected sessions' lines and blobs and strips
+// their hook events with an update pipeline that does what
+// session.WithoutContent does, matching only events that still carry
+// content (so a second run modifies nothing).
+func (s *Store) PurgeContent(ctx context.Context, accountID string, sessionIDs []string) (session.ContentPurged, error) {
+	var out session.ContentPurged
+	if accountID == "" {
+		return out, session.ErrNoAccount
+	}
+	scope := key("account_id", accountID)
+	if len(sessionIDs) > 0 {
+		scope = append(scope, bson.E{Key: "session_id", Value: key("$in", sessionIDs)})
+	}
+	for _, name := range []string{transcriptLines, subagentLines, blobs} {
+		res, err := s.coll(name).DeleteMany(ctx, scope)
+		if err != nil {
+			return out, fmt.Errorf("purge content in %s: %w", name, err)
+		}
+		out.Deleted += res.DeletedCount
+	}
+	typeOf := func(path string) bson.D { return key("$type", path) }
+	isObject := func(path string) bson.D { return key("$eq", bson.A{typeOf(path), "object"}) }
+	present := func(path string) bson.D { return key("$ne", bson.A{typeOf(path), "missing"}) }
+	// tool_input carries content unless it is an object holding file_path alone.
+	toolInputContent := key("$cond", bson.A{
+		isObject("$tool_input"),
+		key("$gt", bson.A{key("$size", key("$filter", key(
+			"input", key("$objectToArray", "$tool_input"),
+			"cond", key("$ne", bson.A{"$$this.k", "file_path"}),
+		))), 0}),
+		present("$tool_input"),
+	})
+	carries := bson.A{
+		key("$expr", toolInputContent),
+		key("memory.text", key("$exists", true, "$ne", "")),
+	}
+	unset := bson.A{}
+	for _, f := range session.HookContentFields {
+		carries = append(carries, key(f, key("$exists", true)))
+		unset = append(unset, f)
+	}
+	for _, e := range session.HookContentEnrichments {
+		carries = append(carries, key("enrichments."+e, key("$exists", true)))
+		unset = append(unset, "enrichments."+e)
+	}
+	filter := append(append(bson.D{}, scope...), bson.E{Key: "$or", Value: carries})
+	pipeline := bson.A{
+		key("$set", key(
+			"tool_input", key("$cond", bson.A{
+				key("$and", bson.A{isObject("$tool_input"), present("$tool_input.file_path")}),
+				key("file_path", "$tool_input.file_path"),
+				"$$REMOVE",
+			}),
+			"memory", key("$cond", bson.A{
+				key("$and", bson.A{isObject("$memory"), present("$memory.text")}),
+				key("$mergeObjects", bson.A{"$memory", key("text", "")}),
+				"$memory",
+			}),
+		)),
+		key("$unset", unset),
+	}
+	res, err := s.coll(hookEvents).UpdateMany(ctx, filter, pipeline)
+	if err != nil {
+		return out, fmt.Errorf("purge content of hook events: %w", err)
+	}
+	out.Stripped = res.ModifiedCount
+	titled, unsetTitle := bson.A{}, bson.D{}
+	for _, f := range session.SessionContentFields {
+		titled = append(titled, key(f, key("$exists", true)))
+		unsetTitle = append(unsetTitle, bson.E{Key: f, Value: ""})
+	}
+	filter = append(append(bson.D{}, scope...), bson.E{Key: "$or", Value: titled})
+	res, err = s.coll(sessions).UpdateMany(ctx, filter, key("$unset", unsetTitle))
+	if err != nil {
+		return out, fmt.Errorf("purge content of sessions: %w", err)
+	}
+	out.Sessions = res.ModifiedCount
+	return out, nil
+}
+
 // find runs a query and returns the documents; a limit of zero or less means no limit.
 func (s *Store) find(ctx context.Context, col string, filter bson.D, projection, sort bson.D, skip, limit int) ([]session.Doc, error) {
 	opts := options.Find()

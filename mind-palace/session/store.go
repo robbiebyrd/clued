@@ -183,6 +183,93 @@ const StateChangedEventName = "SessionStateChanged"
 // its text; a store keeps one event per account and hash.
 const MemoryEventName = "MemorySaved"
 
+// HookContentFields are the hook-event fields that carry what was said or
+// done in a session (the prompt, a tool's response, a notification's
+// message, the last assistant message, compaction instructions). Metadata-only
+// capture never stores them and PurgeContent removes them; tool_input is
+// content as well, except its file_path, which is kept (file history works
+// on metadata alone). The event name, tool name, ids, cwd and timestamps
+// are metadata and stay.
+var HookContentFields = []string{"prompt", "tool_response", "message", "last_assistant_message", "custom_instructions"}
+
+// SessionContentFields are the session-record fields that carry content:
+// the title (the one Claude Code generated from the conversation, or the
+// user's own) and its kind. Metadata-only capture does not set them and
+// PurgeContent removes them; the other session metadata stays.
+var SessionContentFields = []string{"title", "title_kind"}
+
+// HookContentEnrichments are the hook-event enrichments that copy content
+// (privacy-redact-memory holds a memory record's text, redacted); they go
+// with the content.
+var HookContentEnrichments = []string{"privacy-redact-memory"}
+
+// WithoutContent returns a copy of the hook event without its content:
+// HookContentFields removed, tool_input reduced to its file_path (removed
+// when it has none), a MemorySaved record's memory.text emptied (its hash,
+// kind and ids stay) and HookContentEnrichments dropped. ev
+// itself is not changed; changed reports whether anything was removed.
+func WithoutContent(ev Doc) (out Doc, changed bool) {
+	out = make(Doc, len(ev))
+	for k, v := range ev {
+		out[k] = v
+	}
+	for _, k := range HookContentFields {
+		if _, ok := out[k]; ok {
+			delete(out, k)
+			changed = true
+		}
+	}
+	if in, ok := out["tool_input"]; ok {
+		m := asDoc(in)
+		fp, hasPath := m["file_path"]
+		switch {
+		case hasPath && len(m) == 1:
+		case hasPath:
+			out["tool_input"] = Doc{"file_path": fp}
+			changed = true
+		default:
+			delete(out, "tool_input")
+			changed = true
+		}
+	}
+	if mem := asDoc(out["memory"]); mem != nil {
+		if text, ok := mem["text"]; ok && text != "" {
+			copied := make(Doc, len(mem))
+			for k, v := range mem {
+				copied[k] = v
+			}
+			copied["text"] = ""
+			out["memory"] = copied
+			changed = true
+		}
+	}
+	if enr := asDoc(out["enrichments"]); enr != nil {
+		copied := make(Doc, len(enr))
+		for k, v := range enr {
+			copied[k] = v
+		}
+		for _, k := range HookContentEnrichments {
+			if _, ok := copied[k]; ok {
+				delete(copied, k)
+				changed = true
+			}
+		}
+		if len(copied) != len(enr) {
+			out["enrichments"] = copied
+		}
+	}
+	return out, changed
+}
+
+// ContentPurged is what PurgeContent removed: the transcript lines,
+// subagent lines and blobs it deleted, the hook events it stripped of their
+// content and the session records it removed a title from.
+type ContentPurged struct {
+	Deleted  int64 `json:"deleted"`
+	Stripped int64 `json:"stripped"`
+	Sessions int64 `json:"sessions"`
+}
+
 // ErrNotFound is returned when a session does not exist.
 var ErrNotFound = errors.New("session not found")
 
@@ -281,6 +368,16 @@ type Store interface {
 	// DeleteSessions deletes the sessions ForgetQuery selects and everything
 	// captured for them; an empty AccountID is ErrNoAccount.
 	DeleteSessions(ctx context.Context, q ForgetQuery) (Forgotten, error)
+	// PurgeContent forgets the content of the account's sessions and keeps
+	// the sessions: it deletes their transcript lines, subagent lines and
+	// blobs, replaces each hook event by WithoutContent of it and removes
+	// SessionContentFields from the session records, leaving the rest of
+	// the session metadata, OpenTelemetry events and limit samples as they
+	// are (what metadata-only capture would have stored). sessionIDs
+	// selects the sessions; none means every document of the account,
+	// those of sessions without a session record included. Running it again changes
+	// nothing. An empty accountID is ErrNoAccount.
+	PurgeContent(ctx context.Context, accountID string, sessionIDs []string) (ContentPurged, error)
 
 	// InsertOtelEvents stores the events, each once: an event whose
 	// account, session, name, sequence and timestamp are stored already is
