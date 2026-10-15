@@ -2,10 +2,12 @@
 id: 0043-hw6
 title: Prime's SESSION section reports "store unavailable" in remote mode when the store is healthy
 type: bugs
-status: pending
+status: complete
 priority: "2"
 created: "2026-10-15T15:31:15.869Z"
-updated: "2026-10-15T15:51:22.097Z"
+updated: "2026-10-15T16:17:20.382Z"
+started: "2026-10-15T16:17:00.064Z"
+completed: "2026-10-15T16:17:20.382Z"
 tags:
   - prime
   - remote
@@ -18,15 +20,15 @@ order: 0
 links: {}
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Prime's SESSION section reports "store unavailable" in remote mode when the store is healthy
@@ -65,10 +67,10 @@ In a cloud container linked to Clued Cloud, the built binary's `context session`
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./collect/... ./session/... ./cli/... ./server/... ./plugin/...
-- [ ] VERIFY: cd mind-palace && go test -race -run TestCurrentSkipsTheFullSessionContext ./collect/sources/sessionsource/
-- [ ] VERIFY: cd mind-palace && go test -race -run 'TestStoreFailureNamesTheCause|TestSlowStoreHitsTheStoreTimeoutNotTheBudget' ./collect/prime/
-- [ ] [MANUAL] In a Claude Code cloud container linked to Clued Cloud, `context prime` shows the last session and its top commands
+- [x] VERIFY: cd mind-palace && go test -race ./collect/... ./session/... ./cli/... ./server/... ./plugin/...
+- [x] VERIFY: cd mind-palace && go test -race -run TestCurrentSkipsTheFullSessionContext ./collect/sources/sessionsource/
+- [x] VERIFY: cd mind-palace && go test -race -run 'TestStoreFailureNamesTheCause|TestSlowStoreHitsTheStoreTimeoutNotTheBudget' ./collect/prime/
+- [x] [MANUAL] In a Claude Code cloud container linked to Clued Cloud, `context prime` shows the last session and its top commands
 
 ## Files
 
@@ -80,3 +82,5 @@ In a cloud container linked to Clued Cloud, the built binary's `context session`
 - `commands/clued-prime.md`, `skills/clued-context/SKILL.md` - Document the cause suffix and the budgets.
 
 ## Work Log
+
+### 2026-10-15T16:17:18.961Z - Fixed in robbiebyrd/clued#45 (merged as d152c32, released in v1.2.15). Verified: the full race suite (collect, session, server, cli, plugin) passed locally and in CI; TestCurrentSkipsTheFullSessionContext, TestStoreFailureNamesTheCause and TestSlowStoreHitsTheStoreTimeoutNotTheBudget pass on main; the v1.2.15 release binary, in a Claude Code cloud container linked to Clued Cloud, shows the SESSION section (session, model, state, top commands) where v1.2.14 printed store unavailable.
