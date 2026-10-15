@@ -13,6 +13,7 @@ binary.
 | `hooks/hooks.json`, `hooks/` | The plugin's hook registrations (the only ones: Claude Code loads `hooks/hooks.json`, never a root `hooks.json`) and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `install-remember-listener`, `uninstall`) |
 | `scripts/verify-prime.sh` | Manual check, on each release, that the prime report reaches the model once with the plugin's hooks, the settings mirror, an upgrade and a resume (real `claude -p` sessions; `plugin/verify_prime_test.go` runs it only with `CLUED_VERIFY_PRIME=1`) |
 | `scripts/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the release pinned by `.claude-plugin/plugin.json`'s `version`, downloaded once into `~/.claude/plugins/data/clued/bin/releases/v<version>/`, then PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`); `--locate` prints the choice |
+| `CONTRIBUTING.md`, `SECURITY.md`, `TRADEMARKS.md` | Contributor terms (DCO 1.1 sign-off, `## Sign-off`), private security reports to `security@clued.cloud`, the trademark note; `scripts/check-dco.sh` and `.github/workflows/dco.yml` enforce the sign-off on pull requests |
 | `LICENSE`, `NOTICE` | Apache-2.0 (verbatim) and the NOTICE (`Copyright 2026 Space Hippo, LC`), with byte-identical copies in `mind-palace/` so the Go module zip carries them; `plugin/license_test.go` checks both pairs |
 | `.claude/CLAUDE.md` | This file; it lives under `.claude/` because a `CLAUDE.md` at the plugin root fails `claude plugin validate . --strict` (`plugin/license_test.go` runs it when `claude` is installed) |
 | `.claude-plugin/plugin.json` | The plugin manifest; its `version` names the GitHub release (`v<version>`) whose binaries the shim downloads |
@@ -145,6 +146,16 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   MCP tools (or `mind-palace plan create`), stories with `story_*`, and both
   change through the setters (`plan_setStatus`, `story_setCriterion`, …) or
   `plan_update` / `story_update` for the content.
+- Every commit is signed off under the DCO (`git commit -s`;
+  CONTRIBUTING.md#sign-off): the `DCO` workflow (`scripts/check-dco.sh`)
+  fails a pull request with a commit whose author has no matching
+  `Signed-off-by:`. An agent committing as Robbie Byrd adds
+  `Signed-off-by: Robbie Byrd <me@robbiebyrd.com>` alongside the
+  `Co-Authored-By:` trailer; an agent committing under its own identity
+  signs off as that identity (what `git commit -s` writes). Security
+  reports go to `security@clued.cloud` (SECURITY.md), licensing to
+  `legal@clued.cloud`; the code is Apache-2.0 (LICENSE, NOTICE), the
+  names and logo are Space Hippo, LC's (TRADEMARKS.md).
 - Releases are automatic; never push a `v*` tag or edit the version for a
   patch by hand. `scripts/release-plan.sh` decides what a run releases: a
   version in `.claude-plugin/plugin.json` with no release yet (a minor or

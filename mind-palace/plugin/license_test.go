@@ -152,3 +152,74 @@ func TestBuildBinariesLicenses(t *testing.T) {
 		t.Errorf("THIRD_PARTY_LICENSES.tar.gz missing: %v", err)
 	}
 }
+
+// TestContributingDCO checks the contributor terms: the DCO with a Sign-off
+// section, the trademark note and the private security contact.
+func TestContributingDCO(t *testing.T) {
+	root := repoRoot(t)
+	read := func(name string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	c := read("CONTRIBUTING.md")
+	for _, want := range []string{"Developer Certificate of Origin", "\n## Sign-off\n", "git commit -s", "security@clued.cloud"} {
+		if !strings.Contains(c, want) {
+			t.Errorf("CONTRIBUTING.md lacks %q", want)
+		}
+	}
+	if !strings.Contains(read("TRADEMARKS.md"), "Space Hippo, LC") {
+		t.Error("TRADEMARKS.md does not name the owner")
+	}
+	if !strings.Contains(read("SECURITY.md"), "security@clued.cloud") {
+		t.Error("SECURITY.md lacks security@clued.cloud")
+	}
+}
+
+// TestCheckDCO runs scripts/check-dco.sh over a throwaway repository: a
+// signed-off commit passes, one without a sign-off (or signed off by
+// someone else) fails, and a bot's commit is skipped.
+func TestCheckDCO(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	dir := t.TempDir()
+	env := []string{"HOME=" + t.TempDir(), "PATH=/usr/bin:/bin", "GIT_CONFIG_NOSYSTEM=1"}
+	git := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir, cmd.Env = dir, env
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	commit := func(author, msg string) {
+		t.Helper()
+		name, email, _ := strings.Cut(author, " <")
+		email = strings.TrimSuffix(email, ">")
+		git("-c", "user.name="+name, "-c", "user.email="+email, "commit", "-q", "--allow-empty", "-m", msg)
+	}
+	git("init", "-q")
+	commit("Base <base@example.com>", "base")
+	base := git("rev-parse", "HEAD")
+	check := func() result {
+		return runScriptIn(t, dir, filepath.Join(repoRoot(t), "scripts", "check-dco.sh"), "", env, base, "HEAD")
+	}
+
+	commit("Ada <ada@example.com>", "signed\n\nSigned-off-by: Ada <ADA@example.com>")
+	commit("dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>", "bump")
+	if r := check(); r.code != 0 {
+		t.Fatalf("signed-off range failed: %+v", r)
+	}
+	commit("Bob <bob@example.com>", "unsigned")
+	commit("Eve <eve@example.com>", "someone else's\n\nSigned-off-by: Ada <ada@example.com>")
+	r := check()
+	if r.code != 1 || !strings.Contains(r.stderr, "unsigned") || !strings.Contains(r.stderr, "someone else's") || strings.Contains(r.stderr, " signed\n") {
+		t.Errorf("got %+v, want both unsigned commits named", r)
+	}
+}
