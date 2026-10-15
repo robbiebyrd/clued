@@ -606,3 +606,15 @@ func TestDefaultsApplyToAZeroLoggerAndTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestMemoryOffEventMarksTheSession(t *testing.T) {
+	f := newFixture(t)
+	f.handle(t, session.Doc{"session_id": "quiet", "cwd": f.tmp, MemoryOffField: "off"})
+	f.handle(t, session.Doc{"session_id": "loud", "cwd": f.tmp})
+	if sd := sessionDoc(f.store, "quiet"); sd == nil || sd["memory"] != "off" {
+		t.Errorf("quiet session = %v, want memory off", sd)
+	}
+	if sd := sessionDoc(f.store, "loud"); sd == nil || sd["memory"] != nil {
+		t.Errorf("loud session = %v", sd)
+	}
+}

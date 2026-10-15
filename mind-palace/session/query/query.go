@@ -74,14 +74,18 @@ type SearchCommandsArgs struct {
 }
 
 // SearchMemoryArgs are the search_memory tool parameters. Pattern is a
-// case-insensitive regex over the text; empty means every record.
+// case-insensitive regex over the text; empty means every record. Project
+// keeps the native records filed under that project key (memory.project);
+// private records are left out unless IncludePrivate.
 type SearchMemoryArgs struct {
-	Pattern     string `json:"pattern,omitempty"`
-	Kind        string `json:"kind,omitempty"`
-	SessionID   string `json:"session_id,omitempty"`
-	GitOrigin   string `json:"git_origin,omitempty"`
-	ProjectPath string `json:"project_path,omitempty"`
-	Limit       int    `json:"limit,omitempty"`
+	Pattern        string `json:"pattern,omitempty"`
+	Kind           string `json:"kind,omitempty"`
+	SessionID      string `json:"session_id,omitempty"`
+	GitOrigin      string `json:"git_origin,omitempty"`
+	ProjectPath    string `json:"project_path,omitempty"`
+	Project        string `json:"project,omitempty"`
+	IncludePrivate bool   `json:"include_private,omitempty"`
+	Limit          int    `json:"limit,omitempty"`
 }
 
 // LimitsArgs are the get_limits tool parameters. Since is an RFC 3339 time
@@ -111,10 +115,16 @@ type LimitSample struct {
 	CreatedAt     time.Time   `json:"created_at"`
 }
 
-// MemoryHit is one memory record (a claude-remember summary, handoff or
-// identity ingested as a MemorySaved event) with the project and repository
-// of the session it belongs to (nil when unknown).
+// MemoryHit is one memory record (a native memory record, a digest, or a
+// claude-remember record ingested before native memory) with the project
+// and repository of the session it belongs to (nil when unknown). ID and
+// Project are the native record's memory.id and memory.project.
 type MemoryHit struct {
+	ID          string    `json:"id,omitempty"`
+	Project     string    `json:"project,omitempty"`
+	Private     bool      `json:"private,omitempty"`
+	Edited      bool      `json:"edited,omitempty"`
+	Engine      string    `json:"engine,omitempty"`
 	SessionID   string    `json:"session_id"`
 	ProjectPath *string   `json:"project_path"`
 	GitOrigin   *string   `json:"git_origin"`
@@ -296,12 +306,18 @@ func (s *Service) SearchMemory(ctx context.Context, args SearchMemoryArgs) ([]Me
 	if args.Kind != "" {
 		kinds = []string{args.Kind}
 	}
+	var projects []string
+	if args.Project != "" {
+		projects = []string{args.Project}
+	}
 	events, err := s.Store.MemoryEvents(ctx, session.MemoryQuery{
-		AccountID:  s.AccountID,
-		PatternRe:  args.Pattern,
-		Kinds:      kinds,
-		SessionIDs: sessionIDs,
-		Limit:      withDefault(args.Limit, defaultMemoryLimit),
+		AccountID:      s.AccountID,
+		PatternRe:      args.Pattern,
+		Kinds:          kinds,
+		SessionIDs:     sessionIDs,
+		Projects:       projects,
+		IncludePrivate: args.IncludePrivate,
+		Limit:          withDefault(args.Limit, defaultMemoryLimit),
 	})
 	if err != nil {
 		return nil, err
@@ -432,7 +448,10 @@ func (s *Service) memoryHits(ctx context.Context, events []session.Doc) ([]Memor
 		str := func(k string) string { v, _ := mem.String(k); return v }
 		cwd, _ := ev.String("cwd")
 		createdAt, _ := ev["created_at"].(time.Time)
+		private, _ := mem["private"].(bool)
+		edited, _ := mem["edited"].(bool)
 		hits = append(hits, MemoryHit{
+			ID: str("id"), Project: str("project"), Private: private, Edited: edited, Engine: str("engine"),
 			SessionID:   id,
 			ProjectPath: stringPtr(sessions[id], "project_path"),
 			GitOrigin:   stringPtr(sessions[id], "git_origin"),

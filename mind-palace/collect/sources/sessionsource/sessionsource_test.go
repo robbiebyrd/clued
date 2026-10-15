@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
+	"github.com/robbiebyrd/clued/mind-palace/session/memory"
 	"github.com/robbiebyrd/clued/mind-palace/session/memsession"
 )
 
@@ -63,33 +65,45 @@ func seedSessions(t *testing.T) session.Store {
 	return st
 }
 
-func TestRecentReturnsTheProjectsMemoryNewestFirst(t *testing.T) {
+func noOrigin(t *testing.T) {
+	t.Helper()
+	prev := Origin
+	Origin = func(context.Context, string) string { return "" }
+	t.Cleanup(func() { Origin = prev })
+}
+
+func TestBundleReturnsTheProjectsLegacyMemoryWhileItHasNoNativeRecord(t *testing.T) {
+	noOrigin(t)
 	ctx := context.Background()
-	src := New(connectTo(seedSessions(t)), testAccount)
+	st := seedSessions(t)
+	src := New(connectTo(st), testAccount)
 	defer src.Close(ctx)
-	notes, err := src.Recent(ctx, "/work/alpha", 5)
+	notes, err := src.Bundle(ctx, "/work/alpha", 1500, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(notes) != 2 || notes[0].Kind != "handoff" || notes[0].Text != "Next: wire the listener" || notes[1].Text != "## 09:15 | main\nFixed the restart" {
+	if len(notes) != 2 || notes[0].Kind != "handoff" || notes[0].Text != "Next: wire the listener" || notes[1].Text != "## 09:15 | main\nFixed the restart" || !notes[0].Legacy {
 		t.Fatalf("notes = %+v", notes)
 	}
-	if notes[0].Branch != "main" || notes[0].Day != "2026-09-09" || !notes[0].CreatedAt.Equal(t0.Add(time.Minute)) {
-		t.Errorf("note fields = %+v", notes[0])
-	}
-	if notes, _ := src.Recent(ctx, "/work/alpha", 1); len(notes) != 1 || notes[0].Kind != "handoff" {
-		t.Errorf("limit 1 = %+v", notes)
-	}
-	if notes, _ := src.Recent(ctx, "/work/nowhere", 5); len(notes) != 0 {
+	if notes, _ := src.Bundle(ctx, "/work/nowhere", 1500, false); len(notes) != 0 {
 		t.Errorf("unknown project = %+v", notes)
 	}
-	if notes, err := src.Recent(ctx, "", 5); err != nil || len(notes) != 0 {
+	if notes, err := src.Bundle(ctx, "", 1500, false); err != nil || len(notes) != 0 {
 		t.Errorf("empty cwd = %+v, %v", notes, err)
 	}
 	other := New(connectTo(seedSessions(t)), "acct-2")
 	defer other.Close(ctx)
-	if notes, _ := other.Recent(ctx, "/work/alpha", 5); len(notes) != 0 {
+	if notes, _ := other.Bundle(ctx, "/work/alpha", 1500, false); len(notes) != 0 {
 		t.Errorf("another account sees alpha's memory: %+v", notes)
+	}
+	// A native record replaces the legacy ones.
+	svc := &memory.Service{Store: st, AccountID: testAccount}
+	if _, err := svc.Remember(ctx, "/work/alpha", "pinned", "Always run make check.", false); err != nil {
+		t.Fatal(err)
+	}
+	notes, _ = src.Bundle(ctx, "/work/alpha", 1500, true)
+	if len(notes) != 1 || notes[0].Kind != "memory-pinned" || notes[0].Legacy {
+		t.Errorf("native bundle = %+v", notes)
 	}
 }
 
@@ -247,26 +261,37 @@ func TestTimeOfHandlesEveryRepresentation(t *testing.T) {
 	}
 }
 
-func TestRecentLeadsWithYesterdaysDigest(t *testing.T) {
+func TestBundleEndsWithYesterdaysDigestWithinBudget(t *testing.T) {
+	noOrigin(t)
 	ctx := context.Background()
 	st := seedSessions(t)
 	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
 	for _, day := range []string{yesterday, "2020-01-01"} {
 		if err := st.InsertHookEvent(ctx, session.Doc{
 			"account_id": testAccount, "hook_event_name": session.MemoryEventName, "created_at": time.Now(),
-			"memory": map[string]any{"kind": "digest", "file": "digest/" + day + ".md", "text": "## Context\nRetro of " + day, "hash": "d-" + day, "day": day, "scope": "day", "from": day, "to": day},
+			"memory": map[string]any{"kind": "digest", "file": "digest/" + day + ".md", "text": "## Context\nRetro of " + day + strings.Repeat(" more", 400), "hash": "d-" + day, "day": day, "scope": "day", "from": day, "to": day},
 		}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	src := New(connectTo(st), testAccount)
 	defer src.Close(ctx)
-	notes, err := src.Recent(ctx, "/work/alpha", 5)
+	notes, err := src.Bundle(ctx, "/work/alpha", 300, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(notes) != 3 || notes[0].Kind != "digest" || notes[0].Day != yesterday || notes[0].Text != "## Context\nRetro of "+yesterday || notes[1].Kind != "handoff" {
+	if len(notes) != 3 || notes[2].Kind != "digest" || notes[2].Day != yesterday || !strings.HasPrefix(notes[2].Text, "## Context\nRetro of "+yesterday) {
 		t.Fatalf("notes = %+v", notes)
+	}
+	total := 0
+	for _, n := range notes {
+		total += len(n.Text)
+	}
+	if total > 300*memory.CharsPerToken {
+		t.Errorf("bundle is %d characters, over the budget", total)
+	}
+	if compact, _ := src.Bundle(ctx, "/work/alpha", 300, true); len(compact) != 1 || compact[0].Kind != "handoff" {
+		t.Errorf("compact bundle = %+v (no digest after a compaction)", compact)
 	}
 }
 

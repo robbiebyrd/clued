@@ -69,6 +69,12 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
+		{"memory events filter by project, id and created_at range", memoryByProjectAndRange},
+		{"private memory records are hidden unless asked for", memoryPrivateHiddenUnlessAsked},
+		{"delete memory removes the account's records by id and by hash", deleteMemoryByIDAndHash},
+		{"delete memory leaves another account's records with the same id and hash", deleteMemoryOtherAccountUntouched},
+		{"delete memory without an account is ErrNoAccount", deleteMemoryNoAccount},
+		{"legacy claude-remember records stay listed", legacyMemoryStillListed},
 		{"usage events filter by session, time and account, newest first", limitSamples},
 		{"otel events are stored once and filter by session, name, prompt, time and account, newest first", otelEvents},
 		{"otel events go with their sessions and their account", otelEventsDeleted},
@@ -1785,4 +1791,97 @@ func redactedField(t *testing.T, s session.Store) {
 	b.Redacted = []string{"aws-key"}
 	must(t, s.UpsertBlob(ctx, b))
 	eq(t, "redacted blob", strList(ok(s.Blobs(ctx, "acc", "r"))[0]["redacted"]), []string{"aws-key"})
+}
+
+// nativeMemory is a native memory record (session/memory) as the memory
+// service stores it.
+func nativeMemory(acc, id, kind, project, text string, private bool, at time.Time) session.Doc {
+	return session.Doc{
+		"account_id": acc, "hook_event_name": session.MemoryEventName, "cwd": "/p", "created_at": at,
+		"memory": session.Doc{"id": id, "kind": kind, "project": project, "text": text, "hash": "h-" + acc + "-" + id + "-" + text, "private": private},
+	}
+}
+
+func memoryTexts(t *testing.T, s session.Store, q session.MemoryQuery) []string {
+	t.Helper()
+	var out []string
+	for _, d := range ok(s.MemoryEvents(ctx, q)) {
+		out = append(out, d.Map("memory")["text"].(string))
+	}
+	return out
+}
+
+func memoryByProjectAndRange(t *testing.T, s session.Store) {
+	for _, ev := range []session.Doc{
+		nativeMemory("acc", "memory-day/a/2026-01-01", "memory-day", "a", "day one of a", false, t0),
+		nativeMemory("acc", "memory-day/a/2026-01-02", "memory-day", "a", "day two of a", false, t0.Add(24*time.Hour)),
+		nativeMemory("acc", "memory-day/b/2026-01-02", "memory-day", "b", "day two of b", false, t0.Add(24*time.Hour+time.Minute)),
+		nativeMemory("acc", "memory-pinned/a", "memory-pinned", "a", "pinned a", false, t0.Add(48*time.Hour)),
+		nativeMemory("other", "memory-day/a/2026-01-01", "memory-day", "a", "foreign a", false, t0),
+	} {
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	eq(t, "one project", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Projects: []string{"a"}}),
+		[]string{"pinned a", "day two of a", "day one of a"})
+	eq(t, "two projects", len(memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Projects: []string{"a", "b"}})), 4)
+	eq(t, "project and kind", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Projects: []string{"a"}, Kinds: []string{"memory-pinned"}}),
+		[]string{"pinned a"})
+	eq(t, "since is inclusive, until exclusive", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Since: t0.Add(24 * time.Hour), Until: t0.Add(48 * time.Hour)}),
+		[]string{"day two of b", "day two of a"})
+	eq(t, "since alone", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Since: t0.Add(48 * time.Hour)}), []string{"pinned a"})
+	eq(t, "until alone", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Until: t0.Add(time.Hour)}), []string{"day one of a"})
+	eq(t, "by id", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", IDs: []string{"memory-day/a/2026-01-01", "memory-pinned/a"}}),
+		[]string{"pinned a", "day one of a"})
+	eq(t, "another account's ids are not listed", memoryTexts(t, s, session.MemoryQuery{AccountID: "other", Projects: []string{"a"}}), []string{"foreign a"})
+}
+
+func memoryPrivateHiddenUnlessAsked(t *testing.T, s session.Store) {
+	must(t, s.InsertHookEvent(ctx, nativeMemory("acc", "memory-note/1", "memory-note", "a", "public note", false, t0)))
+	must(t, s.InsertHookEvent(ctx, nativeMemory("acc", "memory-note/2", "memory-note", "a", "private note", true, t0.Add(time.Minute))))
+	eq(t, "private hidden by default", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc"}), []string{"public note"})
+	eq(t, "private hidden for an id query too", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", IDs: []string{"memory-note/2"}}), []string(nil))
+	eq(t, "private listed when asked", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", IncludePrivate: true}), []string{"private note", "public note"})
+}
+
+func deleteMemoryByIDAndHash(t *testing.T, s session.Store) {
+	for i, id := range []string{"memory-note/1", "memory-note/2", "memory-note/3", "memory-note/4"} {
+		must(t, s.InsertHookEvent(ctx, nativeMemory("acc", id, "memory-note", "a", "note "+id, i == 3, t0.Add(time.Duration(i)*time.Minute))))
+	}
+	must(t, s.InsertHookEvent(ctx, memoryEvent("s1", "acc", "entry", "legacy entry", t0)))
+	must(t, s.InsertHookEvent(ctx, bash("s1", "acc", "make", t0)))
+	n := ok(s.DeleteMemory(ctx, session.MemoryDelete{AccountID: "acc", IDs: []string{"memory-note/1", "memory-note/4"}, Hashes: []string{"h-acc-memory-note/2-note memory-note/2", "h-acc-legacy entry"}}))
+	eq(t, "deleted count (a private record and a legacy one included)", n, 4)
+	eq(t, "what is left", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", IncludePrivate: true}), []string{"note memory-note/3"})
+	eq(t, "nothing selected deletes nothing", ok(s.DeleteMemory(ctx, session.MemoryDelete{AccountID: "acc"})), 0)
+	eq(t, "an unknown id deletes nothing", ok(s.DeleteMemory(ctx, session.MemoryDelete{AccountID: "acc", IDs: []string{"nope"}})), 0)
+	eq(t, "other hook events stay", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "acc", Limit: 10}))), 1)
+}
+
+func deleteMemoryOtherAccountUntouched(t *testing.T, s session.Store) {
+	mine := nativeMemory("acc", "memory-pinned/a", "memory-pinned", "a", "same", false, t0)
+	theirs := nativeMemory("other", "memory-pinned/a", "memory-pinned", "a", "same", false, t0)
+	theirs.Map("memory")["hash"] = mine.Map("memory")["hash"]
+	must(t, s.InsertHookEvent(ctx, mine))
+	must(t, s.InsertHookEvent(ctx, theirs))
+	hash := mine.Map("memory")["hash"].(string)
+	eq(t, "deleted", ok(s.DeleteMemory(ctx, session.MemoryDelete{AccountID: "acc", IDs: []string{"memory-pinned/a"}, Hashes: []string{hash}})), 1)
+	eq(t, "mine is gone", len(memoryTexts(t, s, session.MemoryQuery{AccountID: "acc"})), 0)
+	eq(t, "the other account's record with the same id and hash stays", memoryTexts(t, s, session.MemoryQuery{AccountID: "other"}), []string{"same"})
+}
+
+func deleteMemoryNoAccount(t *testing.T, s session.Store) {
+	must(t, s.InsertHookEvent(ctx, nativeMemory("acc", "memory-note/1", "memory-note", "a", "kept", false, t0)))
+	if _, err := s.DeleteMemory(ctx, session.MemoryDelete{IDs: []string{"memory-note/1"}}); !errors.Is(err, session.ErrNoAccount) {
+		t.Fatalf("DeleteMemory without an account = %v, want ErrNoAccount", err)
+	}
+	eq(t, "nothing deleted", len(memoryTexts(t, s, session.MemoryQuery{AccountID: "acc"})), 1)
+}
+
+func legacyMemoryStillListed(t *testing.T, s session.Store) {
+	must(t, s.InsertHookEvent(ctx, memoryEvent("s1", "acc", "entry", "## 09:15 | main\nlegacy work", t0)))
+	must(t, s.InsertHookEvent(ctx, nativeMemory("acc", "memory-note/1", "memory-note", "a", "native work", false, t0.Add(time.Minute))))
+	eq(t, "legacy kinds", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Kinds: []string{"entry", "day", "recent", "archive", "handoff", "identity"}}),
+		[]string{"## 09:15 | main\nlegacy work"})
+	eq(t, "both listed without filters", len(memoryTexts(t, s, session.MemoryQuery{AccountID: "acc"})), 2)
+	eq(t, "a project filter leaves the legacy record out (it has no project)", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Projects: []string{"a"}}), []string{"native work"})
 }

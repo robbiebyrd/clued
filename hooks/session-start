@@ -2,12 +2,27 @@
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLUED="${PLUGIN_ROOT}/scripts/clued"
 
-# Keep hooks registered in settings.json pointing to this plugin installation.
-"${PLUGIN_ROOT}/hooks/register-hooks" &>/dev/null &
-# Keep clued's listener inside every claude-remember plugin (a plugin update removes it).
-"${PLUGIN_ROOT}/hooks/install-remember-listener" &>/dev/null
+# A memory engine's own `claude -p` runs with CLUED_NO_CAPTURE=1: it is
+# never captured, relayed or primed.
+if [[ "${CLUED_NO_CAPTURE:-}" == "1" ]]; then
+  cat >/dev/null 2>&1
+  exit 0
+fi
+
+# Point the hook launcher (bin/clued-hook, plugin-root) at this plugin
+# installation, refresh an opt-in settings mirror and remove the mirror an
+# older clued wrote (hooks/hooks.json registers every hook; one in both
+# places runs twice).
+"${PLUGIN_ROOT}/hooks/register-hooks" --quiet &>/dev/null &
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 DATA_DIR="${HOME}/.claude/plugins/data/clued"
+# clued has its own memory now: remove, once, the listener older versions
+# installed into claude-remember (uninstall runs the removal again).
+REMOVED_STAMP="${DATA_DIR}/remember-listener-removed"
+if [[ ! -f "$REMOVED_STAMP" ]]; then
+  "${PLUGIN_ROOT}/hooks/remove-remember-listener" &>/dev/null
+  mkdir -p "$DATA_DIR" && date -u +%Y-%m-%dT%H:%M:%SZ > "$REMOVED_STAMP"
+fi
 BIN_DIR="${DATA_DIR}/bin"
 DAEMON_LOG="${DATA_DIR}/daemon.log"
 DEFAULT_PORT=8085
@@ -93,8 +108,5 @@ if ! daemon_ok; then
 fi
 
 "$CLUED" session backfill &>/dev/null &
-disown
-# Summaries claude-remember wrote since the last ingest (handoffs have no listener event).
-"$CLUED" session memory-ingest --quiet &>/dev/null &
 disown
 exit 0

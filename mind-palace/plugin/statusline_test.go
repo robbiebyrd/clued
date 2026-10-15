@@ -47,7 +47,7 @@ func TestRegisterHooksInstallsAndRestoresTheStatusLine(t *testing.T) {
 
 	s := registerHooks(t, dir, seed, 1)
 	sl := statusLineOf(t, s)
-	want := filepath.Join(repoRoot(t), "scripts", "clued") + " hook status"
+	want := launcherIn(dir) + " hook status"
 	if sl == nil || sl["command"] != want || sl["type"] != "command" || sl["padding"] != float64(1) {
 		t.Fatalf("statusLine = %v, want command %q with padding kept", sl, want)
 	}

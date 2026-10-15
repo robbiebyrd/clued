@@ -42,7 +42,9 @@ fi
 bump() { awk -F. '{printf "%d.%d.%d", $1, $2, $3 + 1}' <<<"$1"; }
 assets() { gh release view "v$1" --json assets --jq '.assets | length' 2>/dev/null; }
 # A release counts as published when it carries every asset the build
-# script produces: its targets plus SHA256SUMS.
+# script produces: its targets plus SHA256SUMS (THIRD_PARTY_LICENSES.tar.gz
+# is attached too but not counted, so a release published before it existed
+# is not reopened and re-stamped for it).
 want=$(( $("${ROOT}/scripts/build-binaries.sh" --targets | wc -l) + 1 ))
 
 if ! n=$(assets "$version"); then

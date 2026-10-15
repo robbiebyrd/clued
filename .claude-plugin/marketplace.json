@@ -4,10 +4,14 @@
     "name": "Robbie Byrd",
     "email": "me@robbiebyrd.com"
   },
+  "metadata": {
+    "description": "clued: session capture, prime and plan/story storage for Claude Code"
+  },
   "plugins": [
     {
       "name": "clued",
       "version": "1.2.15",
+      "license": "Apache-2.0",
       "description": "Session capture and plan/story storage for Claude Code — a Go daemon mirrors hook events and transcripts into MongoDB with an enricher pipeline, and mind-palace keeps plans and stories as validated Markdown with MCP tools for both",
       "source": {
         "source": "github",

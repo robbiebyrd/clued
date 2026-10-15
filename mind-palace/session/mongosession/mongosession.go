@@ -123,6 +123,8 @@ var indexes = []index{
 	{blobs, key("session_id", 1, "blob_type", 1, "name", 1), true},
 	{blobs, key("account_id", 1, "session_id", 1, "blob_type", 1), false},
 	{hookEvents, key("account_id", 1, "enrichments.file-tracker.file_path", 1), false},
+	{hookEvents, key("account_id", 1, "memory.project", 1, "memory.kind", 1, "created_at", 1), false},
+	{hookEvents, key("account_id", 1, "memory.id", 1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.error-flag.is_error", 1, "created_at", -1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.usage.day", 1), false},
 	{otelEvents, key("account_id", 1, "session_id", 1, "name", 1, "sequence", 1, "timestamp", 1), true},
@@ -761,8 +763,48 @@ func (s *Store) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]sess
 	if len(q.SessionIDs) > 0 {
 		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
 	}
+	if len(q.Projects) > 0 {
+		filter = append(filter, bson.E{Key: "memory.project", Value: key("$in", q.Projects)})
+	}
+	if len(q.IDs) > 0 {
+		filter = append(filter, bson.E{Key: "memory.id", Value: key("$in", q.IDs)})
+	}
+	if !q.IncludePrivate {
+		filter = append(filter, bson.E{Key: "memory.private", Value: key("$ne", true)})
+	}
+	created := bson.D{}
+	if !q.Since.IsZero() {
+		created = append(created, bson.E{Key: "$gte", Value: q.Since})
+	}
+	if !q.Until.IsZero() {
+		created = append(created, bson.E{Key: "$lt", Value: q.Until})
+	}
+	if len(created) > 0 {
+		filter = append(filter, bson.E{Key: "created_at", Value: created})
+	}
 	projection := key("_id", 0, "session_id", 1, "cwd", 1, "memory", 1, "created_at", 1)
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
+func (s *Store) DeleteMemory(ctx context.Context, q session.MemoryDelete) (int, error) {
+	if q.AccountID == "" {
+		return 0, session.ErrNoAccount
+	}
+	if q.Empty() {
+		return 0, nil
+	}
+	var or bson.A
+	if len(q.IDs) > 0 {
+		or = append(or, key("memory.id", key("$in", q.IDs)))
+	}
+	if len(q.Hashes) > 0 {
+		or = append(or, key("memory.hash", key("$in", q.Hashes)))
+	}
+	res, err := s.coll(hookEvents).DeleteMany(ctx, key("hook_event_name", session.MemoryEventName, "account_id", q.AccountID, "$or", or))
+	if err != nil {
+		return 0, err
+	}
+	return int(res.DeletedCount), nil
 }
 
 func (s *Store) LimitSamples(ctx context.Context, q session.LimitQuery) ([]session.Doc, error) {

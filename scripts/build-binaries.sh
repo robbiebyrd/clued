@@ -13,6 +13,15 @@
 #                                     binaries of every target already in DIR
 #                                     (the release job, after collecting the
 #                                     per-target jobs' artifacts)
+#   scripts/build-binaries.sh --licenses DIR
+#                                     build nothing; save the licence of every
+#                                     module the binary links (mind-palace's
+#                                     own included) under
+#                                     DIR/THIRD_PARTY_LICENSES/<module path>/
+#                                     and pack it as
+#                                     DIR/THIRD_PARTY_LICENSES.tar.gz (the
+#                                     release asset; Dockerfile.server copies
+#                                     the tree into the image)
 #   scripts/build-binaries.sh --targets
 #                                     list the targets, one per line
 #
@@ -48,15 +57,16 @@ TARGETS=(
 )
 
 usage() {
-  echo "usage: $0 [--target os/arch]... [DIR] | --sums DIR | --targets" >&2
+  echo "usage: $0 [--target os/arch]... [DIR] | --sums DIR | --licenses DIR | --targets" >&2
   exit 2
 }
 
 # ONLY holds the targets named with --target; empty means all of them. With
 # --target the SHA256SUMS is not written, since a partial sums file would be
-# mistaken for the whole set. SUMS_ONLY skips the builds.
+# mistaken for the whole set. SUMS_ONLY and LICENSES_ONLY skip the builds.
 ONLY=()
 SUMS_ONLY=0
+LICENSES_ONLY=0
 OUT=""
 while (( $# > 0 )); do
   case "$1" in
@@ -73,6 +83,12 @@ while (( $# > 0 )); do
     --sums)
       [[ -n "${2:-}" ]] || usage
       SUMS_ONLY=1
+      OUT="$2"
+      shift 2
+      ;;
+    --licenses)
+      [[ -n "${2:-}" ]] || usage
+      LICENSES_ONLY=1
       OUT="$2"
       shift 2
       ;;
@@ -129,6 +145,32 @@ export GOTOOLCHAIN="go${GO_VERSION}"
 export CGO_ENABLED=0
 export GOFLAGS=-mod=mod
 export GOARM=6
+# go-licenses must run on the toolchain the module names: when an older go
+# on PATH switched to it (GOTOOLCHAIN), the standard library of the older
+# GOROOT is what it sees and every stdlib package reads as an unknown module.
+GOROOT="$(cd "$MODULE" && go env GOROOT)"
+export GOROOT
+export PATH="${GOROOT}/bin:${PATH}"
+
+# GO_LICENSES is the pinned go-licenses CI also runs as its licence gate
+# (`check ./... --disallowed_types=forbidden,restricted,unknown`).
+# github.com/segmentio/asm is MIT No Attribution, which its classifier does
+# not recognise, so it is ignored there and its LICENSE copied by hand.
+GO_LICENSES=(go run github.com/google/go-licenses/v2@v2.0.1)
+LICENSES_IGNORE=(--ignore github.com/segmentio/asm)
+
+if (( LICENSES_ONLY )); then
+  tree="${OUT}/THIRD_PARTY_LICENSES"
+  rm -rf "$tree" "${tree}.tar.gz"
+  (cd "$MODULE" && "${GO_LICENSES[@]}" save ./... --save_path "$tree" "${LICENSES_IGNORE[@]}")
+  asm="$(cd "$MODULE" && go list -m -f '{{.Dir}}' github.com/segmentio/asm)"
+  mkdir -p "${tree}/github.com/segmentio/asm"
+  cp "${asm}/LICENSE" "${tree}/github.com/segmentio/asm/LICENSE"
+  chmod -R u+w,a+rX "$tree"
+  tar -C "$OUT" -czf "${tree}.tar.gz" THIRD_PARTY_LICENSES
+  echo "wrote ${tree} and THIRD_PARTY_LICENSES.tar.gz" >&2
+  exit 0
+fi
 
 BUILD=("${TARGETS[@]}")
 if (( ${#ONLY[@]} > 0 )); then
