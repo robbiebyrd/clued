@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync/atomic"
@@ -445,5 +446,171 @@ func TestAllowsFollowsActive(t *testing.T) {
 		if got := session.Allows(c.e, c.disabled, c.enabled); got != c.want {
 			t.Errorf("case %d: Allows = %v, want %v", i, got, c.want)
 		}
+	}
+}
+
+// fakeEmbedder returns one vector per text: the text's length, in order.
+type fakeEmbedder struct{ calls [][]string }
+
+func (f *fakeEmbedder) Embed(_ context.Context, texts []string) []float32 {
+	f.calls = append(f.calls, texts)
+	out := make([]float32, len(texts))
+	for i, s := range texts {
+		out[i] = float32(len(s))
+	}
+	return out
+}
+
+func TestEnrichBatchPositionalResults(t *testing.T) {
+	store := memsession.New()
+	seedEvents(t, store, "s1", "a", "bbb", "Read", "cc")
+	emb := &fakeEmbedder{}
+	e := session.Enricher{
+		Name: "batch", Collection: hookEvents, Enabled: true,
+		Matches: func(d session.Doc) bool { tool, _ := d.String("tool_name"); return tool != "Read" },
+		EnrichBatch: func(ctx context.Context, docs []session.Doc, _ session.Lookup) ([]any, []error) {
+			texts := make([]string, len(docs))
+			for i, d := range docs {
+				texts[i], _ = d.String("tool_name")
+			}
+			vecs := emb.Embed(ctx, texts)
+			out := make([]any, len(docs))
+			for i, v := range vecs {
+				out[i] = session.Doc{"len": int(v)}
+			}
+			return out, make([]error, len(docs))
+		},
+	}
+	if err := Pass(context.Background(), store, []session.Enricher{e}, discardLogger()); err != nil {
+		t.Fatal(err)
+	}
+	if len(emb.calls) != 1 || len(emb.calls[0]) != 3 {
+		t.Fatalf("EnrichBatch calls = %v, want one call with the three matching docs", emb.calls)
+	}
+	want := map[string]int{"a": 1, "bbb": 3, "cc": 2}
+	for _, ev := range storedEvents(t, store, "s1") {
+		tool, _ := ev.String("tool_name")
+		enr := ev.Map("enrichments")
+		if tool == "Read" {
+			if enr["batch_skipped"] != true {
+				t.Errorf("non-matching doc not skipped: %v", enr)
+			}
+			continue
+		}
+		if got := enr.Map("batch")["len"]; got != want[tool] {
+			t.Errorf("%s: result %v, want %d", tool, got, want[tool])
+		}
+	}
+}
+
+func TestErrSkipMarksSkippedNotFailed(t *testing.T) {
+	single := echoEnricher("single", 0, matchAll)
+	single.Enrich = func(context.Context, session.Doc, session.Lookup) (any, error) {
+		return nil, fmt.Errorf("allowance used: %w", session.ErrSkip)
+	}
+	batch := session.Enricher{Name: "batch", Collection: hookEvents, Enabled: true, Matches: matchAll,
+		EnrichBatch: func(_ context.Context, docs []session.Doc, _ session.Lookup) ([]any, []error) {
+			out, errs := make([]any, len(docs)), make([]error, len(docs))
+			for i, d := range docs {
+				if tool, _ := d.String("tool_name"); tool == "skip" {
+					errs[i] = session.ErrSkip
+				} else if tool == "fail" {
+					errs[i] = errors.New("kaput")
+				} else {
+					out[i] = session.Doc{"ok": true}
+				}
+			}
+			return out, errs
+		},
+	}
+	for _, e := range []session.Enricher{single, batch} {
+		t.Run(e.Name, func(t *testing.T) {
+			store := memsession.New()
+			seedEvents(t, store, "s1", "skip", "fail", "keep")
+			if err := Pass(context.Background(), store, []session.Enricher{e}, discardLogger()); err != nil {
+				t.Fatal(err)
+			}
+			for _, ev := range storedEvents(t, store, "s1") {
+				tool, _ := ev.String("tool_name")
+				enr := ev.Map("enrichments")
+				switch {
+				case tool == "skip" || e.Name == "single":
+					if enr[e.Name+"_skipped"] != true || enr[e.Name+"_failed"] != nil || enr[e.Name] != nil {
+						t.Errorf("%s: ErrSkip must mark skipped only: %v", tool, enr)
+					}
+				case tool == "fail":
+					if msg, _ := enr.Map(e.Name + "_failed").String("message"); msg != "kaput" {
+						t.Errorf("fail: %v", enr)
+					}
+				default:
+					if enr.Map(e.Name)["ok"] != true {
+						t.Errorf("keep: %v", enr)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestEnrichBatchPanicRecordedOnEveryDoc(t *testing.T) {
+	store := memsession.New()
+	seedEvents(t, store, "s1", "a", "b")
+	e := session.Enricher{Name: "p", Collection: hookEvents, Enabled: true, Matches: matchAll,
+		EnrichBatch: func(context.Context, []session.Doc, session.Lookup) ([]any, []error) { panic("batch blew up") },
+	}
+	if err := Pass(context.Background(), store, []session.Enricher{e}, discardLogger()); err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range storedEvents(t, store, "s1") {
+		if msg, _ := ev.Map("enrichments").Map("p_failed").String("message"); !strings.Contains(msg, "batch blew up") {
+			t.Errorf("failure = %v", ev["enrichments"])
+		}
+	}
+}
+
+func TestEnrichBatchWrongResultCountFailsEveryDoc(t *testing.T) {
+	store := memsession.New()
+	seedEvents(t, store, "s1", "a", "b")
+	e := session.Enricher{Name: "short", Collection: hookEvents, Enabled: true, Matches: matchAll,
+		EnrichBatch: func(context.Context, []session.Doc, session.Lookup) ([]any, []error) { return []any{1}, nil },
+	}
+	if err := Pass(context.Background(), store, []session.Enricher{e}, discardLogger()); err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range storedEvents(t, store, "s1") {
+		if ev.Map("enrichments")["short_failed"] == nil {
+			t.Errorf("not failed: %v", ev["enrichments"])
+		}
+	}
+}
+
+func TestEnrichBatchPolicyRefusalSkipsBeforeTheBatch(t *testing.T) {
+	store := memsession.New()
+	ctx := context.Background()
+	for _, acct := range []string{"on", "off"} {
+		must := func(err error) {
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		must(store.UpsertSession(ctx, session.Session{SessionID: "s-" + acct, AccountID: acct}))
+		must(store.InsertHookEvent(ctx, session.Doc{"session_id": "s-" + acct, "account_id": acct, "tool_name": "Bash"}))
+	}
+	var seen []string
+	e := session.Enricher{Name: "b", Collection: hookEvents, Enabled: true, Matches: matchAll,
+		EnrichBatch: func(_ context.Context, docs []session.Doc, _ session.Lookup) ([]any, []error) {
+			for _, d := range docs {
+				a, _ := d.String("account_id")
+				seen = append(seen, a)
+			}
+			return make([]any, len(docs)), make([]error, len(docs))
+		},
+	}
+	policy := func(_ context.Context, accountID string, _ session.Enricher) bool { return accountID == "on" }
+	if err := PassWithPolicy(ctx, store, []session.Enricher{e}, policy, discardLogger()); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 1 || seen[0] != "on" {
+		t.Fatalf("batch saw %v", seen)
 	}
 }
