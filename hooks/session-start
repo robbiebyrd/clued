@@ -2,8 +2,11 @@
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLUED="${PLUGIN_ROOT}/scripts/clued"
 
-# Keep hooks registered in settings.json pointing to this plugin installation.
-"${PLUGIN_ROOT}/hooks/register-hooks" &>/dev/null &
+# Point the hook launcher (bin/clued-hook, plugin-root) at this plugin
+# installation, refresh an opt-in settings mirror and remove the mirror an
+# older clued wrote (hooks/hooks.json registers every hook; one in both
+# places runs twice).
+"${PLUGIN_ROOT}/hooks/register-hooks" --quiet &>/dev/null &
 # Keep clued's listener inside every claude-remember plugin (a plugin update removes it).
 "${PLUGIN_ROOT}/hooks/install-remember-listener" &>/dev/null
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"

@@ -140,7 +140,7 @@ missing_paths() {
     [[ -n "$root" ]] && jq -r '.hooks.SessionStart[]?.hooks[]?.command' "${root}/hooks/hooks.json" 2>/dev/null \
       | sed "s|\${CLAUDE_PLUGIN_ROOT}|${root}|g"
   } | while IFS= read -r cmd; do
-    path="${cmd%% *}"
+    if [[ "$cmd" == \"* ]]; then path="${cmd#\"}"; path="${path%%\"*}"; else path="${cmd%% *}"; fi
     [[ -e "$path" ]] || echo "$path"
   done
 }
@@ -152,9 +152,9 @@ ROWS=()
 report() {
   local name="$1" label="$2" source="$3" out="${WORK}/${1}.json" reply ran seen copies missing
   reply="$(jq -r '.result // empty' "$out" 2>/dev/null)"
-  # The debug log has one "Hooks: SessionStart:<source> [<command>] finished
-  # with status N" line per hook run.
-  ran="$(grep -cE "SessionStart:${source} \[[^]]* hook prime\] finished" "${WORK}/${name}.debug" 2>/dev/null)"
+  # The debug log has one "Hooks: SessionStart:<source> [<command>]
+  # [(plugin clued@clued)] finished with status N" line per hook run.
+  ran="$(grep -cE "SessionStart:${source} \[[^]]* hook prime\].* finished with status" "${WORK}/${name}.debug" 2>/dev/null)"
   seen=no
   grep -q '^clued prime report for' <<<"$reply" && seen=yes
   copies="$(grep -c "^clued prime report for .* (session ${source})" <<<"$reply")"
@@ -196,8 +196,13 @@ report B "B settings" startup
 cfgC="$(new_config C)"
 if install_plugin "$cfgC"; then
   rootC="$(installed_root "$cfgC")"
-  jq --arg root "$rootC" '{hooks: (.hooks | map_values(map(.hooks |= map(.command |= gsub("\\$\\{CLAUDE_PLUGIN_ROOT\\}"; $root)))))}' \
-    "${rootC}/hooks/hooks.json" > "${cfgC}/settings.json"
+  # The old mirror: the same hooks with unquoted absolute paths.
+  jq --arg root "$rootC" '{hooks: (.hooks | map_values(map(.hooks |= map(.command |= (gsub("\""; "") | gsub("\\$\\{CLAUDE_PLUGIN_ROOT\\}"; $root))))))}' \
+    "${rootC}/hooks/hooks.json" > "${WORK}/C.mirror.json"
+  # Merged into the settings the install wrote (the marketplace and the
+  # enabled plugin live there).
+  jq --slurpfile m "${WORK}/C.mirror.json" '.hooks = $m[0].hooks' "${cfgC}/settings.json" > "${WORK}/C.settings.json" \
+    && mv "${WORK}/C.settings.json" "${cfgC}/settings.json"
   CLAUDE_CONFIG_DIR="$cfgC" CLAUDE_PLUGIN_DATA="${cfgC}/clued-data" "${rootC}/hooks/register-hooks" >/dev/null
   run_claude "$cfgC" C
   report C "C upgrade" startup

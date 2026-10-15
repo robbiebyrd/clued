@@ -5,20 +5,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/check-setup"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/check-setup\""
           },
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/session-start\"",
             "async": true
           },
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook status-review"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/clued\" hook status-review"
           },
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook prime"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/clued\" hook prime"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook write-guard"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/clued\" hook write-guard"
           }
         ]
       }
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -59,7 +59,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -70,7 +70,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -81,7 +81,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -92,7 +92,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -101,7 +101,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook status-review --every 30m"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/clued\" hook status-review --every 30m"
           }
         ]
       }
@@ -111,7 +111,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -122,7 +122,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -131,7 +131,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued session memory-ingest --quiet",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/clued\" session memory-ingest --quiet",
             "async": true
           }
         ]
@@ -142,7 +142,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -151,7 +151,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook stop-guard"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/clued\" hook stop-guard"
           }
         ]
       }
@@ -161,7 +161,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -172,7 +172,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -183,7 +183,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -194,7 +194,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -205,7 +205,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -216,7 +216,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -227,7 +227,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -238,7 +238,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -249,7 +249,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -260,7 +260,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -271,7 +271,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -282,7 +282,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -293,7 +293,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -304,7 +304,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -315,7 +315,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -326,7 +326,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -337,7 +337,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -348,7 +348,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]
@@ -359,7 +359,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/event-relay",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/event-relay\"",
             "async": true
           }
         ]

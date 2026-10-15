@@ -1,25 +1,59 @@
 #!/usr/bin/env bash
-# Writes clued hook entries into ~/.claude/settings.json (or $CLAUDE_CONFIG_DIR/settings.json).
-# Safe to run multiple times: replaces stale clued entries (including ones from
-# plugin versions that kept the shim at bin/clued), preserves all others.
+# Keeps clued's entries in ~/.claude/settings.json (or
+# $CLAUDE_CONFIG_DIR/settings.json) right for this plugin root. Run by
+# session-start on every session start and by /clued-setup; safe to run any
+# number of times, and every non-clued entry is preserved.
+#
+#   register-hooks              keep the current layout: a settings mirror
+#                               written through the launcher stays (it is
+#                               refreshed); clued entries an older clued
+#                               wrote with absolute plugin-root paths are
+#                               removed, since hooks/hooks.json registers
+#                               every hook and a hook registered in both
+#                               places runs twice
+#   register-hooks --settings   mirror every hook of hooks/hooks.json into
+#                               settings.json, for running clued's hooks
+#                               without the plugin's hooks loaded (a
+#                               checkout used without installing the plugin,
+#                               or a Claude Code build that stops delivering
+#                               plugin hook output, anthropics/claude-code#16538);
+#                               with the plugin installed too, every hook
+#                               runs twice
+#   register-hooks --plugin     remove the settings mirror again
+#   --quiet                     print nothing
 #
 # Every run writes the launcher ${CLAUDE_PLUGIN_DATA:-~/.claude/plugins/data/clued}/bin/clued-hook
 # and ../plugin-root next to it (this plugin root). Settings entries, and
 # the status line, call the launcher rather than a plugin-root path, so a
 # moved plugin root (an update that installs clued~g2 next to clued) only
 # needs plugin-root rewritten, which the next session start does.
+#
+# The status line: when config.json sets statusLine (or CLUED_STATUS_LINE
+# is 1/true/yes/on), `clued hook status` becomes Claude Code's status line
+# command (plugins cannot set one, so it always lives in settings.json), and
+# the command configured before it is kept in statusline.json next to
+# config.json and run after the sample; otherwise a clued status line is
+# taken out again and that command put back.
 
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SETTINGS="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
 DATA_DIR="${CLAUDE_PLUGIN_DATA:-${HOME}/.claude/plugins/data/clued}"
 LAUNCHER="${DATA_DIR}/bin/clued-hook"
-RELAY="${LAUNCHER} event-relay"
-CHECK_SETUP="${LAUNCHER} check-setup"
-SESSION_START="${LAUNCHER} session-start"
-CLUED="${LAUNCHER}"
-SETTINGS="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
+PLUGIN_HOOKS="${PLUGIN_ROOT}/hooks/hooks.json"
+
+MODE=keep
+QUIET=0
+for arg in "$@"; do
+  case "$arg" in
+    --settings) MODE=settings ;;
+    --plugin)   MODE=plugin ;;
+    --quiet)    QUIET=1 ;;
+  esac
+done
+say() { (( QUIET )) || echo "$@"; }
 
 if ! command -v jq &>/dev/null; then
-  echo "clued register-hooks: jq not found, skipping hook registration" >&2
+  (( QUIET )) || echo "clued register-hooks: jq not found, skipping hook registration" >&2
   exit 0
 fi
 
@@ -41,64 +75,49 @@ if [[ ! -f "$SETTINGS" ]]; then
   echo '{}' > "$SETTINGS"
 fi
 
+# With no flag, a mirror already written through a launcher stays.
+if [[ "$MODE" == keep ]]; then
+  MODE=plugin
+  if jq -e '[.hooks // {} | .[][]?.hooks[]?.command // empty] | any(test("/bin/clued-hook\"?( |$)"))' "$SETTINGS" &>/dev/null; then
+    MODE=settings
+  fi
+fi
+
 TMP="${SETTINGS}.tmp.$$"
 jq \
-  --arg relay         "$RELAY" \
-  --arg check_setup   "$CHECK_SETUP" \
-  --arg session_start "$SESSION_START" \
-  --arg clued         "$CLUED" \
+  --arg mode "$MODE" \
+  --arg launcher "$LAUNCHER" \
+  --slurpfile plugin "$PLUGIN_HOOKS" \
   '
   def is_clued:
-    [.hooks[].command] | any(test("/hooks/(event-relay|session-start|check-setup|guard-superpowers-plans)$|/(bin|scripts)/clued (hook |session memory-ingest)|/bin/clued-hook( |$)"));
+    [.hooks[]?.command // empty] | any(test("/hooks/(event-relay|session-start|check-setup|guard-superpowers-plans)\"?$|/(bin|scripts)/clued\"? (hook |session memory-ingest)|/bin/clued-hook\"?( |$)"));
 
-  def binary_hook(args):
-    {"hooks": [{"type": "command", "command": ($clued + " " + args)}]};
+  # A hooks/hooks.json command as the launcher runs it:
+  # "${CLAUDE_PLUGIN_ROOT}/hooks/<name>" and "${CLAUDE_PLUGIN_ROOT}/scripts/clued" <args>
+  # become "<launcher>" <name> and "<launcher>" <args>.
+  def via_launcher:
+    sub("^\"\\$\\{CLAUDE_PLUGIN_ROOT\\}/hooks/(?<n>[a-z-]+)\""; "\"" + $launcher + "\" \(.n)") |
+    sub("^\"\\$\\{CLAUDE_PLUGIN_ROOT\\}/scripts/clued\""; "\"" + $launcher + "\"");
 
-  def matched_binary_hook(matcher; args):
-    binary_hook(args) + {"matcher": matcher};
-
-  def relay_hook(cmd):
-    {"hooks": [{"type": "command", "command": cmd, "async": true}]};
-
-  def replace(ev; entries):
-    .hooks[ev] = ((.hooks[ev] // []) | map(select(is_clued | not))) + entries;
-
-  . |
-  replace("SessionStart"; [
-    {"hooks": [
-      {"type": "command", "command": $check_setup},
-      {"type": "command", "command": $session_start, "async": true},
-      {"type": "command", "command": ($clued + " hook status-review")},
-      {"type": "command", "command": ($clued + " hook prime")}
-    ]}]) |
-  replace("PreToolUse"; [
-    relay_hook($relay),
-    matched_binary_hook("Write|Edit|MultiEdit|NotebookEdit|Bash|EnterPlanMode|ExitPlanMode"; "hook write-guard")
-  ]) |
-  replace("PostToolUse";      [relay_hook($relay)]) |
-  replace("UserPromptSubmit"; [relay_hook($relay), binary_hook("hook status-review --every 30m")]) |
-  replace("Stop";             [relay_hook($relay), binary_hook("hook stop-guard")]) |
-  replace("SessionEnd";       [relay_hook($relay), {"hooks": [{"type": "command", "command": ($clued + " session memory-ingest --quiet"), "async": true}]}]) |
-  replace("Notification";     [relay_hook($relay)]) |
-  replace("SubagentStop";     [relay_hook($relay)])
+  (.hooks // {} | with_entries(.value |= map(select(is_clued | not)))) as $kept |
+  (if $mode == "settings" then
+     reduce ($plugin[0].hooks | to_entries[]) as $e ($kept;
+       .[$e.key] = ((.[$e.key] // []) + ($e.value | map(.hooks |= map(.command |= via_launcher)))))
+   else $kept end
+   | with_entries(select(.value | length > 0))) as $new |
+  if $new == {} then del(.hooks) else .hooks = $new end
   ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
 
-# The status line. When config.json sets statusLine (or CLUED_STATUS_LINE is
-# 1/true/yes/on), `clued hook status` becomes Claude Code's status line
-# command, sampling the context window and the usage limits; the command
-# configured before it is kept in statusline.json next to config.json and run
-# after the sample, so the line itself does not change. Otherwise a clued
-# status line is taken out again and that command put back.
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 STATUS_THEN="$(dirname "$CONFIG_FILE")/statusline.json"
-STATUS_CMD="$CLUED hook status"
+STATUS_CMD="\"$LAUNCHER\" hook status"
 want=$(jq -r 'if .statusLine == true then "true" else "false" end' "$CONFIG_FILE" 2>/dev/null || echo false)
 case "${CLUED_STATUS_LINE:-}" in
   1|true|yes|on) want=true ;;
   0|false|no|off) want=false ;;
 esac
 current=$(jq -r '.statusLine.command // empty' "$SETTINGS")
-is_clued_status() { [[ "$1" == *"/scripts/clued hook status"* || "$1" == *"/bin/clued-hook hook status"* ]]; }
+is_clued_status() { [[ "$1" == *"/scripts/clued hook status"* || "$1" == *'/bin/clued-hook" hook status'* || "$1" == *"/bin/clued-hook hook status"* ]]; }
 if [[ "$want" == true ]]; then
   if [[ -n "$current" ]] && ! is_clued_status "$current"; then
     mkdir -p "$(dirname "$STATUS_THEN")"
@@ -106,7 +125,7 @@ if [[ "$want" == true ]]; then
   fi
   if [[ "$current" != "$STATUS_CMD" ]]; then
     jq --arg cmd "$STATUS_CMD" '.statusLine = ((.statusLine // {}) + {"type": "command", "command": $cmd})' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
-    echo "clued: status line set to $STATUS_CMD"
+    say "clued: status line set to $STATUS_CMD"
   fi
 elif [[ -n "$current" ]] && is_clued_status "$current"; then
   then=$(jq -r '.then // empty' "$STATUS_THEN" 2>/dev/null)
@@ -116,7 +135,11 @@ elif [[ -n "$current" ]] && is_clued_status "$current"; then
     jq 'del(.statusLine)' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
   fi
   rm -f "$STATUS_THEN"
-  echo "clued: status line restored"
+  say "clued: status line restored"
 fi
 
-echo "clued: registered hooks in $SETTINGS"
+if [[ "$MODE" == settings ]]; then
+  say "clued: mirrored the plugin's hooks into $SETTINGS through $LAUNCHER"
+else
+  say "clued: hooks are registered by the plugin (hooks/hooks.json); no clued hook in $SETTINGS"
+fi
