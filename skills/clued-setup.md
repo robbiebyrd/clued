@@ -42,7 +42,7 @@ When Step 1 reports `cloud container: yes`, this section replaces Step 2: do not
 
 > "This is a Claude Code cloud container: it is reclaimed after the session, so clued keeps nothing on it. Where should it send your sessions, plans and stories?
 >
-> 1. **Clued Cloud** (recommended) — the hosted service at https://clued.cloud, with an account of your own (another clued cloud works the same with its URL)
+> 1. **Clued Cloud** (recommended) — the hosted service at https://clued.cloud, with an account of your own (another clued cloud works the same with its URL); its free plan keeps 30 days of sessions and links 3 clients and 1 environment key, Pro (14-day free trial) lifts those limits and adds hosted AI — plans and prices on https://clued.cloud/pricing
 > 2. **A clued server someone runs** — a `mind-palace server run` reachable over HTTPS, with a token from its operator"
 
 Wait for the answer. For Clued Cloud, pick the region first ("Clued Cloud region" in Step 6: it is asked only when more than one region answers) and use its URL wherever `https://clued.cloud` appears below. Then:
@@ -88,7 +88,7 @@ First question. Present the user with four options. **Local MongoDB is the defau
 > 1. **Local MongoDB** (recommended for one machine) — a MongoDB this machine can reach and a capture daemon that runs on this machine
 > 2. **clued server in containers on this machine** — the clued server, its MongoDB and an nginx HTTPS front-end run as containers here, with Docker or, on a Mac (macOS 26 or later) that has no Docker, with Apple Containers; other machines and cloud containers can connect to it with a token. Plans and stories stay as Markdown in each repository and are copied to the server
 > 3. **clued server someone else runs** — a `mind-palace server run` operated for you over HTTPS; nothing runs on this machine between hooks, and no MongoDB is installed here. You need its URL and a bearer token: one minted with `mind-palace server token create`, or one the server mints when `scripts/clued session login --server <url>` is approved from a machine already linked to it with `scripts/clued server device approve <code>` (see `docs/server.md` in the plugin repository)
-> 4. **clued cloud** — a hosted, multi-tenant clued (the `clued-cloud` server) with an account of your own: you log in once in a browser and this machine is linked to the account; no token to copy, and the account's client settings are applied here at every session start. The public service is https://clued.cloud; a clued cloud of your own works the same with its URL"
+> 4. **clued cloud** — a hosted, multi-tenant clued (the `clued-cloud` server) with an account of your own: you log in once in a browser and this machine is linked to the account; no token to copy, and the account's client settings are applied here at every session start. The public service is https://clued.cloud (free plan with limits, Pro with a 14-day trial; https://clued.cloud/pricing); a clued cloud of your own works the same with its URL, and self-hosting stays free"
 
 Wait for their answer before continuing.
 

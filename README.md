@@ -96,6 +96,25 @@ the server stack, and the data. It does not remove the plugin itself; finish
 with `/plugin uninstall clued@clued` (and `/plugin marketplace remove clued`),
 then `/reload-plugins`.
 
+## Free and paid
+
+Everything in this repository is free and stays free: the plugin, the
+`mind-palace` binary, the local daemon and a self-hosted clued server, with
+every session tool, prime, the status line, the guard hooks, redaction,
+OpenTelemetry export, restore, export and forget. Self-hosting has no limits
+and needs no account.
+
+Clued Cloud (https://clued.cloud) is the optional hosted service. Its free
+plan keeps sessions for 30 days and links up to 3 clients and 1 environment
+key, with full-text search, two-factor sign-in and the security log. Pro adds
+longer retention, unlimited clients and environment keys, hosted AI
+summaries and digests (a monthly allowance, then your own Anthropic key),
+semantic search, personal analytics, share links and an uncapped export, and
+starts with a 14-day free trial (card required). Team and Enterprise add
+shared workspaces, SSO and compliance features. Plans, limits and prices are
+on https://clued.cloud/pricing, which is the source of truth when this
+summary and the page differ.
+
 ## What the plugin installs
 
 | Piece | Role |
