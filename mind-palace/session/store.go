@@ -120,6 +120,23 @@ type TextQuery struct {
 	Limit      int      `json:"limit"`
 }
 
+// MaxVectorHits caps VectorQuery.Limit.
+const MaxVectorHits = 100
+
+// VectorQuery ranks the account's transcript lines that carry an
+// embedding of Model (enrichments.embedding, of len(Vector) numbers) by
+// cosine similarity to Vector, best first. Empty SessionIDs means no
+// session filter and a zero Since no lower bound on created_at. Limit is
+// capped at MaxVectorHits; 0 or less means the cap.
+type VectorQuery struct {
+	AccountID  string    `json:"-"`
+	Model      string    `json:"model"`
+	Vector     []float32 `json:"vector"`
+	SessionIDs []string  `json:"sessionIds"`
+	Since      time.Time `json:"since"`
+	Limit      int       `json:"limit"`
+}
+
 // ForgetQuery selects the account's sessions to delete with everything
 // captured for them (hook events, transcript and subagent lines, blobs,
 // OpenTelemetry events). The criteria are ANDed over the session records:
@@ -320,6 +337,11 @@ type Store interface {
 	// SearchTranscripts projects session_id, seq, score (higher is better),
 	// enrichments.search-text and created_at of the lines TextQuery matches.
 	SearchTranscripts(ctx context.Context, q TextQuery) ([]Doc, error)
+	// SearchVectors projects session_id, seq, score (the cosine
+	// similarity, higher is better), enrichments.search-text and
+	// created_at of the lines VectorQuery ranks; a line with no
+	// embedding, another model's or another length is never returned.
+	SearchVectors(ctx context.Context, q VectorQuery) ([]Doc, error)
 	// UsageTotals sums enrichments.usage of the lines UsageQuery selects, each
 	// message once: one total per group and model, sorted by key and model.
 	UsageTotals(ctx context.Context, q UsageQuery) ([]UsageTotal, error)
@@ -354,6 +376,18 @@ type Store interface {
 	// rejected (a tool call the harness refused), selected by the query's
 	// SessionIDs, Since and Limit (Kinds is ignored), newest first.
 	RejectedToolUses(ctx context.Context, q ActivityQuery) ([]Doc, error)
+	// ActivityCounts counts the account's transcript lines the
+	// activity-kind enricher labelled, per UTC hour of LineTime and kind
+	// (enrichments.activity-kind.kind), for the hours of CountQuery,
+	// sorted by hour then kind; [] when none.
+	ActivityCounts(ctx context.Context, q CountQuery) ([]HourCount, error)
+	// ErrorCounts counts the account's transcript lines the error-flag
+	// enricher marked as errors, per UTC hour of LineTime and error type,
+	// sorted by hour then type; [] when none.
+	ErrorCounts(ctx context.Context, q CountQuery) ([]HourCount, error)
+	// LimitBuckets sums the account's LimitsSampled events per UTC hour of
+	// created_at (see LimitBucket), sorted by hour; [] when none.
+	LimitBuckets(ctx context.Context, q CountQuery) ([]LimitBucket, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of

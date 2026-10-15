@@ -2,13 +2,25 @@ package session
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 )
 
+// ErrSkip, returned (possibly wrapped) by Enrich or for one document by
+// EnrichBatch, marks the document skipped for the enricher instead of
+// failed: it leaves the queue and Store.RequeueSkipped can put it back (an
+// allowance used up for the month, say).
+var ErrSkip = errors.New("enricher: skip")
+
 // Enricher derives extra data for stored documents of one collection. Matches
 // selects the documents it applies to; Enrich computes the result stored under
-// enrichments.<Name>.
+// enrichments.<Name>. An enricher that works on many documents at once (one
+// call to an embedding model) sets EnrichBatch instead: the loop calls it
+// once per pass with the matching documents the policy allows, and it
+// returns one result and one error per document, by position; a nil error
+// stores the result, ErrSkip marks the document skipped, any other error
+// is recorded as its failure. EnrichBatch takes precedence over Enrich.
 type Enricher struct {
 	Name string
 	// Group, when set, is a second name the enricher answers to in the
@@ -20,6 +32,8 @@ type Enricher struct {
 	BatchLimit int
 	Matches    func(Doc) bool
 	Enrich     func(ctx context.Context, doc Doc, lookup Lookup) (any, error)
+	// EnrichBatch, when set, enriches the batch's documents in one call.
+	EnrichBatch func(ctx context.Context, docs []Doc, lookup Lookup) ([]any, []error)
 }
 
 var (

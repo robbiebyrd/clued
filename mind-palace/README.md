@@ -411,7 +411,11 @@ order may differ from the original file.
 **MCP tools.** `find_sessions`, `get_session_context`, `get_full_session`,
 `search_commands`, `search_memory`, `file_history`, `find_errors`, `get_limits`,
 `get_activities`, `get_digest`, `search_transcripts`, `usage`, `read_transcript`, `get_lines`, `restore_session`, `export_session`, `forget_session` and `prime_context`
-(the context collector's report for a `cwd`; see `mind-palace context --help`).
+(the context collector's report for a `cwd`; see `mind-palace context --help`),
+plus `search_semantic` when the tools are given an embedder
+(`sessionmcp.Tools.Embedder`, `server.CluedOptions.Semantic`): the port is
+`session.Embedder`, `session/embed/voyage` the Voyage AI adapter and
+`enrichers.Embedding` the enricher that stores the vectors.
 `session mcp` serves just these; `mind-palace mcp` and `mind-palace serve`
 expose them next to the plan and story tools.
 
@@ -419,7 +423,11 @@ expose them next to the plan and story tools.
 `session/mongosession` is the MongoDB implementation (collections `sessions`,
 `hook_events`, `transcript_lines`, `subagent_lines`, `blobs` and the
 `session_full` view, as the TypeScript plugin created them) and
-`session/memsession` the in-memory one used by tests. `daemon`, `tail`,
+`session/memsession` the in-memory one used by tests. Besides the queries
+the tools use, the port has hourly aggregates for analytics
+(`ActivityCounts`, `ErrorCounts`, `LimitBuckets` over a `CountQuery`) and
+`SearchVectors` for semantic search; the remote adapter answers
+`ErrUnsupported` for those. `daemon`, `tail`,
 `backfill`, `enrich`/`enrichers`, `query`, `restore`, `wal`, `gitinfo`,
 `hostinfo` and `sessionmcp` sit on top of it.
 
@@ -456,6 +464,7 @@ expose them next to the plan and story tools.
 | `session/redact` | Capture-time redaction (`redactAtCapture`, `redactPatterns`) and exclusion (`excludePaths`) as a `session.Store` decorator every client store is wrapped in, so no write path stores a secret |
 | `session/ingest` | Hook-event bookkeeping shared by the daemon and `hook relay`: session tracking, stamping, store write, WAL fallback |
 | `session/catchup` | One-shot replacement for the tailers: pushes a session's transcript delta and changed artifact files, with state and lock files per session |
+| `session/embed/voyage` | The Voyage AI `session.Embedder` (int8 output at the configured dimension, plain `net/http`; no error carries the key) for the `embedding` enricher and `search_semantic` |
 | `session/remotesession` | `session.Store` over a clued server (one HTTP call per port method to `server/sessionapi`); the query service, restore, backfill and the MCP tools run unchanged on it |
 | `hookguard` | Rules behind the Claude Code hooks the binary serves (the Stop guard) |
 | `plugin` | Tests for the Claude Code plugin glue (`scripts/clued`, the bash hooks, `hooks/hooks.json`, `scripts/verify-prime.sh`) in local and remote mode |

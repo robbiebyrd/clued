@@ -39,6 +39,9 @@ type Service struct {
 	// Now is the clock the hotness grades and the time bounds use; nil is
 	// time.Now.
 	Now func() time.Time
+	// Embedder embeds the query of SemanticSearch; nil means semantic
+	// search is not available.
+	Embedder session.Embedder
 }
 
 // now is the service's clock.
