@@ -62,24 +62,24 @@ func (s *Source) Current(ctx context.Context, cwd string) (*prime.SessionSnapsho
 	if id == "" {
 		return nil, nil
 	}
-	c, err := svc.SessionContext(ctx, id)
+	// The snapshot is the found session plus its top commands: two store
+	// round trips after the find, where SessionContext makes about ten,
+	// too many for the prime budget over a clued server.
+	top, err := svc.TopCommands(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	top := c.TopCommands
-	if top == nil {
-		top = []string{}
-	}
-	model, _ := c.Session.String("model")
-	liveState, _ := c.Session.String("live_state")
-	hotness, _ := c.Session.String("hotness")
+	found := docs[0]
+	model, _ := found.String("model")
+	liveState, _ := found.String("live_state")
+	hotness, _ := found.String("hotness")
 	return &prime.SessionSnapshot{
 		SessionID:   id,
 		Model:       model,
 		LiveState:   liveState,
 		Hotness:     hotness,
-		StartedAt:   timeOf(c.Session, "started_at"),
-		LastSeen:    timeOf(c.Session, "last_seen"),
+		StartedAt:   timeOf(found, "started_at"),
+		LastSeen:    timeOf(found, "last_seen"),
 		TopCommands: top,
 	}, nil
 }

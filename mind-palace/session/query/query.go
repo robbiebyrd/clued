@@ -603,6 +603,13 @@ func sessionSummary(stored session.Doc) session.Doc {
 	return out
 }
 
+// TopCommands returns the session's ten most recent distinct Bash commands
+// (from its last 100), one store call: what the prime report shows without
+// the rest of SessionContext.
+func (s *Service) TopCommands(ctx context.Context, sessionID string) ([]string, error) {
+	return s.topCommands(ctx, sessionID)
+}
+
 func (s *Service) topCommands(ctx context.Context, sessionID string) ([]string, error) {
 	events, err := s.Store.BashEvents(ctx, session.CommandQuery{
 		AccountID: s.AccountID, SessionIDs: []string{sessionID}, Limit: topCommandScanWindow,

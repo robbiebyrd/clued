@@ -73,6 +73,7 @@ func (a *App) primeCollector(ctx context.Context, root string, opts prime.Option
 	}
 	if client, ok := remote.FromConfig(cfg); ok {
 		c.Server = client
+		c.StoreTimeout = prime.RemoteStoreTimeout
 	}
 	var closers []func()
 	if !opts.NoStore {
@@ -224,11 +225,15 @@ exit 0; failures print a sentinel (yes/no, none, 0, unknown, not a git repo,
 			cfg := a.sessionConfig()
 			src := sessionsource.New(func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }, session.ReadAccountID(cfg.ClaudeAppConfigPath))
 			defer func() { _ = src.Close(context.Background()) }()
-			ctx, cancel := context.WithTimeout(ctx, prime.StoreTimeout)
+			timeout := prime.StoreTimeout
+			if cfg.Remote() {
+				timeout = prime.RemoteStoreTimeout
+			}
+			ctx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 			snap, err := src.Current(ctx, filepath.ToSlash(a.contextRoot()))
 			if err != nil {
-				return collect.StoreUnavailable
+				return prime.StoreFailure(err)
 			}
 			return prime.SessionBody(snap)
 		}),

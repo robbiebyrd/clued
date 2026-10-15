@@ -62,7 +62,12 @@ exits 0.`,
 			defer closeAll()
 			// Each store lookup gets a third of the budget, so a store that
 			// is down leaves time for the sections after SESSION and MEMORY.
-			collector.Budget, collector.StoreTimeout = budget, budget/3
+			// A clued server gets the remote bound when the budget allows it.
+			storeTimeout := budget / 3
+			if collector.Server != nil && storeTimeout < prime.RemoteStoreTimeout {
+				storeTimeout = min(prime.RemoteStoreTimeout, budget/2)
+			}
+			collector.Budget, collector.StoreTimeout = budget, storeTimeout
 			report := collector.CollectResult(ctx, prime.Options{}).Report
 			if len(report.Sections) == 0 {
 				return nil

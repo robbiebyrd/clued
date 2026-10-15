@@ -17,6 +17,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/collect/envprobe"
 	"github.com/robbiebyrd/clued/mind-palace/collect/fsprobe"
 	"github.com/robbiebyrd/clued/mind-palace/collect/gitprobe"
+	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 )
 
@@ -492,8 +493,8 @@ func TestSlowStoreHitsTheStoreTimeoutNotTheBudget(t *testing.T) {
 	if elapsed := time.Since(start); elapsed > StoreTimeout+2*time.Second {
 		t.Fatalf("Collect took %v, the store timeout did not fire", elapsed)
 	}
-	if m["SESSION"] != collect.StoreUnavailable {
-		t.Errorf("SESSION = %q", m["SESSION"])
+	if want := collect.StoreUnavailable + " (timeout)"; m["SESSION"] != want {
+		t.Errorf("SESSION = %q, want %q", m["SESSION"], want)
 	}
 	if m["BUILD"] == "" {
 		t.Error("later sections must still render")
@@ -521,5 +522,22 @@ func TestNilProbes(t *testing.T) {
 	}
 	if !strings.Contains(m["CLUED"], "daemon: not configured") || !strings.Contains(m["CLUED"], "disabled enrichers: none\nenabled enrichers: none") {
 		t.Errorf("CLUED = %s", m["CLUED"])
+	}
+}
+
+func TestStoreFailureNamesTheCause(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{context.DeadlineExceeded, collect.StoreUnavailable + " (timeout)"},
+		{fmt.Errorf("find sessions: %w", context.DeadlineExceeded), collect.StoreUnavailable + " (timeout)"},
+		{fmt.Errorf("GET /api/v1/session: %w", remote.ErrUnauthorized), collect.StoreUnavailable + " (unauthorized)"},
+		{fmt.Errorf("GET /api/v1/session: %w", remote.ErrForbidden), collect.StoreUnavailable + " (forbidden)"},
+		{errors.New("mongo down"), collect.StoreUnavailable},
+	} {
+		if got := StoreFailure(tc.err); got != tc.want {
+			t.Errorf("StoreFailure(%v) = %q, want %q", tc.err, got, tc.want)
+		}
 	}
 }
