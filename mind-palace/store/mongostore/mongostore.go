@@ -10,9 +10,9 @@ package mongostore
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
-	"regexp"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -255,18 +255,26 @@ func (s *Store) AcquireLease(ctx context.Context, kindName, id string, ttl time.
 }
 
 // ReleaseLease ends the lease when lease still holds it (store.Leaser).
-// A lease that store.NewLeaseID could not have made holds nothing, so it
-// releases nothing; the value is only ever compared with $eq.
+// The caller's lease never enters a query: the record is read by its key,
+// compared in Go, and deleted only while it still holds the stored lease.
 func (s *Store) ReleaseLease(ctx context.Context, kindName, id, lease string) error {
-	if !leaseIDPattern.MatchString(lease) {
+	key := kindName + "/" + id
+	var rec struct {
+		Lease string `bson:"lease"`
+	}
+	err := s.leases.FindOne(ctx, bson.M{"_id": key}).Decode(&rec)
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil
 	}
-	_, err := s.leases.DeleteOne(ctx, bson.M{"_id": kindName + "/" + id, "lease": bson.M{"$eq": lease}})
+	if err != nil {
+		return err
+	}
+	if rec.Lease == "" || subtle.ConstantTimeCompare([]byte(rec.Lease), []byte(lease)) != 1 {
+		return nil
+	}
+	_, err = s.leases.DeleteOne(ctx, bson.M{"_id": key, "lease": rec.Lease})
 	return err
 }
-
-// leaseIDPattern matches the ids store.NewLeaseID returns.
-var leaseIDPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 func (s *Store) Delete(ctx context.Context, kindName, id string) error {
 	col, err := s.collection(kindName)
