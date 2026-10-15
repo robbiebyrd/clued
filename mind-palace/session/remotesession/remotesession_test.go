@@ -283,6 +283,12 @@ func (h *harness) SearchTranscripts(ctx context.Context, q session.TextQuery) ([
 	return h.as(q.AccountID).SearchTranscripts(ctx, q)
 }
 
+// SearchVectors is not served over the transport; the suite checks the
+// backing store behind it.
+func (h *harness) SearchVectors(ctx context.Context, q session.VectorQuery) ([]session.Doc, error) {
+	return h.server.backing.SearchVectors(ctx, q)
+}
+
 func (h *harness) UsageTotals(ctx context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
 	return h.as(q.AccountID).UsageTotals(ctx, q)
 }
@@ -436,6 +442,9 @@ func TestEnrichmentIsUnsupportedAndCloseIsANoOp(t *testing.T) {
 	}
 	if _, err := st.RequeueSkipped(ctx, "hook_events", "acct", "e"); !errors.Is(err, session.ErrUnsupported) {
 		t.Errorf("RequeueSkipped = %v, want ErrUnsupported", err)
+	}
+	if _, err := st.SearchVectors(ctx, session.VectorQuery{Vector: []float32{1}}); !errors.Is(err, session.ErrUnsupported) {
+		t.Errorf("SearchVectors = %v, want ErrUnsupported", err)
 	}
 	if _, err := st.DeleteAccount(ctx, "acct"); !errors.Is(err, session.ErrUnsupported) {
 		t.Errorf("DeleteAccount = %v, want ErrUnsupported", err)

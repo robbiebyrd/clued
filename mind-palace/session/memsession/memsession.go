@@ -271,6 +271,8 @@ func deepCopy(v any) any {
 		return out
 	case []string:
 		return append([]string(nil), x...)
+	case []int8:
+		return append([]int8(nil), x...)
 	}
 	return v
 }
@@ -1163,6 +1165,12 @@ func (s *Store) setEnrichmentField(collection string, id any, field string, valu
 // document its JSON encodes, the way MongoDB keeps the BSON of the struct,
 // so reads find the same fields in both stores.
 func storable(v any) any {
+	switch e := v.(type) {
+	case session.Embedding:
+		return embeddingDoc(e)
+	case *session.Embedding:
+		return embeddingDoc(*e)
+	}
 	switch v.(type) {
 	case nil, bool, string, int, int32, int64, float64, time.Time, session.Doc, map[string]any, []any:
 		return deepCopy(v)
@@ -1179,6 +1187,42 @@ func storable(v any) any {
 		return session.Doc(m)
 	}
 	return out
+}
+
+// embeddingDoc keeps the vector as []int8, as Mongo keeps a binary vector.
+func embeddingDoc(e session.Embedding) session.Doc {
+	return session.Doc{"model": e.Model, "dim": e.Dim, "v": append([]int8(nil), e.V...), "scale": float64(e.Scale)}
+}
+
+// SearchVectors scans the account's lines with an embedding of the
+// query's model and length and keeps the best by cosine similarity.
+func (s *Store) SearchVectors(_ context.Context, q session.VectorQuery) ([]session.Doc, error) {
+	if len(q.Vector) == 0 {
+		return []session.Doc{}, nil
+	}
+	inSessions := setOf(q.SessionIDs)
+	top := session.NewTopK(session.VectorLimit(q.Limit))
+	s.mu.Lock()
+	for _, d := range s.cols[transcriptLines] {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			continue
+		}
+		if !q.Since.IsZero() && timeOf(d, "created_at").Before(q.Since) {
+			continue
+		}
+		emb := d.Map("enrichments").Map(session.EmbeddingName)
+		v, _ := emb["v"].([]int8)
+		if model, _ := emb.String("model"); model != q.Model || len(v) != len(q.Vector) {
+			continue
+		}
+		p := project(d, "session_id", "seq", "created_at")
+		if text, ok := d.Map("enrichments")["search-text"].(string); ok {
+			p["enrichments"] = session.Doc{"search-text": text}
+		}
+		top.Push(session.CosineInt8(q.Vector, v), p)
+	}
+	s.mu.Unlock()
+	return top.Sorted(), nil
 }
 
 // UsageTotals keeps, per session and message id, the largest value of each

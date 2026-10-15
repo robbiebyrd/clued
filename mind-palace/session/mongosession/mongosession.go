@@ -125,6 +125,7 @@ var indexes = []index{
 	{hookEvents, key("account_id", 1, "enrichments.file-tracker.file_path", 1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.error-flag.is_error", 1, "created_at", -1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.usage.day", 1), false},
+	{transcriptLines, key("account_id", 1, "enrichments.embedding.model", 1, "created_at", 1), false},
 	{otelEvents, key("account_id", 1, "session_id", 1, "name", 1, "sequence", 1, "timestamp", 1), true},
 	{otelEvents, key("account_id", 1, "session_id", 1, "timestamp", -1), false},
 	{otelEvents, key("account_id", 1, "timestamp", 1), false},
@@ -1082,7 +1083,71 @@ func (s *Store) Unenriched(ctx context.Context, collection, enricher string, lim
 }
 
 func (s *Store) SetEnrichment(ctx context.Context, collection string, id any, enricher string, result any) error {
+	switch e := result.(type) {
+	case session.Embedding:
+		result = embeddingDoc(e)
+	case *session.Embedding:
+		result = embeddingDoc(*e)
+	}
 	return s.update(ctx, collection, key("_id", objectID(id)), key("enrichments."+enricher, result))
+}
+
+// embeddingDoc stores the vector as a BSON int8 binary vector (subtype 9).
+func embeddingDoc(e session.Embedding) bson.D {
+	return key("model", e.Model, "dim", e.Dim, "v", bson.NewVector(e.V), "scale", float64(e.Scale))
+}
+
+// SearchVectors reads the account's lines with an embedding of the
+// query's model and length through a cursor (index account_id,
+// enrichments.embedding.model, created_at) and keeps the best by cosine
+// similarity in a top-k heap, so one line is in memory beyond the k kept.
+func (s *Store) SearchVectors(ctx context.Context, q session.VectorQuery) ([]session.Doc, error) {
+	if len(q.Vector) == 0 {
+		return []session.Doc{}, nil
+	}
+	filter := key("account_id", q.AccountID, "enrichments.embedding.model", q.Model, "enrichments.embedding.dim", len(q.Vector))
+	if !q.Since.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
+	}
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "created_at", 1, "enrichments.search-text", 1, "enrichments.embedding.v", 1)
+	cur, err := s.coll(transcriptLines).Find(ctx, filter, options.Find().SetProjection(projection))
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	top := session.NewTopK(session.VectorLimit(q.Limit))
+	for cur.Next(ctx) {
+		var row struct {
+			SessionID   string    `bson:"session_id"`
+			Seq         int       `bson:"seq"`
+			CreatedAt   time.Time `bson:"created_at"`
+			Enrichments struct {
+				SearchText *string `bson:"search-text"`
+				Embedding  struct {
+					V bson.Vector `bson:"v"`
+				} `bson:"embedding"`
+			} `bson:"enrichments"`
+		}
+		if err := cur.Decode(&row); err != nil {
+			continue // a vector of another type: not this model's
+		}
+		v, ok := row.Enrichments.Embedding.V.Int8OK()
+		if !ok || len(v) != len(q.Vector) {
+			continue
+		}
+		d := session.Doc{"session_id": row.SessionID, "seq": row.Seq, "created_at": row.CreatedAt.UTC()}
+		if row.Enrichments.SearchText != nil {
+			d["enrichments"] = session.Doc{"search-text": *row.Enrichments.SearchText}
+		}
+		top.Push(session.CosineInt8(q.Vector, v), d)
+	}
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+	return top.Sorted(), nil
 }
 
 func (s *Store) SetEnrichmentSkipped(ctx context.Context, collection string, id any, enricher string) error {
