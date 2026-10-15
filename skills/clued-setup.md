@@ -521,6 +521,27 @@ If the cloud uses a certificate from a private CA, add `--ca-file <PEM bundle>` 
 
 Later, `session logout` revokes this machine's token on the cloud and takes the server keys out of the file (back to local mode), and the account's **Settings** page in the cloud manages `enabledEnrichers`, `disabledEnrichers`, `projectsDir` and `fileHistoryDir` for every linked machine; `session-start` applies them with `session config-pull`.
 
+### Memory — choose the engine (every mode)
+
+clued keeps its own memory of the work (see `docs/memory.md`): a note of each session when it ends, rolled up into a day, the last seven days and a monthly archive, plus the notes, handoffs (`/clued-remember`) and pinned note you write; the prime report injects a bundle of it within `memory.budgetTokens` (1500 by default). Ask the user which engine writes the notes, with AskUserQuestion:
+
+- **extract** (default, free): a deterministic note built from what the session did (its first request, commits, the files it edited, unresolved errors, its last reply). No model runs and nothing leaves the machine.
+- **claude**: your own `claude -p` on your Claude Code subscription, model `haiku`, at most `memory.maxRunsPerDay` (20) runs a day; past the cap, or when a run fails, the free engine takes over. The run is never captured as a session (`CLUED_NO_CAPTURE=1`).
+- **hosted** (Clued Cloud Pro only): the cloud writes the notes within the plan's monthly AI allowance, then with your own Anthropic key, then falls back to extract.
+- **off**: no memory runs; earlier records stay searchable.
+
+Then ask whether any projects must stay out of memory, as path globs (`["~/work/client-*"]`); their sessions get no note. One session can opt out on its own when it is started with `CLUED_MEMORY=off`.
+
+Write the choice into the config file, keeping every other key and the mode `0600` (with a config file; skip this when the environment links the machine and there is none):
+
+```bash
+CFG=~/.claude/plugins/data/clued/config.json
+TMP=$(mktemp) && jq --arg engine "<extract|claude|hosted|off>" --argjson exclude '<["~/work/client-*"] or []>' \
+  '.memory = ((.memory // {}) + {engine: $engine, exclude: $exclude})' "$CFG" > "$TMP" && chmod 600 "$TMP" && mv "$TMP" "$CFG"
+```
+
+In a Claude Code cloud container (no config file) the engine is the environment variable `CLUED_MEMORY_ENGINE` in the environment's settings, next to `CLUED_SERVER_URL`. `mind-palace session memory status` shows the engine, the records per layer, the runs used today and what the notes cost this month.
+
 ## Step 7 — MCP servers (no action needed)
 
 The plugin ships a `.mcp.json` that tells Claude Code to run two stdio servers:
@@ -666,6 +687,6 @@ Tell the user:
 - In both server modes plans and stories keep their Markdown files under `docs/plans` and `docs/stories` in each repository (the primary store) and every write is also sent to the server; `mind-palace sync --from file --to clued-server` catches the server up after an outage
 - On macOS tarball install: launchd plist written to `~/Library/LaunchAgents/org.mongodb.mongod.plist` — mongod restarts automatically at login with `KeepAlive: true`
 - Ask the user to run `/reload-plugins` then **start a new session** for all changes (hooks + MCP tools) to take effect
-- If the claude-remember plugin is installed, `session-start` installs clued's listener into it so its summaries are captured too (`search_memory` finds them)
+- Native memory with the chosen engine (`memory.engine`): a note of each session at SessionEnd, a checkpoint at PreCompact, day, recent and monthly archive roll-ups, injected as the prime report's MEMORY section; `/clued-remember` writes a handoff for the next session, `search_memory` searches it all (with the records claude-remember wrote before, which stay searchable). If an older clued installed a listener into claude-remember, `session-start` removed it once; clued writes nothing into claude-remember
 - Capture-time redaction is on (`"redactAtCapture": true`): API keys, AWS access key ids, JWTs, GitHub and Slack tokens, PEM private keys and `<private>…</private>` spans are masked before anything is written to MongoDB or sent to the server. Add regular expressions to `redactPatterns` to mask more (e-mail addresses, internal host names), and globs to `excludePaths` (`["~/work/client-*"]`) to keep whole directories out; `mind-palace session forget --session <id>` (or `--project <re>`, `--before <day>`) deletes what was captured, and `retentionDays` lets MongoDB expire it.
-- To enable the privacy-redact enricher (off by default): add `"privacy-redact"` to `enabledEnrichers` in `config.json` and restart the daemon (local MongoDB; in server mode enrichers run on the server and are configured there). It stores a masked copy of each transcript line (`sk-` API keys, e-mail addresses, AWS access key ids, JWTs) under `enrichments.privacy-redact`, and of each captured claude-remember record under `enrichments.privacy-redact-memory`; the raw text is still stored. `disabledEnrichers` only switches enrichers off.
+- To enable the privacy-redact enricher (off by default): add `"privacy-redact"` to `enabledEnrichers` in `config.json` and restart the daemon (local MongoDB; in server mode enrichers run on the server and are configured there). It stores a masked copy of each transcript line (`sk-` API keys, e-mail addresses, AWS access key ids, JWTs) under `enrichments.privacy-redact`, and of each memory record (native records are redacted before they are stored anyway; claude-remember records captured before native memory) under `enrichments.privacy-redact-memory`; the raw text is still stored. `disabledEnrichers` only switches enrichers off.

@@ -126,15 +126,6 @@
             "async": true
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/clued\" session memory-ingest --quiet",
-            "async": true
-          }
-        ]
       }
     ],
     "Stop": [

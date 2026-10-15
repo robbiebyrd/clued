@@ -206,7 +206,6 @@ func TestRegisterHooksMirrorsTheBinaryHooks(t *testing.T) {
 	h := registerHooks(t, dir, "{}", 2).hooks(t)
 	clued := launcherIn(dir)
 	want := map[string]string{
-		"SessionEnd":       clued + " session memory-ingest --quiet",
 		"Stop":             clued + " hook stop-guard",
 		"PreToolUse":       clued + " hook write-guard",
 		"UserPromptSubmit": clued + " hook status-review --every 30m",

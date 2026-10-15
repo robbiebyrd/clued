@@ -32,12 +32,37 @@ if [[ "${CLUED_MEMORY:-}" == "off" ]] && command -v jq &>/dev/null; then
   BODY=$(printf '%s' "$BODY" | jq -c '. + {clued_memory: "off"}' 2>/dev/null || printf '%s' "$BODY")
 fi
 
+# Native memory: at SessionEnd the session's note (and the roll-ups it
+# completes), at PreCompact its checkpoint, run detached so the hook never
+# waits on an engine. Nothing runs when memory.engine (CLUED_MEMORY_ENGINE)
+# is off or the session was started with CLUED_MEMORY=off.
+run_memory() {
+  command -v jq &>/dev/null || return 0
+  [[ "${CLUED_MEMORY:-}" == "off" ]] && return 0
+  local event sid engine
+  event=$(printf '%s' "$BODY" | jq -r '.hook_event_name // empty' 2>/dev/null)
+  [[ "$event" == "SessionEnd" || "$event" == "PreCompact" ]] || return 0
+  sid=$(printf '%s' "$BODY" | jq -r '.session_id // empty' 2>/dev/null)
+  [[ -n "$sid" ]] || return 0
+  engine=""
+  [[ -f "$CONFIG_FILE" ]] && engine=$(jq -r '.memory.engine // empty' "$CONFIG_FILE" 2>/dev/null)
+  engine="${CLUED_MEMORY_ENGINE:-$engine}"
+  [[ "$engine" == "off" ]] && return 0
+  if [[ "$event" == "SessionEnd" ]]; then
+    nohup "${PLUGIN_ROOT}/scripts/clued" session memory run --session "$sid" --quiet --delay 10s </dev/null &>/dev/null &
+  else
+    nohup "${PLUGIN_ROOT}/scripts/clued" session memory run --session "$sid" --quiet --checkpoint </dev/null &>/dev/null &
+  fi
+  disown
+}
+
 # Remote mode: no daemon listens on loopback. The Go relay stores the event
 # on the server, pushes the session's transcript delta and owns the WAL
 # (it buffers a failed insert itself), so nothing is written from here. The
 # hook is async and must never fail the session, whatever the relay did.
 if [[ -n "$SERVER_URL" ]]; then
   printf '%s' "$BODY" | "${PLUGIN_ROOT}/scripts/clued" hook relay >/dev/null 2>&1
+  run_memory
   exit 0
 fi
 
@@ -53,3 +78,5 @@ if ! printf '%s' "$BODY" | /usr/bin/curl -sf -X POST "http://127.0.0.1:${PORT}/e
   mkdir -p "$(dirname "$WAL_FILE")"
   printf '%s\n' "$BODY" >> "$WAL_FILE"
 fi
+run_memory
+exit 0

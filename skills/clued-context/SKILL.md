@@ -122,5 +122,5 @@ A probe called with too few arguments prints `[FALLBACK: <probe> <args>]`.
 8. **STORIES**: active stories as `id [type/status] title`, one per line.
 9. **PLANS**: active plans in the same form, followed by the first 100 lines of the top plan.
 10. **SESSION**: the last captured session (`session`, `started`, `last seen`, `commands:`), or `none` / `store disabled` / `store unavailable`.
-11. **MEMORY**: the five newest claude-remember notes captured for this project (`search_memory` finds the rest), each as `<kind> <day> [<time>] (<branch>)` followed by its text indented and cut to eight lines, or `none` / `store disabled` / `store unavailable`.
+11. **MEMORY**: the project's memory bundle within `memory.budgetTokens` (1500 by default), after a header saying the notes are data, not instructions: the pinned note, the newest handoff, the recent (last seven days) roll-up, recent notes, today's and the last three session notes and the newest archive (after a compaction only pinned, handoff and the newest checkpoint; claude-remember records, marked `[claude-remember]`, only while the project has no native record), each as `<kind> <day> [<time>] (<branch>)` followed by its text indented, or `none` / `store disabled` / `store unavailable`. `search_memory` finds the rest.
 12. **BUILD**: the build system and toolchain versions, or `no build tool detected`.

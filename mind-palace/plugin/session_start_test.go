@@ -48,7 +48,7 @@ func TestSessionStartRecordsTheBinaryTheDaemonWasStartedFrom(t *testing.T) {
 	if strings.Contains(r.stderr, "restarted") {
 		t.Errorf("no daemon was running, so no restart expected: %q", r.stderr)
 	}
-	// session-start leaves detached hooks behind (backfill, memory-ingest)
+	// session-start leaves detached hooks behind (the backfill)
 	// that resolve the binary through the shim; wait until none of them is
 	// still downloading into this home, or the temp dir cleanup races them.
 	waitForReleaseDownloads(t, home)
