@@ -91,7 +91,58 @@ type Config struct {
 	// never logged.
 	OTelEndpoint string            `json:"otelEndpoint,omitempty"`
 	OTelHeaders  map[string]string `json:"otelHeaders,omitempty"`
+
+	// Memory configures native memory (session/memory); the key is
+	// "memory".
+	Memory MemoryConfig `json:"memory"`
 }
+
+// The memory engines: extract (free, deterministic, the default), claude
+// (the user's own `claude -p`), hosted (a clued cloud's allowance, then
+// the user's own key, then extract) and off (no memory runs).
+const (
+	MemoryEngineExtract = "extract"
+	MemoryEngineClaude  = "claude"
+	MemoryEngineHosted  = "hosted"
+	MemoryEngineOff     = "off"
+)
+
+// MemoryEngines lists the engine names in the order /clued-setup offers
+// them.
+var MemoryEngines = []string{MemoryEngineExtract, MemoryEngineClaude, MemoryEngineHosted, MemoryEngineOff}
+
+// MemoryConfig is the "memory" block of the config file. Engine is
+// overridden by CLUED_MEMORY_ENGINE and BudgetTokens by
+// CLUED_MEMORY_BUDGET; Exclude are project path globs (excludePaths
+// syntax) whose sessions get no memory.
+type MemoryConfig struct {
+	Engine        string   `json:"engine,omitempty"`
+	Model         string   `json:"model,omitempty"`
+	MaxRunsPerDay int      `json:"maxRunsPerDay,omitempty"`
+	MinPrompts    int      `json:"minPrompts,omitempty"`
+	BudgetTokens  int      `json:"budgetTokens,omitempty"`
+	Exclude       []string `json:"exclude,omitempty"`
+}
+
+// Defaults of the memory block.
+const (
+	DefaultMemoryModel         = "haiku"
+	DefaultMemoryMaxRunsPerDay = 20
+	DefaultMemoryMinPrompts    = 2
+	DefaultMemoryBudgetTokens  = 1500
+)
+
+// NoCaptureEnv is the variable every memory engine run sets
+// (CLUED_NO_CAPTURE=1): the hooks of that `claude -p` capture, relay and
+// prime nothing, so an engine's own run never becomes a session.
+const NoCaptureEnv = "CLUED_NO_CAPTURE"
+
+// NoCapture reports whether this process runs inside a memory engine run.
+func NoCapture() bool { return os.Getenv(NoCaptureEnv) == "1" }
+
+// MemoryOffEnv set to "off" in a session's environment (CLUED_MEMORY=off)
+// keeps that session out of memory.
+const MemoryOffEnv = "CLUED_MEMORY"
 
 // RedactsAtCapture reports whether captured data is redacted before it is
 // written.
@@ -131,6 +182,10 @@ func defaultConfig() Config {
 		DisabledEnrichers:   []string{},
 		EnabledEnrichers:    []string{},
 		ClaudeAppConfigPath: filepath.Join(h, "Library", "Application Support", "Claude", "config.json"),
+		Memory: MemoryConfig{
+			Engine: MemoryEngineExtract, Model: DefaultMemoryModel, MaxRunsPerDay: DefaultMemoryMaxRunsPerDay,
+			MinPrompts: DefaultMemoryMinPrompts, BudgetTokens: DefaultMemoryBudgetTokens,
+		},
 	}
 }
 
@@ -204,6 +259,14 @@ func LoadConfig(path string) Config {
 		}
 	}
 
+	setFromEnv(&cfg.Memory.Engine, "CLUED_MEMORY_ENGINE")
+	if v := os.Getenv("CLUED_MEMORY_BUDGET"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.Memory.BudgetTokens = n
+		}
+	}
+	cfg.Memory = cfg.Memory.withDefaults()
+
 	cfg.ProjectsDir = expandHome(cfg.ProjectsDir)
 	cfg.FileHistoryDir = expandHome(cfg.FileHistoryDir)
 	cfg.MongoURL = expandHome(cfg.MongoURL)
@@ -220,4 +283,24 @@ func setFromEnv(dst *string, name string) {
 	if v := os.Getenv(name); v != "" {
 		*dst = v
 	}
+}
+
+// withDefaults fills the fields a config file left empty or zero.
+func (m MemoryConfig) withDefaults() MemoryConfig {
+	if m.Engine == "" {
+		m.Engine = MemoryEngineExtract
+	}
+	if m.Model == "" {
+		m.Model = DefaultMemoryModel
+	}
+	if m.MaxRunsPerDay == 0 {
+		m.MaxRunsPerDay = DefaultMemoryMaxRunsPerDay
+	}
+	if m.MinPrompts <= 0 {
+		m.MinPrompts = DefaultMemoryMinPrompts
+	}
+	if m.BudgetTokens <= 0 {
+		m.BudgetTokens = DefaultMemoryBudgetTokens
+	}
+	return m
 }

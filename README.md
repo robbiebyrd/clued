@@ -102,10 +102,9 @@ then `/reload-plugins`.
 |---|---|
 | `hooks/hooks.json` | Registers the hooks below for every Claude Code hook event, once each: it is the file Claude Code loads from an installed plugin (a `hooks.json` at the plugin root is never loaded), so no `settings.json` entry is needed (see [Where the hooks are registered](#where-the-hooks-are-registered)) |
 | `hooks/check-setup` | SessionStart: prints one system message when the config file (and an environment that names a server) or the `mind-palace` binary is missing, or when a Claude Code cloud container has no server; in remote mode also when the server is unreachable, rejects the token, or the token does not cover this repository's project |
-| `hooks/session-start` | SessionStart (async): re-runs `register-hooks --quiet` (the launcher's `plugin-root`, a stale settings mirror) and `install-remember-listener`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` and a `session memory-ingest`. In remote mode, and in a Claude Code cloud container, it starts no daemon: in remote mode the SessionStart event goes through `scripts/clued hook relay` and the backfill runs against the server |
-| `hooks/install-remember-listener` | Run by `session-start`: writes clued's listener into the `hooks.d/after_save` and `hooks.d/after_consolidate` directories of every installed [claude-remember](https://github.com/Digital-Process-Tools/claude-remember) plugin (see [claude-remember summaries](#claude-remember-summaries)); a plugin update that removes it is healed on the next start |
-| `scripts/clued session memory-ingest` | SessionEnd (async), the claude-remember listener, and `session-start`: posts the summaries claude-remember wrote since the last run to the daemon as `MemorySaved` events (in remote mode, to the server through the relay) |
-| `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later. In remote mode it runs `scripts/clued hook relay` instead |
+| `hooks/session-start` | SessionStart (async): re-runs `register-hooks --quiet` (the launcher's `plugin-root`, a stale settings mirror), runs `remove-remember-listener` once, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill`. In remote mode, and in a Claude Code cloud container, it starts no daemon: in remote mode the SessionStart event goes through `scripts/clued hook relay` and the backfill runs against the server |
+| `hooks/remove-remember-listener` | Run once by `session-start` (a stamp in the data directory) and again by `uninstall`: deletes the `70-clued-ingest.sh` listener older clued versions installed into [claude-remember](https://github.com/Digital-Process-Tools/claude-remember), recognised by its marker line, and touches nothing else (see [Native memory](#native-memory)) |
+| `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later. In remote mode it runs `scripts/clued hook relay` instead. At SessionEnd it also starts `scripts/clued session memory run --session <id>` detached (the session's memory note), at PreCompact the same with `--checkpoint`, unless `memory.engine` is `off` or the session was started with `CLUED_MEMORY=off`; with `CLUED_NO_CAPTURE=1` (a memory engine's own `claude -p`) it exits at once |
 | `scripts/clued hook relay` | Remote mode, every event: stores the event on the server, pushes the transcript lines and artifact files written since the previous hook, replays the WAL; never fails the hook, logs failures to `relay.log` (see [Remote mode](#remote-mode)) |
 | `scripts/clued hook write-guard` | PreToolUse on `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Bash`, `EnterPlanMode` and `ExitPlanMode`: routes every change to a plan or story through mind-palace (see [Plans and stories are written by mind-palace](#plans-and-stories-are-written-by-mind-palace)) |
 | `scripts/clued hook stop-guard` | Stop: blocks the assistant from stopping when its last message dodges ownership of a failure, defers work to another session or asks whether to continue (see [Hooks served by the binary](#hooks-served-by-the-binary)) |
@@ -269,7 +268,7 @@ off.
 | `search-text` | `transcript_lines` | The readable text of the line (message text, tool calls and results, no thinking), at most 16 KB, with the credential patterns of `privacy-redact` (not e-mail addresses) masked; MongoDB keeps a text index on it for `search_transcripts` |
 | `privacy-redact` | `transcript_lines` | A copy of the raw line with four patterns masked (`sk-…` API keys, e-mail addresses, `AKIA…` AWS access key ids and JWTs), stored under `enrichments.privacy-redact.redacted_line`; the raw line itself is kept unchanged. **Off by default**: add it to `enabledEnrichers` to run it |
 | `embedding` | `transcript_lines` | Not registered: a server holding an embedder (`enrichers.Embedding`, e.g. over `session/embed/voyage`) adds it. The int8 vector of a prompt or reply of at least 24 characters (no tool calls or results), credentials masked, for `search_semantic` |
-| `privacy-redact-memory` | `hook_events` | The same masked copy of the text of each claude-remember record (`MemorySaved` event); switched on and off together with `privacy-redact` |
+| `privacy-redact-memory` | `hook_events` | The same masked copy of the text of each memory record (`MemorySaved` event: native records, already redacted before they are stored, digests, and claude-remember records captured before native memory); switched on and off together with `privacy-redact` |
 
 ### MCP tools (`clued` server)
 
@@ -279,7 +278,9 @@ off.
 | `get_session_context` | Metadata, the most recent distinct Bash commands, the first and last transcript lines, the session's latest memory records, and its token usage and estimated cost; with the session's model, state, title and pull request link once known, and its turns (count, total, mean and longest duration) |
 | `get_full_session` | The record: metadata, transcript, subagent lines, blob metadata and hook events, or only the `sections` asked for |
 | `search_commands` | Search the Bash commands run in previous sessions; rejected calls left out unless `include_rejected` |
-| `search_memory` | Search the claude-remember summaries, handoffs and identity notes captured as `MemorySaved` events across every session and machine of the account: regex over the text, optional `kind`, `session_id`, `git_origin` or `project_path` scope |
+| `search_memory` | Search clued's memory across every session and machine of the account (session notes, day, recent and archive roll-ups, notes, handoffs, pinned notes, checkpoints, digests, and the claude-remember records captured before native memory): regex over the text, optional `kind`, `project` (a project key), `include_private`, `session_id`, `git_origin` or `project_path` scope (see [Native memory](#native-memory)) |
+| `remember` | Write a note, a `handoff` for the next sessions or the project's `pinned` note; `private` keeps it out of every bundle and export; `project` defaults to the server's working directory's |
+| `forget_memory` | Delete memory records by `ids` or a `pattern`; a dry run unless `dry_run` is false; not offered by the server's `/mcp` |
 | `get_limits` | The context-window and usage-limit samples the status line captured (`LimitsSampled` events): used percentage and window size, the five-hour and seven-day limits with their reset times, model and cost, newest first; scoped by `session_id`, `git_origin`, `project_path` or `since` |
 | `get_activities` | The timeline of what the agent did, newest first: each line's activity kind, label and detail, the session's state changes (`state` entries: working, waiting, ended), consecutive repeats of one tool activity collapsed into an entry with a count; scoped by `session_id`, `git_origin`, `project_path`, `kinds` or `since`; built from the `activity-kind` enrichment and the `SessionStateChanged` events |
 | `file_history` | Which sessions touched a file (regex over the path): per session the files, how often it read, edited or wrote them, the lines its edits added and removed, the spans they touched, first and last touch; built from the `file-tracker` and `edit-diff-stats` enrichments |
@@ -322,8 +323,14 @@ prints JSON.
 | `session activities [--session id] [--git-origin re] [--project-path re] [--kind k]... [--since t] [--include-rejected] [--limit n]` | What the agent did, newest first, repeats collapsed (what `get_activities` does) |
 | `session report [--day d \| --from d --to d] [--include kinds] [--format markdown\|json] [--project-path re] [--git-origin re]` | The activity report of a day or a range: one section per session, one `[HH:MM] <icon> <label>: <detail>` row per activity, sub-agents with what they returned, the size in tokens |
 | `session digest [--day d \| --from d --to d] [--engine claude\|none] [--model m] [--force] [--show]` | The first-person retro of a day or a range, written by `claude -p` from the report and kept as a memory record of kind `digest` (`get_digest`, `search_memory`, the prime report's MEMORY section); `--engine none` prints the report and the prompt |
-| `session search-memory [pattern] [--kind k] [--session id] [--git-origin re] [--project-path re] [--limit n]` | Search the memory records ingested from claude-remember |
-| `session memory-ingest [--dir d]... [--cwd c] [--session id] [--quiet]` | Post the new records of the working directory's claude-remember store(s) to the daemon (what the hooks run) |
+| `session search-memory [pattern] [--kind k] [--project key] [--include-private] [--session id] [--git-origin re] [--project-path re] [--limit n]` | Search memory records (what `search_memory` does) |
+| `session memory run [--project p \| --cwd d \| --all] [--session id [--checkpoint]] [--engine e] [--model m] [--delay d] [--quiet]` | Bring memory up to date: session notes, then the day, recent and archive roll-ups (what the SessionEnd and PreCompact hooks start) |
+| `session memory status [--project p \| --cwd d \| --all]` | Records per layer, engine runs today against the cap, cost this month, the engine |
+| `session memory show [--kind k]... [--include-private] [--bundle [--compact]]` | List the project's records, or the bundle the prime report injects |
+| `session memory edit` | Edit the project's records as Markdown in `$VISUAL`/`$EDITOR` |
+| `session memory remember [--kind note\|handoff\|pinned] [--private] text…` | Write a note |
+| `session memory forget [--id id]... [--pattern re] [--yes]` | Delete records (a dry run without `--yes`) |
+| `session memory export [--all] [--out file]` / `session memory import file` | JSONL backup and restore of memory (private notes never exported) |
 | `session context <session>` | Metadata, recent commands, first and last transcript lines |
 | `session full <session>` | The session joined with its transcript, subagents, blobs and hook events |
 | `session transcript <session> [--offset n] [--limit n]` | Read transcript lines |
@@ -333,32 +340,46 @@ prints JSON.
 | `session mcp [--mcp-tool-prefix p]` | Serve only the session tools over stdio |
 | `session whoami` | Remote mode: ask the server who the token is (name, account, projects, server version); exit 2 when no server is configured, 10 when it is unreachable or rejects the token |
 
-### claude-remember summaries
+### Native memory
 
-If the [claude-remember](https://github.com/Digital-Process-Tools/claude-remember)
-plugin is installed, the memory it writes for a project (the Haiku-written
-`## HH:MM | branch` entries of `now.md` and `today-*.md`, the consolidated
-`recent.md` and `archive.md` and their rotated slices, the `/remember`
-handoff and `identity.md`) is captured into the clued store as well, so other
-sessions and other machines can search it:
+clued keeps its own memory of the work, written as clued's own code (see
+[docs/memory.md](docs/memory.md) for the whole story):
 
-- `hooks/install-remember-listener` drops `70-clued-ingest.sh` into every
-  claude-remember plugin's `hooks.d/after_save` and `hooks.d/after_consolidate`
-  (the plugin runs executables there after each save and consolidation, with
-  the store's directory exported). `session-start` re-runs it on every start,
-  so a plugin update that replaces `hooks.d/` heals itself.
-- The listener, the SessionEnd hook and `session-start` run
-  `scripts/clued session memory-ingest`, which reads the project's store
-  (`<project>/.remember/` or `~/.remember/<slug>/`), hashes every record and
-  posts the ones not posted before to the daemon as `MemorySaved` hook events
-  (`memory.kind`, `file`, `time`, `branch`, `text`, `hash`, `slug`,
-  `remember_dir`; the session is the project's newest transcript). State
-  files under `~/.claude/plugins/data/clued/remember/` keep the ingest
-  idempotent, the store drops a record whose hash the account already holds,
-  and an unreachable daemon sends the events to the write-ahead log.
-- `search_memory` (and `session search-memory`) search the records newest
-  first; `get_session_context` lists a session's latest five. Nothing is ever
-  written into claude-remember's own store.
+- **Session notes.** When a session ends, `hooks/event-relay` starts
+  `session memory run --session <id>` detached: the session gets a note
+  (`session-summary/<session_id>`: its outcome, decisions, open threads and
+  files), and before a compaction a checkpoint the note later replaces.
+- **Layers.** After each UTC day ends the day's notes become one
+  `memory-day` record; `memory-recent` is rebuilt from the last seven days
+  and older days fold into one `memory-archive` per month. Runs are
+  idempotent (a run with nothing new makes no engine call) and a record you
+  edited is never rewritten.
+- **Your notes.** `remember` (MCP), `/clued-remember` (a handoff for the next
+  session) and `session memory remember` write notes, handoffs and the
+  pinned note injected into every session; `session memory edit` edits
+  everything as Markdown, `forget_memory` and `session memory forget`
+  delete (dry runs by default).
+- **The bundle.** The prime report's MEMORY section injects pinned, handoff,
+  recent, the latest session notes and the archive head within
+  `memory.budgetTokens` (1500); after a compaction only pinned, handoff and
+  checkpoint. Private notes are never injected.
+- **Engines.** `extract` (default, free, deterministic), `claude` (your own
+  `claude -p`, model `haiku`, at most 20 runs a day, then `extract`),
+  `hosted` (Clued Cloud Pro's allowance, then your own key, then
+  `extract`) or `off`, chosen in `/clued-setup`. Engine runs set
+  `CLUED_NO_CAPTURE=1` and are never captured as sessions.
+- **Privacy.** `<private>` spans are dropped and the redaction rules always
+  apply before anything reaches an engine or the store; `CLUED_MEMORY=off`
+  keeps a session out and `memory.exclude` whole projects.
+- **Sync.** Memory records live in the session store, so in server or Clued
+  Cloud mode every machine shares one memory; `session memory export` and
+  `import` back a local store up.
+- **claude-remember.** clued no longer reads claude-remember or writes into
+  it: `session-start` removes the listener older versions installed, once,
+  and `session memory-ingest` is a no-op for one release. The records
+  ingested before stay searchable (kinds `entry`, `day`, `recent`,
+  `archive`, `handoff`, `identity`) and are injected only while a project
+  has no native record.
 
 ### Configuration
 
@@ -402,6 +423,12 @@ sessions and other machines can search it:
 | `otelHeaders` | `{}` | | Headers for the collector (`Authorization`); never logged |
 | `modelPrices` | (none) | | Prices for the `usage` cost estimates by model id prefix, in US dollars per million tokens: `{"<model id prefix>": {"input": 3, "output": 15}}`, optionally with `cacheRead` (default 0.1× `input`) and `longPrompt` (`{"input", "output", "cacheRead"}` for messages whose prompt is over 100,000 tokens). They come before the built-in table, so they also correct it |
 | `primeOnStart` | `true` | `CLUED_PRIME_ON_START` | Start every session (and every session after compaction) with the prime report as context; `false` leaves it to `/clued-prime` |
+| `memory.engine` | `extract` | `CLUED_MEMORY_ENGINE` | What writes the [memory](#native-memory) notes: `extract` (free), `claude` (your own `claude -p`), `hosted` (Clued Cloud Pro) or `off` |
+| `memory.model` | `haiku` | | The model of the `claude` engine |
+| `memory.maxRunsPerDay` | `20` | | Engine calls a UTC day before the work falls back to `extract` (`-1`: no cap) |
+| `memory.minPrompts` | `2` | | Fewest prompts a session needs for a note |
+| `memory.budgetTokens` | `1500` | `CLUED_MEMORY_BUDGET` | Token budget of the prime report's MEMORY bundle |
+| `memory.exclude` | `[]` | | Project path globs (the `excludePaths` syntax) whose sessions get no memory; `CLUED_MEMORY=off` in a session's environment keeps that one session out |
 
 `otelEndpoint` sends clued's own traces out. The other direction, Claude
 Code's OpenTelemetry events (API requests with cost and tokens, API errors,
@@ -705,6 +732,11 @@ the self-hosted clued server) is licensed under the
 [Apache License 2.0](LICENSE); see [NOTICE](NOTICE). Copyright 2026 Space
 Hippo, LC. Clued Cloud (clued.cloud) is a separate product under
 FSL-1.1-ALv2 and is not part of this repository.
+
+Native memory (`mind-palace/session/memory`, `mind-palace/session/summary`
+and the hooks that run them) is clued's own code under the same Apache-2.0
+licence; clued ships no code of claude-remember, whose features it was
+modelled on, and writes nothing into it.
 
 Contributions are accepted under the Developer Certificate of Origin: sign
 off every commit (see [CONTRIBUTING.md](CONTRIBUTING.md#sign-off)).

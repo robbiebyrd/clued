@@ -31,7 +31,9 @@ func (a *App) hookPrimeCmd() *cobra.Command {
 holding the prime report (the one ` + "`context prime`" + ` prints) of the hook's cwd,
 collected within --budget and cut to --max-chars (the longest sections are
 trimmed first). Claude Code runs SessionStart on startup, resume, clear and
-after compaction, so the report is back after every compaction. Nothing is
+after compaction, so the report is back after every compaction (its MEMORY
+section then holds the smaller compact bundle: pinned note, handoff and the
+newest checkpoint). Nothing is
 printed when primeOnStart is false in the clued config or
 CLUED_PRIME_ON_START is false, and nothing on any failure: the hook always
 exits 0.`,
@@ -58,7 +60,8 @@ exits 0.`,
 			}
 			ctx, cancel := context.WithTimeout(cmd.Context(), budget)
 			defer cancel()
-			collector, closeAll := a.primeCollector(ctx, dir, prime.Options{})
+			opts := prime.Options{Compact: in.Source == "compact"}
+			collector, closeAll := a.primeCollector(ctx, dir, opts)
 			defer closeAll()
 			// Each store lookup gets a third of the budget, so a store that
 			// is down leaves time for the sections after SESSION and MEMORY.
@@ -68,7 +71,7 @@ exits 0.`,
 				storeTimeout = min(prime.RemoteStoreTimeout, budget/2)
 			}
 			collector.Budget, collector.StoreTimeout = budget, storeTimeout
-			report := collector.CollectResult(ctx, prime.Options{}).Report
+			report := collector.CollectResult(ctx, opts).Report
 			if len(report.Sections) == 0 {
 				return nil
 			}

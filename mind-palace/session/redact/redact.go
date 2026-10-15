@@ -136,3 +136,46 @@ func Merge(a, b []string) []string {
 	slices.Sort(out)
 	return slices.Compact(out)
 }
+
+// openPrivate and closePrivate delimit a private span.
+const (
+	openPrivate  = "<private>"
+	closePrivate = "</private>"
+)
+
+// StripPrivate removes every <private>…</private> span from text, tags
+// included. Spans nest: the text stays private until every opened span is
+// closed, and an unclosed span drops the rest of the text. Memory runs it
+// before anything reaches an engine or the store.
+func StripPrivate(text string) string {
+	if !strings.Contains(text, openPrivate) {
+		return text
+	}
+	var b strings.Builder
+	depth := 0
+	for len(text) > 0 {
+		open := strings.Index(text, openPrivate)
+		if depth == 0 {
+			if open < 0 {
+				b.WriteString(text)
+				break
+			}
+			b.WriteString(text[:open])
+			text = text[open+len(openPrivate):]
+			depth = 1
+			continue
+		}
+		end := strings.Index(text, closePrivate)
+		if end < 0 {
+			break // unclosed: the rest is private
+		}
+		if open >= 0 && open < end {
+			depth++
+			text = text[open+len(openPrivate):]
+			continue
+		}
+		depth--
+		text = text[end+len(closePrivate):]
+	}
+	return b.String()
+}

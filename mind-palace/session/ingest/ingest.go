@@ -111,6 +111,9 @@ func (s *Service) Handle(ctx context.Context, event session.Doc) (Tracked, error
 			at := ev["created_at"].(time.Time)
 			s.run(ctx, func(ctx context.Context) { s.observeState(ctx, sessionID, state, reason, at) })
 		}
+		if off, _ := event.String(MemoryOffField); off == "off" && sessionID != "" {
+			s.run(ctx, func(ctx context.Context) { s.markMemoryOff(ctx, sessionID) })
+		}
 		return tr, nil
 	}
 	s.logger().Warn("hook event insert failed; appending to WAL", "err", err)
@@ -215,6 +218,21 @@ func (s *Service) fillGitInfo(ctx context.Context, sessionID, cwd string, state 
 	defer cancel()
 	if err := s.Store.SetGitInfoIfMissing(sctx, sessionID, origin, branch); err != nil && ctx.Err() == nil {
 		s.logger().Error("set git info failed", "session_id", sessionID, "err", err)
+	}
+}
+
+// MemoryOffField is the field hooks/event-relay adds to every event of a
+// session started with CLUED_MEMORY=off; the session is then recorded
+// with memory "off" and gets no memory note.
+const MemoryOffField = "clued_memory"
+
+// markMemoryOff records that the session keeps out of memory. A session
+// the store does not have yet is not an error: the next event tries again.
+func (s *Service) markMemoryOff(ctx context.Context, sessionID string) {
+	sctx, cancel := context.WithTimeout(ctx, s.timeout())
+	defer cancel()
+	if err := s.Store.SetSessionMeta(sctx, s.AccountID, sessionID, session.Doc{"memory": "off"}); err != nil && !errors.Is(err, session.ErrNotFound) && ctx.Err() == nil {
+		s.logger().Error("record memory off failed", "session_id", sessionID, "err", err)
 	}
 }
 

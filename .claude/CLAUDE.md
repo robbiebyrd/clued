@@ -10,7 +10,7 @@ binary.
 
 | Path | What it is |
 |---|---|
-| `hooks/hooks.json`, `hooks/` | The plugin's hook registrations (the only ones: Claude Code loads `hooks/hooks.json`, never a root `hooks.json`) and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `install-remember-listener`, `uninstall`) |
+| `hooks/hooks.json`, `hooks/` | The plugin's hook registrations (the only ones: Claude Code loads `hooks/hooks.json`, never a root `hooks.json`) and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `remove-remember-listener`, `uninstall`) |
 | `scripts/verify-prime.sh` | Manual check, on each release, that the prime report reaches the model once with the plugin's hooks, the settings mirror, an upgrade and a resume (real `claude -p` sessions; `plugin/verify_prime_test.go` runs it only with `CLUED_VERIFY_PRIME=1`) |
 | `scripts/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the release pinned by `.claude-plugin/plugin.json`'s `version`, downloaded once into `~/.claude/plugins/data/clued/bin/releases/v<version>/`, then PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`); `--locate` prints the choice |
 | `CONTRIBUTING.md`, `SECURITY.md`, `TRADEMARKS.md` | Contributor terms (DCO 1.1 sign-off, `## Sign-off`), private security reports to `security@clued.cloud`, the trademark note; `scripts/check-dco.sh` and `.github/workflows/dco.yml` enforce the sign-off on pull requests |
@@ -22,7 +22,7 @@ binary.
 | `commands/`, `skills/` | `/clued-setup`, `/clued-uninstall`, and the `plan-storage` skill |
 | `mind-palace/` | The Go module (`github.com/robbiebyrd/clued/mind-palace`); see its README for the package map |
 | `mind-palace/session/` | Session capture: config (including the remote-mode keys), Mongo and in-memory stores, daemon, tailing, backfill, enrichers, queries, restore, `sessionmcp` |
-| `mind-palace/memory/` | Reads a claude-remember memory store into hashed records and posts them to the daemon as `MemorySaved` events (`session memory-ingest`); searched with `search_memory` |
+| `mind-palace/session/memory/`, `mind-palace/session/summary/` | Native memory (replaces the claude-remember integration): per-session notes (`session/summary`, kind `session-summary`), day, recent and monthly roll-ups and PreCompact checkpoints stored as `MemorySaved` records, the `extract` (default), `claude` and `hosted` engines, and the budgeted MEMORY bundle prime injects; `session memory …`, searched with `search_memory`; see `docs/memory.md` |
 | `mind-palace/session/otel/` | A session as an OpenTelemetry trace sent as OTLP/HTTP JSON to `otelEndpoint` when it ends (daemon, relay, `session otel-export`); state under `<config dir>/otel/` |
 | `mind-palace/session/otlp/` | Claude Code's own OpenTelemetry logs received over OTLP/HTTP at `/v1/logs` (clued server and daemon): the `api_request`, `api_error` and `tool_result` events of sessions the account holds, allow-listed attributes only, stored as `session.OtelEvent` and summed by `get_session_context` |
 | `mind-palace/session/render/`, `mind-palace/session/export/` | A session as Markdown or self-contained HTML; `session export` / `export_session` (md, html, jsonl, zip; redacted unless `--raw`) and `session import` |

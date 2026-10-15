@@ -118,10 +118,18 @@ func TestHooksJSONRunsStatusReviewOnSessionStartAndThrottledOnPrompts(t *testing
 	}
 }
 
-func TestHooksJSONIngestsMemoryAtSessionEnd(t *testing.T) {
+func TestHooksJSONRunsNoClaudeRememberIngest(t *testing.T) {
 	hooks := readHooksJSON(t)
-	h := findHook(hooks["SessionEnd"], "/scripts/clued\" session memory-ingest --quiet")
-	if h == nil || h.Async == nil || !*h.Async {
-		t.Errorf("SessionEnd memory-ingest = %+v, want an async hook", h)
+	for ev, groups := range hooks {
+		for _, g := range groups {
+			for _, h := range g.Hooks {
+				if strings.Contains(h.Command, "memory-ingest") {
+					t.Errorf("%s still runs %s", ev, h.Command)
+				}
+			}
+		}
+	}
+	if len(hooks["SessionEnd"]) != 1 || findHook(hooks["SessionEnd"], "/hooks/event-relay\"") == nil {
+		t.Errorf("SessionEnd = %+v, want only the relay (it starts the memory run)", hooks["SessionEnd"])
 	}
 }

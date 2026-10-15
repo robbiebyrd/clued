@@ -8,7 +8,9 @@
 # Always:  removes the hook relay's catch-up state (<data dir>/catchup/) and
 #          its log (<data dir>/relay.log), clued's entries in settings.json
 #          (a settings mirror) and the hook launcher (bin/clued-hook,
-#          plugin-root), even with --keep-config
+#          plugin-root), the listener older clued versions installed into
+#          claude-remember (hooks/remove-remember-listener) and the memory
+#          run state, even with --keep-config
 # macOS:   unloads and removes ~/Library/LaunchAgents/org.mongodb.mongod.plist
 #          when it is present (a local MongoDB install)
 # Server stack (`mind-palace server init` under ~/.clued-server or
@@ -44,6 +46,7 @@ for arg in "$@"; do
 done
 
 DATA_DIR="${HOME}/.claude/plugins/data/clued"
+PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="${DATA_DIR}/config.json"
 DEFAULT_PORT=8085
 
@@ -124,6 +127,14 @@ if [[ "$(uname -s)" == "Darwin" && -f "$PLIST" ]]; then
   rm "$PLIST"
   echo "clued: removed launchd plist"
 fi
+
+# --- claude-remember: the listener older clued versions installed there ---
+"${PLUGIN_ROOT}/hooks/remove-remember-listener" &>/dev/null || true
+# The memory runtime state (the run lock and the daily run counts), the old
+# claude-remember ingest state and the removal stamp go even with
+# --keep-config; prompt overrides under memory/ are configuration and stay.
+rm -f "${DATA_DIR}/memory/runs.json" "${DATA_DIR}"/memory/run-*.lock "${DATA_DIR}/remember-listener-removed"
+rm -rf "${DATA_DIR}/remember"
 
 # --- Hook relay state: catch-up offsets and lock files, and the failure log ---
 # Both are runtime state, not configuration, so they go even with --keep-config;

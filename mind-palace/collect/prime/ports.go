@@ -25,22 +25,26 @@ type SessionSource interface {
 	Current(ctx context.Context, cwd string) (*SessionSnapshot, error)
 }
 
-// MemoryNote is one record of the MEMORY section: a claude-remember summary,
-// handoff or identity note captured as a MemorySaved event.
+// MemoryNote is one record of the MEMORY section: a native memory record
+// (session/memory) or a claude-remember record captured before native
+// memory (Legacy).
 type MemoryNote struct {
-	Kind      string // entry, day, recent, archive, handoff or identity
+	ID        string
+	Kind      string // memory-pinned, memory-handoff, memory-recent, session-summary, …; entry, day, … for legacy records
 	Day       string // YYYY-MM-DD when the record carries one
-	Time      string // HH:MM for an entry
+	Time      string // HH:MM for a legacy entry
 	Branch    string
 	Text      string
+	Legacy    bool
 	CreatedAt time.Time // when it was captured; zero when unknown
 }
 
-// MemorySource reads the memory records captured for a working directory,
-// newest first. Recent returns at most limit records and an empty slice
-// when none were captured.
+// MemorySource reads the memory bundle of a working directory's project:
+// the notes to inject, in order, within budgetTokens (estimated at four
+// characters a token), the smaller bundle after a compaction when compact
+// is set. It returns an empty slice when the project has no memory.
 type MemorySource interface {
-	Recent(ctx context.Context, cwd string, limit int) ([]MemoryNote, error)
+	Bundle(ctx context.Context, cwd string, budgetTokens int, compact bool) ([]MemoryNote, error)
 }
 
 // DocSummary is one line of the STORIES or PLANS section.
