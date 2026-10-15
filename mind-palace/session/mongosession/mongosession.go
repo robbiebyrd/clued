@@ -127,6 +127,7 @@ var indexes = []index{
 	{transcriptLines, key("account_id", 1, "enrichments.usage.day", 1), false},
 	{otelEvents, key("account_id", 1, "session_id", 1, "name", 1, "sequence", 1, "timestamp", 1), true},
 	{otelEvents, key("account_id", 1, "session_id", 1, "timestamp", -1), false},
+	{otelEvents, key("account_id", 1, "timestamp", 1), false},
 }
 
 // partialIndexes are unique indexes limited to the documents matching a
@@ -316,6 +317,9 @@ func (s *Store) DeleteAccount(ctx context.Context, accountID string) (int64, err
 	return n, nil
 }
 
+// DeleteSessions deletes the sessions the query selects with their
+// documents, oldest last_seen first under a limit, and orphaned captures
+// when asked.
 func (s *Store) DeleteSessions(ctx context.Context, q session.ForgetQuery) (session.Forgotten, error) {
 	out := session.Forgotten{Sessions: []string{}}
 	if q.AccountID == "" {
@@ -340,11 +344,33 @@ func (s *Store) DeleteSessions(ctx context.Context, q session.ForgetQuery) (sess
 		if !q.Before.IsZero() {
 			filter = append(filter, bson.E{Key: "last_seen", Value: key("$lt", q.Before)})
 		}
-		ids = []string{}
-		if err := s.coll(sessions).Distinct(ctx, "session_id", filter).Decode(&ids); err != nil {
+		limit := 0
+		if q.Limit > 0 {
+			limit = q.Limit + 1
+		}
+		docs, err := s.find(ctx, sessions, filter, key("_id", 0, "session_id", 1), key("last_seen", 1, "_id", 1), 0, limit)
+		if err != nil {
 			return out, err
 		}
+		if q.Limit > 0 && len(docs) > q.Limit {
+			docs, out.More = docs[:q.Limit], true
+		}
+		ids = make([]string, 0, len(docs))
+		for _, d := range docs {
+			if sid, _ := d.String("session_id"); sid != "" {
+				ids = append(ids, sid)
+			}
+		}
+		if q.Orphans && q.ProjectPathRe == "" {
+			orphans, more, err := s.orphans(ctx, q)
+			if err != nil {
+				return out, err
+			}
+			ids = append(ids, orphans...)
+			out.More = out.More || more
+		}
 	}
+	ids = uniqueSorted(ids)
 	if len(ids) == 0 {
 		return out, nil
 	}
@@ -357,6 +383,72 @@ func (s *Store) DeleteSessions(ctx context.Context, q session.ForgetQuery) (sess
 	}
 	out.Sessions = ids
 	return out, nil
+}
+
+// orphans returns, per capture collection, up to q.Limit session ids (all
+// with no limit) of the account's documents created before q.Before
+// (timestamp for OpenTelemetry events) whose session has no record in the
+// account, oldest first; only of q.SessionIDs when given. It reports
+// whether a collection held more.
+func (s *Store) orphans(ctx context.Context, q session.ForgetQuery) ([]string, bool, error) {
+	var ids []string
+	more := false
+	for _, col := range []string{hookEvents, transcriptLines, subagentLines, blobs, otelEvents} {
+		field := "created_at"
+		if col == otelEvents {
+			field = "timestamp"
+		}
+		sid := key("$type", "string", "$ne", "")
+		if len(q.SessionIDs) > 0 {
+			sid = append(sid, bson.E{Key: "$in", Value: q.SessionIDs})
+		}
+		pipeline := bson.A{
+			key("$match", key("account_id", q.AccountID, field, key("$lt", q.Before), "session_id", sid)),
+			key("$group", key("_id", "$session_id", "first", key("$min", "$"+field))),
+			key("$lookup", key("from", sessions, "let", key("sid", "$_id"), "as", "record", "pipeline", bson.A{
+				key("$match", key("account_id", q.AccountID, "$expr", key("$eq", bson.A{"$session_id", "$$sid"}))),
+				key("$limit", 1),
+				key("$project", key("_id", 1)),
+			})),
+			key("$match", key("record", key("$size", 0))),
+			key("$sort", key("first", 1, "_id", 1)),
+		}
+		if q.Limit > 0 {
+			pipeline = append(pipeline, key("$limit", q.Limit+1))
+		}
+		pipeline = append(pipeline, key("$project", key("_id", 1)))
+		cur, err := s.coll(col).Aggregate(ctx, pipeline)
+		if err != nil {
+			return nil, false, fmt.Errorf("find orphans in %s: %w", col, err)
+		}
+		var rows []struct {
+			ID string `bson:"_id"`
+		}
+		if err := cur.All(ctx, &rows); err != nil {
+			return nil, false, fmt.Errorf("find orphans in %s: %w", col, err)
+		}
+		if q.Limit > 0 && len(rows) > q.Limit {
+			rows, more = rows[:q.Limit], true
+		}
+		for _, r := range rows {
+			ids = append(ids, r.ID)
+		}
+	}
+	return ids, more, nil
+}
+
+// uniqueSorted sorts the ids and drops repeats.
+func uniqueSorted(ids []string) []string {
+	out := append([]string(nil), ids...)
+	sort.Strings(out)
+	n := 0
+	for i, id := range out {
+		if i == 0 || id != out[n-1] {
+			out[n] = id
+			n++
+		}
+	}
+	return out[:n]
 }
 
 // find runs a query and returns the documents; a limit of zero or less means no limit.

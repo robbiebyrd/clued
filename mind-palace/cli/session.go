@@ -582,7 +582,7 @@ as capture is (redactAtCapture, excludePaths).`,
 func (a *App) sessionForgetCmd() *cobra.Command {
 	var args query.ForgetArgs
 	c := &cobra.Command{
-		Use:   "forget [--session id]... [--project re] [--before day]",
+		Use:   "forget [--session id]... [--project re] [--before day] [--limit n]",
 		Short: "Delete captured sessions and everything stored for them",
 		Long: `Deletes the account's sessions that match every criterion given (at least
 one is required) from the store, local MongoDB or the clued server, with
@@ -609,6 +609,7 @@ own transcript files are not touched. It cannot be undone.`,
 	f.StringSliceVar(&args.SessionIDs, "session", nil, "forget this session (repeatable)")
 	f.StringVar(&args.ProjectPath, "project", "", "forget sessions whose project path matches this regular expression")
 	f.StringVar(&args.Before, "before", "", "forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time")
+	f.IntVar(&args.Limit, "limit", 0, "with --project or --before, forget at most this many sessions, the oldest first (more: true when others match)")
 	return c
 }
 
