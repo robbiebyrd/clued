@@ -281,7 +281,7 @@ prints JSON.
 | `session export [--session id]... [--project re] [--since day] [--format md\|html\|jsonl\|zip] [--out path] [--force] [--raw]` | Write sessions to Markdown, a self-contained HTML page, Claude Code's JSONL, or a zip of many (which `session import` reads back); redacted unless `--raw` |
 | `session otel-export [--session id]... [--project re] [--since day]` | Send sessions to `otelEndpoint` as traces (older sessions, or after an outage; spans sent before are skipped) |
 | `session import <file.jsonl\|export.zip>` | Read a JSONL transcript or a zip export back into the store |
-| `session forget [--session id]... [--project re] [--before day]` | Delete captured sessions from the store (local MongoDB or the server) with everything stored for them; at least one criterion |
+| `session forget [--session id]... [--project re] [--before day] [--limit n]` | Delete captured sessions from the store (local MongoDB or the server) with everything stored for them; at least one criterion; `--limit` deletes the oldest n and reports `more` when others match |
 | `session usage [--by session\|model\|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]` | Token usage and estimated cost (what `usage` does) |
 | `session limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]` | The status line's context and usage-limit samples (what `get_limits` does) |
 | `session activities [--session id] [--git-origin re] [--project-path re] [--kind k]... [--since t] [--include-rejected] [--limit n]` | What the agent did, newest first, repeats collapsed (what `get_activities` does) |

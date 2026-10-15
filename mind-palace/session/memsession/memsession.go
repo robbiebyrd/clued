@@ -40,7 +40,8 @@ var _ session.Store = (*Store)(nil)
 // New returns an empty store.
 func New() *Store { return &Store{cols: map[string][]session.Doc{}} }
 
-// DeleteAccount drops every document of every collection stamped with the account.
+// DeleteSessions deletes the sessions the query selects with their
+// documents, oldest first under a limit, and orphaned captures when asked.
 func (s *Store) DeleteSessions(_ context.Context, q session.ForgetQuery) (session.Forgotten, error) {
 	out := session.Forgotten{Sessions: []string{}}
 	if q.AccountID == "" {
@@ -65,6 +66,7 @@ func (s *Store) DeleteSessions(_ context.Context, q session.ForgetQuery) (sessio
 		}
 	} else {
 		inSessions := setOf(q.SessionIDs)
+		var found []session.Doc
 		for _, d := range s.cols[sessions] {
 			if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
 				continue
@@ -75,7 +77,19 @@ func (s *Store) DeleteSessions(_ context.Context, q session.ForgetQuery) (sessio
 			if !q.Before.IsZero() && !timeOf(d, "last_seen").Before(q.Before) {
 				continue
 			}
+			found = append(found, d)
+		}
+		sort.SliceStable(found, func(i, j int) bool { return timeOf(found[i], "last_seen").Before(timeOf(found[j], "last_seen")) })
+		if q.Limit > 0 && len(found) > q.Limit {
+			found, out.More = found[:q.Limit], true
+		}
+		for _, d := range found {
 			ids[strOf(d, "session_id")] = true
+		}
+		if q.Orphans && re == nil {
+			if s.orphans(q, inSessions, ids) {
+				out.More = true
+			}
 		}
 	}
 	if len(ids) == 0 {
@@ -99,6 +113,59 @@ func (s *Store) DeleteSessions(_ context.Context, q session.ForgetQuery) (sessio
 	return out, nil
 }
 
+// orphans adds to ids, per capture collection, up to q.Limit session ids
+// (all with no limit) of the account's documents created before q.Before
+// (timestamp for OpenTelemetry events) whose session has no record, oldest
+// first; only the ids in inSessions when it is not empty. It reports
+// whether a collection held more. Callers hold s.mu.
+func (s *Store) orphans(q session.ForgetQuery, inSessions, ids map[string]bool) bool {
+	recorded := map[string]bool{}
+	for _, d := range s.cols[sessions] {
+		if owned(d, q.AccountID) {
+			recorded[strOf(d, "session_id")] = true
+		}
+	}
+	more := false
+	for _, col := range []string{hookEvents, transcriptLines, subagentLines, blobs, otelEvents} {
+		field := "created_at"
+		if col == otelEvents {
+			field = "timestamp"
+		}
+		first := map[string]time.Time{}
+		for _, d := range s.cols[col] {
+			sid := strOf(d, "session_id")
+			if sid == "" || !owned(d, q.AccountID) || recorded[sid] || (len(inSessions) > 0 && !inSessions[sid]) {
+				continue
+			}
+			at := timeOf(d, field)
+			if at.IsZero() || !at.Before(q.Before) {
+				continue
+			}
+			if prev, seen := first[sid]; !seen || at.Before(prev) {
+				first[sid] = at
+			}
+		}
+		found := make([]string, 0, len(first))
+		for sid := range first {
+			found = append(found, sid)
+		}
+		sort.Slice(found, func(i, j int) bool {
+			if a, b := first[found[i]], first[found[j]]; !a.Equal(b) {
+				return a.Before(b)
+			}
+			return found[i] < found[j]
+		})
+		if q.Limit > 0 && len(found) > q.Limit {
+			found, more = found[:q.Limit], true
+		}
+		for _, sid := range found {
+			ids[sid] = true
+		}
+	}
+	return more
+}
+
+// DeleteAccount drops every document of every collection stamped with the account.
 func (s *Store) DeleteAccount(_ context.Context, accountID string) (int64, error) {
 	if accountID == "" {
 		return 0, session.ErrNoAccount
