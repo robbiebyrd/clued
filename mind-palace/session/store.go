@@ -99,16 +99,31 @@ type TextQuery struct {
 }
 
 // ForgetQuery selects the account's sessions to delete with everything
-// captured for them (hook events, transcript and subagent lines, blobs).
-// The criteria are ANDed over the session records: SessionIDs, a regular
-// expression over the project path, and Before (sessions last seen before
-// it). With SessionIDs alone, documents of those ids are deleted even when
-// their session record is gone. A query with no criterion deletes nothing.
+// captured for them (hook events, transcript and subagent lines, blobs,
+// OpenTelemetry events). The criteria are ANDed over the session records:
+// SessionIDs, a regular expression over the project path, and Before
+// (sessions last seen before it). With SessionIDs alone, documents of those
+// ids are deleted even when their session record is gone. A query with no
+// criterion deletes nothing.
+//
+// Limit, when above zero and ProjectPathRe or Before is given, bounds one
+// call: it deletes at most Limit sessions, the oldest last_seen first, and
+// Forgotten.More reports that more match. With SessionIDs alone it is
+// ignored. Orphans, with Before and without ProjectPathRe, also deletes the
+// captures whose session record is gone (of the SessionIDs when given):
+// documents with a session id and the account's stamp, created before
+// Before (timestamp for OpenTelemetry events), whose session id has no
+// session record in the account. Documents without a session id (a daily
+// digest, an account-level memory) are never orphans. Limit bounds the
+// orphan session ids each collection contributes to one call. Without
+// Before, Orphans is ignored and does not make a query non-empty.
 type ForgetQuery struct {
 	AccountID     string    `json:"-"`
 	SessionIDs    []string  `json:"sessionIds"`
 	ProjectPathRe string    `json:"projectPathRe"`
 	Before        time.Time `json:"before"`
+	Limit         int       `json:"limit,omitempty"`
+	Orphans       bool      `json:"orphans,omitempty"`
 }
 
 // Empty reports whether the query has no criterion.
@@ -116,11 +131,14 @@ func (q ForgetQuery) Empty() bool {
 	return len(q.SessionIDs) == 0 && q.ProjectPathRe == "" && q.Before.IsZero()
 }
 
-// Forgotten is what DeleteSessions deleted: the session ids and the number
-// of documents across every collection.
+// Forgotten is what DeleteSessions deleted: the session ids (sorted,
+// orphaned ones included) and the number of documents across every
+// collection. More reports that a Limit cut the call short: calling again
+// with the same query deletes the next batch.
 type Forgotten struct {
 	Sessions  []string `json:"sessions"`
 	Documents int64    `json:"documents"`
+	More      bool     `json:"more,omitempty"`
 }
 
 // LimitQuery selects LimitsSampled events (the context-window and
