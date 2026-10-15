@@ -82,7 +82,10 @@ to MongoDB. The bash hooks read the mode with
 
 ### 2.1 Registrations
 
-`hooks.json` registers the plugin's hooks for 29 Claude Code events. Every
+`hooks/hooks.json` registers the plugin's hooks for 29 Claude Code events
+(Claude Code loads a plugin's hooks from that path; commands quote
+`"${CLAUDE_PLUGIN_ROOT}"`). Each hook is registered once, there or in the
+settings mirror below, never both. Every
 event runs `${CLAUDE_PLUGIN_ROOT}/hooks/event-relay` asynchronously; these
 events run more:
 
@@ -102,11 +105,35 @@ The other events (`PostToolUse`, `PostToolUseFailure`, `PostToolBatch`,
 `WorktreeRemove`, `InstructionsLoaded`, `CwdChanged`, `FileChanged`) relay
 only. No hook sets a timeout; Claude Code's defaults apply.
 
-`hooks/register-hooks` writes a subset of the same registrations, with
-absolute paths, into `${CLAUDE_CONFIG_DIR:-$HOME}/.claude/settings.json`:
-`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`,
-`SessionEnd`, `Notification` and `SubagentStop`. It removes stale clued
-entries first, needs `jq`, and prints `clued: registered hooks in <path>`.
+`hooks/register-hooks [--settings | --plugin] [--quiet]` needs `jq` and
+edits `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json`, leaving non-clued
+entries alone:
+
+- Every run writes the launcher
+  `${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/clued}/bin/clued-hook`
+  and `plugin-root` (the plugin root it ran from) next to `bin/`. The
+  launcher reads `plugin-root`, exports `CLAUDE_PLUGIN_DATA` and
+  `CLAUDE_PLUGIN_ROOT`, and execs `<root>/hooks/<name>` for `event-relay`,
+  `session-start` and `check-setup`, else `<root>/scripts/clued <args>`;
+  it exits 0 when the root is gone.
+- No flag: a mirror written through the launcher is refreshed; any other
+  clued entry (an older clued's mirror with absolute paths) is removed, and
+  an empty `hooks` key is dropped.
+- `--settings`: writes every `hooks/hooks.json` registration into
+  `settings.json` with `"<launcher>" <name>` or `"<launcher>" <args>` as the
+  command.
+- `--plugin`: removes clued's entries.
+- The status line (`statusLine`, section 9) is `"<launcher>" hook status`.
+
+It prints `clued: hooks are registered by the plugin (hooks/hooks.json); no
+clued hook in <path>` or `clued: mirrored the plugin's hooks into <path>
+through <launcher>` (nothing with `--quiet`) and exits 0.
+`scripts/verify-prime.sh [--claude <bin>] [--repo <dir>] [--keep]` runs real
+`claude -p` sessions for configurations A (plugin), B (settings mirror), C
+(upgrade from an older mirror) and D (A resumed) and prints `claude --version
+| config | hook ran | context seen | copies`; it exits 0 when each shows one
+prime report, 1 otherwise, 2 on a usage error and 3 without Claude
+credentials.
 
 ### 2.2 `hooks/event-relay`
 
@@ -128,7 +155,7 @@ The port is `port` from the config file (default 8085), overridden by
 
 ### 2.3 `hooks/session-start`
 
-Always runs `hooks/register-hooks` in the background and
+Always runs `hooks/register-hooks --quiet` in the background and
 `hooks/install-remember-listener`, then:
 
 - Remote mode: reads stdin, pipes it to `scripts/clued hook relay` in the

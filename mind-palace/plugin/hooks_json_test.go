@@ -22,7 +22,7 @@ type hookGroup struct {
 const writeGuardMatcher = "Write|Edit|MultiEdit|NotebookEdit|Bash|EnterPlanMode|ExitPlanMode"
 
 func TestHooksJSONRegistersWriteGuardAsBlockingPreToolUse(t *testing.T) {
-	b, err := os.ReadFile(filepath.Join(repoRoot(t), "hooks.json"))
+	b, err := os.ReadFile(filepath.Join(repoRoot(t), "hooks", "hooks.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestHooksJSONRegistersWriteGuardAsBlockingPreToolUse(t *testing.T) {
 	var guard *hookGroup
 	for i, g := range doc.Hooks["PreToolUse"] {
 		for _, h := range g.Hooks {
-			if strings.HasSuffix(h.Command, "/scripts/clued hook write-guard") {
+			if strings.HasSuffix(h.Command, "/scripts/clued\" hook write-guard") {
 				guard = &doc.Hooks["PreToolUse"][i]
 			}
 		}
@@ -50,7 +50,7 @@ func TestHooksJSONRegistersWriteGuardAsBlockingPreToolUse(t *testing.T) {
 		t.Fatalf("hooks = %d, want 1", len(guard.Hooks))
 	}
 	h := guard.Hooks[0]
-	if h.Type != "command" || h.Command != "${CLAUDE_PLUGIN_ROOT}/scripts/clued hook write-guard" {
+	if h.Type != "command" || h.Command != `"${CLAUDE_PLUGIN_ROOT}/scripts/clued" hook write-guard` {
 		t.Errorf("hook = %+v", h)
 	}
 	if h.Async != nil {
@@ -58,10 +58,10 @@ func TestHooksJSONRegistersWriteGuardAsBlockingPreToolUse(t *testing.T) {
 	}
 }
 
-// readHooksJSON parses the plugin's hooks.json.
+// readHooksJSON parses the plugin's hooks/hooks.json.
 func readHooksJSON(t *testing.T) map[string][]hookGroup {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join(repoRoot(t), "hooks.json"))
+	b, err := os.ReadFile(filepath.Join(repoRoot(t), "hooks", "hooks.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,31 +88,31 @@ func findHook(groups []hookGroup, suffix string) *hookEntry {
 
 func TestHooksJSONRunsStopGuardSynchronouslyOnStop(t *testing.T) {
 	hooks := readHooksJSON(t)
-	h := findHook(hooks["Stop"], "/scripts/clued hook stop-guard")
+	h := findHook(hooks["Stop"], "/scripts/clued\" hook stop-guard")
 	if h == nil {
 		t.Fatal("stop-guard missing from Stop")
 	}
-	if h.Type != "command" || !strings.HasPrefix(h.Command, "${CLAUDE_PLUGIN_ROOT}/scripts/clued") {
+	if h.Type != "command" || !strings.HasPrefix(h.Command, `"${CLAUDE_PLUGIN_ROOT}/scripts/clued"`) {
 		t.Errorf("hook = %+v", *h)
 	}
 	if h.Async != nil {
 		t.Error("a blocking hook must not set async")
 	}
-	if findHook(hooks["Stop"], "/hooks/event-relay") == nil {
+	if findHook(hooks["Stop"], "/hooks/event-relay\"") == nil {
 		t.Error("Stop must still be relayed to the daemon")
 	}
 }
 
 func TestHooksJSONRunsStatusReviewOnSessionStartAndThrottledOnPrompts(t *testing.T) {
 	hooks := readHooksJSON(t)
-	const shim = "${CLAUDE_PLUGIN_ROOT}/scripts/clued"
-	if h := findHook(hooks["SessionStart"], "/scripts/clued hook status-review"); h == nil || h.Async != nil || !strings.HasPrefix(h.Command, shim) {
+	const shim = `"${CLAUDE_PLUGIN_ROOT}/scripts/clued"`
+	if h := findHook(hooks["SessionStart"], "/scripts/clued\" hook status-review"); h == nil || h.Async != nil || !strings.HasPrefix(h.Command, shim) {
 		t.Errorf("SessionStart status-review = %+v, want a synchronous hook run from %s", h, shim)
 	}
-	if h := findHook(hooks["SessionStart"], "/scripts/clued hook prime"); h == nil || h.Async != nil || !strings.HasPrefix(h.Command, shim) {
+	if h := findHook(hooks["SessionStart"], "/scripts/clued\" hook prime"); h == nil || h.Async != nil || !strings.HasPrefix(h.Command, shim) {
 		t.Errorf("SessionStart prime = %+v, want a synchronous hook run from %s (an async hook's output is not added as context)", h, shim)
 	}
-	h := findHook(hooks["UserPromptSubmit"], "/scripts/clued hook status-review --every 30m")
+	h := findHook(hooks["UserPromptSubmit"], "/scripts/clued\" hook status-review --every 30m")
 	if h == nil || h.Async != nil || !strings.HasPrefix(h.Command, shim) {
 		t.Errorf("UserPromptSubmit status-review = %+v, want a synchronous throttled hook run from %s", h, shim)
 	}
@@ -120,7 +120,7 @@ func TestHooksJSONRunsStatusReviewOnSessionStartAndThrottledOnPrompts(t *testing
 
 func TestHooksJSONIngestsMemoryAtSessionEnd(t *testing.T) {
 	hooks := readHooksJSON(t)
-	h := findHook(hooks["SessionEnd"], "/scripts/clued session memory-ingest --quiet")
+	h := findHook(hooks["SessionEnd"], "/scripts/clued\" session memory-ingest --quiet")
 	if h == nil || h.Async == nil || !*h.Async {
 		t.Errorf("SessionEnd memory-ingest = %+v, want an async hook", h)
 	}

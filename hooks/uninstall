@@ -6,7 +6,9 @@
 # Remote mode (serverUrl set, or CLUED_SERVER_URL): there is no daemon, so
 #          nothing is probed or stopped.
 # Always:  removes the hook relay's catch-up state (<data dir>/catchup/) and
-#          its log (<data dir>/relay.log), even with --keep-config
+#          its log (<data dir>/relay.log), clued's entries in settings.json
+#          (a settings mirror) and the hook launcher (bin/clued-hook,
+#          plugin-root), even with --keep-config
 # macOS:   unloads and removes ~/Library/LaunchAgents/org.mongodb.mongod.plist
 #          when it is present (a local MongoDB install)
 # Server stack (`mind-palace server init` under ~/.clued-server or
@@ -139,7 +141,7 @@ fi
 SETTINGS="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
 if command -v jq &>/dev/null && [[ -f "$SETTINGS" ]]; then
   current=$(jq -r '.statusLine.command // empty' "$SETTINGS" 2>/dev/null)
-  if [[ "$current" == *"/scripts/clued hook status"* ]]; then
+  if [[ "$current" == *"/scripts/clued hook status"* || "$current" == *"/bin/clued-hook"*" hook status"* ]]; then
     then=$(jq -r '.then // empty' "${DATA_DIR}/statusline.json" 2>/dev/null)
     TMP="${SETTINGS}.tmp.$$"
     if [[ -n "$then" ]]; then
@@ -151,6 +153,27 @@ if command -v jq &>/dev/null && [[ -f "$SETTINGS" ]]; then
     echo "clued: status line restored"
   fi
 fi
+
+# --- Settings hooks: a mirror (`register-hooks --settings`, or an older clued's) would dangle ---
+if command -v jq &>/dev/null && [[ -f "$SETTINGS" ]]; then
+  TMP="${SETTINGS}.tmp.$$"
+  if jq '
+    def is_clued:
+      [.hooks[]?.command // empty] | any(test("/hooks/(event-relay|session-start|check-setup|guard-superpowers-plans)\"?$|/(bin|scripts)/clued\"? (hook |session memory-ingest)|/bin/clued-hook\"?( |$)"));
+    if .hooks then
+      (.hooks | with_entries(.value |= map(select(is_clued | not))) | with_entries(select(.value | length > 0))) as $h
+      | if $h == {} then del(.hooks) else .hooks = $h end
+    else . end' "$SETTINGS" > "$TMP" && ! cmp -s "$TMP" "$SETTINGS"; then
+    mv "$TMP" "$SETTINGS"
+    echo "clued: removed clued hooks from $SETTINGS"
+  else
+    rm -f "$TMP"
+  fi
+fi
+# The hook launcher register-hooks wrote under the plugin data dir.
+for d in "$DATA_DIR" ${CLAUDE_PLUGIN_DATA:+"$CLAUDE_PLUGIN_DATA"}; do
+  rm -f "${d}/bin/clued-hook" "${d}/plugin-root"
+done
 
 # --- Config, data and the bin/ dir with the downloaded release binary (inside the data dir) ---
 if [[ $KEEP_CONFIG -eq 0 && -d "$DATA_DIR" ]]; then

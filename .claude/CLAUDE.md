@@ -10,10 +10,14 @@ binary.
 
 | Path | What it is |
 |---|---|
-| `hooks.json`, `hooks/` | Hook registrations and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `install-remember-listener`, `uninstall`) |
+| `hooks/hooks.json`, `hooks/` | The plugin's hook registrations (the only ones: Claude Code loads `hooks/hooks.json`, never a root `hooks.json`) and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `install-remember-listener`, `uninstall`) |
+| `scripts/verify-prime.sh` | Manual check, on each release, that the prime report reaches the model once with the plugin's hooks, the settings mirror, an upgrade and a resume (real `claude -p` sessions; `plugin/verify_prime_test.go` runs it only with `CLUED_VERIFY_PRIME=1`) |
 | `scripts/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the release pinned by `.claude-plugin/plugin.json`'s `version`, downloaded once into `~/.claude/plugins/data/clued/bin/releases/v<version>/`, then PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`); `--locate` prints the choice |
+| `CONTRIBUTING.md`, `SECURITY.md`, `TRADEMARKS.md` | Contributor terms (DCO 1.1 sign-off, `## Sign-off`), private security reports to `security@clued.cloud`, the trademark note; `scripts/check-dco.sh` and `.github/workflows/dco.yml` enforce the sign-off on pull requests |
+| `LICENSE`, `NOTICE` | Apache-2.0 (verbatim) and the NOTICE (`Copyright 2026 Space Hippo, LC`), with byte-identical copies in `mind-palace/` so the Go module zip carries them; `plugin/license_test.go` checks both pairs |
+| `.claude/CLAUDE.md` | This file; it lives under `.claude/` because a `CLAUDE.md` at the plugin root fails `claude plugin validate . --strict` (`plugin/license_test.go` runs it when `claude` is installed) |
 | `.claude-plugin/plugin.json` | The plugin manifest; its `version` names the GitHub release (`v<version>`) whose binaries the shim downloads |
-| `scripts/build-binaries.sh` | Reproducible cross-compile of `mind-palace` for 7 platforms plus `SHA256SUMS` into a directory (`dist/` by default, git-ignored); `--target os/arch` builds one (CI's per-target matrix), `--sums DIR` writes the checksums over collected binaries (the release job); never committed |
+| `scripts/build-binaries.sh` | Reproducible cross-compile of `mind-palace` for 7 platforms plus `SHA256SUMS` into a directory (`dist/` by default, git-ignored); `--target os/arch` builds one (CI's per-target matrix), `--sums DIR` writes the checksums over collected binaries (the release job), `--licenses DIR` saves every linked module's licence with `go-licenses` as `THIRD_PARTY_LICENSES/` and `THIRD_PARTY_LICENSES.tar.gz` (a release asset, and `/usr/share/licenses/clued-server/` in the image; CI's `go-licenses check` refuses forbidden, restricted and unknown licences); never committed |
 | `.mcp.json` | The two stdio MCP servers the plugin registers: `clued` (session tools) and `mind-palace` (plan and story tools) |
 | `commands/`, `skills/` | `/clued-setup`, `/clued-uninstall`, and the `plan-storage` skill |
 | `mind-palace/` | The Go module (`github.com/robbiebyrd/clued/mind-palace`); see its README for the package map |
@@ -99,8 +103,8 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   `sessionmcp`) only translate. Hooks the binary serves are `mind-palace
   hook …` subcommands (`write-guard`, `stop-guard`, `status-review`,
   `prime`, and `relay`, which `hooks/event-relay` and `hooks/session-start`
-  run in remote mode) registered in `hooks.json` and `hooks/register-hooks` as
-  `${CLAUDE_PLUGIN_ROOT}/scripts/clued hook …`; they print bare hook JSON,
+  run in remote mode) registered in `hooks/hooks.json` as
+  `"${CLAUDE_PLUGIN_ROOT}/scripts/clued" hook …`; they print bare hook JSON,
   not the `{"ok": …}` envelope, and `hook relay` prints nothing and always
   exits 0.
   Store plugins persist what they are given and must pass `store/storetest`;
@@ -123,6 +127,16 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   `remote.project` key overrides the project slug on the server). The hooks
   detect the mode the same way: `serverUrl` from the file, overridden by
   `CLUED_SERVER_URL`.
+- Each hook is registered exactly once, in `hooks/hooks.json`
+  (`plugin/hooks_layout_test.go`). `hooks/register-hooks` writes no hook
+  into `settings.json` by default and removes an older clued's mirror (a
+  hook registered in both places runs twice); `--settings` mirrors
+  `hooks/hooks.json` through the launcher
+  `${CLAUDE_PLUGIN_DATA:-~/.claude/plugins/data/clued}/bin/clued-hook`
+  (which reads `plugin-root`, so a moved plugin root does not strand it),
+  for setups where the plugin's hooks are not loaded. The status line is
+  the one clued entry settings keep. See README "Where the hooks are
+  registered" and anthropics/claude-code#16538.
 - Paths that come from hook requests are validated inline with
   `filepath.IsLocal` / `filepath.Clean` + prefix checks (CodeQL needs to see
   the guard at the point of use).
@@ -132,6 +146,16 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   MCP tools (or `mind-palace plan create`), stories with `story_*`, and both
   change through the setters (`plan_setStatus`, `story_setCriterion`, …) or
   `plan_update` / `story_update` for the content.
+- Every commit is signed off under the DCO (`git commit -s`;
+  CONTRIBUTING.md#sign-off): the `DCO` workflow (`scripts/check-dco.sh`)
+  fails a pull request with a commit whose author has no matching
+  `Signed-off-by:`. An agent committing as Robbie Byrd adds
+  `Signed-off-by: Robbie Byrd <me@robbiebyrd.com>` alongside the
+  `Co-Authored-By:` trailer; an agent committing under its own identity
+  signs off as that identity (what `git commit -s` writes). Security
+  reports go to `security@clued.cloud` (SECURITY.md), licensing to
+  `legal@clued.cloud`; the code is Apache-2.0 (LICENSE, NOTICE), the
+  names and logo are Space Hippo, LC's (TRADEMARKS.md).
 - Releases are automatic; never push a `v*` tag or edit the version for a
   patch by hand. `scripts/release-plan.sh` decides what a run releases: a
   version in `.claude-plugin/plugin.json` with no release yet (a minor or
@@ -152,6 +176,6 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   `ghcr.io/robbiebyrd/clued-server:v<version>` (and `:latest`) from the
   Linux ones and creates the release `v<version>`, tag included, with the
   `mind-palace_<os>_<arch>` assets and `SHA256SUMS` that `scripts/clued`
-  downloads on first use. A manual run of the workflow completes a release
+  downloads on first use, plus `THIRD_PARTY_LICENSES.tar.gz`. A manual run of the workflow completes a release
   with missing assets but bumps nothing. The job pushes to main with the
   workflow's token, so a branch rule that blocks it fails the release.

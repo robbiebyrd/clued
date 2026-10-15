@@ -100,9 +100,9 @@ then `/reload-plugins`.
 
 | Piece | Role |
 |---|---|
-| `hooks.json` | Registers the hooks below for every Claude Code hook event; no manual edit of `settings.json` is needed |
+| `hooks/hooks.json` | Registers the hooks below for every Claude Code hook event, once each: it is the file Claude Code loads from an installed plugin (a `hooks.json` at the plugin root is never loaded), so no `settings.json` entry is needed (see [Where the hooks are registered](#where-the-hooks-are-registered)) |
 | `hooks/check-setup` | SessionStart: prints one system message when the config file (and an environment that names a server) or the `mind-palace` binary is missing, or when a Claude Code cloud container has no server; in remote mode also when the server is unreachable, rejects the token, or the token does not cover this repository's project |
-| `hooks/session-start` | SessionStart (async): re-runs `register-hooks` and `install-remember-listener`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` and a `session memory-ingest`. In remote mode, and in a Claude Code cloud container, it starts no daemon: in remote mode the SessionStart event goes through `scripts/clued hook relay` and the backfill runs against the server |
+| `hooks/session-start` | SessionStart (async): re-runs `register-hooks --quiet` (the launcher's `plugin-root`, a stale settings mirror) and `install-remember-listener`, rebuilds a dev checkout when `devRepoPath` is set, restarts the daemon when the binary it runs changed, starts `mind-palace session daemon` if its health check fails, then runs `mind-palace session backfill` and a `session memory-ingest`. In remote mode, and in a Claude Code cloud container, it starts no daemon: in remote mode the SessionStart event goes through `scripts/clued hook relay` and the backfill runs against the server |
 | `hooks/install-remember-listener` | Run by `session-start`: writes clued's listener into the `hooks.d/after_save` and `hooks.d/after_consolidate` directories of every installed [claude-remember](https://github.com/Digital-Process-Tools/claude-remember) plugin (see [claude-remember summaries](#claude-remember-summaries)); a plugin update that removes it is healed on the next start |
 | `scripts/clued session memory-ingest` | SessionEnd (async), the claude-remember listener, and `session-start`: posts the summaries claude-remember wrote since the last run to the daemon as `MemorySaved` events (in remote mode, to the server through the relay) |
 | `hooks/event-relay` | Every other event: POSTs the hook JSON to the daemon; if the daemon is unreachable the event is appended to a write-ahead log the daemon replays later. In remote mode it runs `scripts/clued hook relay` instead |
@@ -112,7 +112,7 @@ then `/reload-plugins`.
 | `scripts/clued hook prime` | SessionStart (startup, resume, clear and after compaction): adds the prime report of the session's directory as context, cut to 8,000 characters and collected within 3 seconds; `primeOnStart: false` turns it off |
 | `scripts/clued hook status` | The status line, when the config sets `statusLine: true`: prints the line (the previous status line command's output, or `ctx 37% of 1M · 5h 12% · 7d 40%`) and records the context window's fill, the five-hour and seven-day usage limits, the model and the cost as `LimitsSampled` events |
 | `scripts/clued hook status-review` | SessionStart, and UserPromptSubmit at most every 30 minutes: tells the assistant to ask you about plans whose stories are all complete and stories whose steps and acceptance criteria are all done but still open |
-| `hooks/register-hooks` | Run by `session-start` on every session start when `jq` is present: mirrors the core entries (`SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SessionEnd`, `Notification`, `SubagentStop`, including the four `scripts/clued hook` commands and the SessionEnd `session memory-ingest`) into `~/.claude/settings.json` as a fallback for setups that do not load `hooks.json`, replacing stale clued entries and leaving everything else alone. The remaining events are relayed only through `hooks.json` |
+| `hooks/register-hooks` | Run by `session-start` on every session start and by `/clued-setup` when `jq` is present: writes the hook launcher `~/.claude/plugins/data/clued/bin/clued-hook` (under `$CLAUDE_PLUGIN_DATA` when set) and `plugin-root` next to it, removes the clued entries an older clued mirrored into `~/.claude/settings.json`, and sets or restores the status line; `--settings` mirrors every `hooks/hooks.json` registration into `settings.json` through the launcher instead (for running the hooks without the plugin's hooks loaded), `--plugin` removes that mirror |
 | `hooks/uninstall` | Non-interactive cleanup used by `/clued-uninstall` |
 | `scripts/clued` | Shim that finds and runs `mind-palace` (resolution order below) |
 | `.mcp.json` | Two stdio MCP servers: `clued` (`scripts/clued session mcp`, the session tools) and `mind-palace` (`scripts/clued mcp --no-session-tools --tools core`, the core tier of the plan and story tools) |
@@ -126,6 +126,36 @@ Events relayed to the daemon: `PreToolUse`, `PostToolUse`,
 `PermissionDenied`, `Setup`, `TeammateIdle`, `TaskCreated`, `TaskCompleted`,
 `Elicitation`, `ElicitationResult`, `ConfigChange`, `WorktreeCreate`,
 `WorktreeRemove`, `InstructionsLoaded`, `CwdChanged` and `FileChanged`.
+
+### Where the hooks are registered
+
+Every hook is registered exactly once. The plugin's `hooks/hooks.json` is
+the one registration: Claude Code loads it from the installed plugin and
+delivers a hook's `additionalContext` (the prime report) from it, which
+`scripts/verify-prime.sh` checks on each release (Claude Code 2.1.300: one
+prime report with the plugin's hooks, with a resumed session, with the
+settings mirror alone, and after an upgrade that removed an older mirror).
+Older clued versions also mirrored the core hooks into
+`~/.claude/settings.json` because plugin hook output was reported lost
+([anthropics/claude-code#16538](https://github.com/anthropics/claude-code/issues/16538),
+closed without a fix and not reproducible on 2.1.300); a hook registered in
+both places runs twice, so `register-hooks` now removes that mirror on the
+next session start. The status line is the only clued entry `settings.json`
+keeps (plugins cannot set one).
+
+`register-hooks --settings` writes the mirror back, every registration of
+`hooks/hooks.json` with its command run through the launcher
+`~/.claude/plugins/data/clued/bin/clued-hook`, which reads the plugin root
+from `plugin-root` next to it; every session start rewrites `plugin-root`,
+so the entries survive a plugin root that moves (`clued` to `clued~g2`).
+Use it only where the plugin's own hooks are not loaded (a checkout used
+without installing the plugin, or a Claude Code build where
+`verify-prime.sh` shows plugin hook output lost again): with the plugin
+installed too, every hook runs twice. `register-hooks --plugin` removes it.
+
+```bash
+scripts/verify-prime.sh            # real claude -p sessions; needs Claude credentials
+```
 
 ### How `scripts/clued` finds the binary
 
@@ -626,8 +656,16 @@ them first:
 
 ```bash
 scripts/build-binaries.sh --target linux/amd64 --target linux/arm64 dist
+scripts/build-binaries.sh --licenses dist
 docker build -f Dockerfile.server -t ghcr.io/robbiebyrd/clued-server:dev .
 ```
+
+`--licenses DIR` saves the licence of every module the binary links under
+`DIR/THIRD_PARTY_LICENSES/` (with `go-licenses` v2.0.1) and packs it as
+`DIR/THIRD_PARTY_LICENSES.tar.gz`; the image carries the tree under
+`/usr/share/licenses/clued-server/` next to clued's `LICENSE` and `NOTICE`,
+and CI fails when a dependency's licence is forbidden, restricted or
+unknown.
 
 Releasing is CI's job and needs no tag pushed by hand: every push to main
 is a release. The `release` job of `.github/workflows/mind-palace.yml` runs
@@ -644,7 +682,7 @@ collects the binaries the matrix built with the version stamped in
 in between took the version they carry, assembles and pushes the server image from the Linux ones as
 `ghcr.io/robbiebyrd/clued-server:v<version>` and `:latest`, and creates the
 release `v<version>` (which creates the tag at that commit) with the
-binaries and `SHA256SUMS`. `scripts/clued` on every machine then downloads
+binaries, `SHA256SUMS` and `THIRD_PARTY_LICENSES.tar.gz`. `scripts/clued` on every machine then downloads
 the asset of exactly that release, so the binary a plugin install runs
 always matches the hooks it shipped with.
 
@@ -659,3 +697,17 @@ LAN database; on a machine reachable from an untrusted network change the
 mapping to `127.0.0.1:27018:27017` or enable authentication.
 `docker-compose.webhook.yml` starts a local webhook.site for inspecting hook
 payloads while developing.
+
+## License
+
+clued (the plugin, the `mind-palace` binary and Go module, the daemon and
+the self-hosted clued server) is licensed under the
+[Apache License 2.0](LICENSE); see [NOTICE](NOTICE). Copyright 2026 Space
+Hippo, LC. Clued Cloud (clued.cloud) is a separate product under
+FSL-1.1-ALv2 and is not part of this repository.
+
+Contributions are accepted under the Developer Certificate of Origin: sign
+off every commit (see [CONTRIBUTING.md](CONTRIBUTING.md#sign-off)).
+Licensing questions go to `legal@clued.cloud`; report security issues
+privately to `security@clued.cloud` (see [SECURITY.md](SECURITY.md)), never
+in a public issue.
