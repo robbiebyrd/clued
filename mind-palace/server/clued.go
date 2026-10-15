@@ -111,6 +111,11 @@ type CluedOptions struct {
 	// Writes through the service API, the WebSocket and MCP go through the
 	// palace's own rules and do not call it.
 	BeforePut func(ctx context.Context, prev, next *model.Document) error
+	// Assignee, when set, is the provider:handle GET /api/v1/whoami
+	// suggests the principal claims documents as (the `assignee` field),
+	// so agents' claims match what the server's own pages use; nil or ""
+	// leaves the field out.
+	Assignee func(ctx context.Context, p auth.Principal) string
 	// Config is the plan and story configuration (kinds, workflows,
 	// schemas) every project's palace is built with; config.Default when nil.
 	Config *config.Config
@@ -207,7 +212,7 @@ func NewClued(opts CluedOptions) *Clued {
 	scoped := withProject(c.svc.Handler)
 	routes := &deviceRoutes{flow: opts.Device, clientConfig: opts.ClientConfig}
 	protected := http.NewServeMux()
-	protected.Handle("GET "+PathWhoami, auth.WhoamiHandler(opts.Version))
+	protected.Handle("GET "+PathWhoami, auth.WhoamiHandlerWith(opts.Version, opts.Assignee))
 	routes.protected(protected)
 	protected.Handle(httpapi.Prefix+"/", scoped)
 	protected.Handle(PathWS, scoped)

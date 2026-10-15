@@ -195,3 +195,25 @@ func TestNamespaceCtxReceivesRequestContextAndFailsRequests(t *testing.T) {
 		}
 	}
 }
+
+func TestWhoamiSuggestsTheAssignee(t *testing.T) {
+	c := NewClued(CluedOptions{
+		Tokens:   stubTokens{tokenAB: {Name: "ab", AccountID: "acct-ab", Projects: []string{"a"}}},
+		Sessions: memsession.New(),
+		Open:     func(_ context.Context, key string) (store.Store, error) { return memstore.New(key), nil },
+		Assignee: func(ctx context.Context, p auth.Principal) string {
+			if _, ok := auth.FromContext(ctx); !ok {
+				return "no-principal-on-ctx"
+			}
+			return "clued:" + p.AccountID
+		},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	t.Cleanup(c.Close)
+	ts := httptest.NewServer(c.Handler)
+	t.Cleanup(ts.Close)
+	status, env := call(t, ts, "GET", PathWhoami, "", tokenAB, "")
+	if status != 200 || !strings.Contains(string(env.Result), `"assignee": "clued:acct-ab"`) {
+		t.Fatalf("whoami: %d %s", status, env.Result)
+	}
+}

@@ -765,7 +765,9 @@ func (a *App) sessionWhoamiCmd() *cobra.Command {
 		Use:   "whoami",
 		Short: "Ask the configured clued server who the token is: name, account, projects, server version",
 		Long: `Calls GET /api/v1/whoami on the server named by serverUrl (CLUED_SERVER_URL)
-with the configured token and prints the principal it resolves to. The
+with the configured token and prints the principal it resolves to, with
+the assignee (provider:handle) the server suggests for claims when it has
+one (a clued cloud). The
 command fails when no server is configured (BadRequest), when the token is
 rejected or the server cannot be reached (StorageError), which is what
 check-setup and /clued-setup use as the connectivity probe.`,
@@ -783,9 +785,13 @@ check-setup and /clued-setup use as the connectivity probe.`,
 			if err != nil {
 				return a.sessionFail(err)
 			}
-			a.print(a.Stdout, map[string]any{"ok": true, "result": map[string]any{
+			res := map[string]any{
 				"name": p.Name, "account_id": p.AccountID, "projects": p.Projects, "version": p.Version, "server": client.BaseURL(),
-			}})
+			}
+			if p.Assignee != "" {
+				res["assignee"] = p.Assignee
+			}
+			a.print(a.Stdout, map[string]any{"ok": true, "result": res})
 			return nil
 		},
 	}

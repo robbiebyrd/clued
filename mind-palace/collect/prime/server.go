@@ -20,6 +20,8 @@ type Principal struct {
 	AccountID string   `json:"account_id"`
 	Projects  []string `json:"projects"`
 	Version   string   `json:"version"`
+	// Assignee is the provider:handle the server suggests for claims ("" when it has none).
+	Assignee string `json:"assignee,omitempty"`
 }
 
 // Whoami asks the server c talks to who its token is. A rejected token is
