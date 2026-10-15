@@ -10,7 +10,14 @@ import (
 
 // oldListener is the listener an older clued wrote, with the marker line
 // remove-remember-listener looks for.
-const oldListener = "#!/bin/bash\n# Installed by the clued plugin (hooks/install-remember-listener)\n# on every clued session start.\nexec clued session memory-ingest --quiet\n"
+const oldListener = `#!/bin/bash
+# Installed by the clued plugin (hooks/install-remember-listener) and rewritten
+# on every clued session start. Posts the new records of this memory store to
+# the clued daemon so they become searchable with the clued tools.
+set -u
+[ -n "${REMEMBER_DIR:-}" ] || exit 0
+exec "/opt/clued/scripts/clued" session memory-ingest --dir "$REMEMBER_DIR" --cwd "${PROJECT_DIR:-$PWD}" --quiet
+`
 
 // fakeRemember creates a claude-remember plugin root with the hooks.d
 // directories the plugin ships.

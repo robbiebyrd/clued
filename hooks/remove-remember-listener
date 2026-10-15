@@ -11,7 +11,9 @@
 # CLUED_REMEMBER_ROOTS (colon-separated plugin roots) overrides the search.
 
 LISTENER_NAME="70-clued-ingest.sh"
-MARKER="# Installed by the clued plugin (hooks/install-remember-listener)"
+# The marker line older clued versions wrote as the listener's second line
+# ("# Installed by the clued plugin (hooks/<the installer>) and rewritten").
+MARKER='^# Installed by the clued plugin \(hooks/[a-z]+-remember-listener\)( |$)'
 PLUGINS_DIR="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/plugins"
 
 # remember_roots prints the candidate claude-remember plugin roots, one per line.
@@ -34,7 +36,7 @@ while IFS= read -r root; do
   for event in after_save after_consolidate; do
     target="${root}/hooks.d/${event}/${LISTENER_NAME}"
     [[ -f "$target" && ! -L "$target" ]] || continue
-    if grep -qxF "$MARKER" "$target" 2>/dev/null; then
+    if grep -qE "$MARKER" "$target" 2>/dev/null; then
       rm -f "$target" || echo "clued: could not remove the old claude-remember listener ${target}" >&2
     fi
   done
