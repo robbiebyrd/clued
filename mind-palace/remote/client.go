@@ -47,6 +47,9 @@ var (
 	ErrTooLarge = errors.New("remote: request body too large")
 	// ErrNotFound is an envelope error of kind not_found.
 	ErrNotFound = errors.New("remote: not found")
+	// ErrPrecondition is HTTP 412: an If-Match the server no longer
+	// matches (the document changed since it was read).
+	ErrPrecondition = errors.New("remote: precondition failed")
 )
 
 // Error is any other failed response: an envelope with {ok: false} whose
@@ -251,6 +254,13 @@ type envelopeError struct {
 // with an exchanged token is refused with 401, exchanges once more and
 // retries it once.
 func (c *Client) Do(ctx context.Context, method, path string, in, out any) error {
+	return c.DoHeader(ctx, method, path, nil, in, out)
+}
+
+// DoHeader is Do with extra request headers (If-Match, X-Clued-Force, …);
+// they never replace Authorization, User-Agent, Accept or Content-Type.
+// A 412 wraps ErrPrecondition.
+func (c *Client) DoHeader(ctx context.Context, method, path string, header http.Header, in, out any) error {
 	var payload []byte
 	if in != nil {
 		b, err := json.Marshal(in)
@@ -263,20 +273,20 @@ func (c *Client) Do(ctx context.Context, method, path string, in, out any) error
 	if err != nil {
 		return err
 	}
-	err = c.send(ctx, method, path, payload, out, token)
+	err = c.send(ctx, method, path, header, payload, out, token)
 	if c.key != "" && errors.Is(err, ErrUnauthorized) {
 		token, rerr := c.renew(ctx, token)
 		if rerr != nil {
 			// The exchange says why (a revoked key, no exchange at all).
 			return rerr
 		}
-		err = c.send(ctx, method, path, payload, out, token)
+		err = c.send(ctx, method, path, header, payload, out, token)
 	}
 	return err
 }
 
 // send performs one request with token as the bearer ("" sends none).
-func (c *Client) send(ctx context.Context, method, path string, payload []byte, out any, token string) error {
+func (c *Client) send(ctx context.Context, method, path string, header http.Header, payload []byte, out any, token string) error {
 	var body io.Reader
 	if payload != nil {
 		body = bytes.NewReader(payload)
@@ -291,6 +301,11 @@ func (c *Client) send(ctx context.Context, method, path string, payload []byte, 
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+"/"+strings.TrimLeft(path, "/"), body)
 	if err != nil {
 		return fmt.Errorf("remote: building %s %s: %w", method, path, err)
+	}
+	for k, vs := range header {
+		for _, v := range vs {
+			req.Header.Add(k, v)
+		}
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -330,6 +345,8 @@ func (c *Client) send(ctx context.Context, method, path string, payload []byte, 
 		return wrap(ErrForbidden, method, path, message)
 	case http.StatusRequestEntityTooLarge:
 		return wrap(ErrTooLarge, method, path, message)
+	case http.StatusPreconditionFailed:
+		return wrap(ErrPrecondition, method, path, message)
 	}
 
 	if hasEnvelope && !env.OK {

@@ -258,3 +258,58 @@ func TestForbiddenProject(t *testing.T) {
 		t.Fatalf("expected ErrForbidden, got %v", err)
 	}
 }
+
+func TestPutSendsTheUpdatedLastRead(t *testing.T) {
+	srv := newServer(t)
+	ctx := context.Background()
+	open := func() *Store {
+		s, err := New(def(srv.URL, testToken, testProject+"-ifmatch"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	a, b, blind := open(), open(), open()
+	d := &model.Document{Kind: kind.Story, Path: model.FileName("0001-abc", "feat", "x"), FrontMatter: model.FrontMatter{
+		ID: "0001-abc", Title: "First", Type: "feat", Status: "pending", Priority: "2",
+		Created: "2026-01-01T00:00:00.000Z", Updated: "2026-01-01T00:00:00.000Z",
+	}, Content: "# First\n"}
+	if err := a.Put(ctx, d); err != nil {
+		t.Fatal(err)
+	}
+	ra, err := a.Get(ctx, kind.Story, "0001-abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rb, _ := b.Get(ctx, kind.Story, "0001-abc")
+
+	// B writes first; A's write over its stale read is refused.
+	rb.FrontMatter.Title, rb.FrontMatter.Updated = "By B", "2026-01-02T00:00:00.000Z"
+	if err := b.Put(ctx, rb); err != nil {
+		t.Fatalf("B's put: %v", err)
+	}
+	ra.FrontMatter.Title, ra.FrontMatter.Updated = "By A", "2026-01-03T00:00:00.000Z"
+	if err := a.Put(ctx, ra); !errors.Is(err, store.ErrPrecondition) {
+		t.Fatalf("A's put over a stale read = %v, want store.ErrPrecondition", err)
+	}
+	// B's own follow-up write carries its last write and succeeds.
+	rb.FrontMatter.Updated = "2026-01-04T00:00:00.000Z"
+	if err := b.Put(ctx, rb); err != nil {
+		t.Fatalf("B's second put: %v", err)
+	}
+	// A store that never read the document writes it unconditionally
+	// (the server as a fan-out copy of a local primary).
+	d.FrontMatter.Title, d.FrontMatter.Updated = "Blind", "2026-01-05T00:00:00.000Z"
+	if err := blind.Put(ctx, d); err != nil {
+		t.Fatalf("unconditional put: %v", err)
+	}
+	// After reading again A writes.
+	ra, _ = a.Get(ctx, kind.Story, "0001-abc")
+	if ra.FrontMatter.Title != "Blind" {
+		t.Fatalf("A reads %q", ra.FrontMatter.Title)
+	}
+	ra.FrontMatter.Updated = "2026-01-06T00:00:00.000Z"
+	if err := a.Put(ctx, ra); err != nil {
+		t.Fatalf("A's put after a fresh read: %v", err)
+	}
+}

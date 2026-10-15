@@ -14,6 +14,7 @@ import (
 
 	"github.com/robbiebyrd/clued/mind-palace/kind"
 	"github.com/robbiebyrd/clued/mind-palace/model"
+	"github.com/robbiebyrd/clued/mind-palace/server/httpapi"
 	"github.com/robbiebyrd/clued/mind-palace/store"
 	"github.com/robbiebyrd/clued/mind-palace/store/memstore"
 )
@@ -423,4 +424,176 @@ func TestHandlerRequiresOpen(t *testing.T) {
 		}
 	}()
 	Handler(Options{})
+}
+
+// doHeaders is do with request headers; it also returns the response headers.
+func (c *client) doHeaders(method, path string, body any, headers map[string]string) (int, envelope, http.Header) {
+	c.t.Helper()
+	var rd io.Reader
+	if body != nil {
+		buf, err := json.Marshal(body)
+		if err != nil {
+			c.t.Fatal(err)
+		}
+		rd = bytes.NewReader(buf)
+	}
+	r := httptest.NewRequest(method, path, rd)
+	for k, v := range headers {
+		r.Header.Set(k, v)
+	}
+	w := httptest.NewRecorder()
+	c.h.ServeHTTP(w, r)
+	var env envelope
+	if err := json.Unmarshal(w.Body.Bytes(), &env); err != nil {
+		c.t.Fatalf("%s %s: bad envelope %q: %v", method, path, w.Body.String(), err)
+	}
+	return w.Code, env, w.Header()
+}
+
+func TestPutIfMatch(t *testing.T) {
+	o := newOpener()
+	c := &client{t: t, h: Handler(Options{Open: o.Open})}
+	path := base(projA, kind.Story) + "/0001-abc"
+
+	// If-Match on a document that does not exist is 412 and creates nothing.
+	d := doc(kind.Story, "0001-abc", "First")
+	code, env, _ := c.doHeaders("PUT", path, d, map[string]string{"If-Match": ETag(d.FrontMatter.Updated)})
+	if code != http.StatusPreconditionFailed || env.Error == nil || env.Error.Kind != ErrPrecondition {
+		t.Fatalf("If-Match on a missing document: %d %+v", code, env.Error)
+	}
+	c.expectError("GET", path, nil, 404, ErrNotFound)
+
+	if code, env := c.do("PUT", path, d); code != 200 {
+		t.Fatalf("put: %d %+v", code, env.Error)
+	}
+	code, _, hdr := c.doHeaders("GET", path, nil, nil)
+	if code != 200 || hdr.Get("ETag") != `"2026-01-01T00:00:00.000Z"` {
+		t.Fatalf("GET ETag = %q (%d)", hdr.Get("ETag"), code)
+	}
+	etag := hdr.Get("ETag")
+
+	// A matching If-Match writes and answers the new ETag.
+	next := d.Clone()
+	next.FrontMatter.Title = "Second"
+	next.FrontMatter.Updated = "2026-01-02T00:00:00.000Z"
+	code, env, hdr = c.doHeaders("PUT", path, next, map[string]string{"If-Match": etag})
+	if code != 200 || hdr.Get("ETag") != `"2026-01-02T00:00:00.000Z"` {
+		t.Fatalf("matching If-Match: %d %+v ETag %q", code, env.Error, hdr.Get("ETag"))
+	}
+
+	// The stale ETag is 412 and leaves the document as it is.
+	stale := d.Clone()
+	stale.FrontMatter.Title = "Lost update"
+	stale.FrontMatter.Updated = "2026-01-03T00:00:00.000Z"
+	code, env, _ = c.doHeaders("PUT", path, stale, map[string]string{"If-Match": etag})
+	if code != http.StatusPreconditionFailed || env.Error == nil || env.Error.Kind != ErrPrecondition {
+		t.Fatalf("stale If-Match: %d %+v", code, env.Error)
+	}
+	got, _ := o.stores[projA].Get(context.Background(), kind.Story, "0001-abc")
+	if got.FrontMatter.Title != "Second" {
+		t.Errorf("a stale PUT changed the document: %q", got.FrontMatter.Title)
+	}
+	// A weak tag compares the same way.
+	weak := next.Clone()
+	weak.FrontMatter.Updated = "2026-01-04T00:00:00.000Z"
+	if code, env, _ := c.doHeaders("PUT", path, weak, map[string]string{"If-Match": `W/"2026-01-02T00:00:00.000Z"`}); code != 200 {
+		t.Errorf("weak If-Match: %d %+v", code, env.Error)
+	}
+	// Without If-Match the last writer wins, as before.
+	if code, env := c.do("PUT", path, stale); code != 200 {
+		t.Errorf("unconditional put: %d %+v", code, env.Error)
+	}
+}
+
+// racingStore is a memstore whose Get lets a second writer in between the
+// handler's read and its write, to show the write is conditional.
+type racingStore struct {
+	*memstore.Store
+	once sync.Once
+}
+
+func (s *racingStore) Get(ctx context.Context, k, id string) (*model.Document, error) {
+	d, err := s.Store.Get(ctx, k, id)
+	s.once.Do(func() {
+		if err == nil {
+			other := d.Clone()
+			other.FrontMatter.Title = "Concurrent"
+			other.FrontMatter.Updated = "2026-06-01T00:00:00.000Z"
+			_ = s.Store.Put(ctx, other)
+		}
+	})
+	return d, err
+}
+
+func TestPutIfMatchIsAtomicAgainstAConcurrentWriter(t *testing.T) {
+	ms := memstore.New("race")
+	d := doc(kind.Plan, "0001-abc", "First")
+	if err := ms.Put(context.Background(), d); err != nil {
+		t.Fatal(err)
+	}
+	rs := &racingStore{Store: ms}
+	c := &client{t: t, h: Handler(Options{Open: func(context.Context, string) (store.Store, error) { return rs, nil }})}
+	next := d.Clone()
+	next.FrontMatter.Updated = "2026-01-02T00:00:00.000Z"
+	code, env, _ := c.doHeaders("PUT", base(projA, kind.Plan)+"/0001-abc", next, map[string]string{"If-Match": ETag(d.FrontMatter.Updated)})
+	if code != http.StatusPreconditionFailed {
+		t.Fatalf("PUT racing a concurrent writer: %d %+v, want 412", code, env.Error)
+	}
+	if got, _ := ms.Get(context.Background(), kind.Plan, "0001-abc"); got.FrontMatter.Title != "Concurrent" {
+		t.Errorf("the concurrent write was overwritten: %q", got.FrontMatter.Title)
+	}
+}
+
+func TestBeforePut(t *testing.T) {
+	o := newOpener()
+	type call struct {
+		prev, next *model.Document
+		project    string
+		forced     bool
+	}
+	var calls []call
+	c := &client{t: t, h: Handler(Options{Open: o.Open, BeforePut: func(ctx context.Context, prev, next *model.Document) error {
+		calls = append(calls, call{prev, next, Project(ctx), Forced(ctx)})
+		switch {
+		case next.FrontMatter.Title == "teapot":
+			return &httpapi.StatusError{Status: http.StatusConflict, Kind: "stale", Message: "changed"}
+		case next.FrontMatter.Status == "complete" && !Forced(ctx):
+			return errors.New("story 0001-abc cannot move to complete from pending")
+		}
+		return nil
+	}})}
+	path := base(projA, kind.Story) + "/0001-abc"
+	d := doc(kind.Story, "0001-abc", "First")
+	if code, env := c.do("PUT", path, d); code != 200 {
+		t.Fatalf("create: %d %+v", code, env.Error)
+	}
+	if len(calls) != 1 || calls[0].prev != nil || calls[0].next.FrontMatter.Title != "First" || calls[0].project != projA {
+		t.Fatalf("BeforePut on create: %+v", calls)
+	}
+
+	done := d.Clone()
+	done.FrontMatter.Status = "complete"
+	code, env := c.do("PUT", path, done)
+	if code != http.StatusForbidden || env.Error == nil || env.Error.Kind != ErrForbidden || !strings.Contains(env.Error.Message, "cannot move to complete") {
+		t.Fatalf("refused put: %d %+v", code, env.Error)
+	}
+	if calls[1].prev == nil || calls[1].prev.FrontMatter.Status != "pending" || calls[1].next.FrontMatter.Status != "complete" {
+		t.Errorf("BeforePut prev/next: %+v", calls[1])
+	}
+	if got, _ := o.stores[projA].Get(context.Background(), kind.Story, "0001-abc"); got.FrontMatter.Status != "pending" {
+		t.Errorf("a refused PUT was written: %s", got.FrontMatter.Status)
+	}
+
+	// The force header reaches BeforePut.
+	if code, env, _ := c.doHeaders("PUT", path, done, map[string]string{ForceHeader: "1"}); code != 200 {
+		t.Fatalf("forced put: %d %+v", code, env.Error)
+	}
+	if !calls[2].forced {
+		t.Error("Forced(ctx) was false with X-Clued-Force: 1")
+	}
+
+	// A StatusError answers with its own status.
+	tea := done.Clone()
+	tea.FrontMatter.Title = "teapot"
+	c.expectError("PUT", path, tea, http.StatusConflict, "stale")
 }

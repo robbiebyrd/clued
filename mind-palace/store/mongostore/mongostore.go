@@ -177,23 +177,50 @@ func (s *Store) Get(ctx context.Context, kindName, id string) (*model.Document, 
 	return decode(kindName, d)
 }
 
-func (s *Store) Put(ctx context.Context, d *model.Document) error {
+// record renders d into its stored form.
+func (s *Store) record(d *model.Document) (*mongo.Collection, docRecord, error) {
 	col, err := s.collection(d.Kind)
 	if err != nil {
-		return err
+		return nil, docRecord{}, err
 	}
 	doc, err := markdown.RenderDocument(d)
 	if err != nil {
-		return err
+		return nil, docRecord{}, err
 	}
 	fm := d.FrontMatter
 	id, ok := model.CanonicalID(fm.ID)
 	if !ok {
-		return fmt.Errorf("invalid document id %q", fm.ID)
+		return nil, docRecord{}, fmt.Errorf("invalid document id %q", fm.ID)
 	}
-	rec := docRecord{ID: id, Path: d.Path, Type: fm.Type, Status: fm.Status, Priority: fm.Priority, Title: fm.Title, Updated: fm.Updated, Document: doc}
-	_, err = col.ReplaceOne(ctx, bson.M{"_id": id}, rec, options.Replace().SetUpsert(true))
+	return col, docRecord{ID: id, Path: d.Path, Type: fm.Type, Status: fm.Status, Priority: fm.Priority, Title: fm.Title, Updated: fm.Updated, Document: doc}, nil
+}
+
+func (s *Store) Put(ctx context.Context, d *model.Document) error {
+	col, rec, err := s.record(d)
+	if err != nil {
+		return err
+	}
+	_, err = col.ReplaceOne(ctx, bson.M{"_id": rec.ID}, rec, options.Replace().SetUpsert(true))
 	return err
+}
+
+// PutIf replaces d only while the stored record's updated is prevUpdated
+// (store.ConditionalPutter): one conditional ReplaceOne without upsert, so
+// a concurrent writer between the read and this write makes it match
+// nothing and return store.ErrPrecondition.
+func (s *Store) PutIf(ctx context.Context, d *model.Document, prevUpdated string) error {
+	col, rec, err := s.record(d)
+	if err != nil {
+		return err
+	}
+	res, err := col.ReplaceOne(ctx, bson.M{"_id": rec.ID, "updated": prevUpdated}, rec)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return fmt.Errorf("%w: %s %s", store.ErrPrecondition, d.Kind, rec.ID)
+	}
+	return nil
 }
 
 func (s *Store) Delete(ctx context.Context, kindName, id string) error {
@@ -268,4 +295,7 @@ func (s *Store) DeleteTemplate(ctx context.Context, kindName, id string) error {
 	return nil
 }
 
-var _ store.Store = (*Store)(nil)
+var (
+	_ store.Store             = (*Store)(nil)
+	_ store.ConditionalPutter = (*Store)(nil)
+)

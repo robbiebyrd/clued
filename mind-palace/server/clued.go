@@ -17,6 +17,7 @@ import (
 
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/events"
+	"github.com/robbiebyrd/clued/mind-palace/model"
 	"github.com/robbiebyrd/clued/mind-palace/ops"
 	"github.com/robbiebyrd/clued/mind-palace/server/auth"
 	"github.com/robbiebyrd/clued/mind-palace/server/device"
@@ -101,6 +102,15 @@ type CluedOptions struct {
 	// change (a member removed from a workspace) takes effect on the next
 	// request.
 	NamespaceCtx func(ctx context.Context, p auth.Principal, project string) (string, error)
+	// BeforePut, when set, is storeapi.Options.BeforePut: it sees every
+	// document PUT of the store transport (prev nil for a new document)
+	// and refuses one by returning an error (403 forbidden, or a
+	// *httpapi.StatusError's own status). The context carries the
+	// principal (auth.FromContext), the project slug the request named
+	// (storeapi.Project) and the X-Clued-Force header (storeapi.Forced).
+	// Writes through the service API, the WebSocket and MCP go through the
+	// palace's own rules and do not call it.
+	BeforePut func(ctx context.Context, prev, next *model.Document) error
 	// Config is the plan and story configuration (kinds, workflows,
 	// schemas) every project's palace is built with; config.Default when nil.
 	Config *config.Config
@@ -232,6 +242,7 @@ func NewClued(opts CluedOptions) *Clued {
 			p, ok := auth.FromContext(r.Context())
 			return ok && auth.AllowProject(p, project)
 		},
+		BeforePut: opts.BeforePut,
 	}))
 	protected.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusNotFound, "not_found", fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))

@@ -177,4 +177,47 @@ func Run(t *testing.T, newStore Factory) {
 			t.Errorf("story template deleted with plan template: %v", err)
 		}
 	})
+
+	t.Run("conditional put", func(t *testing.T) {
+		s := newStore(t)
+		c, ok := s.(store.ConditionalPutter)
+		if !ok {
+			t.Skip("the store is not a store.ConditionalPutter")
+		}
+		RunConditionalPut(t, s, c)
+	})
+}
+
+// RunConditionalPut checks a store.ConditionalPutter over s: a write with
+// the stored updated succeeds, one with a stale updated or onto a missing
+// document fails with store.ErrPrecondition and changes nothing.
+func RunConditionalPut(t *testing.T, s store.Store, c store.ConditionalPutter) {
+	t.Helper()
+	ctx := context.Background()
+	d := document(kind.Story, "0004-ddd", "bugs", "pending")
+	if err := c.PutIf(ctx, d, d.FrontMatter.Updated); !errors.Is(err, store.ErrPrecondition) {
+		t.Fatalf("PutIf onto a missing document = %v, want ErrPrecondition", err)
+	}
+	if _, err := s.Get(ctx, kind.Story, "0004-ddd"); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("a failed PutIf created the document: %v", err)
+	}
+	if err := s.Put(ctx, d); err != nil {
+		t.Fatal(err)
+	}
+	next := d.Clone()
+	next.FrontMatter.Status = "in_progress"
+	next.FrontMatter.Updated = "2026-01-02T00:00:00.000Z"
+	if err := c.PutIf(ctx, next, d.FrontMatter.Updated); err != nil {
+		t.Fatalf("PutIf with the stored updated: %v", err)
+	}
+	stale := d.Clone()
+	stale.FrontMatter.Status = "archived"
+	stale.FrontMatter.Updated = "2026-01-03T00:00:00.000Z"
+	if err := c.PutIf(ctx, stale, d.FrontMatter.Updated); !errors.Is(err, store.ErrPrecondition) {
+		t.Fatalf("PutIf with a stale updated = %v, want ErrPrecondition", err)
+	}
+	got, err := s.Get(ctx, kind.Story, "0004-ddd")
+	if err != nil || got.FrontMatter.Status != "in_progress" || got.FrontMatter.Updated != next.FrontMatter.Updated {
+		t.Fatalf("after a stale PutIf: %+v %v; want the in_progress copy kept", got, err)
+	}
 }

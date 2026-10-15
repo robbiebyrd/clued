@@ -18,6 +18,42 @@ import (
 // ErrNotFound is returned when a document or template does not exist in a store.
 var ErrNotFound = errors.New("not found")
 
+// ErrPrecondition is returned (possibly wrapped) by PutIf when the stored
+// document is missing or its front_matter.updated is not the expected one:
+// someone else wrote it since it was read.
+var ErrPrecondition = errors.New("precondition failed: the document changed since it was read")
+
+// ConditionalPutter is implemented by stores that can replace a document
+// only while it is unchanged, atomically (the MongoDB plugin, the memory
+// plugin, MultiStore over such a primary). PutIf writes d only when the
+// stored document of the same kind and id exists and its
+// front_matter.updated equals prevUpdated, and returns ErrPrecondition
+// otherwise, writing nothing.
+type ConditionalPutter interface {
+	PutIf(ctx context.Context, d *model.Document, prevUpdated string) error
+}
+
+// PutIf writes d to s only while the stored document's updated is
+// prevUpdated: through s.PutIf when s is a ConditionalPutter (atomic),
+// else by reading the document and comparing before Put, which narrows but
+// does not close the race with a concurrent writer.
+func PutIf(ctx context.Context, s Store, d *model.Document, prevUpdated string) error {
+	if c, ok := s.(ConditionalPutter); ok {
+		return c.PutIf(ctx, d, prevUpdated)
+	}
+	cur, err := s.Get(ctx, d.Kind, d.ID())
+	if errors.Is(err, ErrNotFound) {
+		return fmt.Errorf("%w: %s %s does not exist", ErrPrecondition, d.Kind, d.ID())
+	}
+	if err != nil {
+		return err
+	}
+	if cur.FrontMatter.Updated != prevUpdated {
+		return fmt.Errorf("%w: %s %s is at %q, not %q", ErrPrecondition, d.Kind, d.ID(), cur.FrontMatter.Updated, prevUpdated)
+	}
+	return s.Put(ctx, d)
+}
+
 // Store is the persistence contract every storage plugin implements.
 // Documents are keyed by kind and ID; Path is carried along so copies stay
 // interchangeable. Business rules (validation, workflow, links) live in the
@@ -246,6 +282,21 @@ func (m *MultiStore) Put(ctx context.Context, d *model.Document) error {
 	return m.fanout("put "+d.Kind+" "+d.ID(), func(s Store) error { return s.Put(ctx, d.Clone()) })
 }
 
+// PutIf writes d to the primary only while its stored copy's updated is
+// prevUpdated (see the package function PutIf), then fans it out to the
+// other stores as Put does. A failed precondition writes nothing anywhere
+// and returns ErrPrecondition.
+func (m *MultiStore) PutIf(ctx context.Context, d *model.Document, prevUpdated string) error {
+	first := true
+	return m.fanout("put "+d.Kind+" "+d.ID(), func(s Store) error {
+		if first {
+			first = false
+			return PutIf(ctx, s, d.Clone(), prevUpdated)
+		}
+		return s.Put(ctx, d.Clone())
+	})
+}
+
 func (m *MultiStore) Delete(ctx context.Context, kind, id string) error {
 	return m.fanout("delete "+kind+" "+id, func(s Store) error { return s.Delete(ctx, kind, id) })
 }
@@ -261,4 +312,7 @@ func (m *MultiStore) DeleteTemplate(ctx context.Context, kind, id string) error 
 	return m.fanout("delete "+kind+" template "+id, func(s Store) error { return s.DeleteTemplate(ctx, kind, id) })
 }
 
-var _ Store = (*MultiStore)(nil)
+var (
+	_ Store             = (*MultiStore)(nil)
+	_ ConditionalPutter = (*MultiStore)(nil)
+)

@@ -21,7 +21,13 @@
 // *httpapi.StatusError answers as it says, one wrapping
 // auth.ErrProjectForbidden 403 forbidden, one wrapping
 // projects.ErrInvalidProject 400 invalid). store.ErrNotFound is 404
-// not_found; a body over MaxBody is 413 too_large. The literal "templates"
+// not_found; a body over MaxBody is 413 too_large.
+//
+// A document GET answers ETag: "<front_matter.updated>". A document PUT
+// with If-Match: "<updated>" is written only while the stored copy still
+// has that updated, atomically on a store.ConditionalPutter (412
+// precondition otherwise, the document left as it was); Options.BeforePut
+// may refuse a PUT (403 forbidden). The literal "templates"
 // segment shadows a document with that id, which no generated id has.
 package storeapi
 
@@ -57,7 +63,15 @@ const (
 	ErrNotFound  = "not_found"
 	ErrTooLarge  = "too_large"
 	ErrStore     = "store"
+	// ErrPrecondition is the kind of a 412: the If-Match of a PUT names an
+	// updated the stored document no longer has (or it does not exist).
+	ErrPrecondition = "precondition"
 )
+
+// ForceHeader is the request header ("1") a client sends to ask for a
+// forced write; BeforePut reads it with Forced. storeapi itself gives it no
+// meaning.
+const ForceHeader = "X-Clued-Force"
 
 // Options configures the handler.
 type Options struct {
@@ -68,6 +82,35 @@ type Options struct {
 	Allow func(r *http.Request, project string) bool
 	// MaxBody limits PUT bodies in bytes (DefaultMaxBody when zero).
 	MaxBody int64
+	// BeforePut, when set, runs before every document PUT with the stored
+	// copy (nil when there is none) and the document about to be written.
+	// An error refuses the write: a *httpapi.StatusError answers as it
+	// says, anything else 403 forbidden with the error's message. ctx is
+	// the request's (the principal is on it), and Project and Forced read
+	// the path's project slug and the ForceHeader from it. The write that
+	// follows is conditional on prev's updated, so a concurrent writer
+	// between the check and the write gets 412 instead of slipping past.
+	BeforePut func(ctx context.Context, prev, next *model.Document) error
+}
+
+type ctxKey int
+
+const (
+	projectKey ctxKey = iota
+	forceKey
+)
+
+// Project is the project slug of the storeapi request ctx belongs to ("" outside one).
+func Project(ctx context.Context) string {
+	p, _ := ctx.Value(projectKey).(string)
+	return p
+}
+
+// Forced reports whether the storeapi request ctx belongs to carries
+// ForceHeader: 1.
+func Forced(ctx context.Context) bool {
+	f, _ := ctx.Value(forceKey).(bool)
+	return f
 }
 
 // Handler returns the store transport.
@@ -140,7 +183,9 @@ func (a *api) handle(op operation) http.HandlerFunc {
 			}
 			return
 		}
-		op(w, r, &request{project: project, kind: k.Name, id: r.PathValue("id"), store: st})
+		ctx := context.WithValue(r.Context(), projectKey, project)
+		ctx = context.WithValue(ctx, forceKey, strings.TrimSpace(r.Header.Get(ForceHeader)) == "1")
+		op(w, r.WithContext(ctx), &request{project: project, kind: k.Name, id: r.PathValue("id"), store: st})
 	}
 }
 
@@ -252,7 +297,28 @@ func (a *api) get(w http.ResponseWriter, r *http.Request, req *request) {
 		writeStoreError(w, err, req.kind+" "+req.id)
 		return
 	}
+	if d.FrontMatter.Updated != "" {
+		w.Header().Set("ETag", ETag(d.FrontMatter.Updated))
+	}
 	httpapi.WriteResult(w, http.StatusOK, d)
+}
+
+// ETag is the entity tag of a document whose front_matter.updated is
+// updated: the value quoted. GET answers it and a PUT's If-Match names it.
+func ETag(updated string) string { return `"` + updated + `"` }
+
+// ifMatch reads the If-Match header of a PUT: the updated it names (the
+// quotes and a weak W/ prefix removed) and whether there is one.
+func ifMatch(r *http.Request) (string, bool) {
+	v := strings.TrimSpace(r.Header.Get("If-Match"))
+	if v == "" {
+		return "", false
+	}
+	v = strings.TrimPrefix(v, "W/")
+	if len(v) >= 2 && strings.HasPrefix(v, `"`) && strings.HasSuffix(v, `"`) {
+		v = v[1 : len(v)-1]
+	}
+	return v, true
 }
 
 func (a *api) put(w http.ResponseWriter, r *http.Request, req *request) {
@@ -281,8 +347,53 @@ func (a *api) put(w http.ResponseWriter, r *http.Request, req *request) {
 		return
 	}
 	d.FrontMatter.ID = id
-	err := req.store.Put(r.Context(), &d)
+	ctx := r.Context()
+	want, conditional := ifMatch(r)
+	var prev *model.Document
+	if conditional || a.opts.BeforePut != nil {
+		got, err := req.store.Get(ctx, req.kind, id)
+		switch {
+		case err == nil:
+			prev = got
+		case !errors.Is(err, store.ErrNotFound):
+			writeStoreError(w, err, req.kind+" "+req.id)
+			return
+		}
+	}
+	if conditional && (prev == nil || prev.FrontMatter.Updated != want) {
+		writePrecondition(w, req.kind+" "+req.id)
+		return
+	}
+	if a.opts.BeforePut != nil {
+		if err := a.opts.BeforePut(ctx, prev, d.Clone()); err != nil {
+			var se *httpapi.StatusError
+			if errors.As(err, &se) {
+				httpapi.WriteError(w, se.Status, se.Kind, se.Message)
+				return
+			}
+			httpapi.WriteError(w, http.StatusForbidden, ErrForbidden, err.Error())
+			return
+		}
+	}
+	var err error
+	if prev != nil {
+		err = store.PutIf(ctx, req.store, &d, prev.FrontMatter.Updated)
+	} else {
+		err = req.store.Put(ctx, &d)
+	}
+	if errors.Is(err, store.ErrPrecondition) {
+		writePrecondition(w, req.kind+" "+req.id)
+		return
+	}
+	if err == nil || errors.As(err, new(*store.FanoutError)) {
+		w.Header().Set("ETag", ETag(d.FrontMatter.Updated))
+	}
 	writeWriteResult(w, &d, err, req.kind+" "+req.id)
+}
+
+// writePrecondition answers 412: the document changed since the client read it.
+func writePrecondition(w http.ResponseWriter, what string) {
+	httpapi.WriteError(w, http.StatusPreconditionFailed, ErrPrecondition, what+" changed since it was read (If-Match does not match its updated); read it again and retry")
 }
 
 func (a *api) delete(w http.ResponseWriter, r *http.Request, req *request) {
