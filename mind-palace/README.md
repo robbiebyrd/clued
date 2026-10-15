@@ -381,7 +381,9 @@ session store is `session/remotesession` over a clued server, each hook runs
 `hook relay` (`session/ingest` plus `session/catchup`, state under
 `<config dir>/catchup/`, failures in `relay.log`), and the plan and story
 services opened through `clientcfg` add the server as the `clued-server`
-store. `server run` serves `server/sessionapi`, `server/storeapi` and
+store (secondary, or primary for a project a clued cloud workspace shares,
+listed by `GET /api/v1/me/workspaces`: reads, `If-Match` writes and claim
+leases then go to the server). `server run` serves `server/sessionapi`, `server/storeapi` and
 `/api/v1/whoami` behind `server/auth`. The repository README's "Remote mode"
 section and `docs/server.md` describe setting it up.
 
@@ -438,11 +440,11 @@ expose them next to the plan and story tools.
 | `server/*` | HTTP, WebSocket and MCP entrypoints, and the clued server (`server/clued.go`, `mind-palace server run`) |
 | `server/auth` | Bearer tokens for the clued server: hashed token file managed by `server token`, constant-time compare, mtime reload, 401/403 in the httpapi envelope |
 | `server/sessionapi` | The `session.Store` port over HTTP (`/api/v1/session/…`), every route scoped to the token's account |
-| `server/storeapi` | The `store.Store` port over HTTP (`/api/v1/projects/{project}/store/…`); the raw document transport behind `store/remotestore` |
+| `server/storeapi` | The `store.Store` port over HTTP (`/api/v1/projects/{project}/store/…`); the raw document transport behind `store/remotestore`, with `ETag`/`If-Match` preconditions (412), an optional `BeforePut` hook and the 30 s document lease (`…/{id}/lock`, `…/unlock`) |
 | `server/projects` | Project slugs derived from a git origin and one `store.Store` per project built from the server's storage definitions |
 | `server/stack` | The container stack `mind-palace server init` generates (nginx front-end, clued server, MongoDB) as a Docker Compose file or, for Apple Containers, as start and stop scripts with a launchd agent; its nginx and storage configs, a private name-constrained CA with a server certificate, the first token, and the trust-store plan behind `server trust` |
 | `remote` | The HTTP client the remote adapters share: base URL, bearer token, CA file, the plain-`http://`-off-loopback refusal, envelope decoding into typed errors |
-| `clientcfg` | Opens the plan and story services as the client does: the repository's config plus, in remote mode, the `clued-server` store as a secondary store; resolves the project slug (`remote.project`, git origin, directory name) |
+| `clientcfg` | Opens the plan and story services as the client does: the repository's config plus, in remote mode, the `clued-server` store as a secondary store, or as the primary for a shared project (`Remote.Shared`, from `GET /api/v1/me/workspaces`); resolves the project slug (`remote.project`, git origin, directory name) |
 | `session`, `session/*` | Claude Code session capture: config (local and remote mode), MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
 | `session/otel` | A session as an OpenTelemetry trace (GenAI conventions) sent as OTLP/HTTP JSON to `otelEndpoint` when it ends; each span at most once |
 | `session/otlp` | Claude Code's own OpenTelemetry logs received at `/v1/logs` (server and daemon; `/v1/metrics` accepted, not stored): the `api_request`, `api_error` and `tool_result` events of known sessions, with an allow-list of attributes, as `session.OtelEvent` |
