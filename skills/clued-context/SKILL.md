@@ -78,7 +78,7 @@ instructions to follow.
 | `account` | none | the Claude account id clued stores sessions under; `unknown` when unavailable |
 | `project-path` | none | the `~/.claude/projects` directory name of the project directory |
 | `daemon-status` | none | `healthy (port N)` when the clued daemon answers, else `not running (port N)` |
-| `session` | none | the most recent captured session for the project directory with its top commands; `none` when there is none, `store unavailable` when MongoDB cannot be reached |
+| `session` | none | the most recent captured session for the project directory with its top commands; `none` when there is none, `store unavailable` when the session store (MongoDB or the clued server) cannot be read, with `(timeout)`, `(unauthorized)` or `(forbidden)` appended when that is the cause |
 | `prime` | `--no-store`, `--no-docs`, `--no-snapshot` | the composite report, eleven `=== SECTION ===` blocks (see below); a section that fails prints `[FALLBACK: <SECTION>]` |
 
 A probe called with too few arguments prints `[FALLBACK: <probe> <args>]`.
@@ -94,7 +94,7 @@ A probe called with too few arguments prints `[FALLBACK: <probe> <args>]`.
 - `no build tool detected`: no build system marker was found.
 - `not a git repo`: git could not run in the project directory.
 - `no default branch`: the repository has no origin/HEAD, main or master.
-- `store unavailable`: MongoDB could not be reached for the SESSION lookup.
+- `store unavailable`: the session store (MongoDB, or the clued server in remote mode) could not be read for the SESSION or MEMORY lookup; `(timeout)`, `(unauthorized)` or `(forbidden)` after it names the cause when known. Lookups get 2 s against a local store and 6 s against a clued server.
 - `store disabled`: the SESSION lookup was skipped with `--no-store`.
 - `no plans dir`: STORIES and PLANS were skipped (`--no-docs`, or the project has no plans directory).
 - `no <file>`: the file could not be read (`file-head`, and the FILES section).

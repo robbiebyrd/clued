@@ -2,6 +2,7 @@ package prime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -25,6 +26,27 @@ const DefaultBudget = 20 * time.Second
 // StoreTimeout bounds the SESSION lookup, connect included: a MongoDB that is
 // down must cost a sentinel line, not the whole budget.
 const StoreTimeout = 2 * time.Second
+
+// RemoteStoreTimeout bounds the same lookups when the store is a clued
+// server: every store call is an HTTPS round trip, so the local bound would
+// report a healthy server as unavailable.
+const RemoteStoreTimeout = 6 * time.Second
+
+// StoreFailure is the sentinel a SESSION or MEMORY lookup prints when the
+// store fails: collect.StoreUnavailable, followed by the cause when it is
+// one the user can act on (a lookup that ran out of time, a token the
+// server rejected or a project it refused).
+func StoreFailure(err error) string {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return collect.StoreUnavailable + " (timeout)"
+	case errors.Is(err, remote.ErrUnauthorized):
+		return collect.StoreUnavailable + " (unauthorized)"
+	case errors.Is(err, remote.ErrForbidden):
+		return collect.StoreUnavailable + " (forbidden)"
+	}
+	return collect.StoreUnavailable
+}
 
 const (
 	baseLogCount  = 15
@@ -407,7 +429,7 @@ func (c *Collector) sessionSection(ctx context.Context, root string, opts Option
 	defer cancel()
 	snap, err := c.Sessions.Current(ctx, filepath.ToSlash(root))
 	if err != nil {
-		return collect.StoreUnavailable, ""
+		return StoreFailure(err), ""
 	}
 	if snap == nil {
 		return collect.None, ""
@@ -465,7 +487,7 @@ func (c *Collector) memory(ctx context.Context, root string, opts Options) strin
 	defer cancel()
 	notes, err := c.Memory.Recent(ctx, filepath.ToSlash(root), memoryCount)
 	if err != nil {
-		return collect.StoreUnavailable
+		return StoreFailure(err)
 	}
 	return MemoryBody(notes)
 }

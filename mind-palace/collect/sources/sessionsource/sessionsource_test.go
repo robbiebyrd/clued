@@ -269,3 +269,45 @@ func TestRecentLeadsWithYesterdaysDigest(t *testing.T) {
 		t.Fatalf("notes = %+v", notes)
 	}
 }
+
+// lightStore fails every store call SessionContext needs beyond the find and
+// the Bash events, so Current only passes if the snapshot skips them.
+type lightStore struct{ session.Store }
+
+var errHeavy = errors.New("heavy store call")
+
+func (lightStore) GetSession(context.Context, string, string) (session.Doc, error) {
+	return nil, errHeavy
+}
+
+func (lightStore) TranscriptLines(context.Context, session.LineQuery) ([]session.Doc, error) {
+	return nil, errHeavy
+}
+
+func (lightStore) MemoryEvents(context.Context, session.MemoryQuery) ([]session.Doc, error) {
+	return nil, errHeavy
+}
+
+func (lightStore) Activities(context.Context, session.ActivityQuery) ([]session.Doc, error) {
+	return nil, errHeavy
+}
+
+func TestCurrentSkipsTheFullSessionContext(t *testing.T) {
+	ctx := context.Background()
+	src := New(connectTo(lightStore{seedSessions(t)}), testAccount)
+	defer src.Close(ctx)
+
+	snap, err := src.Current(ctx, "/work/alpha")
+	if err != nil {
+		t.Fatalf("Current made a store call the snapshot does not need: %v", err)
+	}
+	if snap == nil || snap.SessionID != "a-new" {
+		t.Fatalf("snapshot = %+v, want session a-new", snap)
+	}
+	if want := []string{"go test ./...", "ls -la"}; !reflect.DeepEqual(snap.TopCommands, want) {
+		t.Errorf("TopCommands = %v, want %v", snap.TopCommands, want)
+	}
+	if !snap.LastSeen.Equal(t0.Add(time.Hour)) || snap.Hotness == "" {
+		t.Errorf("LastSeen = %v, Hotness = %q; want the found session's fields", snap.LastSeen, snap.Hotness)
+	}
+}
