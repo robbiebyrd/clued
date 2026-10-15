@@ -26,6 +26,20 @@ func TestPriceForMatchesModelIDsAndTheirSnapshots(t *testing.T) {
 		{"anthropic.claude-sonnet-4-5-20250929-v1:0", nil, 3, 15, true},
 		{"us.anthropic.claude-opus-4-1-20250805-v1:0", nil, 15, 75, true},
 		{"claude-3-5-haiku-20241022", nil, 0.80, 4, true},
+		// Bedrock: regional and global inference profiles, ARNs, versions.
+		{"global.anthropic.claude-sonnet-4-5-20250929-v1:0", nil, 3, 15, true},
+		{"eu.anthropic.claude-haiku-4-5-20251001-v1:0", nil, 1, 5, true},
+		{"apac.anthropic.claude-sonnet-4-20250514-v1:0", nil, 3, 15, true},
+		{"arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-opus-4-1-20250805-v1:0", nil, 15, 75, true},
+		{"anthropic.claude-3-5-haiku-20241022-v1:0", nil, 0.80, 4, true},
+		{"anthropic.claude-opus-4-1-20250805-v2", nil, 15, 75, true},
+		// Vertex AI: @snapshot ids and publisher paths.
+		{"claude-opus-4-1@20250805", nil, 15, 75, true},
+		{"claude-sonnet-4-5@20250929", nil, 3, 15, true},
+		{"publishers/anthropic/models/claude-sonnet-4@20250514", nil, 3, 15, true},
+		{"Claude-Sonnet-4-5[1m]", nil, 3, 15, true},
+		{"us.anthropic.claude-opus-5-6-20261001-v1:0", nil, 0, 0, false}, // a newer model, on Bedrock too
+		{"us.anthropic.claude-unknown-9-v1:0", map[string]ModelPrice{"claude-unknown-9": {Input: 2, Output: 4}}, 2, 4, true},
 		{"claude-opus-5-6", nil, 0, 0, false},   // a newer model is not priced as Opus 5
 		{"claude-sonnet-4-7", nil, 0, 0, false}, // nor as Sonnet 4
 		{"claude-opus-4-5x", nil, 0, 0, false},  // a suffix that is no snapshot
@@ -38,6 +52,24 @@ func TestPriceForMatchesModelIDsAndTheirSnapshots(t *testing.T) {
 		got, ok := PriceFor(c.model, c.overrides)
 		if got.Input != c.input || got.Output != c.output || ok != c.ok {
 			t.Errorf("PriceFor(%q, %v) = %v/%v, %v; want %v/%v, %v", c.model, c.overrides, got.Input, got.Output, ok, c.input, c.output, c.ok)
+		}
+	}
+}
+
+func TestNormalizeModelID(t *testing.T) {
+	for in, want := range map[string]string{
+		"claude-opus-4-1":                                      "claude-opus-4-1",
+		"claude-opus-4-1-20250805":                             "claude-opus-4-1",
+		"us.anthropic.claude-opus-4-1-20250805-v1:0":           "claude-opus-4-1",
+		"global.anthropic.claude-sonnet-4-5-20250929-v1:0":     "claude-sonnet-4-5",
+		"claude-haiku-4-5@20251001":                            "claude-haiku-4-5",
+		"publishers/anthropic/models/claude-sonnet-4@20250514": "claude-sonnet-4",
+		"claude-sonnet-4-5[1m]":                                "claude-sonnet-4-5",
+		"claude-opus-4-5x":                                     "claude-opus-4-5x",
+		" GPT-5 ":                                              "gpt-5",
+	} {
+		if got := NormalizeModelID(in); got != want {
+			t.Errorf("NormalizeModelID(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

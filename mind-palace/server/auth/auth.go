@@ -306,6 +306,11 @@ func clientLabel(name string) string {
 	return b.String()
 }
 
+// ErrProjectForbidden is the failure of a principal whose token does not
+// list the project (see AllowProject). The clued server's transports answer
+// it with 403 "forbidden".
+var ErrProjectForbidden = errors.New("project not allowed for this token")
+
 // ErrTokenExists is returned (wrapped, naming the token) by Create for a
 // name the file already holds.
 var ErrTokenExists = errors.New("auth: token already exists")
@@ -647,12 +652,22 @@ type whoami struct {
 	AccountID string   `json:"account_id"`
 	Projects  []string `json:"projects"`
 	Version   string   `json:"version"`
+	// Assignee is the provider:handle the server suggests the principal
+	// claims documents as (a clued cloud: github:<login> or clued:<user
+	// id>), so clients and the server's own board agree; omitted when the
+	// server has none.
+	Assignee string `json:"assignee,omitempty"`
 }
 
 // WhoamiHandler answers with the request's principal, its projects and the
 // server version; clients use it as the connectivity and token probe. It
 // expects to run behind Middleware and answers 401 without a principal.
-func WhoamiHandler(version string) http.Handler {
+func WhoamiHandler(version string) http.Handler { return WhoamiHandlerWith(version, nil) }
+
+// WhoamiHandlerWith is WhoamiHandler whose answer also carries the
+// assignee suggested for the principal (omitted when assignee is nil or
+// returns "").
+func WhoamiHandlerWith(version string, assignee func(ctx context.Context, p Principal) string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p, ok := FromContext(r.Context())
 		if !ok {
@@ -663,9 +678,11 @@ func WhoamiHandler(version string) http.Handler {
 		if projects == nil {
 			projects = []string{}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "result": whoami{
-			Name: p.Name, AccountID: p.AccountID, Projects: projects, Version: version,
-		}})
+		out := whoami{Name: p.Name, AccountID: p.AccountID, Projects: projects, Version: version}
+		if assignee != nil {
+			out.Assignee = assignee(r.Context(), p)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "result": out})
 	})
 }
 

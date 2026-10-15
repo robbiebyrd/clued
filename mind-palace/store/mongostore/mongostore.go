@@ -4,11 +4,13 @@
 //
 //	uri         connection string (default mongodb://localhost:27017)
 //	database    database name (default "mind-palace")
-//	collection  collection prefix (default "mp_"): <prefix>plans, <prefix>stories, <prefix>templates
+//	collection  collection prefix (default "mp_"): <prefix>plans, <prefix>stories, <prefix>templates,
+//	            <prefix>leases (document leases, store.Leaser)
 package mongostore
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"time"
@@ -41,6 +43,7 @@ type Store struct {
 	client *mongo.Client
 	db     *mongo.Database
 	tmpls  *mongo.Collection
+	leases *mongo.Collection
 }
 
 // New prepares a store (the connection is made in Init).
@@ -101,6 +104,7 @@ func (s *Store) Init(ctx context.Context) error {
 		s.client = client
 		s.db = client.Database(s.dbName)
 		s.tmpls = s.db.Collection(s.prefix + "templates")
+		s.leases = s.db.Collection(s.prefix + "leases")
 	}
 	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -116,7 +120,12 @@ func (s *Store) Init(ctx context.Context) error {
 			return err
 		}
 	}
-	_, err := s.tmpls.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "kind", Value: 1}}})
+	if _, err := s.tmpls.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "kind", Value: 1}}}); err != nil {
+		return err
+	}
+	// Expired leases are free whether or not the TTL monitor removed them
+	// yet; the index only keeps the collection small.
+	_, err := s.leases.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "expires", Value: 1}}, Options: options.Index().SetExpireAfterSeconds(0)})
 	return err
 }
 
@@ -177,22 +186,93 @@ func (s *Store) Get(ctx context.Context, kindName, id string) (*model.Document, 
 	return decode(kindName, d)
 }
 
-func (s *Store) Put(ctx context.Context, d *model.Document) error {
+// record renders d into its stored form.
+func (s *Store) record(d *model.Document) (*mongo.Collection, docRecord, error) {
 	col, err := s.collection(d.Kind)
 	if err != nil {
-		return err
+		return nil, docRecord{}, err
 	}
 	doc, err := markdown.RenderDocument(d)
 	if err != nil {
-		return err
+		return nil, docRecord{}, err
 	}
 	fm := d.FrontMatter
 	id, ok := model.CanonicalID(fm.ID)
 	if !ok {
-		return fmt.Errorf("invalid document id %q", fm.ID)
+		return nil, docRecord{}, fmt.Errorf("invalid document id %q", fm.ID)
 	}
-	rec := docRecord{ID: id, Path: d.Path, Type: fm.Type, Status: fm.Status, Priority: fm.Priority, Title: fm.Title, Updated: fm.Updated, Document: doc}
-	_, err = col.ReplaceOne(ctx, bson.M{"_id": id}, rec, options.Replace().SetUpsert(true))
+	return col, docRecord{ID: id, Path: d.Path, Type: fm.Type, Status: fm.Status, Priority: fm.Priority, Title: fm.Title, Updated: fm.Updated, Document: doc}, nil
+}
+
+func (s *Store) Put(ctx context.Context, d *model.Document) error {
+	col, rec, err := s.record(d)
+	if err != nil {
+		return err
+	}
+	_, err = col.ReplaceOne(ctx, bson.M{"_id": rec.ID}, rec, options.Replace().SetUpsert(true))
+	return err
+}
+
+// PutIf replaces d only while the stored record's updated is prevUpdated
+// (store.ConditionalPutter): one conditional ReplaceOne without upsert, so
+// a concurrent writer between the read and this write makes it match
+// nothing and return store.ErrPrecondition.
+func (s *Store) PutIf(ctx context.Context, d *model.Document, prevUpdated string) error {
+	col, rec, err := s.record(d)
+	if err != nil {
+		return err
+	}
+	res, err := col.ReplaceOne(ctx, bson.M{"_id": rec.ID, "updated": prevUpdated}, rec)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return fmt.Errorf("%w: %s %s", store.ErrPrecondition, d.Kind, rec.ID)
+	}
+	return nil
+}
+
+// AcquireLease takes the lease on a document for ttl (store.Leaser) in
+// one upsert: a free or expired lease record matches and is taken over; an
+// unexpired one makes the upsert insert a duplicate _id, which is
+// store.ErrLeased. Every process sharing the database sees the lease.
+func (s *Store) AcquireLease(ctx context.Context, kindName, id string, ttl time.Duration) (string, error) {
+	if _, err := s.collection(kindName); err != nil {
+		return "", err
+	}
+	lease, now := store.NewLeaseID(), time.Now().UTC()
+	_, err := s.leases.UpdateOne(ctx,
+		bson.M{"_id": kindName + "/" + id, "expires": bson.M{"$lte": now}},
+		bson.M{"$set": bson.M{"lease": lease, "expires": now.Add(ttl)}},
+		options.UpdateOne().SetUpsert(true))
+	if mongo.IsDuplicateKeyError(err) {
+		return "", fmt.Errorf("%w: %s %s", store.ErrLeased, kindName, id)
+	}
+	if err != nil {
+		return "", err
+	}
+	return lease, nil
+}
+
+// ReleaseLease ends the lease when lease still holds it (store.Leaser).
+// The caller's lease never enters a query: the record is read by its key,
+// compared in Go, and deleted only while it still holds the stored lease.
+func (s *Store) ReleaseLease(ctx context.Context, kindName, id, lease string) error {
+	key := kindName + "/" + id
+	var rec struct {
+		Lease string `bson:"lease"`
+	}
+	err := s.leases.FindOne(ctx, bson.M{"_id": key}).Decode(&rec)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if rec.Lease == "" || subtle.ConstantTimeCompare([]byte(rec.Lease), []byte(lease)) != 1 {
+		return nil
+	}
+	_, err = s.leases.DeleteOne(ctx, bson.M{"_id": key, "lease": rec.Lease})
 	return err
 }
 
@@ -268,4 +348,8 @@ func (s *Store) DeleteTemplate(ctx context.Context, kindName, id string) error {
 	return nil
 }
 
-var _ store.Store = (*Store)(nil)
+var (
+	_ store.Store             = (*Store)(nil)
+	_ store.ConditionalPutter = (*Store)(nil)
+	_ store.Leaser            = (*Store)(nil)
+)

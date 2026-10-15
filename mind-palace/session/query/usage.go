@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"time"
 
@@ -16,13 +17,18 @@ const defaultUsageLimit = 50
 // default), model or day; Since and Until are inclusive UTC days
 // (YYYY-MM-DD).
 type UsageArgs struct {
-	GroupBy     string `json:"group_by,omitempty"`
-	SessionID   string `json:"session_id,omitempty"`
-	GitOrigin   string `json:"git_origin,omitempty"`
-	ProjectPath string `json:"project_path,omitempty"`
-	Since       string `json:"since,omitempty"`
-	Until       string `json:"until,omitempty"`
-	Limit       int    `json:"limit,omitempty"`
+	GroupBy   string `json:"group_by,omitempty"`
+	SessionID string `json:"session_id,omitempty"`
+	// SessionIDs limits the report to these sessions of the account (with
+	// SessionID, GitOrigin or ProjectPath, to the sessions in both); a
+	// caller that already selected sessions (SessionQuery.ProjectSlugs)
+	// totals them in one query.
+	SessionIDs  []string `json:"session_ids,omitempty"`
+	GitOrigin   string   `json:"git_origin,omitempty"`
+	ProjectPath string   `json:"project_path,omitempty"`
+	Since       string   `json:"since,omitempty"`
+	Until       string   `json:"until,omitempty"`
+	Limit       int      `json:"limit,omitempty"`
 }
 
 // UsageCounts are the token counters of a group or a model and its estimated
@@ -83,8 +89,14 @@ func (s *Service) Usage(ctx context.Context, args UsageArgs) (UsageReport, error
 	}
 	report := UsageReport{GroupBy: group, Groups: []UsageGroup{}, UnpricedModels: []string{}}
 	sessionIDs, scoped, err := s.scope(ctx, args.SessionID, args.GitOrigin, args.ProjectPath)
-	if err != nil || (scoped && len(sessionIDs) == 0) {
+	if err != nil {
 		return report, err
+	}
+	if len(args.SessionIDs) > 0 {
+		sessionIDs, scoped = restrict(sessionIDs, scoped, args.SessionIDs), true
+	}
+	if scoped && len(sessionIDs) == 0 {
+		return report, nil
 	}
 	totals, err := s.Store.UsageTotals(ctx, session.UsageQuery{
 		AccountID: s.AccountID, GroupBy: group, SessionIDs: sessionIDs, Since: args.Since, Until: args.Until,
@@ -139,6 +151,25 @@ func (s *Service) Usage(ctx context.Context, args UsageArgs) (UsageReport, error
 		report.Groups = report.Groups[:limit]
 	}
 	return report, nil
+}
+
+// restrict narrows a scope to the given session ids: those ids when the
+// scope was unrestricted, else the ids in both.
+func restrict(ids []string, scoped bool, only []string) []string {
+	if !scoped {
+		return slices.Compact(slices.Sorted(slices.Values(only)))
+	}
+	keep := map[string]bool{}
+	for _, id := range only {
+		keep[id] = true
+	}
+	out := []string{}
+	for _, id := range ids {
+		if keep[id] {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // cost prices t by its model; priced is false when no price names it.

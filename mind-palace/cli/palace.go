@@ -26,6 +26,9 @@ func (a *App) openPalace(ctx context.Context, cwd string, cfg *config.Config) (*
 		if r.ProbeErr != nil {
 			fmt.Fprintf(a.Stderr, "mind-palace: %s is not answering (%v); plans and stories are kept locally, run `mind-palace sync --from file --to %s` once it is back\n", clientcfg.RemoteStoreName, r.ProbeErr, clientcfg.RemoteStoreName)
 		}
+		if r.SharedErr != nil {
+			fmt.Fprintf(a.Stderr, "mind-palace: could not ask %s whether project %q is shared (%v); it stays local-primary for this command\n", clientcfg.RemoteStoreName, r.Project.Slug, r.SharedErr)
+		}
 		if note := r.Project.Note(); note != "" {
 			fmt.Fprintf(a.Stderr, "mind-palace: %s\n", note)
 		}
