@@ -387,6 +387,13 @@ func (s *Store) DeleteAccount(context.Context, string) (int64, error) {
 	return 0, session.ErrUnsupported
 }
 
+// PurgeContent is the server operator's, like DeleteAccount: the transport
+// offers no route for it (the server runs it on its own store, a clued
+// cloud when a workspace switches to metadata capture).
+func (s *Store) PurgeContent(context.Context, string, []string) (session.ContentPurged, error) {
+	return session.ContentPurged{}, session.ErrUnsupported
+}
+
 // Close is a no-op: the client holds no connection to release.
 func (s *Store) Close(context.Context) error { return nil }
 

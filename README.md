@@ -96,6 +96,25 @@ the server stack, and the data. It does not remove the plugin itself; finish
 with `/plugin uninstall clued@clued` (and `/plugin marketplace remove clued`),
 then `/reload-plugins`.
 
+## Free and paid
+
+Everything in this repository is free and stays free: the plugin, the
+`mind-palace` binary, the local daemon and a self-hosted clued server, with
+every session tool, prime, the status line, the guard hooks, redaction,
+OpenTelemetry export, restore, export and forget. Self-hosting has no limits
+and needs no account.
+
+Clued Cloud (https://clued.cloud) is the optional hosted service. Its free
+plan keeps sessions for 30 days and links up to 3 clients and 1 environment
+key, with full-text search, two-factor sign-in and the security log. Pro adds
+longer retention, unlimited clients and environment keys, hosted AI
+summaries and digests (a monthly allowance, then your own Anthropic key),
+semantic search, personal analytics, share links and an uncapped export, and
+starts with a 14-day free trial (card required). Team and Enterprise add
+shared workspaces, SSO and compliance features. Plans, limits and prices are
+on https://clued.cloud/pricing, which is the source of truth when this
+summary and the page differ.
+
 ## What the plugin installs
 
 | Piece | Role |
@@ -224,7 +243,10 @@ With `redactAtCapture` on, every write is masked first (see
 hold `[REDACTED:<rule>]` where the secret was, and the document lists the
 rules under `redacted`. Sessions under `excludePaths` are not written at
 all; `session forget` takes back what was, and `retentionDays` bounds how
-long MongoDB keeps the rest.
+long MongoDB keeps the rest. With `captureContent` set to `false` only
+metadata is written: sessions, which events and tools ran, file paths,
+timestamps, models and usage, but no transcript, prompt, tool input or
+output, or title.
 
 ### Enrichers
 
@@ -414,6 +436,7 @@ clued keeps its own memory of the work, written as clued's own code (see
 | `redactAtCapture` | off; `/clued-setup` writes `true` | `CLUED_REDACT_AT_CAPTURE` | Mask API keys, AWS access key ids, JWTs, GitHub and Slack tokens, PEM private keys and `<private>…</private>` spans in everything captured before it is written or sent to the server |
 | `redactPatterns` | `[]` | | More regular expressions to mask with `redactAtCapture` (e-mail addresses, internal host names) |
 | `excludePaths` | `[]` | | Globs over the session's directory (`["~/work/client-*"]`): sessions in or below a match are never stored |
+| `captureContent` | `true` | `CLUED_CAPTURE_CONTENT` | `false` captures metadata only: no transcript lines or artifact files, hook events without prompts, tool inputs (file paths aside) or responses, no session titles. In remote mode the server sets it (`session config-pull`) when it keeps metadata only for the account |
 | `retentionDays` | `0` | | MongoDB deletes captured documents after this many days |
 | `otelEndpoint` | (none) | `CLUED_OTEL_ENDPOINT` | An OTLP/HTTP collector (Grafana Alloy, Langfuse, Phoenix, an OpenTelemetry Collector) that receives each session as a trace when it ends: a span per prompt turn, tool use and subagent, with token usage, under the GenAI conventions |
 | `otelHeaders` | `{}` | | Headers for the collector (`Authorization`); never logged |

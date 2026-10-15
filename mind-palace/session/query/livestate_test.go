@@ -87,8 +87,8 @@ func TestActivitiesIncludeStateChanges(t *testing.T) {
 	seedSession(t, st, "acc", "s1", "/p/one", "", now)
 	seedActivity(t, st, "acc", "s1", 0, session.Doc{"kind": "user", "label": "user", "detail": "go"})
 	for _, ev := range []session.Doc{
-		{"session_id": "s1", "account_id": "acc", "hook_event_name": session.StateChangedEventName, "from": "", "to": "working", "reason": "UserPromptSubmit", "at": now, "created_at": now.Add(time.Millisecond)},
-		{"session_id": "s1", "account_id": "acc", "hook_event_name": session.StateChangedEventName, "from": "working", "to": "waiting", "reason": "Stop", "at": now.Add(time.Second), "created_at": now.Add(time.Second)},
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": session.StateChangedEventName, "from": "", "to": "working", "reason": "UserPromptSubmit", "at": now, "created_at": now.Add(time.Second)},
+		{"session_id": "s1", "account_id": "acc", "hook_event_name": session.StateChangedEventName, "from": "working", "to": "waiting", "reason": "Stop", "at": now.Add(2 * time.Second), "created_at": now.Add(2 * time.Second)},
 	} {
 		if err := st.InsertHookEvent(ctx, ev); err != nil {
 			t.Fatal(err)

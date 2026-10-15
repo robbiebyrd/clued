@@ -66,6 +66,19 @@ type Config struct {
 	// ExcludePaths are globs over a session's cwd and project path (a
 	// directory and everything below it); such sessions are never stored.
 	ExcludePaths []string `json:"excludePaths,omitempty"`
+	// CaptureContent, when false, makes capture metadata-only: transcript
+	// lines, subagent lines and artifact files are not sent and hook events
+	// lose their content (session.WithoutContent) before they leave the
+	// machine; sessions, hook event names, tools, file paths, timestamps,
+	// models and limit samples are still captured. Unset means true. In
+	// remote mode it is the server's hint: `session config-pull` copies the
+	// server's captureContent here (and removes it when the server sends
+	// none), so a server that captures metadata only (a clued cloud
+	// workspace on zero retention) is not sent content it would drop. The
+	// server enforces its policy either way. CLUED_CAPTURE_CONTENT (a
+	// boolean) overrides it.
+	CaptureContent *bool `json:"captureContent,omitempty"`
+
 	// RetentionDays, when positive, has MongoDB delete captured documents
 	// that many days after they were stored (a TTL index on created_at,
 	// last_seen for sessions).
@@ -134,6 +147,10 @@ const MemoryOffEnv = "CLUED_MEMORY"
 // RedactsAtCapture reports whether captured data is redacted before it is
 // written.
 func (c Config) RedactsAtCapture() bool { return c.RedactAtCapture != nil && *c.RedactAtCapture }
+
+// CapturesContent reports whether capture keeps content (transcript lines,
+// artifact files, the content of hook events), which is the default.
+func (c Config) CapturesContent() bool { return c.CaptureContent == nil || *c.CaptureContent }
 
 // PrimesOnStart reports whether sessions start with the prime report.
 func (c Config) PrimesOnStart() bool { return c.PrimeOnStart == nil || *c.PrimeOnStart }
@@ -228,6 +245,11 @@ func LoadConfig(path string) Config {
 	if v := os.Getenv("CLUED_PRIME_ON_START"); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
 			cfg.PrimeOnStart = &b
+		}
+	}
+	if v := os.Getenv("CLUED_CAPTURE_CONTENT"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.CaptureContent = &b
 		}
 	}
 	setFromEnv(&cfg.OTelEndpoint, "CLUED_OTEL_ENDPOINT")

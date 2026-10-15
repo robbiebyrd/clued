@@ -13,6 +13,7 @@ var configEnvKeys = []string{
 	"CLUED_MONGO_URL", "CLUED_DB_NAME", "CLUED_PORT", "CLUED_PROJECTS_DIR",
 	"CLUED_FILE_HISTORY_DIR", "CLUED_CLAUDE_APP_CONFIG_PATH", "CLUED_WAL_PATH",
 	"CLUED_SERVER_URL", "CLUED_SERVER_TOKEN", "CLUED_SERVER_CA_FILE", "CLUED_SERVER_INSECURE",
+	"CLUED_SERVER_KEY", "CLUED_CAPTURE_CONTENT",
 	"CLUED_MEMORY_ENGINE", "CLUED_MEMORY_BUDGET",
 }
 
@@ -342,6 +343,25 @@ func TestConfigRemote(t *testing.T) {
 	}
 	if !(Config{ServerURL: "https://x"}).Remote() {
 		t.Fatal("Remote() = false with ServerURL set")
+	}
+}
+
+func TestLoadConfigCaptureContent(t *testing.T) {
+	cleanEnv(t)
+	dir := t.TempDir()
+	if cfg := LoadConfig(writeConfig(t, dir, "none.json", `{}`)); cfg.CaptureContent != nil || !cfg.CapturesContent() {
+		t.Errorf("unset captureContent: %v, captures %v; want nil and true", cfg.CaptureContent, cfg.CapturesContent())
+	}
+	off := writeConfig(t, dir, "off.json", `{"captureContent": false}`)
+	if cfg := LoadConfig(off); cfg.CaptureContent == nil || cfg.CapturesContent() {
+		t.Errorf("captureContent false: captures %v, want false", cfg.CapturesContent())
+	}
+	if cfg := LoadConfig(writeConfig(t, dir, "on.json", `{"captureContent": true}`)); !cfg.CapturesContent() {
+		t.Error("captureContent true: captures false")
+	}
+	t.Setenv("CLUED_CAPTURE_CONTENT", "true")
+	if cfg := LoadConfig(off); !cfg.CapturesContent() {
+		t.Error("CLUED_CAPTURE_CONTENT=true did not override the file")
 	}
 }
 

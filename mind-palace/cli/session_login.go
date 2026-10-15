@@ -34,7 +34,7 @@ const (
 // Config keys the server's client settings may set (the same names as in
 // config.json); nothing else from the server reaches the file. The
 // redaction keys carry a workspace's enforced capture redaction.
-var pulledConfigKeys = []string{"enabledEnrichers", "disabledEnrichers", "projectsDir", "fileHistoryDir", "redactAtCapture", "redactPatterns", "excludePaths"}
+var pulledConfigKeys = []string{"enabledEnrichers", "disabledEnrichers", "projectsDir", "fileHistoryDir", "redactAtCapture", "redactPatterns", "excludePaths", captureContentKey}
 
 // meConfig is the body of GET /api/v1/me/config. Managed lists the keys a
 // workspace policy enforces and ManagedBy who manages each; the cloud may
@@ -76,6 +76,12 @@ func readConfigJSON(path string) map[string]any {
 	}
 	return doc
 }
+
+// captureContentKey is the server's capture hint: the server alone sets it
+// in remote mode, so config-pull removes it when the server sends none (a
+// workspace back on full capture) and logout removes it with the server
+// keys.
+const captureContentKey = "captureContent"
 
 // deviceStart is the body of POST /api/v1/device/code.
 type deviceStart struct {
@@ -257,8 +263,8 @@ func (a *App) sessionLogoutCmd() *cobra.Command {
 		Short: "Revoke this client's token on the cloud and leave remote mode",
 		Long: `Calls DELETE /api/v1/me/tokens/current on the configured server (a plain
 clued server has no such route and is skipped; a token the server no longer
-knows is fine too) and removes serverUrl, serverToken, serverCaFile and
-serverInsecure from the config file, which puts the plugin back in local
+knows is fine too) and removes serverUrl, serverToken, serverCaFile,
+serverInsecure and the server's captureContent hint from the config file, which puts the plugin back in local
 mode. --keep-config revokes only.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -280,7 +286,7 @@ mode. --keep-config revokes only.`,
 				return a.sessionFail(err)
 			}
 			if !keep {
-				if err := session.UpdateConfigFile(a.sess.configPath, nil, []string{"serverUrl", "serverToken", "serverCaFile", "serverInsecure"}); err != nil {
+				if err := session.UpdateConfigFile(a.sess.configPath, nil, []string{"serverUrl", "serverToken", "serverCaFile", "serverInsecure", captureContentKey}); err != nil {
 					return a.sessionFail(err)
 				}
 			}
@@ -301,11 +307,13 @@ func (a *App) sessionConfigPullCmd() *cobra.Command {
 		Short: "Apply the client settings managed in the clued cloud to config.json",
 		Long: `Fetches GET /api/v1/me/config from the configured server and writes the
 keys it carries (enabledEnrichers, disabledEnrichers, projectsDir,
-fileHistoryDir, redactAtCapture, redactPatterns, excludePaths) into the
-config file, keeping every other key. Keys the server does not set are
-left as they are. Keys the server lists as managed (a workspace policy
-enforces them) replace a local value that differs, with a note on stderr
-naming who manages the key (printed with --quiet too). Not in remote mode, or against a
+fileHistoryDir, redactAtCapture, redactPatterns, excludePaths, captureContent)
+into the config file, keeping every other key. Keys the server does not set
+are left as they are, except captureContent, the server's capture hint,
+which is removed when the server sends no boolean for it. Keys the server
+lists as managed (a workspace policy enforces them) replace a local value
+that differs, with a note on stderr naming who manages the key (printed
+with --quiet too). Not in remote mode, or against a
 plain clued server (no such route), nothing changes and the command
 succeeds; the session-start hook runs it with --quiet.`,
 		Args: cobra.NoArgs,
@@ -325,6 +333,9 @@ succeeds; the session-start hook runs it with --quiet.`,
 					updated := []string{}
 					for _, k := range pulledConfigKeys {
 						if v, ok := body.ClientConfig[k]; ok && v != nil {
+							if _, isBool := v.(bool); k == captureContentKey && !isBool {
+								continue
+							}
 							set[k] = v
 							updated = append(updated, k)
 						}
@@ -346,15 +357,19 @@ succeeds; the session-start hook runs it with --quiet.`,
 							fmt.Fprintf(a.Stderr, "clued: %s is managed by %s; the local value in %s was replaced\n", k, by, a.sess.configPath)
 						}
 					}
-					if len(set) > 0 {
-						if err := session.UpdateConfigFile(a.sess.configPath, set, nil); err != nil {
+					remove := []string{}
+					if _, ok := set[captureContentKey]; !ok && a.sessionConfig().CaptureContent != nil {
+						remove = []string{captureContentKey}
+					}
+					if len(set) > 0 || len(remove) > 0 {
+						if err := session.UpdateConfigFile(a.sess.configPath, set, remove); err != nil {
 							return a.sessionFail(err)
 						}
 					}
 					if managed == nil {
 						managed = []string{}
 					}
-					res["supported"], res["updated"], res["updated_at"] = true, updated, body.UpdatedAt
+					res["supported"], res["updated"], res["removed"], res["updated_at"] = true, updated, remove, body.UpdatedAt
 					res["managed"], res["overridden"] = managed, overridden
 				case remote.IsNotFound(err):
 				default:
