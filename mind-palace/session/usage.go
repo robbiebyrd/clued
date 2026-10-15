@@ -103,8 +103,9 @@ func usd(v float64) *float64 { return &v }
 // DefaultModelPrices are the list prices on Anthropic's pricing page
 // (platform.claude.com/docs/en/about-claude/pricing, read 2026-10-14) by
 // model id. An entry matches that id and its dated or platform forms
-// (claude-opus-4-1-20250805, claude-haiku-4-5@20251001, …), never a newer
-// model whose id merely starts with it: those have no estimated cost until
+// (claude-opus-4-1-20250805, claude-haiku-4-5@20251001, Bedrock and
+// Vertex ids; see NormalizeModelID), never a newer model whose id merely
+// starts with it: those have no estimated cost until
 // the config's modelPrices (Config.ModelPrices) names them. Batch, fast-mode
 // and US-only (inference_geo) prices are not applied.
 var DefaultModelPrices = map[string]ModelPrice{
@@ -130,35 +131,53 @@ var DefaultModelPrices = map[string]ModelPrice{
 	"claude-3-5-haiku":  {Input: 0.80, Output: 4},
 }
 
-// snapshotSuffix is what may follow a built-in model id: a snapshot date
-// (-20250805, @20251001) or a Bedrock version (-v1:0, :0).
-var snapshotSuffix = regexp.MustCompile(`^(-\d{8}|@\d{8}|-v\d|:\d)`)
+// modelSuffix is one trailing decoration of a platform model id: a context
+// tag ([1m]), a Vertex snapshot (@20251001), a dated snapshot
+// (-20250805) or a Bedrock version (-v1:0, -v2, :0).
+var modelSuffix = regexp.MustCompile(`(\[[^\]]*\]|@\d{8}|-\d{8}|-v\d+(:\d+)?|:\d+)$`)
 
-// PriceFor finds the price of model: the longest prefix of it named in
-// overrides, else the built-in entry for its id (see DefaultModelPrices;
-// a Bedrock "anthropic." or regional prefix is ignored). ok is false when
-// neither names it.
+// NormalizeModelID maps a model id as the Anthropic API, Amazon Bedrock or
+// Google Vertex AI reports it to the plain model id the price table uses:
+// lower case, without a Bedrock ARN, region or "anthropic." prefix
+// (arn:…/us.anthropic.claude-…, global.anthropic.claude-…), a Vertex
+// publisher path (publishers/anthropic/models/claude-…), or trailing
+// snapshot, version and context tags (-20250805, @20250805, -v1:0, [1m]).
+// "us.anthropic.claude-opus-4-1-20250805-v1:0" and
+// "claude-opus-4-1@20250805" are both "claude-opus-4-1". An id without
+// "claude-" is returned trimmed and lower-cased.
+func NormalizeModelID(model string) string {
+	id := strings.ToLower(strings.TrimSpace(model))
+	i := strings.Index(id, "claude-")
+	if i < 0 {
+		return id
+	}
+	id = id[i:]
+	for {
+		next := modelSuffix.ReplaceAllString(id, "")
+		if next == id {
+			return id
+		}
+		id = next
+	}
+}
+
+// PriceFor finds the price of model: the longest prefix of it, or of its
+// NormalizeModelID form, named in overrides, else the built-in entry for
+// its normalized id (see DefaultModelPrices). ok is false when neither
+// names it.
 func PriceFor(model string, overrides map[string]ModelPrice) (price ModelPrice, ok bool) {
+	norm := NormalizeModelID(model)
 	best := -1
 	for prefix, p := range overrides {
-		if strings.HasPrefix(model, prefix) && len(prefix) > best {
+		if (strings.HasPrefix(model, prefix) || strings.HasPrefix(norm, prefix)) && len(prefix) > best {
 			best, price = len(prefix), p
 		}
 	}
 	if best >= 0 {
 		return price, true
 	}
-	id := model
-	if i := strings.Index(id, "claude-"); i > 0 {
-		id = id[i:]
-	}
-	for name, p := range DefaultModelPrices {
-		rest, found := strings.CutPrefix(id, name)
-		if found && (rest == "" || snapshotSuffix.MatchString(rest)) && len(name) > best {
-			best, price = len(name), p
-		}
-	}
-	return price, best >= 0
+	price, ok = DefaultModelPrices[norm]
+	return price, ok
 }
 
 // Cost is the estimated price in US dollars of the tokens of t at p, at

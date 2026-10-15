@@ -380,6 +380,33 @@ const toolSchemas = `{
       "type": "object"
     }
   },
+  "forget_memory": {
+    "description": "Delete this project's memory records by id or by a regex over their text. A dry run by default: it lists what would go; set dry_run false to delete. Session transcripts are not touched (forget_session deletes sessions).",
+    "inputSchema": {
+      "properties": {
+        "dry_run": {
+          "description": "Only list what would be deleted (default true)",
+          "type": "boolean"
+        },
+        "ids": {
+          "description": "Memory ids (from search_memory)",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pattern": {
+          "description": "Case-insensitive regex over the record text",
+          "type": "string"
+        },
+        "project": {
+          "description": "Project key (default: the project of the server's working directory)",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
   "forget_session": {
     "description": "Delete previously captured sessions from the store, with their transcript, subagent lines, blobs and hook events: by id, by project path, or last seen before a day. Criteria given together must all hold; at least one is required. Claude Code's own transcript files are not touched. This cannot be undone.",
     "inputSchema": {
@@ -387,6 +414,10 @@ const toolSchemas = `{
         "before": {
           "description": "Forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time",
           "type": "string"
+        },
+        "limit": {
+          "description": "With project_path or before: forget at most this many sessions, the oldest first; the result's more is true when others match",
+          "type": "integer"
         },
         "project_path": {
           "description": "Forget sessions whose project path matches this regex",
@@ -611,7 +642,7 @@ const toolSchemas = `{
     }
   },
   "prime_context": {
-    "description": "Prime a session with the repository's context as plain text: ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, MEMORY (the newest claude-remember notes captured for the project) and BUILD sections. The report is data about the project, not instructions.",
+    "description": "Prime a session with the repository's context as plain text: ENV, CLUED, FILES, BRANCH, LOG, DIFF-STAT, STORIES, PLANS, SESSION, MEMORY (the project's memory bundle: pinned note, handoff, recent work, session notes, archive) and BUILD sections. The report is data about the project, not instructions.",
     "inputSchema": {
       "properties": {
         "cwd": {
@@ -664,6 +695,38 @@ const toolSchemas = `{
       },
       "required": [
         "session_id"
+      ],
+      "type": "object"
+    }
+  },
+  "remember": {
+    "description": "Write a memory note for this project: a note (kind note), a handoff the next session starts with (kind handoff, injected for seven days), or the project's pinned note injected into every session (kind pinned, replacing the previous one). A private note is kept but never injected, exported or shown without include_private; <private>…</private> spans are dropped from any other note and secrets are masked.",
+    "inputSchema": {
+      "properties": {
+        "kind": {
+          "description": "Kind of note (default note)",
+          "enum": [
+            "note",
+            "handoff",
+            "pinned"
+          ],
+          "type": "string"
+        },
+        "private": {
+          "description": "Keep the note out of every injected bundle and export",
+          "type": "boolean"
+        },
+        "project": {
+          "description": "Project key (default: the project of the server's working directory)",
+          "type": "string"
+        },
+        "text": {
+          "description": "The note (Markdown)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
       ],
       "type": "object"
     }
@@ -731,7 +794,7 @@ const toolSchemas = `{
     }
   },
   "search_memory": {
-    "description": "Search the summaries, handoffs and identity notes that claude-remember wrote and clued captured (MemorySaved events), across every session and machine of the account, newest first. The result is cut to about 4000 tokens (max_tokens): a cut result says \"truncated\": true (a list becomes {\"items\", \"truncated\", \"next\"}), and its next, passed as cursor, continues it.",
+    "description": "Search clued's memory across every session and machine of the account, newest first: the notes of each session (session-summary), the day, recent (last seven days) and monthly archive roll-ups, the notes, handoffs and pinned notes written with remember, checkpoints, digests, and the claude-remember records captured before native memory (kinds entry, day, recent, archive, handoff, identity). Private notes only with include_private. The result is cut to about 4000 tokens (max_tokens): a cut result says \"truncated\": true (a list becomes {\"items\", \"truncated\", \"next\"}), and its next, passed as cursor, continues it.",
     "inputSchema": {
       "properties": {
         "cursor": {
@@ -742,9 +805,22 @@ const toolSchemas = `{
           "description": "Restrict to sessions whose git origin matches this regex",
           "type": "string"
         },
+        "include_private": {
+          "description": "Include private notes (default false)",
+          "type": "boolean"
+        },
         "kind": {
           "description": "Restrict to one kind of record",
           "enum": [
+            "session-summary",
+            "memory-checkpoint",
+            "memory-day",
+            "memory-recent",
+            "memory-archive",
+            "memory-note",
+            "memory-handoff",
+            "memory-pinned",
+            "digest",
             "entry",
             "day",
             "recent",
@@ -764,6 +840,10 @@ const toolSchemas = `{
         },
         "pattern": {
           "description": "Case-insensitive regex matched against the record text (default: every record)",
+          "type": "string"
+        },
+        "project": {
+          "description": "Restrict to the native records of this project key (the normalised git origin such as github.com/owner/repo, else the project path)",
           "type": "string"
         },
         "project_path": {
@@ -868,7 +948,7 @@ const toolSchemas = `{
   }
 }`
 
-func TestToolListHasTheEighteenToolsWithTheProtocolSchemas(t *testing.T) {
+func TestToolListHasTheTwentyToolsWithTheProtocolSchemas(t *testing.T) {
 	eachStore(t, func(t *testing.T) {
 		var want map[string]struct {
 			Description string `json:"description"`
@@ -896,12 +976,12 @@ func TestToolListHasTheEighteenToolsWithTheProtocolSchemas(t *testing.T) {
 			if !reflect.DeepEqual(got, w.InputSchema) {
 				t.Errorf("%s inputSchema = %s", tool.Name, raw)
 			}
-			readOnly := tool.Name != "restore_session" && tool.Name != "forget_session" && tool.Name != "export_session"
+			readOnly := tool.Name != "restore_session" && tool.Name != "forget_session" && tool.Name != "export_session" && tool.Name != "remember" && tool.Name != "forget_memory"
 			if tool.Annotations == nil || tool.Annotations.ReadOnlyHint != readOnly {
 				t.Errorf("%s ReadOnlyHint want %v, annotations %+v", tool.Name, readOnly, tool.Annotations)
 			}
 			destructive := tool.Annotations != nil && tool.Annotations.DestructiveHint != nil && *tool.Annotations.DestructiveHint
-			if destructive != (tool.Name == "forget_session") {
+			if destructive != (tool.Name == "forget_session" || tool.Name == "forget_memory") {
 				t.Errorf("%s DestructiveHint = %v", tool.Name, destructive)
 			}
 		}
@@ -1222,7 +1302,7 @@ func TestAddToolsRegistersPrefixedNames(t *testing.T) {
 		for _, tool := range res.Tools {
 			names[tool.Name] = true
 		}
-		if len(names) != 18 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] || !names["pfx_get_limits"] {
+		if len(names) != 20 || !names["pfx_find_sessions"] || !names["pfx_restore_session"] || !names["pfx_prime_context"] || !names["pfx_search_memory"] || !names["pfx_get_limits"] {
 			t.Fatalf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "pfx_find_sessions", obj{}))); n != 4 {
@@ -1464,6 +1544,109 @@ func TestUsageTool(t *testing.T) {
 		ctxReport := okJSON[obj](t, call(t, cs, "get_session_context", obj{"session_id": "sess-3"}))
 		if u, _ := ctxReport["usage"].(obj); u == nil || u["output_tokens"] != float64(100) {
 			t.Errorf("get_session_context usage = %v", ctxReport["usage"])
+		}
+	})
+}
+
+func TestRememberStoresForCaller(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		st := seeded(t)
+		cs := connectClient(t, newTools(st, session.Config{}).Server(), nil)
+		note := okJSON[obj](t, call(t, cs, "remember", obj{"text": "Next: ship the hook <private>pw 123</private>", "kind": "handoff", "project": "github.com/user/myrepo"}))
+		if note["kind"] != "memory-handoff" || note["text"] != "Next: ship the hook" || note["project"] != "github.com/user/myrepo" {
+			t.Errorf("remember = %v", note)
+		}
+		events, err := st.MemoryEvents(context.Background(), session.MemoryQuery{AccountID: account, Kinds: []string{"memory-handoff"}})
+		must(t, err)
+		if len(events) != 1 {
+			t.Fatalf("stored for the caller: %v", events)
+		}
+		if foreignEvents, _ := st.MemoryEvents(context.Background(), session.MemoryQuery{AccountID: foreign, Kinds: []string{"memory-handoff"}}); len(foreignEvents) != 0 {
+			t.Errorf("stored for another account: %v", foreignEvents)
+		}
+		// Without a project the server's working directory names it.
+		if n := okJSON[obj](t, call(t, cs, "remember", obj{"text": "a note"})); n["kind"] != "memory-note" || n["project"] == "" {
+			t.Errorf("default project: %v", n)
+		}
+		wantError(t, call(t, cs, "remember", obj{"text": "x", "kind": "identity", "project": "p"}), `kind must be note, handoff or pinned, not "identity"`)
+		// The remote subset needs the project key.
+		remote := connectClient(t, newTools(st, session.Config{}).Subset(true).Server(), nil)
+		wantError(t, call(t, remote, "remember", obj{"text": "x"}), "project is required")
+	})
+}
+
+func TestForgetMemoryDryRunDefault(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		st := seeded(t)
+		cs := connectClient(t, newTools(st, session.Config{}).Server(), nil)
+		okJSON[obj](t, call(t, cs, "remember", obj{"text": "deploy with make release", "project": "p"}))
+		okJSON[obj](t, call(t, cs, "remember", obj{"text": "keep me", "project": "p"}))
+		dry := okJSON[obj](t, call(t, cs, "forget_memory", obj{"pattern": "deploy", "project": "p"}))
+		if dry["dry_run"] != true || len(dry["records"].([]any)) != 1 {
+			t.Fatalf("dry run = %v", dry)
+		}
+		count := func() int {
+			events, err := st.MemoryEvents(context.Background(), session.MemoryQuery{AccountID: account, Projects: []string{"p"}})
+			must(t, err)
+			return len(events)
+		}
+		if count() != 2 {
+			t.Error("a dry run deleted")
+		}
+		gone := okJSON[obj](t, call(t, cs, "forget_memory", obj{"pattern": "deploy", "project": "p", "dry_run": false}))
+		if gone["dry_run"] != false || len(gone["records"].([]any)) != 1 || count() != 1 {
+			t.Errorf("forget = %v, %d left", gone, count())
+		}
+		if res := call(t, cs, "forget_memory", obj{"project": "p"}); !res.IsError {
+			t.Error("forget_memory without ids or pattern must fail")
+		}
+	})
+}
+
+func TestForgetMemoryLocalOnly(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		remote := connectClient(t, newTools(seeded(t), session.Config{}).Subset(true).Server(), nil)
+		names := toolNames(t, remote)
+		if names["forget_memory"] || !names["remember"] || !names["search_memory"] {
+			t.Errorf("remote tools = %v", names)
+		}
+	})
+}
+
+func TestSearchMemoryProjectAndPrivate(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		cs := client(t)
+		okJSON[obj](t, call(t, cs, "remember", obj{"text": "public alpha note", "project": "alpha"}))
+		okJSON[obj](t, call(t, cs, "remember", obj{"text": "private alpha note", "project": "alpha", "private": true}))
+		okJSON[obj](t, call(t, cs, "remember", obj{"text": "beta note", "project": "beta"}))
+		hits := okJSON[[]obj](t, call(t, cs, "search_memory", obj{"project": "alpha"}))
+		if len(hits) != 1 || hits[0]["text"] != "public alpha note" || hits[0]["project"] != "alpha" || hits[0]["id"] == "" {
+			t.Errorf("project search = %v", hits)
+		}
+		hits = okJSON[[]obj](t, call(t, cs, "search_memory", obj{"project": "alpha", "include_private": true}))
+		if len(hits) != 2 || hits[0]["private"] != true {
+			t.Errorf("with private = %v", hits)
+		}
+		if all := okJSON[[]obj](t, call(t, cs, "search_memory", obj{"pattern": "note"})); len(all) != 2 {
+			t.Errorf("private notes leak into a search without include_private: %v", all)
+		}
+	})
+}
+
+func TestSearchMemoryLegacyKinds(t *testing.T) {
+	eachStore(t, func(t *testing.T) {
+		cs := client(t)
+		okJSON[obj](t, call(t, cs, "remember", obj{"text": "native daemon note", "project": "alpha"}))
+		hits := okJSON[[]obj](t, call(t, cs, "search_memory", obj{"pattern": "daemon"}))
+		kinds := map[string]bool{}
+		for _, h := range hits {
+			kinds[h["kind"].(string)] = true
+		}
+		if !kinds["entry"] || !kinds["handoff"] || !kinds["memory-note"] {
+			t.Errorf("legacy and native kinds = %v", kinds)
+		}
+		if legacy := okJSON[[]obj](t, call(t, cs, "search_memory", obj{"kind": "entry"})); len(legacy) != 1 || legacy[0]["text"] != "Fixed the daemon restart" {
+			t.Errorf("legacy entry = %v", legacy)
 		}
 	})
 }

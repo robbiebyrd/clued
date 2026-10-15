@@ -2,7 +2,10 @@
 // does: from the repository's mind-palace configuration and, in remote mode
 // (a clued server configured in the plugin's config.json), with the server
 // appended as a secondary store so the file store stays primary and every
-// write fans out to the server through store.MultiStore.
+// write fans out to the server through store.MultiStore. A project the
+// server lists as a workspace's (a shared project on a clued cloud) puts
+// the server first instead: reads, If-Match writes and claim leases then
+// go to the server and the local stores are copies.
 //
 // It is the single code path behind the CLI (plan and story commands, mcp,
 // serve, sync, stores, config, review), the hook status review and the
@@ -12,12 +15,16 @@ package clientcfg
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strconv"
 
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/events"
+	remoteclient "github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/server/projects"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 	"github.com/robbiebyrd/clued/mind-palace/session"
@@ -139,6 +146,102 @@ type Remote struct {
 	// answer at open time. The store is still in the fan-out: writes
 	// report it through store.FanoutError and reads never touch it.
 	ProbeErr error
+	// Shared is set when the server lists the project as one of a
+	// workspace's (GET MeWorkspacesPath, asked when Options.Probe is on):
+	// the server is then the primary store, so reads see the other
+	// members' writes, a write over a copy someone changed since it was
+	// read is refused (If-Match), and claims serialise on the server's
+	// lease; the local stores follow as fan-out copies. Workspace names
+	// the workspace (its name, else its id).
+	Shared    bool
+	Workspace string
+	// SharedErr is set when the workspaces lookup failed for another
+	// reason than a server without the route; the project then stays
+	// local-primary.
+	SharedErr error
+}
+
+// MeWorkspacesPath lists the workspaces of the token's user on a clued
+// cloud; a plain clued server answers 404, which means no shared projects.
+const MeWorkspacesPath = "/api/v1/me/workspaces"
+
+// Workspace is one entry of GET MeWorkspacesPath: its id, name, the
+// user's role and the project slugs bound to it, writable by every
+// member. Projects may be given as slugs or as objects with a "slug".
+type Workspace struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Role     string   `json:"role"`
+	Projects []string `json:"projects"`
+}
+
+// UnmarshalJSON accepts projects as strings or as {"slug": …} objects.
+func (w *Workspace) UnmarshalJSON(b []byte) error {
+	var raw struct {
+		ID       string            `json:"id"`
+		Name     string            `json:"name"`
+		Role     string            `json:"role"`
+		Projects []json.RawMessage `json:"projects"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	*w = Workspace{ID: raw.ID, Name: raw.Name, Role: raw.Role}
+	for _, p := range raw.Projects {
+		var slug string
+		if json.Unmarshal(p, &slug) != nil {
+			var obj struct {
+				Slug string `json:"slug"`
+			}
+			if err := json.Unmarshal(p, &obj); err != nil {
+				return err
+			}
+			slug = obj.Slug
+		}
+		if slug != "" {
+			w.Projects = append(w.Projects, slug)
+		}
+	}
+	return nil
+}
+
+// Workspaces asks the server for the token's workspaces (MeWorkspacesPath).
+// The result is {"workspaces": [...]} or the bare list. A server without
+// the route answers no workspaces and no error.
+func Workspaces(ctx context.Context, c *remoteclient.Client) ([]Workspace, error) {
+	var raw json.RawMessage
+	err := c.Do(ctx, http.MethodGet, MeWorkspacesPath, nil, &raw)
+	var re *remoteclient.Error
+	switch {
+	case remoteclient.IsNotFound(err), errors.As(err, &re) && re.Status == http.StatusNotFound:
+		return nil, nil
+	case err != nil:
+		return nil, err
+	}
+	var wrapped struct {
+		Workspaces []Workspace `json:"workspaces"`
+	}
+	if len(raw) > 0 && raw[0] == '[' {
+		err = json.Unmarshal(raw, &wrapped.Workspaces)
+	} else if len(raw) > 0 {
+		err = json.Unmarshal(raw, &wrapped)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", MeWorkspacesPath, err)
+	}
+	return wrapped.Workspaces, nil
+}
+
+// SharedWorkspace returns the workspace among ws that binds slug.
+func SharedWorkspace(ws []Workspace, slug string) (Workspace, bool) {
+	for _, w := range ws {
+		for _, p := range w.Projects {
+			if p == slug {
+				return w, true
+			}
+		}
+	}
+	return Workspace{}, false
 }
 
 // Options tunes Open.
@@ -146,7 +249,8 @@ type Options struct {
 	// Probe makes one cheap request to the server at open time so an
 	// unreachable server, a rejected token or a project outside the
 	// token's list is reported (Remote.ProbeErr) before the first write.
-	// A read-only caller leaves it off.
+	// A read-only caller leaves it off. With Probe on Open also asks
+	// whether the project is shared (see Remote.Shared).
 	Probe bool
 }
 
@@ -193,9 +297,24 @@ func Open(ctx context.Context, dir string, cfg *config.Config, sc session.Config
 		remote = &Remote{Project: project, Def: Redact(def)}
 		if opts.Probe {
 			remote.ProbeErr = rs.Init(ctx)
+			if c, ok := rs.(interface{ Client() *remoteclient.Client }); ok && remote.ProbeErr == nil {
+				ws, err := Workspaces(ctx, c.Client())
+				remote.SharedErr = err
+				if w, ok := SharedWorkspace(ws, project.Slug); ok {
+					remote.Shared, remote.Workspace = true, w.Name
+					if remote.Workspace == "" {
+						remote.Workspace = w.ID
+					}
+				}
+			}
 		}
-		cfg.Storage = append(cfg.Storage, remote.Def)
-		st = store.NewMulti(append(st.Stores(), rs)...)
+		if remote.Shared {
+			cfg.Storage = append([]config.StorageDef{remote.Def}, cfg.Storage...)
+			st = store.NewMulti(append([]store.Store{rs}, st.Stores()...)...)
+		} else {
+			cfg.Storage = append(cfg.Storage, remote.Def)
+			st = store.NewMulti(append(st.Stores(), rs)...)
+		}
 	}
 	palace, err := service.NewPalace(cfg, st, events.New())
 	if err != nil {

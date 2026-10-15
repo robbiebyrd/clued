@@ -14,6 +14,7 @@ var configEnvKeys = []string{
 	"CLUED_FILE_HISTORY_DIR", "CLUED_CLAUDE_APP_CONFIG_PATH", "CLUED_WAL_PATH",
 	"CLUED_SERVER_URL", "CLUED_SERVER_TOKEN", "CLUED_SERVER_CA_FILE", "CLUED_SERVER_INSECURE",
 	"CLUED_SERVER_KEY", "CLUED_CAPTURE_CONTENT",
+	"CLUED_MEMORY_ENGINE", "CLUED_MEMORY_BUDGET",
 }
 
 // cleanEnv unsets every CLUED_* variable for the test and restores them after.
@@ -325,6 +326,8 @@ func TestLoadConfigOldKeysOnlyLoadsIdentically(t *testing.T) {
 		ClaudeAppConfigPath: "/p/claude/config.json",
 		WalPath:             filepath.Join(dir, "events.wal"),
 		TokenCache:          filepath.Join(dir, "server-token.json"),
+		// Keys added later take their defaults.
+		Memory: MemoryConfig{Engine: "extract", Model: "haiku", MaxRunsPerDay: 20, MinPrompts: 2, BudgetTokens: 1500},
 	}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("LoadConfig = %+v\nwant        %+v", cfg, want)
@@ -359,5 +362,44 @@ func TestLoadConfigCaptureContent(t *testing.T) {
 	t.Setenv("CLUED_CAPTURE_CONTENT", "true")
 	if cfg := LoadConfig(off); !cfg.CapturesContent() {
 		t.Error("CLUED_CAPTURE_CONTENT=true did not override the file")
+	}
+}
+
+func TestMemoryDefaults(t *testing.T) {
+	cleanEnv(t)
+	for _, k := range []string{"CLUED_MEMORY_ENGINE", "CLUED_MEMORY_BUDGET"} {
+		t.Setenv(k, "")
+		os.Unsetenv(k)
+	}
+	want := MemoryConfig{Engine: "extract", Model: "haiku", MaxRunsPerDay: 20, MinPrompts: 2, BudgetTokens: 1500}
+	if got := LoadConfig(filepath.Join(t.TempDir(), "missing.json")).Memory; !reflect.DeepEqual(got, want) {
+		t.Errorf("defaults = %+v, want %+v", got, want)
+	}
+	dir := t.TempDir()
+	p := writeConfig(t, dir, "config.json", `{"memory": {"engine": "claude", "maxRunsPerDay": 5, "exclude": ["~/secret"]}}`)
+	got := LoadConfig(p).Memory
+	if got.Engine != "claude" || got.MaxRunsPerDay != 5 || got.Model != "haiku" || got.MinPrompts != 2 || got.BudgetTokens != 1500 || len(got.Exclude) != 1 {
+		t.Errorf("file = %+v", got)
+	}
+	t.Setenv("CLUED_MEMORY_ENGINE", "off")
+	t.Setenv("CLUED_MEMORY_BUDGET", "800")
+	got = LoadConfig(p).Memory
+	if got.Engine != "off" || got.BudgetTokens != 800 {
+		t.Errorf("env = %+v", got)
+	}
+	t.Setenv("CLUED_MEMORY_BUDGET", "lots")
+	if got := LoadConfig(p).Memory; got.BudgetTokens != 1500 {
+		t.Errorf("a bad budget keeps the default: %+v", got)
+	}
+}
+
+func TestNoCapture(t *testing.T) {
+	t.Setenv(NoCaptureEnv, "1")
+	if !NoCapture() {
+		t.Error("CLUED_NO_CAPTURE=1 not seen")
+	}
+	t.Setenv(NoCaptureEnv, "0")
+	if NoCapture() {
+		t.Error("only 1 means no capture")
 	}
 }

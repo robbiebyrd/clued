@@ -6,10 +6,13 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/model"
@@ -17,6 +20,42 @@ import (
 
 // ErrNotFound is returned when a document or template does not exist in a store.
 var ErrNotFound = errors.New("not found")
+
+// ErrPrecondition is returned (possibly wrapped) by PutIf when the stored
+// document is missing or its front_matter.updated is not the expected one:
+// someone else wrote it since it was read.
+var ErrPrecondition = errors.New("precondition failed: the document changed since it was read")
+
+// ConditionalPutter is implemented by stores that can replace a document
+// only while it is unchanged, atomically (the MongoDB plugin, the memory
+// plugin, MultiStore over such a primary). PutIf writes d only when the
+// stored document of the same kind and id exists and its
+// front_matter.updated equals prevUpdated, and returns ErrPrecondition
+// otherwise, writing nothing.
+type ConditionalPutter interface {
+	PutIf(ctx context.Context, d *model.Document, prevUpdated string) error
+}
+
+// PutIf writes d to s only while the stored document's updated is
+// prevUpdated: through s.PutIf when s is a ConditionalPutter (atomic),
+// else by reading the document and comparing before Put, which narrows but
+// does not close the race with a concurrent writer.
+func PutIf(ctx context.Context, s Store, d *model.Document, prevUpdated string) error {
+	if c, ok := s.(ConditionalPutter); ok {
+		return c.PutIf(ctx, d, prevUpdated)
+	}
+	cur, err := s.Get(ctx, d.Kind, d.ID())
+	if errors.Is(err, ErrNotFound) {
+		return fmt.Errorf("%w: %s %s does not exist", ErrPrecondition, d.Kind, d.ID())
+	}
+	if err != nil {
+		return err
+	}
+	if cur.FrontMatter.Updated != prevUpdated {
+		return fmt.Errorf("%w: %s %s is at %q, not %q", ErrPrecondition, d.Kind, d.ID(), cur.FrontMatter.Updated, prevUpdated)
+	}
+	return s.Put(ctx, d)
+}
 
 // Store is the persistence contract every storage plugin implements.
 // Documents are keyed by kind and ID; Path is carried along so copies stay
@@ -143,12 +182,138 @@ type Locker interface {
 }
 
 // Lock takes the primary store's lock on a document when the primary is a
-// Locker; otherwise it holds nothing and returns at once.
+// Locker, else its lease (LeaseLock with DefaultLeaseTTL) when it is a
+// Leaser; otherwise it holds nothing and returns at once.
 func (m *MultiStore) Lock(ctx context.Context, kind, id string) (func(), error) {
-	if l, ok := m.Primary().(Locker); ok {
-		return l.Lock(ctx, kind, id)
+	switch p := m.Primary().(type) {
+	case Locker:
+		return p.Lock(ctx, kind, id)
+	case Leaser:
+		return LeaseLock(ctx, p, kind, id, DefaultLeaseTTL)
 	}
 	return func() {}, nil
+}
+
+// AcquireLease takes the primary's lease (Leaser); ErrNoLease when the
+// primary keeps none.
+func (m *MultiStore) AcquireLease(ctx context.Context, kind, id string, ttl time.Duration) (string, error) {
+	if l, ok := m.Primary().(Leaser); ok {
+		return l.AcquireLease(ctx, kind, id, ttl)
+	}
+	return "", ErrNoLease
+}
+
+// ReleaseLease releases the primary's lease; ErrNoLease when it keeps none.
+func (m *MultiStore) ReleaseLease(ctx context.Context, kind, id, lease string) error {
+	if l, ok := m.Primary().(Leaser); ok {
+		return l.ReleaseLease(ctx, kind, id, lease)
+	}
+	return ErrNoLease
+}
+
+// DefaultLeaseTTL is how long a lease lives unless released: long enough
+// for a claim (read, check, write), short enough that a crashed holder
+// does not block the document for long.
+const DefaultLeaseTTL = 30 * time.Second
+
+// Lease errors.
+var (
+	// ErrLeased: someone else holds an unexpired lease on the document.
+	ErrLeased = errors.New("the document is leased by someone else")
+	// ErrNoLease: the store keeps no leases.
+	ErrNoLease = errors.New("the store keeps no leases")
+)
+
+// Leaser is implemented by stores that keep an exclusive, expiring lease
+// on a document that every process sharing the store sees (the MongoDB
+// plugin; the memory plugin within one process). AcquireLease takes the
+// lease for ttl when it is free or expired and returns its id, or
+// ErrLeased at once; ReleaseLease ends it when lease is still the holder
+// (releasing an expired or taken-over lease is not an error). The clued
+// server's lock routes (storeapi) are built on it.
+type Leaser interface {
+	AcquireLease(ctx context.Context, kind, id string, ttl time.Duration) (lease string, err error)
+	ReleaseLease(ctx context.Context, kind, id, lease string) error
+}
+
+// LeaseLock holds l's lease on a document like Locker.Lock: it retries
+// AcquireLease until the lease is taken or ctx is done, and the returned
+// function releases it.
+func LeaseLock(ctx context.Context, l Leaser, kind, id string, ttl time.Duration) (func(), error) {
+	for {
+		lease, err := l.AcquireLease(ctx, kind, id, ttl)
+		if err == nil {
+			return func() {
+				rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+				defer cancel()
+				_ = l.ReleaseLease(rctx, kind, id, lease)
+			}, nil
+		}
+		if !errors.Is(err, ErrLeased) {
+			return nil, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("%s %s: %w (%v)", kind, id, ErrLeased, ctx.Err())
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+}
+
+// NewLeaseID returns a random lease id (128 bits, hex).
+func NewLeaseID() string {
+	var b [16]byte
+	_, _ = rand.Read(b[:])
+	return hex.EncodeToString(b[:])
+}
+
+// MemLeases is an in-process Leaser: the memory plugin's, and storeapi's
+// for stores that keep none (which then serialise only within one server
+// process). The zero value is ready to use.
+type MemLeases struct {
+	mu     sync.Mutex
+	leases map[string]memLease
+	// Now is the clock (time.Now when nil).
+	Now func() time.Time
+}
+
+type memLease struct {
+	id      string
+	expires time.Time
+}
+
+func (m *MemLeases) now() time.Time {
+	if m.Now != nil {
+		return m.Now()
+	}
+	return time.Now()
+}
+
+// AcquireLease implements Leaser.
+func (m *MemLeases) AcquireLease(_ context.Context, kind, id string, ttl time.Duration) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.leases == nil {
+		m.leases = map[string]memLease{}
+	}
+	k, now := kind+"/"+id, m.now()
+	if cur, ok := m.leases[k]; ok && now.Before(cur.expires) {
+		return "", ErrLeased
+	}
+	l := memLease{id: NewLeaseID(), expires: now.Add(ttl)}
+	m.leases[k] = l
+	return l.id, nil
+}
+
+// ReleaseLease implements Leaser.
+func (m *MemLeases) ReleaseLease(_ context.Context, kind, id, lease string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	k := kind + "/" + id
+	if cur, ok := m.leases[k]; ok && cur.id == lease {
+		delete(m.leases, k)
+	}
+	return nil
 }
 
 // MultiStore fans writes out to every store and reads from the primary (the
@@ -246,6 +411,21 @@ func (m *MultiStore) Put(ctx context.Context, d *model.Document) error {
 	return m.fanout("put "+d.Kind+" "+d.ID(), func(s Store) error { return s.Put(ctx, d.Clone()) })
 }
 
+// PutIf writes d to the primary only while its stored copy's updated is
+// prevUpdated (see the package function PutIf), then fans it out to the
+// other stores as Put does. A failed precondition writes nothing anywhere
+// and returns ErrPrecondition.
+func (m *MultiStore) PutIf(ctx context.Context, d *model.Document, prevUpdated string) error {
+	first := true
+	return m.fanout("put "+d.Kind+" "+d.ID(), func(s Store) error {
+		if first {
+			first = false
+			return PutIf(ctx, s, d.Clone(), prevUpdated)
+		}
+		return s.Put(ctx, d.Clone())
+	})
+}
+
 func (m *MultiStore) Delete(ctx context.Context, kind, id string) error {
 	return m.fanout("delete "+kind+" "+id, func(s Store) error { return s.Delete(ctx, kind, id) })
 }
@@ -261,4 +441,9 @@ func (m *MultiStore) DeleteTemplate(ctx context.Context, kind, id string) error 
 	return m.fanout("delete "+kind+" template "+id, func(s Store) error { return s.DeleteTemplate(ctx, kind, id) })
 }
 
-var _ Store = (*MultiStore)(nil)
+var (
+	_ Store             = (*MultiStore)(nil)
+	_ ConditionalPutter = (*MultiStore)(nil)
+	_ Leaser            = (*MultiStore)(nil)
+	_ Leaser            = (*MemLeases)(nil)
+)

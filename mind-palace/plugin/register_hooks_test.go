@@ -30,9 +30,16 @@ func (s settings) hooks(t *testing.T) map[string][]settingsGroup {
 	return h
 }
 
-// registerHooks runs hooks/register-hooks against dir/settings.json, seeded with seed
-// (or absent when seed is empty), and returns the resulting settings.
+// registerHooks runs `hooks/register-hooks --settings` (the opt-in settings
+// mirror) against dir/settings.json, seeded with seed (or absent when seed
+// is empty), and returns the resulting settings.
 func registerHooks(t *testing.T, dir, seed string, times int) settings {
+	t.Helper()
+	return registerHooksWith(t, dir, seed, times, "--settings")
+}
+
+// registerHooksWith is registerHooks with the given register-hooks arguments.
+func registerHooksWith(t *testing.T, dir, seed string, times int, args ...string) settings {
 	t.Helper()
 	requireJq(t)
 	path := filepath.Join(dir, "settings.json")
@@ -42,9 +49,9 @@ func registerHooks(t *testing.T, dir, seed string, times int) settings {
 			t.Fatal(err)
 		}
 	}
-	env := append(os.Environ(), "CLAUDE_CONFIG_DIR="+dir)
+	env := append(os.Environ(), "CLAUDE_CONFIG_DIR="+dir, "CLAUDE_PLUGIN_DATA="+filepath.Join(dir, "data"))
 	for i := 0; i < times; i++ {
-		if r := runScript(t, filepath.Join(repoRoot(t), "hooks/register-hooks"), "", env); r.code != 0 {
+		if r := runScript(t, filepath.Join(repoRoot(t), "hooks/register-hooks"), "", env, args...); r.code != 0 {
 			t.Fatalf("register-hooks failed: %+v", r)
 		}
 	}
@@ -57,6 +64,12 @@ func registerHooks(t *testing.T, dir, seed string, times int) settings {
 		t.Fatal(err)
 	}
 	return s
+}
+
+// launcherIn is the launcher register-hooks writes for the settings dir
+// registerHooks used, quoted as settings commands start with it.
+func launcherIn(dir string) string {
+	return `"` + filepath.Join(dir, "data", "bin", "clued-hook") + `"`
 }
 
 func hasSuffixCommand(g settingsGroup, suffix string) bool {
@@ -82,9 +95,9 @@ func TestRegisterHooksWritesAllRequiredEventTypes(t *testing.T) {
 }
 
 func TestRegisterHooksPointsToCorrectAbsolutePaths(t *testing.T) {
-	h := registerHooks(t, t.TempDir(), "{}", 1).hooks(t)
-	hooksDir := filepath.Join(repoRoot(t), "hooks")
-	if got := h["PreToolUse"][0].Hooks[0].Command; got != filepath.Join(hooksDir, "event-relay") {
+	dir := t.TempDir()
+	h := registerHooks(t, dir, "{}", 1).hooks(t)
+	if got := h["PreToolUse"][0].Hooks[0].Command; got != launcherIn(dir)+" event-relay" {
 		t.Errorf("relay = %q", got)
 	}
 	g := h["SessionStart"][0]
@@ -105,25 +118,27 @@ func TestRegisterHooksIsIdempotent(t *testing.T) {
 
 func TestRegisterHooksReplacesStaleCluedEntries(t *testing.T) {
 	seed := `{"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"/old/path/hooks/event-relay","async":true}]}]}}`
-	h := registerHooks(t, t.TempDir(), seed, 1).hooks(t)
+	dir := t.TempDir()
+	h := registerHooks(t, dir, seed, 1).hooks(t)
 	if len(h["PreToolUse"]) != 2 {
 		t.Fatalf("PreToolUse = %d entries, want relay and plan guard only", len(h["PreToolUse"]))
 	}
-	if got := h["PreToolUse"][0].Hooks[0].Command; got != filepath.Join(repoRoot(t), "hooks", "event-relay") {
+	if got := h["PreToolUse"][0].Hooks[0].Command; got != launcherIn(dir)+" event-relay" {
 		t.Errorf("relay = %q", got)
 	}
 }
 
 func TestRegisterHooksPreservesNonCluedHooks(t *testing.T) {
 	seed := `{"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"/other/plugin/hook"}]}]}}`
-	h := registerHooks(t, t.TempDir(), seed, 1).hooks(t)
+	dir := t.TempDir()
+	h := registerHooks(t, dir, seed, 1).hooks(t)
 	if len(h["PreToolUse"]) != 3 {
 		t.Fatalf("PreToolUse = %d entries, want 3", len(h["PreToolUse"]))
 	}
 	var other, relay bool
 	for _, g := range h["PreToolUse"] {
 		other = other || g.Hooks[0].Command == "/other/plugin/hook"
-		relay = relay || g.Hooks[0].Command == filepath.Join(repoRoot(t), "hooks", "event-relay")
+		relay = relay || g.Hooks[0].Command == launcherIn(dir)+" event-relay"
 	}
 	if !other || !relay {
 		t.Errorf("other=%v relay=%v", other, relay)
@@ -145,7 +160,7 @@ func TestRegisterHooksAddsWriteGuardWithItsMatcher(t *testing.T) {
 	h := registerHooks(t, t.TempDir(), "{}", 1).hooks(t)
 	var guards, relays int
 	for _, g := range h["PreToolUse"] {
-		if hasSuffixCommand(g, "/scripts/clued hook write-guard") {
+		if hasSuffixCommand(g, " hook write-guard") {
 			guards++
 			if g.Matcher != writeGuardMatcher {
 				t.Errorf("matcher = %q", g.Matcher)
@@ -164,7 +179,7 @@ func TestRegisterHooksKeepsOneGuardWhenRunTwice(t *testing.T) {
 	h := registerHooks(t, t.TempDir(), "{}", 2).hooks(t)
 	n := 0
 	for _, g := range h["PreToolUse"] {
-		if hasSuffixCommand(g, "/scripts/clued hook write-guard") {
+		if hasSuffixCommand(g, " hook write-guard") {
 			n++
 		}
 	}
@@ -187,10 +202,10 @@ func TestRegisterHooksRetiresTheBashPlanGuard(t *testing.T) {
 }
 
 func TestRegisterHooksMirrorsTheBinaryHooks(t *testing.T) {
-	h := registerHooks(t, t.TempDir(), "{}", 2).hooks(t)
-	clued := filepath.Join(repoRoot(t), "scripts", "clued")
+	dir := t.TempDir()
+	h := registerHooks(t, dir, "{}", 2).hooks(t)
+	clued := launcherIn(dir)
 	want := map[string]string{
-		"SessionEnd":       clued + " session memory-ingest --quiet",
 		"Stop":             clued + " hook stop-guard",
 		"PreToolUse":       clued + " hook write-guard",
 		"UserPromptSubmit": clued + " hook status-review --every 30m",
@@ -226,7 +241,7 @@ func TestRegisterHooksMirrorsTheBinaryHooks(t *testing.T) {
 }
 
 func TestRegisterHooksReplacesStaleBinaryHooks(t *testing.T) {
-	seed := `{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/old/path/scripts/clued hook stop-guard"}]}]}}`
+	seed := `{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/old/path/scripts/clued hook stop-guard"}]},{"hooks":[{"type":"command","command":"\"/old/path/scripts/clued\" hook stop-guard"}]}]}}`
 	h := registerHooks(t, t.TempDir(), seed, 1).hooks(t)
 	for _, g := range h["Stop"] {
 		for _, hk := range g.Hooks {
@@ -237,5 +252,27 @@ func TestRegisterHooksReplacesStaleBinaryHooks(t *testing.T) {
 	}
 	if len(h["Stop"]) != 2 {
 		t.Errorf("Stop = %d groups, want 2", len(h["Stop"]))
+	}
+}
+
+func TestRegisterHooksRemovesTheLegacyMirrorByDefault(t *testing.T) {
+	seed := `{"model":"sonnet","hooks":{
+		"PreToolUse":[{"hooks":[{"type":"command","command":"/old/clued/hooks/event-relay","async":true}]},{"hooks":[{"type":"command","command":"/other/plugin/hook"}]}],
+		"SessionStart":[{"hooks":[{"type":"command","command":"/old/clued/hooks/check-setup"},{"type":"command","command":"/old/clued/scripts/clued hook prime"}]}],
+		"Stop":[{"hooks":[{"type":"command","command":"/old/clued/scripts/clued hook stop-guard"}]}]}}`
+	s := registerHooksWith(t, t.TempDir(), seed, 1)
+	h := s.hooks(t)
+	if len(h) != 1 || len(h["PreToolUse"]) != 1 || h["PreToolUse"][0].Hooks[0].Command != "/other/plugin/hook" {
+		t.Errorf("hooks = %+v, want only the other plugin's", h)
+	}
+	if string(s["model"]) != `"sonnet"` {
+		t.Errorf("model = %s", s["model"])
+	}
+}
+
+func TestRegisterHooksAddsNoHooksKeyByDefault(t *testing.T) {
+	s := registerHooksWith(t, t.TempDir(), "{}", 2)
+	if _, ok := s["hooks"]; ok {
+		t.Errorf("hooks key written: %s", s["hooks"])
 	}
 }

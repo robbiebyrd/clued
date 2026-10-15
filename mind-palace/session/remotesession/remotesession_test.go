@@ -267,6 +267,15 @@ func (h *harness) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]se
 	return h.as(q.AccountID).MemoryEvents(ctx, q)
 }
 
+// DeleteMemory without an account cannot be sent (the token names the
+// account), so that case goes to the backing store.
+func (h *harness) DeleteMemory(ctx context.Context, q session.MemoryDelete) (int, error) {
+	if q.AccountID == "" {
+		return h.server.backing.DeleteMemory(ctx, q)
+	}
+	return h.as(q.AccountID).DeleteMemory(ctx, q)
+}
+
 func (h *harness) FileEvents(ctx context.Context, q session.FileQuery) ([]session.Doc, error) {
 	return h.as(q.AccountID).FileEvents(ctx, q)
 }
@@ -281,6 +290,25 @@ func (h *harness) Activities(ctx context.Context, q session.ActivityQuery) ([]se
 
 func (h *harness) SearchTranscripts(ctx context.Context, q session.TextQuery) ([]session.Doc, error) {
 	return h.as(q.AccountID).SearchTranscripts(ctx, q)
+}
+
+// SearchVectors is not served over the transport; the suite checks the
+// backing store behind it.
+func (h *harness) SearchVectors(ctx context.Context, q session.VectorQuery) ([]session.Doc, error) {
+	return h.server.backing.SearchVectors(ctx, q)
+}
+
+// The hourly aggregates are not served over the transport either.
+func (h *harness) ActivityCounts(ctx context.Context, q session.CountQuery) ([]session.HourCount, error) {
+	return h.server.backing.ActivityCounts(ctx, q)
+}
+
+func (h *harness) ErrorCounts(ctx context.Context, q session.CountQuery) ([]session.HourCount, error) {
+	return h.server.backing.ErrorCounts(ctx, q)
+}
+
+func (h *harness) LimitBuckets(ctx context.Context, q session.CountQuery) ([]session.LimitBucket, error) {
+	return h.server.backing.LimitBuckets(ctx, q)
 }
 
 func (h *harness) UsageTotals(ctx context.Context, q session.UsageQuery) ([]session.UsageTotal, error) {
@@ -440,6 +468,18 @@ func TestEnrichmentIsUnsupportedAndCloseIsANoOp(t *testing.T) {
 	}
 	if _, err := st.RequeueSkipped(ctx, "hook_events", "acct", "e"); !errors.Is(err, session.ErrUnsupported) {
 		t.Errorf("RequeueSkipped = %v, want ErrUnsupported", err)
+	}
+	if _, err := st.SearchVectors(ctx, session.VectorQuery{Vector: []float32{1}}); !errors.Is(err, session.ErrUnsupported) {
+		t.Errorf("SearchVectors = %v, want ErrUnsupported", err)
+	}
+	if _, err := st.ActivityCounts(ctx, session.CountQuery{}); !errors.Is(err, session.ErrUnsupported) {
+		t.Errorf("ActivityCounts = %v, want ErrUnsupported", err)
+	}
+	if _, err := st.ErrorCounts(ctx, session.CountQuery{}); !errors.Is(err, session.ErrUnsupported) {
+		t.Errorf("ErrorCounts = %v, want ErrUnsupported", err)
+	}
+	if _, err := st.LimitBuckets(ctx, session.CountQuery{}); !errors.Is(err, session.ErrUnsupported) {
+		t.Errorf("LimitBuckets = %v, want ErrUnsupported", err)
 	}
 	if _, err := st.DeleteAccount(ctx, "acct"); !errors.Is(err, session.ErrUnsupported) {
 		t.Errorf("DeleteAccount = %v, want ErrUnsupported", err)

@@ -16,6 +16,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/hookguard"
 	"github.com/robbiebyrd/clued/mind-palace/service"
+	"github.com/robbiebyrd/clued/mind-palace/session"
 )
 
 // hookCmd groups the Claude Code hooks served by the binary. Each reads the
@@ -27,7 +28,31 @@ func (a *App) hookCmd() *cobra.Command {
 		Short: "Claude Code hooks served by the binary (read hook JSON on stdin)",
 	}
 	cmd.AddCommand(a.hookStopGuardCmd(), a.hookWriteGuardCmd(), a.hookStatusReviewCmd(), a.hookRelayCmd(), a.hookPrimeCmd(), a.hookStatusCmd())
+	for _, sub := range cmd.Commands() {
+		if noCaptureSkips[sub.Name()] {
+			a.skipInEngineRuns(sub)
+		}
+	}
 	return cmd
+}
+
+// noCaptureSkips are the hooks that do nothing inside a memory engine's
+// own `claude -p` (CLUED_NO_CAPTURE=1): it is not captured, relayed,
+// primed, reviewed or held back from stopping. The write guard still
+// applies.
+var noCaptureSkips = map[string]bool{"relay": true, "prime": true, "status-review": true, "stop-guard": true}
+
+// skipInEngineRuns makes the hook read its input and print nothing when
+// session.NoCapture is set.
+func (a *App) skipInEngineRuns(c *cobra.Command) {
+	run := c.RunE
+	c.RunE = func(cmd *cobra.Command, args []string) error {
+		if session.NoCapture() {
+			_, _ = io.Copy(io.Discard, a.Stdin)
+			return nil
+		}
+		return run(cmd, args)
+	}
 }
 
 func (a *App) hookWriteGuardCmd() *cobra.Command {

@@ -338,3 +338,26 @@ func TestUninstallStopsTheServerStack(t *testing.T) {
 		}
 	})
 }
+
+func TestUninstallRemovesTheSettingsMirror(t *testing.T) {
+	requireJq(t)
+	home := t.TempDir()
+	cfg := filepath.Join(home, ".claude")
+	data := filepath.Join(home, ".claude", "plugins", "data", "clued")
+	// The opt-in mirror and an older clued's entry, next to another plugin's hook.
+	runRegisterHooks(t, repoRoot(t), cfg, data, "--settings")
+	s := readSettings(t, cfg)
+	s = strings.Replace(s, `"hooks": {`, `"hooks": {"OtherEvent": [{"hooks": [{"type": "command", "command": "/old/clued/scripts/clued hook stop-guard"}]}, {"hooks": [{"type": "command", "command": "/other/plugin/hook"}]}],`, 1)
+	if err := os.WriteFile(filepath.Join(cfg, "settings.json"), []byte(s), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := runScript(t, hook(t, "uninstall"), "", uninstallEnv(home, closedPort(t)))
+	if r.code != 0 || !strings.Contains(r.stdout, "removed clued hooks") {
+		t.Fatalf("got %+v", r)
+	}
+	got := identities(settingsHooks(t, cfg))
+	if len(got) != 1 || len(got["OtherEvent"]) != 1 || got["OtherEvent"][0] != "/other/plugin/hook" {
+		t.Errorf("settings hooks after uninstall = %v, want only the other plugin's", got)
+	}
+	mustNotExist(t, filepath.Join(data, "bin", "clued-hook"), "launcher")
+}

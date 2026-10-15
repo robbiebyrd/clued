@@ -12,11 +12,15 @@ import (
 // ForgetArgs are the forget_session tool parameters: sessions by id, by a
 // regular expression over the project path, or last seen before a day
 // (YYYY-MM-DD, UTC) or time (RFC 3339); given together they must all hold.
+// Limit, above zero with a project path or a day, deletes at most that many
+// sessions, the oldest first, and the result's more reports that others
+// match.
 type ForgetArgs struct {
 	SessionIDs  []string `json:"session_ids,omitempty"`
 	SessionID   string   `json:"session_id,omitempty"`
 	ProjectPath string   `json:"project_path,omitempty"`
 	Before      string   `json:"before,omitempty"`
+	Limit       int      `json:"limit,omitempty"`
 }
 
 // ErrNothingToForget is returned for a forget with no criterion, so that a
@@ -27,7 +31,7 @@ var ErrNothingToForget = errors.New("name a session, a project path or a day to 
 // everything captured for them, from the store (the local JSONL files are
 // Claude Code's and stay).
 func (s *Service) Forget(ctx context.Context, args ForgetArgs) (session.Forgotten, error) {
-	q := session.ForgetQuery{AccountID: s.AccountID, ProjectPathRe: args.ProjectPath}
+	q := session.ForgetQuery{AccountID: s.AccountID, ProjectPathRe: args.ProjectPath, Limit: args.Limit}
 	q.SessionIDs = append(q.SessionIDs, args.SessionIDs...)
 	if args.SessionID != "" {
 		q.SessionIDs = append(q.SessionIDs, args.SessionID)

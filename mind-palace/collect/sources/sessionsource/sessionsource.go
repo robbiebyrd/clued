@@ -1,7 +1,7 @@
 // Package sessionsource implements prime.SessionSource and prime.MemorySource
 // over the captured session store: the most recent session captured for a
 // working directory, with its most recent distinct Bash commands, and the
-// newest memory records (claude-remember summaries) of that directory.
+// memory bundle (session/memory) of that directory's project.
 package sessionsource
 
 import (
@@ -9,9 +9,12 @@ import (
 	"regexp"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/robbiebyrd/clued/mind-palace/collect/prime"
 	"github.com/robbiebyrd/clued/mind-palace/session"
+	"github.com/robbiebyrd/clued/mind-palace/session/gitinfo"
+	"github.com/robbiebyrd/clued/mind-palace/session/memory"
 	"github.com/robbiebyrd/clued/mind-palace/session/query"
 )
 
@@ -84,10 +87,15 @@ func (s *Source) Current(ctx context.Context, cwd string) (*prime.SessionSnapsho
 	}, nil
 }
 
-// Recent returns the newest memory records of the sessions whose project
-// path is cwd, at most limit of them; an empty cwd yields none without
+// Origin looks up the git origin of a directory; tests replace it.
+var Origin = gitinfo.Origin
+
+// Bundle returns the memory bundle of cwd's project (memory.ProjectKey of
+// its git origin and the path) within budgetTokens, the compact one when
+// compact is set; a start bundle with budget left over ends with
+// yesterday's digest, cut to fit. An empty cwd yields none without
 // touching the store.
-func (s *Source) Recent(ctx context.Context, cwd string, limit int) ([]prime.MemoryNote, error) {
+func (s *Source) Bundle(ctx context.Context, cwd string, budgetTokens int, compact bool) ([]prime.MemoryNote, error) {
 	if cwd == "" {
 		return []prime.MemoryNote{}, nil
 	}
@@ -95,20 +103,46 @@ func (s *Source) Recent(ctx context.Context, cwd string, limit int) ([]prime.Mem
 	if err != nil {
 		return nil, err
 	}
-	svc := &query.Service{Store: st, AccountID: s.accountID}
-	hits, err := svc.SearchMemory(ctx, query.SearchMemoryArgs{ProjectPath: cwd, Limit: limit})
+	mode := memory.BundleStart
+	if compact {
+		mode = memory.BundleCompact
+	}
+	svc := &memory.Service{Store: st, AccountID: s.accountID}
+	bundle, err := svc.Bundle(ctx, memory.ProjectKey(Origin(ctx, cwd), cwd), budgetTokens, mode)
 	if err != nil {
 		return nil, err
 	}
-	notes := make([]prime.MemoryNote, 0, len(hits)+1)
-	if d := s.yesterdaysDigest(ctx, svc); d != nil {
-		notes = append(notes, *d)
+	notes := make([]prime.MemoryNote, 0, len(bundle)+1)
+	used := 0
+	for _, n := range bundle {
+		used += len(n.Text)
+		notes = append(notes, prime.MemoryNote{ID: n.ID, Kind: n.Kind, Day: n.Day, Text: n.Text, Legacy: n.Legacy, CreatedAt: n.CreatedAt})
 	}
-	for _, h := range hits {
-		notes = append(notes, prime.MemoryNote{Kind: h.Kind, Day: h.Day, Time: h.Time, Branch: h.Branch, Text: h.Text, CreatedAt: h.CreatedAt})
+	if left := budgetTokens*memory.CharsPerToken - used; !compact && left >= minDigest {
+		if d := s.yesterdaysDigest(ctx, &query.Service{Store: st, AccountID: s.accountID}); d != nil {
+			d.Text = clip(d.Text, left)
+			notes = append(notes, *d)
+		}
 	}
 	return notes, nil
 }
+
+// clip cuts text to at most n bytes at a rune boundary, marking the cut.
+func clip(text string, n int) string {
+	const mark = "…"
+	if len(text) <= n {
+		return text
+	}
+	cut := n - len(mark)
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
+		cut--
+	}
+	return text[:cut] + mark
+}
+
+// minDigest is the budget left over (in characters) a digest needs to be
+// shown at all.
+const minDigest = 200
 
 // yesterdaysDigest is the digest `session digest` stored for yesterday
 // (UTC), as a note of kind digest; nil when there is none (or the store

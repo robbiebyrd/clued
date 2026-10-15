@@ -328,7 +328,8 @@ server's session config to the machine. The routes behind this are in
   its event in the WAL, and the next session start reports the rejected token
   through `check-setup`; nothing is lost once a new token is written.
 - `GET /api/v1/whoami` returns the principal of the presented token with its
-  projects and the server version. It is the connectivity probe of
+  projects and the server version (and, on a clued cloud, the `assignee` to
+  claim documents as). It is the connectivity probe of
   `/clued-setup` and `check-setup`, and `mind-palace session whoami` prints it.
 
 ## TLS
@@ -502,8 +503,10 @@ the cloud (the host name by default); `--wait` bounds the wait (15 minutes).
   only).
 - `session config-pull` fetches the account's client settings
   (`GET /api/v1/me/config`: `enabledEnrichers`, `disabledEnrichers`,
-  `projectsDir`, `fileHistoryDir`, and the `captureContent` hint, removed
-  again when the server stops sending it) into `config.json`; `session-start` runs
+  `projectsDir`, `fileHistoryDir`, `redactAtCapture`, `redactPatterns`,
+  `excludePaths`, and the `captureContent` hint, removed again when the
+  server stops sending it) into `config.json`; a key a workspace policy
+  manages (`managed`) replaces a local edit, with a note on stderr; `session-start` runs
   it with `--quiet` in remote mode, so settings changed in the cloud's web
   app reach every linked machine at its next session. Against a plain clued
   server the route does not exist and the command is a no-op.

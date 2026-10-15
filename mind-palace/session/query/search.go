@@ -2,8 +2,10 @@ package query
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 )
@@ -92,4 +94,86 @@ func queryTerms(q string) []string {
 		}
 	}
 	return terms
+}
+
+// MaxSemanticQueryChars caps the query SemanticSearch embeds.
+const MaxSemanticQueryChars = 1000
+
+// ErrNoEmbedder is SemanticSearch's error when the service has no Embedder.
+var ErrNoEmbedder = errors.New("semantic search is not available: no embedder is configured")
+
+// SemanticSearchArgs are the search_semantic tool parameters. Since is an
+// RFC 3339 time or a duration back from now ("720h"); Limit defaults to
+// 20 and is capped at 100.
+type SemanticSearchArgs struct {
+	Query       string `json:"query"`
+	SessionID   string `json:"session_id,omitempty"`
+	GitOrigin   string `json:"git_origin,omitempty"`
+	ProjectPath string `json:"project_path,omitempty"`
+	Since       string `json:"since,omitempty"`
+	Limit       int    `json:"limit,omitempty"`
+}
+
+// SemanticSearch ranks the prompts and replies of the scope by how close
+// their meaning is to the query's, best first: the query (cut to
+// MaxSemanticQueryChars characters) is embedded as a query and compared
+// with the vectors the embedding enricher stored under the embedder's
+// model. Score is the cosine similarity. A session_id that is not the
+// account's yields no hits.
+func (s *Service) SemanticSearch(ctx context.Context, args SemanticSearchArgs) ([]TranscriptHit, error) {
+	if s.Embedder == nil {
+		return nil, ErrNoEmbedder
+	}
+	text := strings.TrimSpace(args.Query)
+	if text == "" {
+		return []TranscriptHit{}, nil
+	}
+	if utf8.RuneCountInString(text) > MaxSemanticQueryChars {
+		text = string([]rune(text)[:MaxSemanticQueryChars])
+	}
+	since, err := parseSince(args.Since, s.now())
+	if err != nil {
+		return nil, err
+	}
+	sessionIDs, scoped, err := s.scope(ctx, args.SessionID, args.GitOrigin, args.ProjectPath)
+	if err != nil {
+		return nil, err
+	}
+	if scoped && len(sessionIDs) == 0 {
+		return []TranscriptHit{}, nil
+	}
+	vecs, err := s.Embedder.Embed(ctx, []string{text}, session.EmbedQuery)
+	if err != nil {
+		return nil, err
+	}
+	if len(vecs) != 1 {
+		return nil, errors.New("semantic search: the embedder returned no vector")
+	}
+	lines, err := s.Store.SearchVectors(ctx, session.VectorQuery{
+		AccountID: s.AccountID, Model: s.Embedder.Model(), Vector: vecs[0],
+		SessionIDs: sessionIDs, Since: since, Limit: withDefault(args.Limit, defaultSearchLimit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	sessions := map[string]session.Doc{}
+	hits := make([]TranscriptHit, 0, len(lines))
+	for _, l := range lines {
+		id, _ := l.String("session_id")
+		if _, known := sessions[id]; !known {
+			if sessions[id], err = s.sessionOrNil(ctx, id); err != nil {
+				return nil, err
+			}
+		}
+		snippet, _ := l.Map("enrichments")["search-text"].(string)
+		score, _ := l["score"].(float64)
+		createdAt, _ := l["created_at"].(time.Time)
+		hits = append(hits, TranscriptHit{
+			SessionID: id, Seq: toInt(l["seq"]), Score: score,
+			Snippet:     session.Snippet(snippet, nil, searchSnippetChars),
+			ProjectPath: stringPtr(sessions[id], "project_path"), GitOrigin: stringPtr(sessions[id], "git_origin"),
+			CreatedAt: createdAt,
+		})
+	}
+	return hits, nil
 }

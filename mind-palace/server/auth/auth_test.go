@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -417,6 +418,15 @@ func TestWhoami(t *testing.T) {
 	}
 	if !body.OK || body.Result.Name != "laptop" || body.Result.AccountID != "acct-1" || !reflect.DeepEqual(body.Result.Projects, []string{"alpha", "beta"}) || body.Result.Version != "1.2.3" {
 		t.Fatalf("body = %+v", body)
+	}
+
+	if strings.Contains(rec.Body.String(), "assignee") {
+		t.Errorf("assignee without a suggestion: %s", rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	WhoamiHandlerWith("1.2.3", func(_ context.Context, p Principal) string { return "github:" + p.Name }).ServeHTTP(rec, req.WithContext(WithPrincipal(req.Context(), p)))
+	if !strings.Contains(rec.Body.String(), `"assignee": "github:laptop"`) {
+		t.Errorf("whoami with an assignee: %s", rec.Body.String())
 	}
 
 	// No projects serialises as [] and the handler alone answers 401.

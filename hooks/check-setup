@@ -5,6 +5,13 @@ CLUED="${PLUGIN_ROOT}/scripts/clued"
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 INSTALL_CMD="go install github.com/robbiebyrd/clued/mind-palace/cmd/mind-palace@latest"
 
+# A memory engine's own `claude -p` runs with CLUED_NO_CAPTURE=1: it is
+# never captured, relayed or primed.
+if [[ "${CLUED_NO_CAPTURE:-}" == "1" ]]; then
+  cat >/dev/null 2>&1
+  exit 0
+fi
+
 # Remote mode: config.json names a clued server (the environment wins).
 SERVER_URL=""
 if command -v jq &>/dev/null && [[ -f "$CONFIG_FILE" ]]; then

@@ -138,3 +138,42 @@ func TestDocumentsEqualNormalises(t *testing.T) {
 		t.Error("different kinds must not compare equal")
 	}
 }
+
+func TestMultiStorePutIf(t *testing.T) {
+	ctx := context.Background()
+	primary, copyStore := memstore.New("primary"), memstore.New("copy")
+	m := store.NewMulti(primary, copyStore)
+	d := &model.Document{Kind: kind.Plan, Path: "0001-abc-impl-x.md", FrontMatter: model.FrontMatter{ID: "0001-abc", Title: "X", Type: "impl", Status: "pending", Updated: "u1"}}
+	if err := m.Put(ctx, d); err != nil {
+		t.Fatal(err)
+	}
+	next := d.Clone()
+	next.FrontMatter.Updated = "u2"
+	if err := m.PutIf(ctx, next, "u1"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := copyStore.Get(ctx, kind.Plan, "0001-abc"); got.FrontMatter.Updated != "u2" {
+		t.Errorf("the copy was not written: %q", got.FrontMatter.Updated)
+	}
+	stale := d.Clone()
+	stale.FrontMatter.Updated = "u3"
+	if err := m.PutIf(ctx, stale, "u1"); !errors.Is(err, store.ErrPrecondition) {
+		t.Fatalf("stale PutIf = %v, want ErrPrecondition", err)
+	}
+	for _, s := range []store.Store{primary, copyStore} {
+		if got, _ := s.Get(ctx, kind.Plan, "0001-abc"); got.FrontMatter.Updated != "u2" {
+			t.Errorf("%s changed by a failed PutIf: %q", s.Name(), got.FrontMatter.Updated)
+		}
+	}
+	// The package function falls back to read-compare-write on a store
+	// that is not a ConditionalPutter.
+	if err := store.PutIf(ctx, plainStore{copyStore}, stale, "u1"); !errors.Is(err, store.ErrPrecondition) {
+		t.Errorf("fallback stale = %v", err)
+	}
+	if err := store.PutIf(ctx, plainStore{copyStore}, stale, "u2"); err != nil {
+		t.Errorf("fallback matching = %v", err)
+	}
+}
+
+// plainStore hides memstore's PutIf.
+type plainStore struct{ store.Store }

@@ -30,6 +30,8 @@ type Store struct {
 	templates map[key]*model.Template
 	// FailWrites makes every write fail; used to exercise fan-out errors.
 	FailWrites error
+	// MemLeases gives the store an in-process store.Leaser.
+	store.MemLeases
 }
 
 // New returns an empty store.
@@ -89,6 +91,26 @@ func (s *Store) Put(_ context.Context, d *model.Document) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.docs[key{d.Kind, d.ID()}] = d.Clone()
+	return nil
+}
+
+// PutIf replaces d only while the stored copy's updated is prevUpdated
+// (store.ConditionalPutter), atomically under the store's lock.
+func (s *Store) PutIf(_ context.Context, d *model.Document, prevUpdated string) error {
+	if s.FailWrites != nil {
+		return s.FailWrites
+	}
+	if err := checkKind(d.Kind); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	k := key{d.Kind, d.ID()}
+	cur, ok := s.docs[k]
+	if !ok || cur.FrontMatter.Updated != prevUpdated {
+		return fmt.Errorf("%w: %s %s", store.ErrPrecondition, d.Kind, d.ID())
+	}
+	s.docs[k] = d.Clone()
 	return nil
 }
 

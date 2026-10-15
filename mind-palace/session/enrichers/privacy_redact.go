@@ -20,10 +20,14 @@ var PrivacyRedact = session.Enricher{
 	Enrich:     enrichPrivacyRedact,
 }
 
-// PrivacyRedactMemory masks the same patterns in the text of the memory
-// records ingested from claude-remember (MemorySaved hook events). It
-// belongs to the privacy-redact group, so enabling "privacy-redact" switches
-// both redactors on.
+// PrivacyRedactMemory masks the same patterns in the text of every memory
+// record (MemorySaved hook events): the native records of session/memory
+// (session notes, roll-ups, notes, handoffs, pinned notes, checkpoints),
+// digests, and the claude-remember records ingested before native memory.
+// Native memory is already redacted before it is stored; this enricher
+// keeps a masked copy for the records stored before redaction was on. It
+// belongs to the privacy-redact group, so enabling "privacy-redact"
+// switches both redactors on.
 var PrivacyRedactMemory = session.Enricher{
 	Name:       "privacy-redact-memory",
 	Group:      PrivacyRedact.Name,

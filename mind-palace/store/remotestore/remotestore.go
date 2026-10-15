@@ -28,6 +28,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/kind"
@@ -66,6 +68,15 @@ type Store struct {
 	name    string
 	project string
 	client  *remote.Client
+
+	// seen holds the front_matter.updated of each document this store read
+	// (Get, List) and of its own later writes ("<kind>/<id>"); Put sends it
+	// as If-Match so the server refuses a write over a copy someone else
+	// changed since (412, which Put returns as store.ErrPrecondition). A
+	// document this store never read is written unconditionally, as when
+	// the server is only a fan-out copy of a local primary.
+	mu   sync.Mutex
+	seen map[string]string
 }
 
 // New builds a store from its definition. The url, token and project
@@ -115,11 +126,14 @@ func NewWithClient(name, project string, client *remote.Client) (*Store, error) 
 	if !projects.ValidSlug(project) {
 		return nil, fmt.Errorf("remotestore: storage %q: invalid project slug %q", name, project)
 	}
-	return &Store{name: name, project: project, client: client}, nil
+	return &Store{name: name, project: project, client: client, seen: map[string]string{}}, nil
 }
 
 func (s *Store) Name() string   { return s.name }
 func (s *Store) Driver() string { return Driver }
+
+// Client is the client the store talks to the server with.
+func (s *Store) Client() *remote.Client { return s.client }
 
 // Project is the slug the store's documents live under.
 func (s *Store) Project() string { return s.project }
@@ -132,8 +146,9 @@ func (s *Store) Init(ctx context.Context) error {
 	if len(names) == 0 {
 		return nil
 	}
-	if _, err := s.List(ctx, names[0]); err != nil {
-		return fmt.Errorf("remotestore: %w", err)
+	var docs []*model.Document
+	if err := s.client.Do(ctx, http.MethodGet, s.path(names[0]), nil, &docs); err != nil {
+		return fmt.Errorf("remotestore: %w", mapErr(err))
 	}
 	return nil
 }
@@ -177,7 +192,36 @@ func mapErr(err error) error {
 	if remote.IsNotFound(err) {
 		return fmt.Errorf("%w: %v", store.ErrNotFound, err)
 	}
+	if errors.Is(err, remote.ErrPrecondition) {
+		return fmt.Errorf("%w: %v", store.ErrPrecondition, err)
+	}
 	return err
+}
+
+// remember records the updated of documents read from or written to the
+// server; forget drops one (deleted, or not found).
+func (s *Store) remember(docs ...*model.Document) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, d := range docs {
+		if d != nil && d.FrontMatter.Updated != "" {
+			s.seen[d.Kind+"/"+d.ID()] = d.FrontMatter.Updated
+		}
+	}
+}
+
+func (s *Store) forget(kindName, id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.seen, kindName+"/"+id)
+}
+
+// lastSeen is the updated this store last read or wrote for a document.
+func (s *Store) lastSeen(kindName, id string) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u, ok := s.seen[kindName+"/"+id]
+	return u, ok
 }
 
 func (s *Store) List(ctx context.Context, kindName string) ([]*model.Document, error) {
@@ -188,6 +232,12 @@ func (s *Store) List(ctx context.Context, kindName string) ([]*model.Document, e
 	if err := s.client.Do(ctx, http.MethodGet, s.path(kindName), nil, &docs); err != nil {
 		return nil, mapErr(err)
 	}
+	for _, d := range docs {
+		if d.Kind == "" {
+			d.Kind = kindName
+		}
+	}
+	s.remember(docs...)
 	return docs, nil
 }
 
@@ -197,8 +247,15 @@ func (s *Store) Get(ctx context.Context, kindName, id string) (*model.Document, 
 	}
 	var d model.Document
 	if err := s.client.Do(ctx, http.MethodGet, s.path(kindName, id), nil, &d); err != nil {
+		if remote.IsNotFound(err) {
+			s.forget(kindName, id)
+		}
 		return nil, mapErr(err)
 	}
+	if d.Kind == "" {
+		d.Kind = kindName
+	}
+	s.remember(&d)
 	return &d, nil
 }
 
@@ -212,14 +269,84 @@ func (s *Store) Put(ctx context.Context, d *model.Document) error {
 	if d.ID() == "" {
 		return fmt.Errorf("remotestore: %s document has no id", d.Kind)
 	}
-	return mapErr(s.client.Do(ctx, http.MethodPut, s.path(d.Kind, d.ID()), d, nil))
+	var header http.Header
+	if prev, ok := s.lastSeen(d.Kind, d.ID()); ok {
+		header = http.Header{"If-Match": {storeapi.ETag(prev)}}
+	}
+	if err := s.client.DoHeader(ctx, http.MethodPut, s.path(d.Kind, d.ID()), header, d, nil); err != nil {
+		return mapErr(err)
+	}
+	if header != nil {
+		s.remember(d)
+	}
+	return nil
+}
+
+// PutIf writes d only while the server's copy has prevUpdated
+// (store.ConditionalPutter): a PUT with If-Match, 412 being
+// store.ErrPrecondition.
+func (s *Store) PutIf(ctx context.Context, d *model.Document, prevUpdated string) error {
+	if d == nil {
+		return errors.New("remotestore: nil document")
+	}
+	if err := checkKind(d.Kind); err != nil {
+		return err
+	}
+	header := http.Header{"If-Match": {storeapi.ETag(prevUpdated)}}
+	if err := s.client.DoHeader(ctx, http.MethodPut, s.path(d.Kind, d.ID()), header, d, nil); err != nil {
+		return mapErr(err)
+	}
+	s.remember(d)
+	return nil
 }
 
 func (s *Store) Delete(ctx context.Context, kindName, id string) error {
 	if err := checkKind(kindName); err != nil {
 		return err
 	}
-	return mapErr(s.client.Do(ctx, http.MethodDelete, s.path(kindName, id), nil, nil))
+	err := s.client.Do(ctx, http.MethodDelete, s.path(kindName, id), nil, nil)
+	if err == nil || remote.IsNotFound(err) {
+		s.forget(kindName, id)
+	}
+	return mapErr(err)
+}
+
+// lockRetry is how long Lock waits before asking for a held lease again.
+const lockRetry = 100 * time.Millisecond
+
+// Lock takes the server's lease on a document (store.Locker) through the
+// storeapi lock route, asking again while another client holds it until
+// ctx is done; the returned function releases it. A server without the
+// route (404) holds nothing and Lock returns at once, as before leases
+// existed. When the server is the primary store (a shared project, see
+// clientcfg), claims from every member's client serialise on it.
+func (s *Store) Lock(ctx context.Context, kindName, id string) (func(), error) {
+	if err := checkKind(kindName); err != nil {
+		return nil, err
+	}
+	for {
+		var got storeapi.Lease
+		err := s.client.Do(ctx, http.MethodPost, s.path(kindName, id, "lock"), map[string]string{}, &got)
+		var re *remote.Error
+		switch {
+		case err == nil:
+			return func() {
+				rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+				defer cancel()
+				_ = s.client.Do(rctx, http.MethodPost, s.path(kindName, id, "unlock"), storeapi.Lease{Lease: got.Lease}, nil)
+			}, nil
+		case remote.IsNotFound(err), errors.As(err, &re) && (re.Status == http.StatusNotFound || re.Status == http.StatusMethodNotAllowed):
+			return func() {}, nil
+		case errors.As(err, &re) && re.Kind == storeapi.ErrLocked:
+		default:
+			return nil, mapErr(err)
+		}
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("remotestore: %s %s: %w (%v)", kindName, id, store.ErrLeased, ctx.Err())
+		case <-time.After(lockRetry):
+		}
+	}
 }
 
 func (s *Store) ListTemplates(ctx context.Context, kindName string) ([]*model.Template, error) {
@@ -264,4 +391,8 @@ func (s *Store) DeleteTemplate(ctx context.Context, kindName, id string) error {
 	return mapErr(s.client.Do(ctx, http.MethodDelete, s.path(kindName, "templates", id), nil, nil))
 }
 
-var _ store.Store = (*Store)(nil)
+var (
+	_ store.Store             = (*Store)(nil)
+	_ store.ConditionalPutter = (*Store)(nil)
+	_ store.Locker            = (*Store)(nil)
+)

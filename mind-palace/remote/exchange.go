@@ -108,7 +108,7 @@ func (c *Client) exchange(ctx context.Context) (exchanged, error) {
 	host, _ := os.Hostname()
 	body := map[string]any{"client_name": host, "client_info": map[string]string{"source": "exchange", "host": host}}
 	var got exchanged
-	err := c.send(ctx, "POST", PathTokenExchange, mustJSON(body), &got, c.key)
+	err := c.send(ctx, "POST", PathTokenExchange, nil, mustJSON(body), &got, c.key)
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return exchanged{}, fmt.Errorf("remote: %s offers no token exchange (an older server); give the client a token (CLUED_SERVER_TOKEN) instead of an environment key: %w", c.baseURL, err)

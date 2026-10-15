@@ -10,6 +10,8 @@
 //	GET    /api/v1/projects/{project}/store/{kind}/{id}             Get
 //	PUT    /api/v1/projects/{project}/store/{kind}/{id}             Put (body: model.Document)
 //	DELETE /api/v1/projects/{project}/store/{kind}/{id}             Delete
+//	POST   /api/v1/projects/{project}/store/{kind}/{id}/lock        take the lease (LeaseTTL)
+//	POST   /api/v1/projects/{project}/store/{kind}/{id}/unlock      release it (body: {"lease": "…"})
 //	GET    /api/v1/projects/{project}/store/{kind}/templates        ListTemplates
 //	GET    /api/v1/projects/{project}/store/{kind}/templates/{id}   GetTemplate
 //	PUT    /api/v1/projects/{project}/store/{kind}/templates/{id}   PutTemplate (body: model.Template)
@@ -17,8 +19,17 @@
 //
 // Each request validates the project slug (400 invalid), asks Options.Allow
 // (403 forbidden), checks the kind (400 invalid) and only then opens the
-// project's store (502 store on failure). store.ErrNotFound is 404
-// not_found; a body over MaxBody is 413 too_large. The literal "templates"
+// project's store (502 store on failure; an Open error that is a
+// *httpapi.StatusError answers as it says, one wrapping
+// auth.ErrProjectForbidden 403 forbidden, one wrapping
+// projects.ErrInvalidProject 400 invalid). store.ErrNotFound is 404
+// not_found; a body over MaxBody is 413 too_large.
+//
+// A document GET answers ETag: "<front_matter.updated>". A document PUT
+// with If-Match: "<updated>" is written only while the stored copy still
+// has that updated, atomically on a store.ConditionalPutter (412
+// precondition otherwise, the document left as it was); Options.BeforePut
+// may refuse a PUT (403 forbidden). The literal "templates"
 // segment shadows a document with that id, which no generated id has.
 package storeapi
 
@@ -32,9 +43,11 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/kind"
 	"github.com/robbiebyrd/clued/mind-palace/model"
+	"github.com/robbiebyrd/clued/mind-palace/server/auth"
 	"github.com/robbiebyrd/clued/mind-palace/server/httpapi"
 	"github.com/robbiebyrd/clued/mind-palace/server/projects"
 	"github.com/robbiebyrd/clued/mind-palace/store"
@@ -53,7 +66,15 @@ const (
 	ErrNotFound  = "not_found"
 	ErrTooLarge  = "too_large"
 	ErrStore     = "store"
+	// ErrPrecondition is the kind of a 412: the If-Match of a PUT names an
+	// updated the stored document no longer has (or it does not exist).
+	ErrPrecondition = "precondition"
 )
+
+// ForceHeader is the request header ("1") a client sends to ask for a
+// forced write; BeforePut reads it with Forced. storeapi itself gives it no
+// meaning.
+const ForceHeader = "X-Clued-Force"
 
 // Options configures the handler.
 type Options struct {
@@ -64,6 +85,35 @@ type Options struct {
 	Allow func(r *http.Request, project string) bool
 	// MaxBody limits PUT bodies in bytes (DefaultMaxBody when zero).
 	MaxBody int64
+	// BeforePut, when set, runs before every document PUT with the stored
+	// copy (nil when there is none) and the document about to be written.
+	// An error refuses the write: a *httpapi.StatusError answers as it
+	// says, anything else 403 forbidden with the error's message. ctx is
+	// the request's (the principal is on it), and Project and Forced read
+	// the path's project slug and the ForceHeader from it. The write that
+	// follows is conditional on prev's updated, so a concurrent writer
+	// between the check and the write gets 412 instead of slipping past.
+	BeforePut func(ctx context.Context, prev, next *model.Document) error
+}
+
+type ctxKey int
+
+const (
+	projectKey ctxKey = iota
+	forceKey
+)
+
+// Project is the project slug of the storeapi request ctx belongs to ("" outside one).
+func Project(ctx context.Context) string {
+	p, _ := ctx.Value(projectKey).(string)
+	return p
+}
+
+// Forced reports whether the storeapi request ctx belongs to carries
+// ForceHeader: 1.
+func Forced(ctx context.Context) bool {
+	f, _ := ctx.Value(forceKey).(bool)
+	return f
 }
 
 // Handler returns the store transport.
@@ -87,11 +137,29 @@ func Handler(opts Options) http.Handler {
 	mux.HandleFunc("GET "+p+"/{id}", a.handle(a.get))
 	mux.HandleFunc("PUT "+p+"/{id}", a.handle(a.put))
 	mux.HandleFunc("DELETE "+p+"/{id}", a.handle(a.delete))
+	mux.HandleFunc("POST "+p+"/{id}/lock", a.handle(a.lock))
+	mux.HandleFunc("POST "+p+"/{id}/unlock", a.handle(a.unlock))
 	return mux
+}
+
+// LeaseTTL is how long a lease from the lock route lives unless released.
+const LeaseTTL = store.DefaultLeaseTTL
+
+// ErrLocked is the kind of a 409 from the lock route: another client holds
+// the document's lease.
+const ErrLocked = "locked"
+
+// Lease is the body of a lock answer, and the lease an unlock names.
+type Lease struct {
+	Lease     string    `json:"lease"`
+	ExpiresAt time.Time `json:"expires_at,omitzero"`
 }
 
 type api struct {
 	opts Options
+	// leases serves the lock routes for stores that keep none themselves
+	// (no store.Leaser): exclusive within this process only.
+	leases store.MemLeases
 }
 
 // request carries what every operation needs once the checks passed.
@@ -123,14 +191,22 @@ func (a *api) handle(op operation) http.HandlerFunc {
 		}
 		st, err := a.opts.Open(r.Context(), project)
 		if err != nil {
-			if errors.Is(err, projects.ErrInvalidProject) {
+			var se *httpapi.StatusError
+			switch {
+			case errors.As(err, &se):
+				httpapi.WriteError(w, se.Status, se.Kind, se.Message)
+			case errors.Is(err, projects.ErrInvalidProject):
 				httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, err.Error())
-				return
+			case errors.Is(err, auth.ErrProjectForbidden):
+				httpapi.WriteError(w, http.StatusForbidden, ErrForbidden, err.Error())
+			default:
+				httpapi.WriteError(w, http.StatusBadGateway, ErrStore, "open project store: "+err.Error())
 			}
-			httpapi.WriteError(w, http.StatusBadGateway, ErrStore, "open project store: "+err.Error())
 			return
 		}
-		op(w, r, &request{project: project, kind: k.Name, id: r.PathValue("id"), store: st})
+		ctx := context.WithValue(r.Context(), projectKey, project)
+		ctx = context.WithValue(ctx, forceKey, strings.TrimSpace(r.Header.Get(ForceHeader)) == "1")
+		op(w, r.WithContext(ctx), &request{project: project, kind: k.Name, id: r.PathValue("id"), store: st})
 	}
 }
 
@@ -157,6 +233,11 @@ func isKindName(name string) bool {
 
 // writeStoreError maps a store error to the envelope.
 func writeStoreError(w http.ResponseWriter, err error, what string) {
+	var se *httpapi.StatusError
+	if errors.As(err, &se) {
+		httpapi.WriteError(w, se.Status, se.Kind, se.Message)
+		return
+	}
 	if errors.Is(err, store.ErrNotFound) {
 		httpapi.WriteError(w, http.StatusNotFound, ErrNotFound, what+" not found")
 		return
@@ -237,7 +318,28 @@ func (a *api) get(w http.ResponseWriter, r *http.Request, req *request) {
 		writeStoreError(w, err, req.kind+" "+req.id)
 		return
 	}
+	if d.FrontMatter.Updated != "" {
+		w.Header().Set("ETag", ETag(d.FrontMatter.Updated))
+	}
 	httpapi.WriteResult(w, http.StatusOK, d)
+}
+
+// ETag is the entity tag of a document whose front_matter.updated is
+// updated: the value quoted. GET answers it and a PUT's If-Match names it.
+func ETag(updated string) string { return `"` + updated + `"` }
+
+// ifMatch reads the If-Match header of a PUT: the updated it names (the
+// quotes and a weak W/ prefix removed) and whether there is one.
+func ifMatch(r *http.Request) (string, bool) {
+	v := strings.TrimSpace(r.Header.Get("If-Match"))
+	if v == "" {
+		return "", false
+	}
+	v = strings.TrimPrefix(v, "W/")
+	if len(v) >= 2 && strings.HasPrefix(v, `"`) && strings.HasSuffix(v, `"`) {
+		v = v[1 : len(v)-1]
+	}
+	return v, true
 }
 
 func (a *api) put(w http.ResponseWriter, r *http.Request, req *request) {
@@ -266,13 +368,113 @@ func (a *api) put(w http.ResponseWriter, r *http.Request, req *request) {
 		return
 	}
 	d.FrontMatter.ID = id
-	err := req.store.Put(r.Context(), &d)
+	ctx := r.Context()
+	want, conditional := ifMatch(r)
+	var prev *model.Document
+	if conditional || a.opts.BeforePut != nil {
+		got, err := req.store.Get(ctx, req.kind, id)
+		switch {
+		case err == nil:
+			prev = got
+		case !errors.Is(err, store.ErrNotFound):
+			writeStoreError(w, err, req.kind+" "+req.id)
+			return
+		}
+	}
+	if conditional && (prev == nil || prev.FrontMatter.Updated != want) {
+		writePrecondition(w, req.kind+" "+req.id)
+		return
+	}
+	if a.opts.BeforePut != nil {
+		if err := a.opts.BeforePut(ctx, prev, d.Clone()); err != nil {
+			var se *httpapi.StatusError
+			if errors.As(err, &se) {
+				httpapi.WriteError(w, se.Status, se.Kind, se.Message)
+				return
+			}
+			httpapi.WriteError(w, http.StatusForbidden, ErrForbidden, err.Error())
+			return
+		}
+	}
+	var err error
+	if prev != nil {
+		err = store.PutIf(ctx, req.store, &d, prev.FrontMatter.Updated)
+	} else {
+		err = req.store.Put(ctx, &d)
+	}
+	if errors.Is(err, store.ErrPrecondition) {
+		writePrecondition(w, req.kind+" "+req.id)
+		return
+	}
+	if err == nil || errors.As(err, new(*store.FanoutError)) {
+		w.Header().Set("ETag", ETag(d.FrontMatter.Updated))
+	}
 	writeWriteResult(w, &d, err, req.kind+" "+req.id)
+}
+
+// writePrecondition answers 412: the document changed since the client read it.
+func writePrecondition(w http.ResponseWriter, what string) {
+	httpapi.WriteError(w, http.StatusPreconditionFailed, ErrPrecondition, what+" changed since it was read (If-Match does not match its updated); read it again and retry")
 }
 
 func (a *api) delete(w http.ResponseWriter, r *http.Request, req *request) {
 	err := req.store.Delete(r.Context(), req.kind, req.id)
 	writeWriteResult(w, map[string]string{"kind": req.kind, "id": req.id}, err, req.kind+" "+req.id)
+}
+
+// leaser is the store's own Leaser, or this process's for one that keeps none.
+func (a *api) leaser(req *request) (store.Leaser, string) {
+	if l, ok := req.store.(store.Leaser); ok {
+		return l, req.kind
+	}
+	return &a.leases, req.project + "/" + req.kind
+}
+
+// lock takes the document's lease for LeaseTTL: 200 with the lease, 409
+// locked while another holder's lease is unexpired. It does not wait;
+// clients retry.
+func (a *api) lock(w http.ResponseWriter, r *http.Request, req *request) {
+	if _, ok := model.CanonicalID(req.id); !ok {
+		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("invalid document id %q", req.id))
+		return
+	}
+	l, k := a.leaser(req)
+	lease, err := l.AcquireLease(r.Context(), k, req.id, LeaseTTL)
+	if errors.Is(err, store.ErrNoLease) {
+		l, k = &a.leases, req.project+"/"+req.kind
+		lease, err = l.AcquireLease(r.Context(), k, req.id, LeaseTTL)
+	}
+	switch {
+	case errors.Is(err, store.ErrLeased):
+		httpapi.WriteError(w, http.StatusConflict, ErrLocked, fmt.Sprintf("%s %s is locked by another client; retry", req.kind, req.id))
+	case err != nil:
+		writeStoreError(w, err, req.kind+" "+req.id)
+	default:
+		httpapi.WriteResult(w, http.StatusOK, Lease{Lease: lease, ExpiresAt: time.Now().UTC().Add(LeaseTTL)})
+	}
+}
+
+// unlock releases the lease the body names; a lease that expired or was
+// taken over is released already, so it answers 200 too.
+func (a *api) unlock(w http.ResponseWriter, r *http.Request, req *request) {
+	var in Lease
+	if !a.readJSON(w, r, &in) {
+		return
+	}
+	if strings.TrimSpace(in.Lease) == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, "the body must name the lease")
+		return
+	}
+	l, k := a.leaser(req)
+	err := l.ReleaseLease(r.Context(), k, req.id, in.Lease)
+	if errors.Is(err, store.ErrNoLease) {
+		err = a.leases.ReleaseLease(r.Context(), req.project+"/"+req.kind, req.id, in.Lease)
+	}
+	if err != nil {
+		writeStoreError(w, err, req.kind+" "+req.id)
+		return
+	}
+	httpapi.WriteResult(w, http.StatusOK, map[string]string{"kind": req.kind, "id": req.id})
 }
 
 func (a *api) listTemplates(w http.ResponseWriter, r *http.Request, req *request) {
