@@ -28,17 +28,17 @@ func TestSubsetDropsTheToolsThatNeedTheLocalDisk(t *testing.T) {
 		remote := newTools(seeded(t), session.Config{}).Subset(true)
 		cs := connectClient(t, remote.Server(), nil)
 		names := toolNames(t, cs)
-		for _, absent := range []string{"restore_session", "prime_context", "forget_session", "export_session"} {
+		for _, absent := range []string{"restore_session", "prime_context", "forget_session", "forget_memory", "export_session"} {
 			if names[absent] {
 				t.Errorf("remote subset still lists %s", absent)
 			}
 		}
-		for _, present := range []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "search_memory", "search_transcripts", "usage", "file_history", "find_errors", "get_limits", "get_activities", "get_digest", "read_transcript", "get_lines"} {
+		for _, present := range []string{"find_sessions", "get_session_context", "get_full_session", "search_commands", "search_memory", "search_transcripts", "usage", "file_history", "find_errors", "get_limits", "get_activities", "get_digest", "read_transcript", "get_lines", "remember"} {
 			if !names[present] {
 				t.Errorf("remote subset lacks %s", present)
 			}
 		}
-		if len(names) != 14 {
+		if len(names) != 15 {
 			t.Errorf("tools = %v", names)
 		}
 		if n := len(okJSON[[]obj](t, call(t, cs, "find_sessions", obj{}))); n != 4 {
@@ -46,12 +46,12 @@ func TestSubsetDropsTheToolsThatNeedTheLocalDisk(t *testing.T) {
 		}
 		// Subset(false) is the full set, and AddTools honours the subset too.
 		full := newTools(seeded(t), session.Config{}).Subset(false)
-		if n := len(toolNames(t, connectClient(t, full.Server(), nil))); n != 18 {
-			t.Errorf("full set has %d tools, want 18", n)
+		if n := len(toolNames(t, connectClient(t, full.Server(), nil))); n != 20 {
+			t.Errorf("full set has %d tools, want 20", n)
 		}
 		shared := mcp.NewServer(&mcp.Implementation{Name: "shared", Version: "1"}, nil)
 		remote.AddTools(shared, "pfx_")
-		if names := toolNames(t, connectClient(t, shared, nil)); len(names) != 14 || names["pfx_restore_session"] || !names["pfx_find_sessions"] {
+		if names := toolNames(t, connectClient(t, shared, nil)); len(names) != 15 || names["pfx_restore_session"] || !names["pfx_find_sessions"] {
 			t.Errorf("prefixed subset = %v", names)
 		}
 		if remote.Instructions() != sessionmcp.RemoteInstructions || full.Instructions() != sessionmcp.Instructions {

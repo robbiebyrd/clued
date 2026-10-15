@@ -70,6 +70,7 @@ func (a *App) primeCollector(ctx context.Context, root string, opts prime.Option
 		DaemonPort:        cfg.Port,
 		DisabledEnrichers: cfg.DisabledEnrichers,
 		EnabledEnrichers:  cfg.EnabledEnrichers,
+		MemoryBudget:      cfg.Memory.BudgetTokens,
 	}
 	if client, ok := remote.FromConfig(cfg); ok {
 		c.Server = client

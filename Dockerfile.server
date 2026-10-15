@@ -7,9 +7,13 @@
 # (no compiler runs here): BINARIES names the directory holding
 # mind-palace_linux_amd64 and mind-palace_linux_arm64, and the one matching
 # the image's platform is copied in. The version /health reports is the one
-# the build script stamped into them (VERSION, else the manifest's).
+# the build script stamped into them (VERSION, else the manifest's). The
+# licences of the modules the binary links (`build-binaries.sh --licenses`,
+# BINARIES/THIRD_PARTY_LICENSES) are copied to /usr/share/licenses/clued-server/
+# next to clued's own LICENSE and NOTICE (Apache-2.0 section 4).
 #
 #   scripts/build-binaries.sh --target linux/amd64 --target linux/arm64 dist
+#   scripts/build-binaries.sh --licenses dist
 #   docker build -f Dockerfile.server -t ghcr.io/robbiebyrd/clued-server:dev .
 #   docker buildx build -f Dockerfile.server --platform linux/amd64,linux/arm64 --build-arg BINARIES=release-assets .
 #
@@ -36,10 +40,18 @@ ARG BINARIES=dist
 
 FROM gcr.io/distroless/static-debian12:nonroot
 ARG BINARIES
+ARG VERSION=dev
+LABEL org.opencontainers.image.title="clued-server" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/robbiebyrd/clued" \
+      org.opencontainers.image.vendor="Space Hippo, LC" \
+      org.opencontainers.image.version="${VERSION}"
 # TARGETARCH is set by BuildKit for the platform being built (amd64, arm64).
 ARG TARGETARCH
 # Artifacts lose their mode on the way through CI, so the bit is set here.
 COPY --chmod=755 ${BINARIES}/mind-palace_linux_${TARGETARCH} /usr/local/bin/mind-palace
+COPY LICENSE NOTICE /usr/share/licenses/clued-server/
+COPY ${BINARIES}/THIRD_PARTY_LICENSES/ /usr/share/licenses/clued-server/THIRD_PARTY_LICENSES/
 ENV CLUED_SERVER_ADDR=0.0.0.0:8443 \
     CLUED_SERVER_TOKENS=/etc/clued/tokens.json
 EXPOSE 8443

@@ -56,7 +56,10 @@ type Engine interface {
 	Run(ctx context.Context, prompt, model string) (text string, costUSD float64, err error)
 }
 
-// ClaudeEngine runs the Claude Code CLI non-interactively.
+// ClaudeEngine runs the Claude Code CLI non-interactively, with
+// CLUED_NO_CAPTURE=1 in its environment so the clued hooks of that run
+// capture, relay and prime nothing: an engine's own run is never a
+// session.
 type ClaudeEngine struct {
 	// Command is the executable, "claude" by default.
 	Command string
@@ -77,6 +80,7 @@ func (e ClaudeEngine) Run(ctx context.Context, prompt, model string) (string, fl
 		args = append(args, "--model", model)
 	}
 	cmd := exec.CommandContext(ctx, command, args...)
+	cmd.Env = append(os.Environ(), session.NoCaptureEnv+"=1")
 	cmd.Stdin = strings.NewReader(prompt)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
