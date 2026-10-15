@@ -61,11 +61,31 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"error lines select flagged lines by type and session, newest first", errorLines},
 		{"search transcripts ranks lines by their indexed words, scoped to the account", searchTranscripts},
 		{"usage totals count each message once, by session, model or day", usageTotals},
+		{"search vectors ranks by cosine", searchVectorsRanks},
+		{"search vectors is per account", searchVectorsPerAccount},
+		{"search vectors honours since and session ids", searchVectorsSinceAndSessions},
+		{"search vectors ignores lines without or with another model's embedding", searchVectorsOtherModels},
+		{"search vectors caps limit at 100", searchVectorsLimitCap},
+		{"forget drops vectors", forgetDropsVectors},
+		{"activity and error counts bucket lines by the hour they were written", hourlyCountsBoundaries},
+		{"hourly aggregates are per account and Until is exclusive", hourlyAggregatesScoping},
+		{"limit buckets keep each hour's maxima and -1 for unknown", limitBuckets},
+		{"hourly aggregates of nothing are empty lists", hourlyAggregatesEmpty},
 		{"delete sessions forgets the selected sessions and what was captured for them", deleteSessions},
+		{"forget before with limit deletes the oldest first and reports more", forgetWithLimit},
+		{"forget limit zero keeps today's behaviour", forgetLimitZero},
+		{"forget orphans deletes captures without a session record", forgetOrphans},
+		{"forget orphans without before is ignored", forgetOrphansWithoutBefore},
 		{"redacted rule names are stored with lines and blobs", redactedField},
 		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
 		{"a memory event with a hash the account already holds is dropped", memoryEventDedup},
+		{"memory events filter by project, id and created_at range", memoryByProjectAndRange},
+		{"private memory records are hidden unless asked for", memoryPrivateHiddenUnlessAsked},
+		{"delete memory removes the account's records by id and by hash", deleteMemoryByIDAndHash},
+		{"delete memory leaves another account's records with the same id and hash", deleteMemoryOtherAccountUntouched},
+		{"delete memory without an account is ErrNoAccount", deleteMemoryNoAccount},
+		{"legacy claude-remember records stay listed", legacyMemoryStillListed},
 		{"usage events filter by session, time and account, newest first", limitSamples},
 		{"otel events are stored once and filter by session, name, prompt, time and account, newest first", otelEvents},
 		{"otel events go with their sessions and their account", otelEventsDeleted},
@@ -1679,6 +1699,118 @@ func deleteSessions(t *testing.T, s session.Store) {
 	}
 }
 
+// seedAged stores sessions s0..s<n-1> of the account (project /p/<id>),
+// last seen an hour apart from t0, each with a hook event and a transcript line.
+func seedAged(t *testing.T, s session.Store, acc string, n int) {
+	t.Helper()
+	for i := 0; i < n; i++ {
+		sid, at := fmt.Sprintf("s%d", i), t0.Add(time.Duration(i)*time.Hour)
+		must(t, s.UpsertSession(ctx, session.Session{SessionID: sid, AccountID: acc, ProjectPath: "/p/" + sid, LastSeen: at}))
+		must(t, s.InsertHookEvent(ctx, bash(sid, acc, "make "+sid, at)))
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, 1, "user", acc)}))
+	}
+}
+
+func forgetWithLimit(t *testing.T, s session.Store) {
+	seedAged(t, s, "acc", 5)
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "recent", AccountID: "acc", LastSeen: t0.Add(48 * time.Hour)}))
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "foreign", AccountID: "other", LastSeen: t0.Add(-time.Hour)}))
+	q := session.ForgetQuery{AccountID: "acc", Before: t0.Add(5 * time.Hour), Limit: 2}
+	for i, want := range []session.Forgotten{
+		{Sessions: []string{"s0", "s1"}, Documents: 6, More: true},
+		{Sessions: []string{"s2", "s3"}, Documents: 6, More: true},
+		{Sessions: []string{"s4"}, Documents: 3},
+		{Sessions: []string{}},
+	} {
+		eq(t, fmt.Sprintf("call %d", i+1), ok(s.DeleteSessions(ctx, q)), want)
+	}
+	_, err := s.GetSession(ctx, "acc", "recent")
+	eq(t, "a recent session stays", err, nil)
+	_, err = s.GetSession(ctx, "other", "foreign")
+	eq(t, "another account's session stays", err, nil)
+
+	// With a project path the limit applies as well.
+	seedAged(t, s, "acc", 3)
+	got := ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", ProjectPathRe: "^/p/", Limit: 2}))
+	eq(t, "project path with a limit", got.Sessions, []string{"s0", "s1"})
+	eq(t, "more by project path", got.More, true)
+}
+
+func forgetLimitZero(t *testing.T, s session.Store) {
+	seedAged(t, s, "acc", 5)
+	got := ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Before: t0.Add(3 * time.Hour)}))
+	eq(t, "every older session", got, session.Forgotten{Sessions: []string{"s0", "s1", "s2"}, Documents: 9})
+	eq(t, "newer stay", len(ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc"}))), 2)
+	got = ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", SessionIDs: []string{"s3", "s4"}, Limit: 1}))
+	eq(t, "a limit is ignored with ids alone", got.Sessions, []string{"s3", "s4"})
+	eq(t, "nothing more", got.More, false)
+}
+
+func forgetOrphans(t *testing.T, s session.Store) {
+	old, before, recent := t0, t0.Add(time.Hour), t0.Add(48*time.Hour)
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "live", AccountID: "acc", LastSeen: recent}))
+	must(t, s.InsertHookEvent(ctx, bash("live", "acc", "make live", old)))
+	must(t, s.InsertHookEvent(ctx, bash("sid-x", "acc", "make sid-x", old)))
+	must(t, s.InsertHookEvent(ctx, bash("sid-new", "acc", "make sid-new", recent)))
+	must(t, s.InsertHookEvent(ctx, bash("sid-y", "other", "make sid-y", old)))
+	ok(s.InsertOtelEvents(ctx, []session.OtelEvent{
+		otelEvent("sid-x", "acc", "p1", "api_request", 1, old),
+		otelEvent("sid-z", "acc", "p2", "api_request", 1, old),
+		otelEvent("sid-y", "other", "p3", "api_request", 1, old),
+	}))
+	digest := memoryEvent("", "acc", "day", "the day's digest", old)
+	delete(digest, "session_id")
+	// A client adapter's server refuses an event without a session id, so
+	// it cannot hold such a digest; a store does.
+	digestStored := s.InsertHookEvent(ctx, digest) == nil
+
+	commands := func(acc string) []string {
+		var out []string
+		for _, d := range ok(s.BashEvents(ctx, session.CommandQuery{AccountID: acc, Limit: 50})) {
+			out = append(out, d.ToolInput()["command"].(string))
+		}
+		sort.Strings(out)
+		return out
+	}
+	otel := func(acc, sid string) int {
+		return len(ok(s.OtelEvents(ctx, session.OtelQuery{AccountID: acc, SessionIDs: []string{sid}})))
+	}
+
+	got := ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Before: before, Orphans: true, Limit: 1}))
+	eq(t, "first batch, one orphan per collection", got.Sessions, []string{"sid-x"})
+	eq(t, "first batch documents", got.Documents, int64(2))
+	eq(t, "first batch has more", got.More, true)
+	got = ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Before: before, Orphans: true, Limit: 1}))
+	eq(t, "second batch", got, session.Forgotten{Sessions: []string{"sid-z"}, Documents: 1})
+
+	eq(t, "orphan otel events are gone", otel("acc", "sid-x")+otel("acc", "sid-z"), 0)
+	eq(t, "kept hook events", commands("acc"), []string{"make live", "make sid-new"})
+	if digestStored {
+		eq(t, "the digest without a session id stays", len(ok(s.MemoryEvents(ctx, session.MemoryQuery{AccountID: "acc", Limit: 10}))), 1)
+	}
+	eq(t, "another account's orphans stay", commands("other"), []string{"make sid-y"})
+	eq(t, "another account's orphan otel events stay", otel("other", "sid-y"), 1)
+	_, err := s.GetSession(ctx, "acc", "live")
+	eq(t, "the live session stays", err, nil)
+
+	// Without Orphans the same query leaves orphans alone.
+	must(t, s.InsertHookEvent(ctx, bash("sid-w", "acc", "make sid-w", old)))
+	eq(t, "no orphans asked", ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Before: before})).Documents, int64(0))
+	eq(t, "orphan kept without Orphans", commands("acc"), []string{"make live", "make sid-new", "make sid-w"})
+	// With a project path no capture is an orphan.
+	eq(t, "no orphans with a project path", ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", ProjectPathRe: "w", Before: before, Orphans: true})).Documents, int64(0))
+	// Orphans of the named ids only.
+	got = ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", SessionIDs: []string{"sid-w", "live"}, Before: before, Orphans: true}))
+	eq(t, "orphans of the named ids", got, session.Forgotten{Sessions: []string{"sid-w"}, Documents: 1})
+}
+
+func forgetOrphansWithoutBefore(t *testing.T, s session.Store) {
+	eq(t, "orphans alone are no criterion", session.ForgetQuery{AccountID: "acc", Orphans: true, Limit: 3}.Empty(), true)
+	must(t, s.InsertHookEvent(ctx, bash("sid-x", "acc", "make sid-x", t0)))
+	eq(t, "nothing deleted", ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Orphans: true})), session.Forgotten{Sessions: []string{}})
+	eq(t, "the orphan stays", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "acc", Limit: 10}))), 1)
+}
+
 func redactedField(t *testing.T, s session.Store) {
 	l := tl("r", 1, "user", "acc")
 	l.Redacted = []string{"api-key", "private"}
@@ -1694,4 +1826,316 @@ func redactedField(t *testing.T, s session.Store) {
 	b.Redacted = []string{"aws-key"}
 	must(t, s.UpsertBlob(ctx, b))
 	eq(t, "redacted blob", strList(ok(s.Blobs(ctx, "acc", "r"))[0]["redacted"]), []string{"aws-key"})
+}
+
+// embedLine stores a transcript line with its search text and the
+// embedding of vec under model (nil vec: no embedding).
+func embedLine(t *testing.T, s session.Store, sid string, seq int, acc, model string, vec []float32) {
+	t.Helper()
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, seq, "user", acc)}))
+	var id any
+	for _, d := range ok(s.Unenriched(ctx, "transcript_lines", session.EmbeddingName, 0)) {
+		if d["session_id"] == sid && num(d["seq"]) == seq {
+			id = d["_id"]
+		}
+	}
+	must(t, s.SetEnrichment(ctx, "transcript_lines", id, "search-text", fmt.Sprintf("text of %s/%d", sid, seq)))
+	if vec != nil {
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, session.EmbeddingName, session.Quantize(model, vec)))
+	}
+}
+
+func vectorKeys(t *testing.T, s session.Store, q session.VectorQuery) []string {
+	t.Helper()
+	out := []string{}
+	for _, d := range ok(s.SearchVectors(ctx, q)) {
+		sid, _ := d.String("session_id")
+		out = append(out, fmt.Sprintf("%s/%d", sid, num(d["seq"])))
+	}
+	return out
+}
+
+func searchVectorsRanks(t *testing.T, s session.Store) {
+	embedLine(t, s, "s1", 0, "acc", "m", []float32{1, 0, 0})
+	embedLine(t, s, "s1", 1, "acc", "m", []float32{0.6, 0.8, 0})
+	embedLine(t, s, "s1", 2, "acc", "m", []float32{0, 0, 1})
+	embedLine(t, s, "s2", 0, "acc", "m", []float32{-1, 0, 0})
+	q := session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{0.9, 0.1, 0}, Limit: 10}
+	eq(t, "best first", vectorKeys(t, s, q), []string{"s1/0", "s1/1", "s1/2", "s2/0"})
+	got := ok(s.SearchVectors(ctx, q))
+	eq(t, "projection", sortedKeys(got[0]), []string{"created_at", "enrichments", "score", "seq", "session_id"})
+	eq(t, "search text carried", got[0].Map("enrichments")["search-text"], "text of s1/0")
+	timeOf(t, got[0], "created_at")
+	first, _ := got[0]["score"].(float64)
+	last, _ := got[3]["score"].(float64)
+	if first < 0.98 || first > 1.0001 || last > -0.98 {
+		t.Errorf("scores = %v .. %v, want cosine similarities near 0.99 and -0.99", first, last)
+	}
+	eq(t, "limit", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{0, 0, 1}, Limit: 1}), []string{"s1/2"})
+	eq(t, "empty vector", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Limit: 10}), []string{})
+}
+
+func searchVectorsPerAccount(t *testing.T, s session.Store) {
+	embedLine(t, s, "s1", 0, "acc", "m", []float32{1, 0})
+	embedLine(t, s, "s2", 0, "other", "m", []float32{1, 0})
+	eq(t, "own account", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}}), []string{"s1/0"})
+	eq(t, "the other account", vectorKeys(t, s, session.VectorQuery{AccountID: "other", Model: "m", Vector: []float32{1, 0}}), []string{"s2/0"})
+	eq(t, "an account with none", vectorKeys(t, s, session.VectorQuery{AccountID: "nobody", Model: "m", Vector: []float32{1, 0}}), []string{})
+}
+
+func searchVectorsSinceAndSessions(t *testing.T, s session.Store) {
+	embedLine(t, s, "s1", 0, "acc", "m", []float32{1, 0})
+	time.Sleep(10 * time.Millisecond)
+	mid := time.Now()
+	time.Sleep(10 * time.Millisecond)
+	embedLine(t, s, "s1", 1, "acc", "m", []float32{1, 0.1})
+	embedLine(t, s, "s2", 0, "acc", "m", []float32{1, 0.2})
+	v := []float32{1, 0}
+	eq(t, "since", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: v, Since: mid}), []string{"s1/1", "s2/0"})
+	eq(t, "session ids", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: v, SessionIDs: []string{"s1"}}), []string{"s1/0", "s1/1"})
+	eq(t, "both", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: v, SessionIDs: []string{"s1"}, Since: mid}), []string{"s1/1"})
+}
+
+func searchVectorsOtherModels(t *testing.T, s session.Store) {
+	embedLine(t, s, "s1", 0, "acc", "m", []float32{1, 0})
+	embedLine(t, s, "s1", 1, "acc", "", nil)
+	embedLine(t, s, "s1", 2, "acc", "other-model", []float32{1, 0})
+	embedLine(t, s, "s1", 3, "acc", "m", []float32{1, 0, 0})
+	eq(t, "only this model's vectors of this length", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}}), []string{"s1/0"})
+	eq(t, "another model", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "other-model", Vector: []float32{1, 0}}), []string{"s1/2"})
+}
+
+func searchVectorsLimitCap(t *testing.T, s session.Store) {
+	lines := make([]session.TranscriptLine, 0, 120)
+	for i := range 120 {
+		lines = append(lines, tl("s1", i, "user", "acc"))
+	}
+	must(t, s.UpsertTranscriptLines(ctx, lines))
+	for _, d := range ok(s.Unenriched(ctx, "transcript_lines", session.EmbeddingName, 0)) {
+		must(t, s.SetEnrichment(ctx, "transcript_lines", d["_id"], session.EmbeddingName, session.Quantize("m", []float32{1, float32(num(d["seq"])) / 100})))
+	}
+	eq(t, "limit above the cap", len(ok(s.SearchVectors(ctx, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}, Limit: 500}))), session.MaxVectorHits)
+	eq(t, "limit 0 is the cap", len(ok(s.SearchVectors(ctx, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}}))), session.MaxVectorHits)
+	eq(t, "limit below the cap", len(ok(s.SearchVectors(ctx, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}, Limit: 7}))), 7)
+}
+
+func forgetDropsVectors(t *testing.T, s session.Store) {
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s1", AccountID: "acc", LastSeen: t0}))
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "s2", AccountID: "acc", LastSeen: t0}))
+	embedLine(t, s, "s1", 0, "acc", "m", []float32{1, 0})
+	embedLine(t, s, "s2", 0, "acc", "m", []float32{1, 0})
+	ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", SessionIDs: []string{"s1"}}))
+	eq(t, "the forgotten session's vectors are gone", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}}), []string{"s2/0"})
+}
+
+// hour0 is the hour the aggregate cases are about.
+var hour0 = time.Date(2026, 3, 4, 10, 0, 0, 0, time.UTC)
+
+// labelLine stores a line written at at (its line.timestamp) with an
+// activity kind and, when errType is not empty, an error flag.
+func labelLine(t *testing.T, s session.Store, sid string, seq int, acc string, at time.Time, kind, errType string) {
+	t.Helper()
+	line := tl(sid, seq, "assistant", acc)
+	line.Line = map[string]any{"type": "assistant", "timestamp": at.UTC().Format("2006-01-02T15:04:05.000Z07:00")}
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{line}))
+	var id any
+	for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "activity-kind", 0)) {
+		if d["session_id"] == sid && num(d["seq"]) == seq {
+			id = d["_id"]
+		}
+	}
+	must(t, s.SetEnrichment(ctx, "transcript_lines", id, "activity-kind", session.Doc{"kind": kind, "label": kind}))
+	if errType != "" {
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "error-flag", session.Doc{"is_error": true, "error_type": errType}))
+	}
+}
+
+func hourCountKeys(counts []session.HourCount) []string {
+	out := []string{}
+	for _, c := range counts {
+		out = append(out, fmt.Sprintf("%s/%s=%d", c.Hour.UTC().Format("15:04"), c.Kind, c.Count))
+	}
+	return out
+}
+
+func hourlyCountsBoundaries(t *testing.T, s session.Store) {
+	labelLine(t, s, "s1", 0, "acc", hour0, "user", "")
+	labelLine(t, s, "s1", 1, "acc", hour0.Add(59*time.Minute+59*time.Second+999*time.Millisecond), "user", "tool_failure")
+	labelLine(t, s, "s1", 2, "acc", hour0.Add(time.Hour), "user", "tool_failure")
+	labelLine(t, s, "s1", 3, "acc", hour0.Add(time.Hour+time.Minute), "bash", "hook_error")
+	// A line without a timestamp counts at its created_at, which is now.
+	before := time.Now().UTC()
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s1", 4, "assistant", "acc")}))
+	for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "activity-kind", 0)) {
+		must(t, s.SetEnrichment(ctx, "transcript_lines", d["_id"], "activity-kind", session.Doc{"kind": "response"}))
+	}
+	q := session.CountQuery{AccountID: "acc", Since: hour0, Until: hour0.Add(2 * time.Hour)}
+	activity := ok(s.ActivityCounts(ctx, q))
+	eq(t, "activity by hour and kind", hourCountKeys(activity), []string{"10:00/user=2", "11:00/bash=1", "11:00/user=1"})
+	eq(t, "hours are UTC hour starts", activity[0].Hour.Equal(hour0), true)
+	eq(t, "errors by hour and type", hourCountKeys(ok(s.ErrorCounts(ctx, q))), []string{"10:00/tool_failure=1", "11:00/hook_error=1", "11:00/tool_failure=1"})
+	after := time.Now().UTC()
+	recent := ok(s.ActivityCounts(ctx, session.CountQuery{AccountID: "acc", Since: before.Add(-time.Hour)}))
+	if len(recent) != 1 || recent[0].Kind != "response" || recent[0].Count != 1 ||
+		recent[0].Hour.Before(before.Truncate(time.Hour)) || recent[0].Hour.After(after.Truncate(time.Hour)) {
+		t.Errorf("a line without a timestamp counts at created_at: %+v", recent)
+	}
+}
+
+func hourlyAggregatesScoping(t *testing.T, s session.Store) {
+	labelLine(t, s, "s1", 0, "acc", hour0.Add(30*time.Minute), "user", "error_text")
+	labelLine(t, s, "s1", 1, "acc", hour0.Add(time.Hour), "user", "error_text")
+	labelLine(t, s, "s2", 0, "other", hour0.Add(30*time.Minute), "user", "error_text")
+	sample := func(acc string, at time.Time) {
+		must(t, s.InsertHookEvent(ctx, session.Doc{"session_id": "s1", "account_id": acc, "hook_event_name": session.LimitsEventName, "created_at": at,
+			"rate_limits": session.Doc{"five_hour": session.Doc{"used_percentage": 10.0}}}))
+	}
+	sample("acc", hour0.Add(30*time.Minute))
+	sample("acc", hour0.Add(time.Hour))
+	sample("other", hour0.Add(30*time.Minute))
+	q := session.CountQuery{AccountID: "acc", Since: hour0, Until: hour0.Add(time.Hour)}
+	eq(t, "own account, until exclusive", hourCountKeys(ok(s.ActivityCounts(ctx, q))), []string{"10:00/user=1"})
+	eq(t, "errors too", hourCountKeys(ok(s.ErrorCounts(ctx, q))), []string{"10:00/error_text=1"})
+	buckets := ok(s.LimitBuckets(ctx, q))
+	eq(t, "limit buckets, own account, until exclusive", len(buckets), 1)
+	if len(buckets) == 1 {
+		eq(t, "one sample", buckets[0].Samples, int64(1))
+	}
+	eq(t, "no bounds", hourCountKeys(ok(s.ActivityCounts(ctx, session.CountQuery{AccountID: "acc"}))), []string{"10:00/user=1", "11:00/user=1"})
+	eq(t, "the other account", hourCountKeys(ok(s.ErrorCounts(ctx, session.CountQuery{AccountID: "other"}))), []string{"10:00/error_text=1"})
+}
+
+func limitBuckets(t *testing.T, s session.Store) {
+	sample := func(at time.Time, fields session.Doc) {
+		ev := session.Doc{"session_id": "s1", "account_id": "acc", "hook_event_name": session.LimitsEventName, "created_at": at}
+		for k, v := range fields {
+			ev[k] = v
+		}
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	sample(hour0, session.Doc{
+		"rate_limits":    session.Doc{"five_hour": session.Doc{"used_percentage": 20.0}, "seven_day": session.Doc{"used_percentage": 5.0}},
+		"context_window": session.Doc{"used_percentage": 40.0}, "cost": session.Doc{"total_cost_usd": 0.5},
+	})
+	sample(hour0.Add(59*time.Minute+59*time.Second+999*time.Millisecond), session.Doc{
+		"rate_limits":    session.Doc{"five_hour": session.Doc{"used_percentage": 35.5}},
+		"context_window": session.Doc{"used_percentage": 12.0}, "cost": session.Doc{"total_cost_usd": 1.25},
+	})
+	sample(hour0.Add(time.Hour), session.Doc{"cost": session.Doc{"total_cost_usd": 2}})
+	// Another event of the hour is not a sample.
+	must(t, s.InsertHookEvent(ctx, session.Doc{"session_id": "s1", "account_id": "acc", "hook_event_name": "Stop", "created_at": hour0}))
+	got := ok(s.LimitBuckets(ctx, session.CountQuery{AccountID: "acc", Since: hour0}))
+	want := []session.LimitBucket{
+		{Hour: hour0, FiveHourMax: 35.5, SevenDayMax: 5, ContextMax: 40, CostUSDMax: 1.25, Samples: 2},
+		{Hour: hour0.Add(time.Hour), FiveHourMax: -1, SevenDayMax: -1, ContextMax: -1, CostUSDMax: 2, Samples: 1},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("buckets = %+v", got)
+	}
+	for i := range want {
+		got[i].Hour = got[i].Hour.UTC()
+		eq(t, fmt.Sprintf("bucket %d", i), got[i], want[i])
+	}
+}
+
+func hourlyAggregatesEmpty(t *testing.T, s session.Store) {
+	activity := ok(s.ActivityCounts(ctx, session.CountQuery{AccountID: "acc"}))
+	errs := ok(s.ErrorCounts(ctx, session.CountQuery{AccountID: "acc"}))
+	limits := ok(s.LimitBuckets(ctx, session.CountQuery{AccountID: "acc"}))
+	if activity == nil || errs == nil || limits == nil || len(activity)+len(errs)+len(limits) != 0 {
+		t.Errorf("empty aggregates = %#v %#v %#v, want [] each", activity, errs, limits)
+	}
+}
+
+// nativeMemory is a native memory record (session/memory) as the memory
+// service stores it.
+func nativeMemory(acc, id, kind, project, text string, private bool, at time.Time) session.Doc {
+	return session.Doc{
+		"account_id": acc, "hook_event_name": session.MemoryEventName, "cwd": "/p", "created_at": at,
+		"memory": session.Doc{"id": id, "kind": kind, "project": project, "text": text, "hash": "h-" + acc + "-" + id + "-" + text, "private": private},
+	}
+}
+
+func memoryTexts(t *testing.T, s session.Store, q session.MemoryQuery) []string {
+	t.Helper()
+	var out []string
+	for _, d := range ok(s.MemoryEvents(ctx, q)) {
+		out = append(out, d.Map("memory")["text"].(string))
+	}
+	return out
+}
+
+func memoryByProjectAndRange(t *testing.T, s session.Store) {
+	for _, ev := range []session.Doc{
+		nativeMemory("acc", "memory-day/a/2026-01-01", "memory-day", "a", "day one of a", false, t0),
+		nativeMemory("acc", "memory-day/a/2026-01-02", "memory-day", "a", "day two of a", false, t0.Add(24*time.Hour)),
+		nativeMemory("acc", "memory-day/b/2026-01-02", "memory-day", "b", "day two of b", false, t0.Add(24*time.Hour+time.Minute)),
+		nativeMemory("acc", "memory-pinned/a", "memory-pinned", "a", "pinned a", false, t0.Add(48*time.Hour)),
+		nativeMemory("other", "memory-day/a/2026-01-01", "memory-day", "a", "foreign a", false, t0),
+	} {
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	eq(t, "one project", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Projects: []string{"a"}}),
+		[]string{"pinned a", "day two of a", "day one of a"})
+	eq(t, "two projects", len(memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Projects: []string{"a", "b"}})), 4)
+	eq(t, "project and kind", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Projects: []string{"a"}, Kinds: []string{"memory-pinned"}}),
+		[]string{"pinned a"})
+	eq(t, "since is inclusive, until exclusive", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Since: t0.Add(24 * time.Hour), Until: t0.Add(48 * time.Hour)}),
+		[]string{"day two of b", "day two of a"})
+	eq(t, "since alone", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Since: t0.Add(48 * time.Hour)}), []string{"pinned a"})
+	eq(t, "until alone", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Until: t0.Add(time.Hour)}), []string{"day one of a"})
+	eq(t, "by id", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", IDs: []string{"memory-day/a/2026-01-01", "memory-pinned/a"}}),
+		[]string{"pinned a", "day one of a"})
+	eq(t, "another account's ids are not listed", memoryTexts(t, s, session.MemoryQuery{AccountID: "other", Projects: []string{"a"}}), []string{"foreign a"})
+}
+
+func memoryPrivateHiddenUnlessAsked(t *testing.T, s session.Store) {
+	must(t, s.InsertHookEvent(ctx, nativeMemory("acc", "memory-note/1", "memory-note", "a", "public note", false, t0)))
+	must(t, s.InsertHookEvent(ctx, nativeMemory("acc", "memory-note/2", "memory-note", "a", "private note", true, t0.Add(time.Minute))))
+	eq(t, "private hidden by default", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc"}), []string{"public note"})
+	eq(t, "private hidden for an id query too", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", IDs: []string{"memory-note/2"}}), []string(nil))
+	eq(t, "private listed when asked", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", IncludePrivate: true}), []string{"private note", "public note"})
+}
+
+func deleteMemoryByIDAndHash(t *testing.T, s session.Store) {
+	for i, id := range []string{"memory-note/1", "memory-note/2", "memory-note/3", "memory-note/4"} {
+		must(t, s.InsertHookEvent(ctx, nativeMemory("acc", id, "memory-note", "a", "note "+id, i == 3, t0.Add(time.Duration(i)*time.Minute))))
+	}
+	must(t, s.InsertHookEvent(ctx, memoryEvent("s1", "acc", "entry", "legacy entry", t0)))
+	must(t, s.InsertHookEvent(ctx, bash("s1", "acc", "make", t0)))
+	n := ok(s.DeleteMemory(ctx, session.MemoryDelete{AccountID: "acc", IDs: []string{"memory-note/1", "memory-note/4"}, Hashes: []string{"h-acc-memory-note/2-note memory-note/2", "h-acc-legacy entry"}}))
+	eq(t, "deleted count (a private record and a legacy one included)", n, 4)
+	eq(t, "what is left", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", IncludePrivate: true}), []string{"note memory-note/3"})
+	eq(t, "nothing selected deletes nothing", ok(s.DeleteMemory(ctx, session.MemoryDelete{AccountID: "acc"})), 0)
+	eq(t, "an unknown id deletes nothing", ok(s.DeleteMemory(ctx, session.MemoryDelete{AccountID: "acc", IDs: []string{"nope"}})), 0)
+	eq(t, "other hook events stay", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "acc", Limit: 10}))), 1)
+}
+
+func deleteMemoryOtherAccountUntouched(t *testing.T, s session.Store) {
+	mine := nativeMemory("acc", "memory-pinned/a", "memory-pinned", "a", "same", false, t0)
+	theirs := nativeMemory("other", "memory-pinned/a", "memory-pinned", "a", "same", false, t0)
+	theirs.Map("memory")["hash"] = mine.Map("memory")["hash"]
+	must(t, s.InsertHookEvent(ctx, mine))
+	must(t, s.InsertHookEvent(ctx, theirs))
+	hash := mine.Map("memory")["hash"].(string)
+	eq(t, "deleted", ok(s.DeleteMemory(ctx, session.MemoryDelete{AccountID: "acc", IDs: []string{"memory-pinned/a"}, Hashes: []string{hash}})), 1)
+	eq(t, "mine is gone", len(memoryTexts(t, s, session.MemoryQuery{AccountID: "acc"})), 0)
+	eq(t, "the other account's record with the same id and hash stays", memoryTexts(t, s, session.MemoryQuery{AccountID: "other"}), []string{"same"})
+}
+
+func deleteMemoryNoAccount(t *testing.T, s session.Store) {
+	must(t, s.InsertHookEvent(ctx, nativeMemory("acc", "memory-note/1", "memory-note", "a", "kept", false, t0)))
+	if _, err := s.DeleteMemory(ctx, session.MemoryDelete{IDs: []string{"memory-note/1"}}); !errors.Is(err, session.ErrNoAccount) {
+		t.Fatalf("DeleteMemory without an account = %v, want ErrNoAccount", err)
+	}
+	eq(t, "nothing deleted", len(memoryTexts(t, s, session.MemoryQuery{AccountID: "acc"})), 1)
+}
+
+func legacyMemoryStillListed(t *testing.T, s session.Store) {
+	must(t, s.InsertHookEvent(ctx, memoryEvent("s1", "acc", "entry", "## 09:15 | main\nlegacy work", t0)))
+	must(t, s.InsertHookEvent(ctx, nativeMemory("acc", "memory-note/1", "memory-note", "a", "native work", false, t0.Add(time.Minute))))
+	eq(t, "legacy kinds", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Kinds: []string{"entry", "day", "recent", "archive", "handoff", "identity"}}),
+		[]string{"## 09:15 | main\nlegacy work"})
+	eq(t, "both listed without filters", len(memoryTexts(t, s, session.MemoryQuery{AccountID: "acc"})), 2)
+	eq(t, "a project filter leaves the legacy record out (it has no project)", memoryTexts(t, s, session.MemoryQuery{AccountID: "acc", Projects: []string{"a"}}), []string{"native work"})
 }

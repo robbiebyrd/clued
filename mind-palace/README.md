@@ -328,11 +328,14 @@ Steps, Acceptance Criteria and Work Log sections the service reads).
 
 ## Sessions
 
-The `memory` package captures what the claude-remember plugin writes for a
-project: `mind-palace session memory-ingest` scans the store, posts each new
-record to the daemon as a `MemorySaved` hook event (the store keeps one per
-account and record hash) and `session search-memory` / the `search_memory`
-tool search them across sessions.
+Native memory lives in `session/summary` (the note of each session, made
+by an engine from its activity timeline) and `session/memory` (the day,
+recent and monthly archive roll-ups, notes, handoffs and the pinned note,
+the budgeted bundle the prime report injects, Markdown editing, JSONL
+export and import). Every record is a `MemorySaved` hook event keyed by
+`memory.id` and filed under `memory.project`; `mind-palace session memory
+…`, the `remember`, `forget_memory` and `search_memory` tools and
+[docs/memory.md](../docs/memory.md) describe it.
 
 `mind-palace` also holds the clued session capture: the Claude Code plugin's
 hook events and transcripts are mirrored into MongoDB and queried through the
@@ -410,7 +413,11 @@ order may differ from the original file.
 **MCP tools.** `find_sessions`, `get_session_context`, `get_full_session`,
 `search_commands`, `search_memory`, `file_history`, `find_errors`, `get_limits`,
 `get_activities`, `get_digest`, `search_transcripts`, `usage`, `read_transcript`, `get_lines`, `restore_session`, `export_session`, `forget_session` and `prime_context`
-(the context collector's report for a `cwd`; see `mind-palace context --help`).
+(the context collector's report for a `cwd`; see `mind-palace context --help`),
+plus `search_semantic` when the tools are given an embedder
+(`sessionmcp.Tools.Embedder`, `server.CluedOptions.Semantic`): the port is
+`session.Embedder`, `session/embed/voyage` the Voyage AI adapter and
+`enrichers.Embedding` the enricher that stores the vectors.
 `session mcp` serves just these; `mind-palace mcp` and `mind-palace serve`
 expose them next to the plan and story tools.
 
@@ -418,7 +425,11 @@ expose them next to the plan and story tools.
 `session/mongosession` is the MongoDB implementation (collections `sessions`,
 `hook_events`, `transcript_lines`, `subagent_lines`, `blobs` and the
 `session_full` view, as the TypeScript plugin created them) and
-`session/memsession` the in-memory one used by tests. `daemon`, `tail`,
+`session/memsession` the in-memory one used by tests. Besides the queries
+the tools use, the port has hourly aggregates for analytics
+(`ActivityCounts`, `ErrorCounts`, `LimitBuckets` over a `CountQuery`) and
+`SearchVectors` for semantic search; the remote adapter answers
+`ErrUnsupported` for those. `daemon`, `tail`,
 `backfill`, `enrich`/`enrichers`, `query`, `restore`, `wal`, `gitinfo`,
 `hostinfo` and `sessionmcp` sit on top of it.
 
@@ -446,6 +457,8 @@ expose them next to the plan and story tools.
 | `remote` | The HTTP client the remote adapters share: base URL, bearer token, CA file, the plain-`http://`-off-loopback refusal, envelope decoding into typed errors |
 | `clientcfg` | Opens the plan and story services as the client does: the repository's config plus, in remote mode, the `clued-server` store as a secondary store, or as the primary for a shared project (`Remote.Shared`, from `GET /api/v1/me/workspaces`); resolves the project slug (`remote.project`, git origin, directory name) |
 | `session`, `session/*` | Claude Code session capture: config (local and remote mode), MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
+| `session/summary` | The memory note of one session (`session-summary/<session_id>`, the API Clued Cloud's hosted runner reuses): `Pending`, `Summarize`, `Cached`, `Checkpoint`, the free deterministic `ExtractEngine`, private spans dropped and secrets masked before any engine |
+| `session/memory` | Native memory: `Run` (notes, then day, recent and archive roll-ups, idempotent, locked, capped per day with the extract engine as the fallback), `Bundle`, `Remember`, `Forget`, `EditMarkdown`/`ApplyMarkdown`, `Export`/`Import`, `Status`, `ProjectKey`, `StripPrivate`, and the `hosted` engine's client interface |
 | `session/otel` | A session as an OpenTelemetry trace (GenAI conventions) sent as OTLP/HTTP JSON to `otelEndpoint` when it ends; each span at most once |
 | `session/otlp` | Claude Code's own OpenTelemetry logs received at `/v1/logs` (server and daemon; `/v1/metrics` accepted, not stored): the `api_request`, `api_error` and `tool_result` events of known sessions, with an allow-list of attributes, as `session.OtelEvent` |
 | `session/render` | A session as Markdown or a self-contained HTML page (header, turns, tool calls summarised, results folded, errors marked) |
@@ -453,7 +466,8 @@ expose them next to the plan and story tools.
 | `session/redact` | Capture-time redaction (`redactAtCapture`, `redactPatterns`) and exclusion (`excludePaths`) as a `session.Store` decorator every client store is wrapped in, so no write path stores a secret |
 | `session/ingest` | Hook-event bookkeeping shared by the daemon and `hook relay`: session tracking, stamping, store write, WAL fallback |
 | `session/catchup` | One-shot replacement for the tailers: pushes a session's transcript delta and changed artifact files, with state and lock files per session |
+| `session/embed/voyage` | The Voyage AI `session.Embedder` (int8 output at the configured dimension, plain `net/http`; no error carries the key) for the `embedding` enricher and `search_semantic` |
 | `session/remotesession` | `session.Store` over a clued server (one HTTP call per port method to `server/sessionapi`); the query service, restore, backfill and the MCP tools run unchanged on it |
 | `hookguard` | Rules behind the Claude Code hooks the binary serves (the Stop guard) |
-| `plugin` | Tests for the Claude Code plugin glue (`scripts/clued`, the bash hooks, `hooks.json`) in local and remote mode |
+| `plugin` | Tests for the Claude Code plugin glue (`scripts/clued`, the bash hooks, `hooks/hooks.json`, `scripts/verify-prime.sh`) in local and remote mode |
 | `cli`, `cmd/*` | Command line: `mind-palace`, plus the `plan` and `story` wrappers |

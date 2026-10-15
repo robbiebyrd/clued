@@ -305,3 +305,21 @@ func TestHookPrimeHonoursPrimeOnStartInTheConfig(t *testing.T) {
 		t.Error("primeOnStart false in the file should turn priming off")
 	}
 }
+
+func TestHooksDoNothingInsideAnEngineRun(t *testing.T) {
+	t.Setenv("CLUED_NO_CAPTURE", "1")
+	stop := `{"hook_event_name":"Stop","last_assistant_message":"That failure is pre-existing."}`
+	if r := execStdin(t, stop, "hook", "stop-guard"); r.code != 0 || r.stdout != "" {
+		t.Errorf("stop-guard in an engine run: %+v", r)
+	}
+	start := `{"hook_event_name":"SessionStart","cwd":"` + t.TempDir() + `","source":"startup"}`
+	for _, hook := range []string{"prime", "status-review", "relay"} {
+		if r := execStdin(t, start, "hook", hook); r.code != 0 || r.stdout != "" {
+			t.Errorf("%s in an engine run: %+v", hook, r)
+		}
+	}
+	t.Setenv("CLUED_NO_CAPTURE", "")
+	if r := execStdin(t, stop, "hook", "stop-guard"); !strings.Contains(r.stdout, "block") {
+		t.Errorf("stop-guard outside an engine run: %+v", r)
+	}
+}

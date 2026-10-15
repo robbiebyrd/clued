@@ -40,7 +40,8 @@ var _ session.Store = (*Store)(nil)
 // New returns an empty store.
 func New() *Store { return &Store{cols: map[string][]session.Doc{}} }
 
-// DeleteAccount drops every document of every collection stamped with the account.
+// DeleteSessions deletes the sessions the query selects with their
+// documents, oldest first under a limit, and orphaned captures when asked.
 func (s *Store) DeleteSessions(_ context.Context, q session.ForgetQuery) (session.Forgotten, error) {
 	out := session.Forgotten{Sessions: []string{}}
 	if q.AccountID == "" {
@@ -65,6 +66,7 @@ func (s *Store) DeleteSessions(_ context.Context, q session.ForgetQuery) (sessio
 		}
 	} else {
 		inSessions := setOf(q.SessionIDs)
+		var found []session.Doc
 		for _, d := range s.cols[sessions] {
 			if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
 				continue
@@ -75,7 +77,19 @@ func (s *Store) DeleteSessions(_ context.Context, q session.ForgetQuery) (sessio
 			if !q.Before.IsZero() && !timeOf(d, "last_seen").Before(q.Before) {
 				continue
 			}
+			found = append(found, d)
+		}
+		sort.SliceStable(found, func(i, j int) bool { return timeOf(found[i], "last_seen").Before(timeOf(found[j], "last_seen")) })
+		if q.Limit > 0 && len(found) > q.Limit {
+			found, out.More = found[:q.Limit], true
+		}
+		for _, d := range found {
 			ids[strOf(d, "session_id")] = true
+		}
+		if q.Orphans && re == nil {
+			if s.orphans(q, inSessions, ids) {
+				out.More = true
+			}
 		}
 	}
 	if len(ids) == 0 {
@@ -99,6 +113,59 @@ func (s *Store) DeleteSessions(_ context.Context, q session.ForgetQuery) (sessio
 	return out, nil
 }
 
+// orphans adds to ids, per capture collection, up to q.Limit session ids
+// (all with no limit) of the account's documents created before q.Before
+// (timestamp for OpenTelemetry events) whose session has no record, oldest
+// first; only the ids in inSessions when it is not empty. It reports
+// whether a collection held more. Callers hold s.mu.
+func (s *Store) orphans(q session.ForgetQuery, inSessions, ids map[string]bool) bool {
+	recorded := map[string]bool{}
+	for _, d := range s.cols[sessions] {
+		if owned(d, q.AccountID) {
+			recorded[strOf(d, "session_id")] = true
+		}
+	}
+	more := false
+	for _, col := range []string{hookEvents, transcriptLines, subagentLines, blobs, otelEvents} {
+		field := "created_at"
+		if col == otelEvents {
+			field = "timestamp"
+		}
+		first := map[string]time.Time{}
+		for _, d := range s.cols[col] {
+			sid := strOf(d, "session_id")
+			if sid == "" || !owned(d, q.AccountID) || recorded[sid] || (len(inSessions) > 0 && !inSessions[sid]) {
+				continue
+			}
+			at := timeOf(d, field)
+			if at.IsZero() || !at.Before(q.Before) {
+				continue
+			}
+			if prev, seen := first[sid]; !seen || at.Before(prev) {
+				first[sid] = at
+			}
+		}
+		found := make([]string, 0, len(first))
+		for sid := range first {
+			found = append(found, sid)
+		}
+		sort.Slice(found, func(i, j int) bool {
+			if a, b := first[found[i]], first[found[j]]; !a.Equal(b) {
+				return a.Before(b)
+			}
+			return found[i] < found[j]
+		})
+		if q.Limit > 0 && len(found) > q.Limit {
+			found, more = found[:q.Limit], true
+		}
+		for _, sid := range found {
+			ids[sid] = true
+		}
+	}
+	return more
+}
+
+// DeleteAccount drops every document of every collection stamped with the account.
 func (s *Store) DeleteAccount(_ context.Context, accountID string) (int64, error) {
 	if accountID == "" {
 		return 0, session.ErrNoAccount
@@ -204,6 +271,8 @@ func deepCopy(v any) any {
 		return out
 	case []string:
 		return append([]string(nil), x...)
+	case []int8:
+		return append([]int8(nil), x...)
 	}
 	return v
 }
@@ -595,10 +664,7 @@ func (s *Store) MemoryEvents(_ context.Context, q session.MemoryQuery) ([]sessio
 	for _, id := range q.SessionIDs {
 		inSessions[id] = true
 	}
-	inKinds := map[string]bool{}
-	for _, k := range q.Kinds {
-		inKinds[k] = true
-	}
+	inKinds, inProjects, inIDs := set(q.Kinds), set(q.Projects), set(q.IDs)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -613,6 +679,19 @@ func (s *Store) MemoryEvents(_ context.Context, q session.MemoryQuery) ([]sessio
 		if len(inKinds) > 0 && !inKinds[strOf(mem, "kind")] {
 			return false
 		}
+		if len(inProjects) > 0 && !inProjects[strOf(mem, "project")] {
+			return false
+		}
+		if len(inIDs) > 0 && !inIDs[strOf(mem, "id")] {
+			return false
+		}
+		if private, _ := mem["private"].(bool); private && !q.IncludePrivate {
+			return false
+		}
+		at := timeOf(d, "created_at")
+		if (!q.Since.IsZero() && at.Before(q.Since)) || (!q.Until.IsZero() && !at.Before(q.Until)) {
+			return false
+		}
 		text, isString := mem.String("text")
 		return isString && (re == nil || re.MatchString(text))
 	})
@@ -623,6 +702,40 @@ func (s *Store) MemoryEvents(_ context.Context, q session.MemoryQuery) ([]sessio
 		out = append(out, project(d, "session_id", "cwd", "memory", "created_at"))
 	}
 	return out, nil
+}
+
+func (s *Store) DeleteMemory(_ context.Context, q session.MemoryDelete) (int, error) {
+	if q.AccountID == "" {
+		return 0, session.ErrNoAccount
+	}
+	if q.Empty() {
+		return 0, nil
+	}
+	ids, hashes := set(q.IDs), set(q.Hashes)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	kept := s.cols[hookEvents][:0]
+	for _, d := range s.cols[hookEvents] {
+		mem := d.Map("memory")
+		if strOf(d, "hook_event_name") == session.MemoryEventName && owned(d, q.AccountID) &&
+			(ids[strOf(mem, "id")] && strOf(mem, "id") != "" || hashes[strOf(mem, "hash")] && strOf(mem, "hash") != "") {
+			n++
+			continue
+		}
+		kept = append(kept, d)
+	}
+	s.cols[hookEvents] = kept
+	return n, nil
+}
+
+// set is the set of the strings.
+func set(values []string) map[string]bool {
+	out := make(map[string]bool, len(values))
+	for _, v := range values {
+		out[v] = true
+	}
+	return out
 }
 
 // limitProjection is what LimitSamples returns of a LimitsSampled event.
@@ -1104,6 +1217,12 @@ func (s *Store) setEnrichmentField(collection string, id any, field string, valu
 // document its JSON encodes, the way MongoDB keeps the BSON of the struct,
 // so reads find the same fields in both stores.
 func storable(v any) any {
+	switch e := v.(type) {
+	case session.Embedding:
+		return embeddingDoc(e)
+	case *session.Embedding:
+		return embeddingDoc(*e)
+	}
 	switch v.(type) {
 	case nil, bool, string, int, int32, int64, float64, time.Time, session.Doc, map[string]any, []any:
 		return deepCopy(v)
@@ -1120,6 +1239,150 @@ func storable(v any) any {
 		return session.Doc(m)
 	}
 	return out
+}
+
+// hourCounts counts the account's transcript lines that keep returns a
+// kind for, per UTC hour of their LineTime.
+func (s *Store) hourCounts(q session.CountQuery, kindOf func(session.Doc) (string, bool)) []session.HourCount {
+	type key struct {
+		hour time.Time
+		kind string
+	}
+	counts := map[key]int64{}
+	s.mu.Lock()
+	for _, d := range s.cols[transcriptLines] {
+		if !owned(d, q.AccountID) {
+			continue
+		}
+		kind, ok := kindOf(d)
+		if !ok {
+			continue
+		}
+		at := session.LineTime(d)
+		if !q.InRange(at) {
+			continue
+		}
+		counts[key{at.Truncate(time.Hour), kind}]++
+	}
+	s.mu.Unlock()
+	out := make([]session.HourCount, 0, len(counts))
+	for k, n := range counts {
+		out = append(out, session.HourCount{Hour: k.hour, Kind: k.kind, Count: n})
+	}
+	session.SortHourCounts(out)
+	return out
+}
+
+func (s *Store) ActivityCounts(_ context.Context, q session.CountQuery) ([]session.HourCount, error) {
+	return s.hourCounts(q, func(d session.Doc) (string, bool) {
+		return d.Map("enrichments").Map("activity-kind").String("kind")
+	}), nil
+}
+
+func (s *Store) ErrorCounts(_ context.Context, q session.CountQuery) ([]session.HourCount, error) {
+	return s.hourCounts(q, func(d session.Doc) (string, bool) {
+		flag := d.Map("enrichments").Map("error-flag")
+		if isErr, _ := flag["is_error"].(bool); !isErr {
+			return "", false
+		}
+		typ, _ := flag.String("error_type")
+		return typ, true
+	}), nil
+}
+
+func (s *Store) LimitBuckets(_ context.Context, q session.CountQuery) ([]session.LimitBucket, error) {
+	buckets := map[time.Time]*session.LimitBucket{}
+	s.mu.Lock()
+	for _, d := range s.cols[hookEvents] {
+		if !owned(d, q.AccountID) || strOf(d, "hook_event_name") != session.LimitsEventName {
+			continue
+		}
+		at := timeOf(d, "created_at").UTC()
+		if !q.InRange(at) {
+			continue
+		}
+		hour := at.Truncate(time.Hour)
+		b := buckets[hour]
+		if b == nil {
+			b = &session.LimitBucket{Hour: hour, FiveHourMax: -1, SevenDayMax: -1, ContextMax: -1, CostUSDMax: -1}
+			buckets[hour] = b
+		}
+		b.Samples++
+		limits := d.Map("rate_limits")
+		for _, f := range []struct {
+			into *float64
+			v    any
+		}{
+			{&b.FiveHourMax, limits.Map("five_hour")["used_percentage"]},
+			{&b.SevenDayMax, limits.Map("seven_day")["used_percentage"]},
+			{&b.ContextMax, d.Map("context_window")["used_percentage"]},
+			{&b.CostUSDMax, d.Map("cost")["total_cost_usd"]},
+		} {
+			if n, ok := number(f.v); ok && (*f.into < 0 || n > *f.into) {
+				*f.into = n
+			}
+		}
+	}
+	s.mu.Unlock()
+	out := make([]session.LimitBucket, 0, len(buckets))
+	for _, b := range buckets {
+		out = append(out, *b)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Hour.Before(out[j].Hour) })
+	return out, nil
+}
+
+// number reads a stored number of any numeric type.
+func number(v any) (float64, bool) {
+	switch n := v.(type) {
+	case int:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	}
+	return 0, false
+}
+
+// embeddingDoc keeps the vector as []int8, as Mongo keeps a binary vector.
+func embeddingDoc(e session.Embedding) session.Doc {
+	return session.Doc{"model": e.Model, "dim": e.Dim, "v": append([]int8(nil), e.V...), "scale": float64(e.Scale)}
+}
+
+// SearchVectors scans the account's lines with an embedding of the
+// query's model and length and keeps the best by cosine similarity.
+func (s *Store) SearchVectors(_ context.Context, q session.VectorQuery) ([]session.Doc, error) {
+	if len(q.Vector) == 0 {
+		return []session.Doc{}, nil
+	}
+	inSessions := setOf(q.SessionIDs)
+	top := session.NewTopK(session.VectorLimit(q.Limit))
+	s.mu.Lock()
+	for _, d := range s.cols[transcriptLines] {
+		if !owned(d, q.AccountID) || (len(inSessions) > 0 && !inSessions[strOf(d, "session_id")]) {
+			continue
+		}
+		if !q.Since.IsZero() && timeOf(d, "created_at").Before(q.Since) {
+			continue
+		}
+		emb := d.Map("enrichments").Map(session.EmbeddingName)
+		v, _ := emb["v"].([]int8)
+		if model, _ := emb.String("model"); model != q.Model || len(v) != len(q.Vector) {
+			continue
+		}
+		p := project(d, "session_id", "seq", "created_at")
+		if text, ok := d.Map("enrichments")["search-text"].(string); ok {
+			p["enrichments"] = session.Doc{"search-text": text}
+		}
+		top.Push(session.CosineInt8(q.Vector, v), p)
+	}
+	s.mu.Unlock()
+	return top.Sorted(), nil
 }
 
 // UsageTotals keeps, per session and message id, the largest value of each

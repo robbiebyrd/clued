@@ -15,7 +15,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/robbiebyrd/clued/mind-palace/memory"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
@@ -133,7 +132,7 @@ func (a *App) printStatusLine(ctx context.Context, in limits.Input, raw []byte, 
 // log) in local mode, straight into the clued server in remote mode.
 func (a *App) postSample(ctx context.Context, cfg session.Config, doc session.Doc) error {
 	if !cfg.Remote() {
-		return memory.DaemonPoster{Port: cfg.Port, WalPath: cfg.WalPath}.PostDoc(ctx, doc)
+		return postToDaemon(ctx, cfg.Port, cfg.WalPath, doc)
 	}
 	store, err := a.sessionStore(ctx)
 	if err != nil {

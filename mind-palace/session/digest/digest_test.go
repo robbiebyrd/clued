@@ -301,3 +301,17 @@ func TestClaudeEngineRunsTheCommand(t *testing.T) {
 		t.Error("a missing command must be an error")
 	}
 }
+
+func TestClaudeEngineSetsNoCapture(t *testing.T) {
+	dir := t.TempDir()
+	// The fake claude answers with what it sees of its environment.
+	script := filepath.Join(dir, "claude")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\ncat >/dev/null\nprintf '{\"type\":\"result\",\"result\":\"CLUED_NO_CAPTURE=%s\",\"total_cost_usd\":0}\\n' \"$CLUED_NO_CAPTURE\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLUED_NO_CAPTURE", "")
+	text, _, err := ClaudeEngine{Command: script}.Run(context.Background(), "x", "")
+	if err != nil || text != "CLUED_NO_CAPTURE=1" {
+		t.Fatalf("the engine's environment: %q %v", text, err)
+	}
+}

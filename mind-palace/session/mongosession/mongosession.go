@@ -124,10 +124,16 @@ var indexes = []index{
 	{blobs, key("session_id", 1, "blob_type", 1, "name", 1), true},
 	{blobs, key("account_id", 1, "session_id", 1, "blob_type", 1), false},
 	{hookEvents, key("account_id", 1, "enrichments.file-tracker.file_path", 1), false},
+	{hookEvents, key("account_id", 1, "memory.project", 1, "memory.kind", 1, "created_at", 1), false},
+	{hookEvents, key("account_id", 1, "memory.id", 1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.error-flag.is_error", 1, "created_at", -1), false},
 	{transcriptLines, key("account_id", 1, "enrichments.usage.day", 1), false},
+	{transcriptLines, key("account_id", 1, "enrichments.embedding.model", 1, "created_at", 1), false},
+	{transcriptLines, key("account_id", 1, "created_at", 1), false},
+	{hookEvents, key("account_id", 1, "hook_event_name", 1, "created_at", 1), false},
 	{otelEvents, key("account_id", 1, "session_id", 1, "name", 1, "sequence", 1, "timestamp", 1), true},
 	{otelEvents, key("account_id", 1, "session_id", 1, "timestamp", -1), false},
+	{otelEvents, key("account_id", 1, "timestamp", 1), false},
 }
 
 // partialIndexes are unique indexes limited to the documents matching a
@@ -317,6 +323,9 @@ func (s *Store) DeleteAccount(ctx context.Context, accountID string) (int64, err
 	return n, nil
 }
 
+// DeleteSessions deletes the sessions the query selects with their
+// documents, oldest last_seen first under a limit, and orphaned captures
+// when asked.
 func (s *Store) DeleteSessions(ctx context.Context, q session.ForgetQuery) (session.Forgotten, error) {
 	out := session.Forgotten{Sessions: []string{}}
 	if q.AccountID == "" {
@@ -341,11 +350,33 @@ func (s *Store) DeleteSessions(ctx context.Context, q session.ForgetQuery) (sess
 		if !q.Before.IsZero() {
 			filter = append(filter, bson.E{Key: "last_seen", Value: key("$lt", q.Before)})
 		}
-		ids = []string{}
-		if err := s.coll(sessions).Distinct(ctx, "session_id", filter).Decode(&ids); err != nil {
+		limit := 0
+		if q.Limit > 0 {
+			limit = q.Limit + 1
+		}
+		docs, err := s.find(ctx, sessions, filter, key("_id", 0, "session_id", 1), key("last_seen", 1, "_id", 1), 0, limit)
+		if err != nil {
 			return out, err
 		}
+		if q.Limit > 0 && len(docs) > q.Limit {
+			docs, out.More = docs[:q.Limit], true
+		}
+		ids = make([]string, 0, len(docs))
+		for _, d := range docs {
+			if sid, _ := d.String("session_id"); sid != "" {
+				ids = append(ids, sid)
+			}
+		}
+		if q.Orphans && q.ProjectPathRe == "" {
+			orphans, more, err := s.orphans(ctx, q)
+			if err != nil {
+				return out, err
+			}
+			ids = append(ids, orphans...)
+			out.More = out.More || more
+		}
 	}
+	ids = uniqueSorted(ids)
 	if len(ids) == 0 {
 		return out, nil
 	}
@@ -358,6 +389,72 @@ func (s *Store) DeleteSessions(ctx context.Context, q session.ForgetQuery) (sess
 	}
 	out.Sessions = ids
 	return out, nil
+}
+
+// orphans returns, per capture collection, up to q.Limit session ids (all
+// with no limit) of the account's documents created before q.Before
+// (timestamp for OpenTelemetry events) whose session has no record in the
+// account, oldest first; only of q.SessionIDs when given. It reports
+// whether a collection held more.
+func (s *Store) orphans(ctx context.Context, q session.ForgetQuery) ([]string, bool, error) {
+	var ids []string
+	more := false
+	for _, col := range []string{hookEvents, transcriptLines, subagentLines, blobs, otelEvents} {
+		field := "created_at"
+		if col == otelEvents {
+			field = "timestamp"
+		}
+		sid := key("$type", "string", "$ne", "")
+		if len(q.SessionIDs) > 0 {
+			sid = append(sid, bson.E{Key: "$in", Value: q.SessionIDs})
+		}
+		pipeline := bson.A{
+			key("$match", key("account_id", q.AccountID, field, key("$lt", q.Before), "session_id", sid)),
+			key("$group", key("_id", "$session_id", "first", key("$min", "$"+field))),
+			key("$lookup", key("from", sessions, "let", key("sid", "$_id"), "as", "record", "pipeline", bson.A{
+				key("$match", key("account_id", q.AccountID, "$expr", key("$eq", bson.A{"$session_id", "$$sid"}))),
+				key("$limit", 1),
+				key("$project", key("_id", 1)),
+			})),
+			key("$match", key("record", key("$size", 0))),
+			key("$sort", key("first", 1, "_id", 1)),
+		}
+		if q.Limit > 0 {
+			pipeline = append(pipeline, key("$limit", q.Limit+1))
+		}
+		pipeline = append(pipeline, key("$project", key("_id", 1)))
+		cur, err := s.coll(col).Aggregate(ctx, pipeline)
+		if err != nil {
+			return nil, false, fmt.Errorf("find orphans in %s: %w", col, err)
+		}
+		var rows []struct {
+			ID string `bson:"_id"`
+		}
+		if err := cur.All(ctx, &rows); err != nil {
+			return nil, false, fmt.Errorf("find orphans in %s: %w", col, err)
+		}
+		if q.Limit > 0 && len(rows) > q.Limit {
+			rows, more = rows[:q.Limit], true
+		}
+		for _, r := range rows {
+			ids = append(ids, r.ID)
+		}
+	}
+	return ids, more, nil
+}
+
+// uniqueSorted sorts the ids and drops repeats.
+func uniqueSorted(ids []string) []string {
+	out := append([]string(nil), ids...)
+	sort.Strings(out)
+	n := 0
+	for i, id := range out {
+		if i == 0 || id != out[n-1] {
+			out[n] = id
+			n++
+		}
+	}
+	return out[:n]
 }
 
 // find runs a query and returns the documents; a limit of zero or less means no limit.
@@ -673,8 +770,48 @@ func (s *Store) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]sess
 	if len(q.SessionIDs) > 0 {
 		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
 	}
+	if len(q.Projects) > 0 {
+		filter = append(filter, bson.E{Key: "memory.project", Value: key("$in", q.Projects)})
+	}
+	if len(q.IDs) > 0 {
+		filter = append(filter, bson.E{Key: "memory.id", Value: key("$in", q.IDs)})
+	}
+	if !q.IncludePrivate {
+		filter = append(filter, bson.E{Key: "memory.private", Value: key("$ne", true)})
+	}
+	created := bson.D{}
+	if !q.Since.IsZero() {
+		created = append(created, bson.E{Key: "$gte", Value: q.Since})
+	}
+	if !q.Until.IsZero() {
+		created = append(created, bson.E{Key: "$lt", Value: q.Until})
+	}
+	if len(created) > 0 {
+		filter = append(filter, bson.E{Key: "created_at", Value: created})
+	}
 	projection := key("_id", 0, "session_id", 1, "cwd", 1, "memory", 1, "created_at", 1)
 	return s.find(ctx, hookEvents, filter, projection, key("created_at", -1), 0, q.Limit)
+}
+
+func (s *Store) DeleteMemory(ctx context.Context, q session.MemoryDelete) (int, error) {
+	if q.AccountID == "" {
+		return 0, session.ErrNoAccount
+	}
+	if q.Empty() {
+		return 0, nil
+	}
+	var or bson.A
+	if len(q.IDs) > 0 {
+		or = append(or, key("memory.id", key("$in", q.IDs)))
+	}
+	if len(q.Hashes) > 0 {
+		or = append(or, key("memory.hash", key("$in", q.Hashes)))
+	}
+	res, err := s.coll(hookEvents).DeleteMany(ctx, key("hook_event_name", session.MemoryEventName, "account_id", q.AccountID, "$or", or))
+	if err != nil {
+		return 0, err
+	}
+	return int(res.DeletedCount), nil
 }
 
 func (s *Store) LimitSamples(ctx context.Context, q session.LimitQuery) ([]session.Doc, error) {
@@ -994,7 +1131,184 @@ func (s *Store) Unenriched(ctx context.Context, collection, enricher string, lim
 }
 
 func (s *Store) SetEnrichment(ctx context.Context, collection string, id any, enricher string, result any) error {
+	switch e := result.(type) {
+	case session.Embedding:
+		result = embeddingDoc(e)
+	case *session.Embedding:
+		result = embeddingDoc(*e)
+	}
 	return s.update(ctx, collection, key("_id", objectID(id)), key("enrichments."+enricher, result))
+}
+
+// lineTime is the aggregation expression of session.LineTime: the line's
+// timestamp when it parses as a date, else created_at.
+var lineTime = key("$ifNull", bson.A{
+	key("$dateFromString", key("dateString", "$line.timestamp", "onError", "$created_at", "onNull", "$created_at")),
+	"$created_at",
+})
+
+// rangeOf is a $gte/$lt condition for the query's bounds; nil when it has none.
+func rangeOf(q session.CountQuery) bson.D {
+	var r bson.D
+	if !q.Since.IsZero() {
+		r = append(r, bson.E{Key: "$gte", Value: q.Since})
+	}
+	if !q.Until.IsZero() {
+		r = append(r, bson.E{Key: "$lt", Value: q.Until})
+	}
+	return r
+}
+
+// hourCounts groups the account's transcript lines matching match by UTC
+// hour of their line time and the kind expression. Lines created before
+// Since minus session.LineTimeSlack are not read (index account_id,
+// created_at).
+func (s *Store) hourCounts(ctx context.Context, q session.CountQuery, match bson.D, kind any) ([]session.HourCount, error) {
+	match = append(key("account_id", q.AccountID), match...)
+	if !q.Since.IsZero() {
+		match = append(match, bson.E{Key: "created_at", Value: key("$gte", q.Since.Add(-session.LineTimeSlack))})
+	}
+	pipeline := bson.A{
+		key("$match", match),
+		key("$project", key("_id", 0, "k", kind, "t", lineTime)),
+	}
+	if r := rangeOf(q); r != nil {
+		pipeline = append(pipeline, key("$match", key("t", r)))
+	}
+	pipeline = append(pipeline,
+		key("$group", key("_id", key("h", key("$dateTrunc", key("date", "$t", "unit", "hour", "timezone", "UTC")), "k", "$k"), "n", key("$sum", 1))),
+		key("$sort", key("_id.h", 1, "_id.k", 1)),
+	)
+	cur, err := s.coll(transcriptLines).Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		ID struct {
+			H time.Time `bson:"h"`
+			K string    `bson:"k"`
+		} `bson:"_id"`
+		N int64 `bson:"n"`
+	}
+	if err := cur.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	out := make([]session.HourCount, len(rows))
+	for i, r := range rows {
+		out[i] = session.HourCount{Hour: r.ID.H.UTC(), Kind: r.ID.K, Count: r.N}
+	}
+	session.SortHourCounts(out)
+	return out, nil
+}
+
+func (s *Store) ActivityCounts(ctx context.Context, q session.CountQuery) ([]session.HourCount, error) {
+	return s.hourCounts(ctx, q, key("enrichments.activity-kind.kind", key("$type", "string")), "$enrichments.activity-kind.kind")
+}
+
+func (s *Store) ErrorCounts(ctx context.Context, q session.CountQuery) ([]session.HourCount, error) {
+	return s.hourCounts(ctx, q, key("enrichments.error-flag.is_error", true), key("$ifNull", bson.A{"$enrichments.error-flag.error_type", ""}))
+}
+
+// numberOrNull keeps a numeric field for $max, which ignores nulls.
+func numberOrNull(field string) bson.D {
+	return key("$cond", bson.A{key("$isNumber", field), field, nil})
+}
+
+func (s *Store) LimitBuckets(ctx context.Context, q session.CountQuery) ([]session.LimitBucket, error) {
+	match := key("account_id", q.AccountID, "hook_event_name", session.LimitsEventName)
+	if r := rangeOf(q); r != nil {
+		match = append(match, bson.E{Key: "created_at", Value: r})
+	}
+	pipeline := bson.A{
+		key("$match", match),
+		key("$group", key("_id", key("$dateTrunc", key("date", "$created_at", "unit", "hour", "timezone", "UTC")),
+			"five", key("$max", numberOrNull("$rate_limits.five_hour.used_percentage")),
+			"seven", key("$max", numberOrNull("$rate_limits.seven_day.used_percentage")),
+			"context", key("$max", numberOrNull("$context_window.used_percentage")),
+			"cost", key("$max", numberOrNull("$cost.total_cost_usd")),
+			"n", key("$sum", 1))),
+		key("$project", key("five", key("$ifNull", bson.A{"$five", -1}), "seven", key("$ifNull", bson.A{"$seven", -1}),
+			"context", key("$ifNull", bson.A{"$context", -1}), "cost", key("$ifNull", bson.A{"$cost", -1}), "n", 1)),
+		key("$sort", key("_id", 1)),
+	}
+	cur, err := s.coll(hookEvents).Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		H       time.Time `bson:"_id"`
+		Five    float64   `bson:"five"`
+		Seven   float64   `bson:"seven"`
+		Context float64   `bson:"context"`
+		Cost    float64   `bson:"cost"`
+		N       int64     `bson:"n"`
+	}
+	if err := cur.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	out := make([]session.LimitBucket, len(rows))
+	for i, r := range rows {
+		out[i] = session.LimitBucket{Hour: r.H.UTC(), FiveHourMax: r.Five, SevenDayMax: r.Seven, ContextMax: r.Context, CostUSDMax: r.Cost, Samples: r.N}
+	}
+	return out, nil
+}
+
+// embeddingDoc stores the vector as a BSON int8 binary vector (subtype 9).
+func embeddingDoc(e session.Embedding) bson.D {
+	return key("model", e.Model, "dim", e.Dim, "v", bson.NewVector(e.V), "scale", float64(e.Scale))
+}
+
+// SearchVectors reads the account's lines with an embedding of the
+// query's model and length through a cursor (index account_id,
+// enrichments.embedding.model, created_at) and keeps the best by cosine
+// similarity in a top-k heap, so one line is in memory beyond the k kept.
+func (s *Store) SearchVectors(ctx context.Context, q session.VectorQuery) ([]session.Doc, error) {
+	if len(q.Vector) == 0 {
+		return []session.Doc{}, nil
+	}
+	filter := key("account_id", q.AccountID, "enrichments.embedding.model", q.Model, "enrichments.embedding.dim", len(q.Vector))
+	if !q.Since.IsZero() {
+		filter = append(filter, bson.E{Key: "created_at", Value: key("$gte", q.Since)})
+	}
+	if len(q.SessionIDs) > 0 {
+		filter = append(filter, bson.E{Key: "session_id", Value: key("$in", q.SessionIDs)})
+	}
+	projection := key("_id", 0, "session_id", 1, "seq", 1, "created_at", 1, "enrichments.search-text", 1, "enrichments.embedding.v", 1)
+	cur, err := s.coll(transcriptLines).Find(ctx, filter, options.Find().SetProjection(projection))
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	top := session.NewTopK(session.VectorLimit(q.Limit))
+	for cur.Next(ctx) {
+		var row struct {
+			SessionID   string    `bson:"session_id"`
+			Seq         int       `bson:"seq"`
+			CreatedAt   time.Time `bson:"created_at"`
+			Enrichments struct {
+				SearchText *string `bson:"search-text"`
+				Embedding  struct {
+					V bson.Vector `bson:"v"`
+				} `bson:"embedding"`
+			} `bson:"enrichments"`
+		}
+		if err := cur.Decode(&row); err != nil {
+			continue // a vector of another type: not this model's
+		}
+		v, ok := row.Enrichments.Embedding.V.Int8OK()
+		if !ok || len(v) != len(q.Vector) {
+			continue
+		}
+		d := session.Doc{"session_id": row.SessionID, "seq": row.Seq, "created_at": row.CreatedAt.UTC()}
+		if row.Enrichments.SearchText != nil {
+			d["enrichments"] = session.Doc{"search-text": *row.Enrichments.SearchText}
+		}
+		top.Push(session.CosineInt8(q.Vector, v), d)
+	}
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+	return top.Sorted(), nil
 }
 
 func (s *Store) SetEnrichmentSkipped(ctx context.Context, collection string, id any, enricher string) error {
