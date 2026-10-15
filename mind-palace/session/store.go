@@ -98,17 +98,49 @@ type TextQuery struct {
 	Limit      int      `json:"limit"`
 }
 
+// MaxVectorHits caps VectorQuery.Limit.
+const MaxVectorHits = 100
+
+// VectorQuery ranks the account's transcript lines that carry an
+// embedding of Model (enrichments.embedding, of len(Vector) numbers) by
+// cosine similarity to Vector, best first. Empty SessionIDs means no
+// session filter and a zero Since no lower bound on created_at. Limit is
+// capped at MaxVectorHits; 0 or less means the cap.
+type VectorQuery struct {
+	AccountID  string    `json:"-"`
+	Model      string    `json:"model"`
+	Vector     []float32 `json:"vector"`
+	SessionIDs []string  `json:"sessionIds"`
+	Since      time.Time `json:"since"`
+	Limit      int       `json:"limit"`
+}
+
 // ForgetQuery selects the account's sessions to delete with everything
-// captured for them (hook events, transcript and subagent lines, blobs).
-// The criteria are ANDed over the session records: SessionIDs, a regular
-// expression over the project path, and Before (sessions last seen before
-// it). With SessionIDs alone, documents of those ids are deleted even when
-// their session record is gone. A query with no criterion deletes nothing.
+// captured for them (hook events, transcript and subagent lines, blobs,
+// OpenTelemetry events). The criteria are ANDed over the session records:
+// SessionIDs, a regular expression over the project path, and Before
+// (sessions last seen before it). With SessionIDs alone, documents of those
+// ids are deleted even when their session record is gone. A query with no
+// criterion deletes nothing.
+//
+// Limit, when above zero and ProjectPathRe or Before is given, bounds one
+// call: it deletes at most Limit sessions, the oldest last_seen first, and
+// Forgotten.More reports that more match. With SessionIDs alone it is
+// ignored. Orphans, with Before and without ProjectPathRe, also deletes the
+// captures whose session record is gone (of the SessionIDs when given):
+// documents with a session id and the account's stamp, created before
+// Before (timestamp for OpenTelemetry events), whose session id has no
+// session record in the account. Documents without a session id (a daily
+// digest, an account-level memory) are never orphans. Limit bounds the
+// orphan session ids each collection contributes to one call. Without
+// Before, Orphans is ignored and does not make a query non-empty.
 type ForgetQuery struct {
 	AccountID     string    `json:"-"`
 	SessionIDs    []string  `json:"sessionIds"`
 	ProjectPathRe string    `json:"projectPathRe"`
 	Before        time.Time `json:"before"`
+	Limit         int       `json:"limit,omitempty"`
+	Orphans       bool      `json:"orphans,omitempty"`
 }
 
 // Empty reports whether the query has no criterion.
@@ -116,11 +148,14 @@ func (q ForgetQuery) Empty() bool {
 	return len(q.SessionIDs) == 0 && q.ProjectPathRe == "" && q.Before.IsZero()
 }
 
-// Forgotten is what DeleteSessions deleted: the session ids and the number
-// of documents across every collection.
+// Forgotten is what DeleteSessions deleted: the session ids (sorted,
+// orphaned ones included) and the number of documents across every
+// collection. More reports that a Limit cut the call short: calling again
+// with the same query deletes the next batch.
 type Forgotten struct {
 	Sessions  []string `json:"sessions"`
 	Documents int64    `json:"documents"`
+	More      bool     `json:"more,omitempty"`
 }
 
 // LimitQuery selects LimitsSampled events (the context-window and
@@ -275,6 +310,11 @@ type Store interface {
 	// SearchTranscripts projects session_id, seq, score (higher is better),
 	// enrichments.search-text and created_at of the lines TextQuery matches.
 	SearchTranscripts(ctx context.Context, q TextQuery) ([]Doc, error)
+	// SearchVectors projects session_id, seq, score (the cosine
+	// similarity, higher is better), enrichments.search-text and
+	// created_at of the lines VectorQuery ranks; a line with no
+	// embedding, another model's or another length is never returned.
+	SearchVectors(ctx context.Context, q VectorQuery) ([]Doc, error)
 	// UsageTotals sums enrichments.usage of the lines UsageQuery selects, each
 	// message once: one total per group and model, sorted by key and model.
 	UsageTotals(ctx context.Context, q UsageQuery) ([]UsageTotal, error)
@@ -309,6 +349,18 @@ type Store interface {
 	// rejected (a tool call the harness refused), selected by the query's
 	// SessionIDs, Since and Limit (Kinds is ignored), newest first.
 	RejectedToolUses(ctx context.Context, q ActivityQuery) ([]Doc, error)
+	// ActivityCounts counts the account's transcript lines the
+	// activity-kind enricher labelled, per UTC hour of LineTime and kind
+	// (enrichments.activity-kind.kind), for the hours of CountQuery,
+	// sorted by hour then kind; [] when none.
+	ActivityCounts(ctx context.Context, q CountQuery) ([]HourCount, error)
+	// ErrorCounts counts the account's transcript lines the error-flag
+	// enricher marked as errors, per UTC hour of LineTime and error type,
+	// sorted by hour then type; [] when none.
+	ErrorCounts(ctx context.Context, q CountQuery) ([]HourCount, error)
+	// LimitBuckets sums the account's LimitsSampled events per UTC hour of
+	// created_at (see LimitBucket), sorted by hour; [] when none.
+	LimitBuckets(ctx context.Context, q CountQuery) ([]LimitBucket, error)
 	// FullSession is the session_full join; ErrNotFound when the session does not exist.
 	FullSession(ctx context.Context, accountID, sessionID string) (Doc, error)
 	// Unenriched returns documents (including _id) that have none of

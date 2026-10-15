@@ -235,6 +235,7 @@ off.
 | `usage` | `transcript_lines` | The token usage of an assistant line (input, cache writes, one-hour cache writes, cache reads, output, input context) with its model, message id and UTC day, for the `usage` tool |
 | `search-text` | `transcript_lines` | The readable text of the line (message text, tool calls and results, no thinking), at most 16 KB, with the credential patterns of `privacy-redact` (not e-mail addresses) masked; MongoDB keeps a text index on it for `search_transcripts` |
 | `privacy-redact` | `transcript_lines` | A copy of the raw line with four patterns masked (`sk-…` API keys, e-mail addresses, `AKIA…` AWS access key ids and JWTs), stored under `enrichments.privacy-redact.redacted_line`; the raw line itself is kept unchanged. **Off by default**: add it to `enabledEnrichers` to run it |
+| `embedding` | `transcript_lines` | Not registered: a server holding an embedder (`enrichers.Embedding`, e.g. over `session/embed/voyage`) adds it. The int8 vector of a prompt or reply of at least 24 characters (no tool calls or results), credentials masked, for `search_semantic` |
 | `privacy-redact-memory` | `hook_events` | The same masked copy of the text of each claude-remember record (`MemorySaved` event); switched on and off together with `privacy-redact` |
 
 ### MCP tools (`clued` server)
@@ -251,6 +252,7 @@ off.
 | `file_history` | Which sessions touched a file (regex over the path): per session the files, how often it read, edited or wrote them, the lines its edits added and removed, the spans they touched, first and last touch; built from the `file-tracker` and `edit-diff-stats` enrichments |
 | `find_errors` | Transcript lines that reported an error (failed hook, failed tool result, error text), newest first, optionally of one type and scoped to a session, repository or project; built from the `error-flag` enrichment |
 | `search_transcripts` | Search what was said in previous sessions (prompts, replies, tool calls and results) by words, best match first, with a snippet of each line: any word matches, `"quoted phrases"` must appear, `-words` are excluded; optionally scoped to a session, repository or project. Built from the `search-text` enrichment and, in MongoDB, its text index |
+| `search_semantic` | Search prompts and replies by meaning rather than by words, best match first, in the shape of `search_transcripts`; offered only by a server built with an embedder (the `embedding` enrichment and `CluedOptions.Semantic`, as Clued Cloud does), not by `server run` or the local daemon |
 | `usage` | Token usage and estimated cost (US dollars at list prices) by session, model or day, each message counted once, optionally scoped to a session, repository, project or range of days; built from the `usage` enrichment. The built-in prices are the ones on Anthropic's pricing page (Claude 5.x, 4.x and Haiku 3.5, with each model's cache-read price and Claude Haiku 5.5's price for prompts over 100,000 tokens); other models have no cost until `modelPrices` names them |
 | `get_digest` | The stored retro digest of a day or a range (what `session digest` wrote), with its engine, model and cost; null when none |
 | `read_transcript` | Transcript lines in order, paginated by offset and limit (default 200, max 500) |
@@ -281,7 +283,7 @@ prints JSON.
 | `session export [--session id]... [--project re] [--since day] [--format md\|html\|jsonl\|zip] [--out path] [--force] [--raw]` | Write sessions to Markdown, a self-contained HTML page, Claude Code's JSONL, or a zip of many (which `session import` reads back); redacted unless `--raw` |
 | `session otel-export [--session id]... [--project re] [--since day]` | Send sessions to `otelEndpoint` as traces (older sessions, or after an outage; spans sent before are skipped) |
 | `session import <file.jsonl\|export.zip>` | Read a JSONL transcript or a zip export back into the store |
-| `session forget [--session id]... [--project re] [--before day]` | Delete captured sessions from the store (local MongoDB or the server) with everything stored for them; at least one criterion |
+| `session forget [--session id]... [--project re] [--before day] [--limit n]` | Delete captured sessions from the store (local MongoDB or the server) with everything stored for them; at least one criterion; `--limit` deletes the oldest n and reports `more` when others match |
 | `session usage [--by session\|model\|day] [--session id] [--git-origin re] [--project re] [--since day] [--until day] [--limit n]` | Token usage and estimated cost (what `usage` does) |
 | `session limits [--session id] [--git-origin re] [--project-path re] [--since t] [--limit n]` | The status line's context and usage-limit samples (what `get_limits` does) |
 | `session activities [--session id] [--git-origin re] [--project-path re] [--kind k]... [--since t] [--include-rejected] [--limit n]` | What the agent did, newest first, repeats collapsed (what `get_activities` does) |

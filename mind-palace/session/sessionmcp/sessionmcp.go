@@ -61,6 +61,13 @@ type Tools struct {
 	// context values of the request that initialised the session into
 	// every handler of that session.
 	Account func(ctx context.Context) string
+	// Embedder, when set, adds search_semantic: the query is embedded with
+	// it and compared with the vectors the embedding enricher stored.
+	Embedder session.Embedder
+	// AllowSemantic, when set, is asked before each search_semantic call
+	// with the call's account; its error is the tool's error (an account
+	// without the entitlement, a rate limit).
+	AllowSemantic func(ctx context.Context, accountID string) error
 
 	cfg       session.Config
 	accountID string
@@ -102,12 +109,20 @@ func (t *Tools) Subset(remote bool) *Tools {
 	return &out
 }
 
+// SemanticInstructions is added to the instructions when search_semantic
+// is offered.
+const SemanticInstructions = ` search_semantic ranks prompts and replies by meaning rather than by words: use it when search_transcripts finds nothing for a paraphrase.`
+
 // Instructions returns the server instructions for this set of tools.
 func (t *Tools) Instructions() string {
+	out := Instructions
 	if t.remote {
-		return RemoteInstructions
+		out = RemoteInstructions
 	}
-	return Instructions
+	if t.Embedder != nil {
+		out += SemanticInstructions
+	}
+	return out
 }
 
 // Server builds a standalone MCP server named clued holding the tools.
@@ -128,7 +143,7 @@ func (t *Tools) account(ctx context.Context) string {
 // AddTools registers the tools on s, each named prefix + its name.
 func (t *Tools) AddTools(s *mcp.Server, prefix string) {
 	for _, spec := range t.specs() {
-		if t.remote && localTools[spec.name] {
+		if t.remote && localTools[spec.name] || spec.name == "search_semantic" && t.Embedder == nil {
 			continue
 		}
 		spec = budgetSchema(spec)
@@ -210,6 +225,21 @@ func (t *Tools) specs() []toolSpec {
 			budget:      query.DefaultSearchTokens,
 			handler: listTool(t, "search_transcripts", query.DefaultSearchTokens, func(ctx context.Context, q *query.Service, args query.SearchTranscriptsArgs) (any, error) {
 				return q.SearchTranscripts(ctx, args)
+			}),
+		},
+		{
+			name:        "search_semantic",
+			description: "Search the prompts and replies of previous sessions by meaning, best match first, with a snippet of each line: the query is embedded and compared with the embeddings of lines at least 24 characters long (tool calls and results are not embedded). Finds what was said in other words; then read_transcript with offset set to the hit's seq.",
+			schema:      `{"type":"object","properties":{"query":{"type":"string","description":"What to look for, in plain words (at most 1,000 characters are used)"},"session_id":{"type":"string","description":"Restrict to one session"},"git_origin":{"type":"string","description":"Restrict to sessions whose git origin matches this regex"},"project_path":{"type":"string","description":"Restrict to sessions whose project path matches this regex"},"since":{"type":"string","description":"Only lines captured after this RFC 3339 time, or within this duration back from now (e.g. 720h)"},"limit":{"type":"number","description":"Max lines to return (default 20, max 100)"}},"required":["query"]}`,
+			readOnly:    true,
+			budget:      query.DefaultSearchTokens,
+			handler: listTool(t, "search_semantic", query.DefaultSearchTokens, func(ctx context.Context, q *query.Service, args query.SemanticSearchArgs) (any, error) {
+				if t.AllowSemantic != nil {
+					if err := t.AllowSemantic(ctx, q.AccountID); err != nil {
+						return nil, err
+					}
+				}
+				return q.SemanticSearch(ctx, args)
 			}),
 		},
 		{
@@ -304,7 +334,7 @@ func (t *Tools) specs() []toolSpec {
 		{
 			name:        "forget_session",
 			description: "Delete previously captured sessions from the store, with their transcript, subagent lines, blobs and hook events: by id, by project path, or last seen before a day. Criteria given together must all hold; at least one is required. Claude Code's own transcript files are not touched. This cannot be undone.",
-			schema:      `{"type":"object","properties":{"session_id":{"type":"string","description":"Forget this session"},"session_ids":{"type":"array","items":{"type":"string"},"description":"Forget these sessions"},"project_path":{"type":"string","description":"Forget sessions whose project path matches this regex"},"before":{"type":"string","description":"Forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time"}}}`,
+			schema:      `{"type":"object","properties":{"session_id":{"type":"string","description":"Forget this session"},"session_ids":{"type":"array","items":{"type":"string"},"description":"Forget these sessions"},"project_path":{"type":"string","description":"Forget sessions whose project path matches this regex"},"before":{"type":"string","description":"Forget sessions last seen before this day (YYYY-MM-DD, UTC) or RFC 3339 time"},"limit":{"type":"integer","description":"With project_path or before: forget at most this many sessions, the oldest first; the result's more is true when others match"}}}`,
 			destructive: true,
 			handler: tool(t, func(ctx context.Context, q *query.Service, args query.ForgetArgs, _ *mcp.CallToolRequest) (any, error) {
 				return q.Forget(ctx, args)
@@ -439,7 +469,7 @@ func tool[A any](t *Tools, run func(ctx context.Context, q *query.Service, args 
 		if err != nil {
 			return failure(err), nil
 		}
-		out, err := run(ctx, &query.Service{Store: store, AccountID: t.account(ctx), Prices: t.cfg.ModelPrices}, args, req)
+		out, err := run(ctx, &query.Service{Store: store, AccountID: t.account(ctx), Prices: t.cfg.ModelPrices, Embedder: t.Embedder}, args, req)
 		if err != nil {
 			return failure(err), nil
 		}

@@ -3,6 +3,7 @@ package enrich
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -80,18 +81,70 @@ func runEnricher(ctx context.Context, store session.Store, e session.Enricher, p
 		return nil
 	}
 	var first error
+	var batch []session.Doc
 	for _, doc := range docs {
 		if policy != nil {
 			accountID, _ := doc.String("account_id")
 			if !policy(ctx, accountID, e) {
-				if err := store.SetEnrichmentSkipped(ctx, e.Collection, doc["_id"], e.Name); err != nil {
-					logger.Error("enricher skip mark failed", "enricher", e.Name, "id", doc["_id"], "error", err)
-				}
+				markSkipped(ctx, store, e, doc["_id"], logger)
 				continue
 			}
 		}
+		if e.EnrichBatch != nil {
+			matched, err := safely(func() (bool, error) { return e.Matches(doc), nil })
+			switch {
+			case err != nil:
+				if err := recordFailure(ctx, store, e, doc["_id"], err, logger); err != nil && first == nil {
+					first = err
+				}
+			case !matched:
+				markSkipped(ctx, store, e, doc["_id"], logger)
+			default:
+				batch = append(batch, doc)
+			}
+			continue
+		}
 		if err := enrichDoc(ctx, store, e, doc, logger); err != nil && first == nil {
 			first = err
+		}
+	}
+	if len(batch) > 0 {
+		if err := enrichBatch(ctx, store, e, batch, logger); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
+// enrichBatch calls EnrichBatch once over the matching docs and stores each
+// result by position. A panic, or a result list of the wrong length, is
+// recorded as every doc's failure.
+func enrichBatch(ctx context.Context, store session.Store, e session.Enricher, docs []session.Doc, logger *slog.Logger) error {
+	type batchResult struct {
+		results []any
+		errs    []error
+	}
+	r, err := safely(func() (batchResult, error) {
+		results, errs := e.EnrichBatch(ctx, docs, store)
+		return batchResult{results, errs}, nil
+	})
+	if err == nil && (len(r.results) != len(docs) || (r.errs != nil && len(r.errs) != len(docs))) {
+		err = fmt.Errorf("enricher returned %d results and %d errors for %d documents", len(r.results), len(r.errs), len(docs))
+	}
+	var first error
+	for i, doc := range docs {
+		docErr := err
+		if docErr == nil && r.errs != nil {
+			docErr = r.errs[i]
+		}
+		if docErr == nil {
+			if werr := store.SetEnrichment(ctx, e.Collection, doc["_id"], e.Name, r.results[i]); werr != nil {
+				logger.Warn("enrichment write failed; will retry", "enricher", e.Name, "id", doc["_id"], "error", werr)
+			}
+			continue
+		}
+		if ferr := settle(ctx, store, e, doc["_id"], docErr, logger); ferr != nil && first == nil {
+			first = ferr
 		}
 	}
 	return first
@@ -100,15 +153,14 @@ func runEnricher(ctx context.Context, store session.Store, e session.Enricher, p
 // enrichDoc handles one queued doc. A non-matching doc is marked skipped so it
 // leaves the queue; a failing mark is logged and retried on a later pass. An
 // Enrich error or panic (or a Matches panic) is recorded as the doc's failure,
-// and only a failure to record that is returned. A failed result write is
-// logged and the doc left untouched so the next pass retries it.
+// and only a failure to record that is returned; an ErrSkip marks the doc
+// skipped. A failed result write is logged and the doc left untouched so
+// the next pass retries it.
 func enrichDoc(ctx context.Context, store session.Store, e session.Enricher, doc session.Doc, logger *slog.Logger) error {
 	id := doc["_id"]
 	matched, err := safely(func() (bool, error) { return e.Matches(doc), nil })
 	if err == nil && !matched {
-		if err := store.SetEnrichmentSkipped(ctx, e.Collection, id, e.Name); err != nil {
-			logger.Error("enricher skip mark failed", "enricher", e.Name, "id", id, "error", err)
-		}
+		markSkipped(ctx, store, e, id, logger)
 		return nil
 	}
 	if err == nil {
@@ -121,8 +173,30 @@ func enrichDoc(ctx context.Context, store session.Store, e session.Enricher, doc
 			return nil
 		}
 	}
+	return settle(ctx, store, e, id, err, logger)
+}
+
+// settle records an enrichment error: ErrSkip marks the doc skipped, any
+// other error is its failure.
+func settle(ctx context.Context, store session.Store, e session.Enricher, id any, err error, logger *slog.Logger) error {
+	if errors.Is(err, session.ErrSkip) {
+		markSkipped(ctx, store, e, id, logger)
+		return nil
+	}
+	return recordFailure(ctx, store, e, id, err, logger)
+}
+
+func recordFailure(ctx context.Context, store session.Store, e session.Enricher, id any, err error, logger *slog.Logger) error {
 	logger.Error("enricher failed", "enricher", e.Name, "id", id, "error", err)
 	return store.SetEnrichmentFailure(ctx, e.Collection, id, e.Name, err.Error(), time.Now())
+}
+
+// markSkipped marks the doc skipped; a failing mark is logged and the doc
+// comes back on a later pass.
+func markSkipped(ctx context.Context, store session.Store, e session.Enricher, id any, logger *slog.Logger) {
+	if err := store.SetEnrichmentSkipped(ctx, e.Collection, id, e.Name); err != nil {
+		logger.Error("enricher skip mark failed", "enricher", e.Name, "id", id, "error", err)
+	}
 }
 
 // safely runs f, turning a panic into an error so one faulty enricher cannot
