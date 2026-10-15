@@ -343,6 +343,7 @@ func (s *Store) UpsertSession(_ context.Context, in session.Session) error {
 	present(set, map[string]string{
 		"transcript_path": in.TranscriptPath, "cwd": in.Cwd, "project_path": in.ProjectPath,
 		"git_origin": in.GitOrigin, "git_branch": in.GitBranch, "account_id": in.AccountID,
+		"project_slug": session.ProjectSlugOf(in),
 	})
 	if in.Host != nil {
 		set["host"] = hostDoc(in.Host)
@@ -368,6 +369,9 @@ func (s *Store) SetGitInfoIfMissing(_ context.Context, sessionID, origin, branch
 		return nil
 	}
 	d["git_origin"] = origin
+	if slug := session.ProjectSlugOf(session.Session{GitOrigin: origin}); slug != "" {
+		d["project_slug"] = slug
+	}
 	if branch != "" {
 		d["git_branch"] = branch
 	}
@@ -527,8 +531,12 @@ func (s *Store) FindSessions(_ context.Context, q session.SessionQuery) ([]sessi
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	inStates := setOf(q.LiveStates)
+	inSlugs := setOf(q.ProjectSlugs)
 	found := s.filter(sessions, func(d session.Doc) bool {
 		if len(inStates) > 0 && !inStates[strOf(d, "live_state")] {
+			return false
+		}
+		if len(inSlugs) > 0 && !inSlugs[strOf(d, "project_slug")] {
 			return false
 		}
 		if !matches(titleRe, d, "title") {
@@ -549,7 +557,7 @@ func (s *Store) FindSessions(_ context.Context, q session.SessionQuery) ([]sessi
 	}
 	out := []session.Doc{}
 	for _, d := range page(found, 0, limit) {
-		out = append(out, project(d, "session_id", "project_path", "git_origin", "cwd", "model", "live_state", "live_state_at", "live_state_reason",
+		out = append(out, project(d, "session_id", "project_path", "git_origin", "project_slug", "cwd", "model", "live_state", "live_state_at", "live_state_reason",
 			"title", "title_kind", "slug", "permission_mode", "pr_link", "worktree", "entrypoint", "claude_version", "started_at", "last_seen"))
 	}
 	return out, nil

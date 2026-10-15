@@ -178,3 +178,39 @@ func TestUsagePricesLongPromptsAtTheirOwnRate(t *testing.T) {
 		t.Errorf("cost = %v, want %v", got, want)
 	}
 }
+
+func TestUsageOfSelectedSessionIDs(t *testing.T) {
+	st := seedUsage(t)
+	svc := &query.Service{Store: st, AccountID: account}
+	keys := func(r query.UsageReport) []string {
+		out := []string{}
+		for _, g := range r.Groups {
+			out = append(out, g.Key)
+		}
+		return out
+	}
+	// The rollup's path: sessions of a project slug, then their usage in one query.
+	found, err := st.FindSessions(ctx, session.SessionQuery{AccountID: account, ProjectSlugs: []string{"github.com__o__a"}})
+	must(t, err)
+	if len(found) != 1 {
+		t.Fatalf("sessions of github.com__o__a = %v", found)
+	}
+	id, _ := found[0].String("session_id")
+	if got := keys(usage(t, svc, query.UsageArgs{SessionIDs: []string{id}})); len(got) != 1 || got[0] != "s1" {
+		t.Errorf("usage of the slug's sessions = %v", got)
+	}
+	if got := usage(t, svc, query.UsageArgs{SessionIDs: []string{"s1", "s2", "s1"}}); got.Total.Messages != 3 {
+		t.Errorf("both sessions = %+v", got.Total)
+	}
+	// Another account's session id counts nothing.
+	if got := usage(t, svc, query.UsageArgs{SessionIDs: []string{"s3"}}); len(got.Groups) != 0 || got.Total.Messages != 0 {
+		t.Errorf("another account's session = %+v", got)
+	}
+	// With another scope the report covers the sessions in both.
+	if got := keys(usage(t, svc, query.UsageArgs{SessionIDs: []string{"s1", "s2"}, GitOrigin: "o/b"})); len(got) != 1 || got[0] != "s2" {
+		t.Errorf("ids and repository = %v", got)
+	}
+	if got := usage(t, svc, query.UsageArgs{SessionIDs: []string{"s1"}, SessionID: "s2"}); len(got.Groups) != 0 {
+		t.Errorf("disjoint ids and session = %+v", got.Groups)
+	}
+}

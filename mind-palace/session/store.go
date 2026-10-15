@@ -21,6 +21,9 @@ type SessionQuery struct {
 	QueryRe       string `json:"queryRe"`
 	// TitleRe keeps only sessions whose title matches (case-insensitive).
 	TitleRe string `json:"titleRe,omitempty"`
+	// ProjectSlugs keeps only sessions whose project_slug is one of these
+	// (exact match); empty means no filter.
+	ProjectSlugs []string `json:"projectSlugs,omitempty"`
 	// LiveStates keeps only sessions whose live_state is one of these
 	// (working, waiting, ended); empty means no filter.
 	LiveStates []string `json:"liveStates,omitempty"`

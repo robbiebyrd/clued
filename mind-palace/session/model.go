@@ -1,6 +1,10 @@
 package session
 
-import "time"
+import (
+	"time"
+
+	"github.com/robbiebyrd/clued/mind-palace/server/projects"
+)
 
 // HostInfo describes the machine a session ran on. IP and MAC are null when unknown.
 type HostInfo struct {
@@ -17,15 +21,21 @@ type HostInfo struct {
 
 // Session is the metadata of one Claude Code session. Empty strings are not written.
 type Session struct {
-	SessionID      string    `json:"session_id" bson:"session_id"`
-	TranscriptPath string    `json:"transcript_path,omitempty" bson:"transcript_path,omitempty"`
-	Cwd            string    `json:"cwd,omitempty" bson:"cwd,omitempty"`
-	ProjectPath    string    `json:"project_path,omitempty" bson:"project_path,omitempty"`
-	GitOrigin      string    `json:"git_origin,omitempty" bson:"git_origin,omitempty"`
-	GitBranch      string    `json:"git_branch,omitempty" bson:"git_branch,omitempty"`
-	AccountID      string    `json:"account_id,omitempty" bson:"account_id,omitempty"`
-	Host           *HostInfo `json:"host,omitempty" bson:"host,omitempty"`
-	LastSeen       time.Time `json:"last_seen" bson:"last_seen"`
+	SessionID      string `json:"session_id" bson:"session_id"`
+	TranscriptPath string `json:"transcript_path,omitempty" bson:"transcript_path,omitempty"`
+	Cwd            string `json:"cwd,omitempty" bson:"cwd,omitempty"`
+	ProjectPath    string `json:"project_path,omitempty" bson:"project_path,omitempty"`
+	GitOrigin      string `json:"git_origin,omitempty" bson:"git_origin,omitempty"`
+	GitBranch      string `json:"git_branch,omitempty" bson:"git_branch,omitempty"`
+	// ProjectSlug is the clued server's project slug of the session's
+	// repository (projects.Slug of GitOrigin, github.com__owner__repo). The
+	// session stores derive it from GitOrigin when it is empty and index it
+	// with the account, so SessionQuery.ProjectSlugs selects a project's
+	// sessions without a regex.
+	ProjectSlug string    `json:"project_slug,omitempty" bson:"project_slug,omitempty"`
+	AccountID   string    `json:"account_id,omitempty" bson:"account_id,omitempty"`
+	Host        *HostInfo `json:"host,omitempty" bson:"host,omitempty"`
+	LastSeen    time.Time `json:"last_seen" bson:"last_seen"`
 }
 
 // TranscriptLine is one line of a session transcript, keyed by session and sequence number.
@@ -104,4 +114,18 @@ func LineModel(d Doc) string {
 		return ""
 	}
 	return model
+}
+
+// ProjectSlugOf is the project_slug the session stores write for s: its
+// ProjectSlug when set, else projects.Slug of its GitOrigin ("" without
+// one), the slug the clued server files that repository's plans and
+// stories under.
+func ProjectSlugOf(s Session) string {
+	if s.ProjectSlug != "" {
+		return s.ProjectSlug
+	}
+	if s.GitOrigin == "" {
+		return ""
+	}
+	return projects.Slug(s.GitOrigin)
 }

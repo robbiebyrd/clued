@@ -44,6 +44,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"find sessions filters by live state and last-seen bounds", findSessionsByStateAndTime},
 		{"last model before finds the newest assistant line's model under a seq or time", lastModelBefore},
 		{"find sessions filters by account and regexes", findSessionsFilters},
+		{"project_slug is derived from git_origin and filters find sessions", projectSlug},
 		{"find sessions projects, orders by last_seen and limits", findSessionsOrdering},
 		{"find sessions rejects an invalid regex", findSessionsInvalidRegex},
 		{"hook event insert stamps nothing extra and copies the input", hookEventInsert},
@@ -543,10 +544,34 @@ func findSessionsOrdering(t *testing.T, s session.Store) {
 	eq(t, "newest first, limited", strs(got, "session_id"), []string{"b", "c"})
 
 	keys := sortedKeys
-	eq(t, "projection of a full session", keys(got[0]), []string{"cwd", "git_origin", "last_seen", "project_path", "session_id", "started_at"})
+	eq(t, "projection of a full session", keys(got[0]), []string{"cwd", "git_origin", "last_seen", "project_path", "project_slug", "session_id", "started_at"})
 
 	all := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", Limit: 10}))
 	eq(t, "projection omits absent fields and transcript_path", keys(all[1]), []string{"cwd", "last_seen", "project_path", "session_id", "started_at"})
+}
+
+func projectSlug(t *testing.T, s session.Store) {
+	seedSessions(t, s)
+	a := ok(s.GetSession(ctx, "acc", "a"))
+	eq(t, "slug derived from git_origin", a["project_slug"], "github.com__me__alpha")
+	if c := ok(s.GetSession(ctx, "acc", "c")); hasKey(c, "project_slug") {
+		t.Errorf("a session without git_origin has a project_slug: %v", c["project_slug"])
+	}
+	// An explicit slug wins; git info set later derives one too.
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "d", AccountID: "acc", GitOrigin: "https://github.com/me/alpha", ProjectSlug: "team__alpha", LastSeen: t0}))
+	must(t, s.UpsertSession(ctx, session.Session{SessionID: "e", AccountID: "acc", LastSeen: t0.Add(4 * time.Hour)}))
+	must(t, s.SetGitInfoIfMissing(ctx, "e", "git@github.com:Me/Alpha.git", ""))
+	eq(t, "explicit slug", ok(s.GetSession(ctx, "acc", "d"))["project_slug"], "team__alpha")
+	eq(t, "slug from git info", ok(s.GetSession(ctx, "acc", "e"))["project_slug"], "github.com__me__alpha")
+
+	find := func(q session.SessionQuery) []string {
+		return strs(ok(s.FindSessions(ctx, q)), "session_id")
+	}
+	eq(t, "one slug", find(session.SessionQuery{AccountID: "acc", ProjectSlugs: []string{"github.com__me__alpha"}}), []string{"e", "a"})
+	eq(t, "several slugs", find(session.SessionQuery{AccountID: "acc", ProjectSlugs: []string{"github.com__me__beta", "team__alpha"}}), []string{"b", "d"})
+	eq(t, "scoped to the account", find(session.SessionQuery{AccountID: "other", ProjectSlugs: []string{"github.com__me__alpha"}}), []string{})
+	got := ok(s.FindSessions(ctx, session.SessionQuery{AccountID: "acc", ProjectSlugs: []string{"github.com__me__beta"}}))
+	eq(t, "find projects the slug", got[0]["project_slug"], "github.com__me__beta")
 }
 
 func findSessionsInvalidRegex(t *testing.T, s session.Store) {

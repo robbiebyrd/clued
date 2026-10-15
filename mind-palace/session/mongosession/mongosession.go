@@ -115,6 +115,7 @@ var indexes = []index{
 	{transcriptLines, key("session_id", 1, "seq", 1), true},
 	{sessions, key("account_id", 1, "last_seen", -1), false},
 	{sessions, key("account_id", 1, "git_origin", 1), false},
+	{sessions, key("account_id", 1, "project_slug", 1, "last_seen", -1), false},
 	{sessions, key("account_id", 1, "git_origin", 1, "git_branch", 1), false},
 	{hookEvents, key("account_id", 1, "session_id", 1, "created_at", -1), false},
 	{transcriptLines, key("account_id", 1, "session_id", 1, "seq", 1), false},
@@ -429,7 +430,7 @@ func withHost(d bson.D, h *session.HostInfo) bson.D {
 func (s *Store) UpsertSession(ctx context.Context, in session.Session) error {
 	set := setPresent(key("session_id", in.SessionID, "last_seen", in.LastSeen),
 		"transcript_path", in.TranscriptPath, "cwd", in.Cwd, "project_path", in.ProjectPath,
-		"git_origin", in.GitOrigin, "git_branch", in.GitBranch, "account_id", in.AccountID)
+		"git_origin", in.GitOrigin, "git_branch", in.GitBranch, "project_slug", session.ProjectSlugOf(in), "account_id", in.AccountID)
 	return s.upsert(ctx, sessions, key("session_id", in.SessionID), withHost(set, in.Host), key("started_at", in.LastSeen))
 }
 
@@ -438,7 +439,7 @@ func (s *Store) TouchSession(ctx context.Context, accountID, sessionID string, a
 }
 
 func (s *Store) SetGitInfoIfMissing(ctx context.Context, sessionID, origin, branch string) error {
-	set := setPresent(key("git_origin", origin), "git_branch", branch)
+	set := setPresent(key("git_origin", origin), "git_branch", branch, "project_slug", session.ProjectSlugOf(session.Session{GitOrigin: origin}))
 	return s.update(ctx, sessions, key("session_id", sessionID, "git_origin", key("$exists", false)), set)
 }
 
@@ -617,6 +618,9 @@ func (s *Store) FindSessions(ctx context.Context, q session.SessionQuery) ([]ses
 	if len(q.LiveStates) > 0 {
 		filter = append(filter, bson.E{Key: "live_state", Value: key("$in", q.LiveStates)})
 	}
+	if len(q.ProjectSlugs) > 0 {
+		filter = append(filter, bson.E{Key: "project_slug", Value: key("$in", q.ProjectSlugs)})
+	}
 	if !q.LastSeenFrom.IsZero() || !q.LastSeenBefore.IsZero() {
 		bounds := bson.D{}
 		if !q.LastSeenFrom.IsZero() {
@@ -631,7 +635,7 @@ func (s *Store) FindSessions(ctx context.Context, q session.SessionQuery) ([]ses
 	if limit <= 0 || limit > maxSessions {
 		limit = maxSessions
 	}
-	projection := key("_id", 0, "session_id", 1, "project_path", 1, "git_origin", 1, "cwd", 1, "model", 1, "live_state", 1, "live_state_at", 1, "live_state_reason", 1,
+	projection := key("_id", 0, "session_id", 1, "project_path", 1, "git_origin", 1, "project_slug", 1, "cwd", 1, "model", 1, "live_state", 1, "live_state_at", 1, "live_state_reason", 1,
 		"title", 1, "title_kind", 1, "slug", 1, "permission_mode", 1, "pr_link", 1, "worktree", 1, "entrypoint", 1, "claude_version", 1, "started_at", 1, "last_seen", 1)
 	return s.find(ctx, sessions, filter, projection, key("last_seen", -1), 0, limit)
 }
