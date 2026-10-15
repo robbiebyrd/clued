@@ -139,7 +139,7 @@ fi
 SETTINGS="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
 if command -v jq &>/dev/null && [[ -f "$SETTINGS" ]]; then
   current=$(jq -r '.statusLine.command // empty' "$SETTINGS" 2>/dev/null)
-  if [[ "$current" == *"/scripts/clued hook status"* ]]; then
+  if [[ "$current" == *"/scripts/clued hook status"* || "$current" == *"/bin/clued-hook hook status"* ]]; then
     then=$(jq -r '.then // empty' "${DATA_DIR}/statusline.json" 2>/dev/null)
     TMP="${SETTINGS}.tmp.$$"
     if [[ -n "$then" ]]; then
