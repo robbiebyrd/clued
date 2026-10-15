@@ -17,7 +17,10 @@
 //
 // Each request validates the project slug (400 invalid), asks Options.Allow
 // (403 forbidden), checks the kind (400 invalid) and only then opens the
-// project's store (502 store on failure). store.ErrNotFound is 404
+// project's store (502 store on failure; an Open error that is a
+// *httpapi.StatusError answers as it says, one wrapping
+// auth.ErrProjectForbidden 403 forbidden, one wrapping
+// projects.ErrInvalidProject 400 invalid). store.ErrNotFound is 404
 // not_found; a body over MaxBody is 413 too_large. The literal "templates"
 // segment shadows a document with that id, which no generated id has.
 package storeapi
@@ -35,6 +38,7 @@ import (
 
 	"github.com/robbiebyrd/clued/mind-palace/kind"
 	"github.com/robbiebyrd/clued/mind-palace/model"
+	"github.com/robbiebyrd/clued/mind-palace/server/auth"
 	"github.com/robbiebyrd/clued/mind-palace/server/httpapi"
 	"github.com/robbiebyrd/clued/mind-palace/server/projects"
 	"github.com/robbiebyrd/clued/mind-palace/store"
@@ -123,11 +127,17 @@ func (a *api) handle(op operation) http.HandlerFunc {
 		}
 		st, err := a.opts.Open(r.Context(), project)
 		if err != nil {
-			if errors.Is(err, projects.ErrInvalidProject) {
+			var se *httpapi.StatusError
+			switch {
+			case errors.As(err, &se):
+				httpapi.WriteError(w, se.Status, se.Kind, se.Message)
+			case errors.Is(err, projects.ErrInvalidProject):
 				httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, err.Error())
-				return
+			case errors.Is(err, auth.ErrProjectForbidden):
+				httpapi.WriteError(w, http.StatusForbidden, ErrForbidden, err.Error())
+			default:
+				httpapi.WriteError(w, http.StatusBadGateway, ErrStore, "open project store: "+err.Error())
 			}
-			httpapi.WriteError(w, http.StatusBadGateway, ErrStore, "open project store: "+err.Error())
 			return
 		}
 		op(w, r, &request{project: project, kind: k.Name, id: r.PathValue("id"), store: st})
@@ -157,6 +167,11 @@ func isKindName(name string) bool {
 
 // writeStoreError maps a store error to the envelope.
 func writeStoreError(w http.ResponseWriter, err error, what string) {
+	var se *httpapi.StatusError
+	if errors.As(err, &se) {
+		httpapi.WriteError(w, se.Status, se.Kind, se.Message)
+		return
+	}
 	if errors.Is(err, store.ErrNotFound) {
 		httpapi.WriteError(w, http.StatusNotFound, ErrNotFound, what+" not found")
 		return

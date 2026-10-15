@@ -90,6 +90,17 @@ type CluedOptions struct {
 	// Project checks (auth.AllowProject) still see the slug the request
 	// named.
 	Namespace func(p auth.Principal, project string) string
+	// NamespaceCtx, when set, replaces Namespace: it receives the request's
+	// context (deadline, cancellation, values the cloud's middleware put
+	// there) and may fail. An error fails the request instead of opening a
+	// store: a *httpapi.StatusError answers with its own status and kind,
+	// an error wrapping ErrProjectForbidden is 403 "forbidden", one
+	// wrapping projects.ErrInvalidProject 400 "invalid", anything else 502
+	// "store". It runs on every request to the service API and storeapi
+	// (and once per WebSocket connection or MCP session), so a routing
+	// change (a member removed from a workspace) takes effect on the next
+	// request.
+	NamespaceCtx func(ctx context.Context, p auth.Principal, project string) (string, error)
 	// Config is the plan and story configuration (kinds, workflows,
 	// schemas) every project's palace is built with; config.Default when nil.
 	Config *config.Config
@@ -162,6 +173,12 @@ func NewClued(opts CluedOptions) *Clued {
 	if opts.Namespace == nil {
 		opts.Namespace = func(_ auth.Principal, project string) string { return project }
 	}
+	if opts.NamespaceCtx == nil {
+		namespace := opts.Namespace
+		opts.NamespaceCtx = func(_ context.Context, p auth.Principal, project string) (string, error) {
+			return namespace(p, project), nil
+		}
+	}
 	c := &Clued{opts: opts, palaces: NewPalaces(opts.Config, opts.Open)}
 
 	sessionTools := sessionmcp.New(session.Config{}, func(context.Context) (session.Store, error) { return opts.Sessions, nil }, "").Subset(true)
@@ -205,7 +222,11 @@ func NewClued(opts CluedOptions) *Clued {
 	protected.Handle(storeapi.Prefix+"/", storeapi.Handler(storeapi.Options{
 		Open: func(ctx context.Context, project string) (store.Store, error) {
 			p, _ := auth.FromContext(ctx)
-			return opts.Open(ctx, opts.Namespace(p, project))
+			key, err := opts.NamespaceCtx(ctx, p, project)
+			if err != nil {
+				return nil, err
+			}
+			return opts.Open(ctx, key)
 		},
 		Allow: func(r *http.Request, project string) bool {
 			p, ok := auth.FromContext(r.Context())
@@ -253,22 +274,41 @@ func withProject(next http.Handler) http.Handler {
 }
 
 // resolve is the Options.Resolve of the project-scoped entrypoints: the
-// project named by RequestProject, validated (projects.ValidSlug), allowed
-// for the request's principal (auth.AllowProject) and opened once per
-// namespaced key through Palaces.
+// palace (see Palace) of the project named by RequestProject for the
+// request's principal.
 func (c *Clued) resolve(r *http.Request) (*service.Palace, error) {
 	project := RequestProject(r)
 	if project == "" {
 		return nil, ErrMissingProject
 	}
+	p, ok := auth.FromContext(r.Context())
+	if !ok {
+		return nil, fmt.Errorf("%w: %q", ErrProjectForbidden, project)
+	}
+	return c.Palace(r.Context(), p, project)
+}
+
+// Palace returns the cached palace the service API, the WebSocket and the
+// MCP endpoint use for principal p's project: the slug is validated
+// (projects.ValidSlug, else projects.ErrInvalidProject), allowed for p
+// (auth.AllowProject, else ErrProjectForbidden), mapped to its key by
+// NamespaceCtx (or Namespace) with ctx, and opened once per key. The
+// pointer is the one the transport serves, so a caller writing through it
+// (a web board) shares the claim mutex and the event bus with MCP and
+// WebSocket clients of the same key. Errors are those resolve answers
+// with (see CluedOptions.NamespaceCtx); after Close it is ErrPalacesClosed.
+func (c *Clued) Palace(ctx context.Context, p auth.Principal, project string) (*service.Palace, error) {
 	if !projects.ValidSlug(project) {
 		return nil, fmt.Errorf("%w: %q", projects.ErrInvalidProject, project)
 	}
-	p, ok := auth.FromContext(r.Context())
-	if !ok || !auth.AllowProject(p, project) {
+	if !auth.AllowProject(p, project) {
 		return nil, fmt.Errorf("%w: %q", ErrProjectForbidden, project)
 	}
-	return c.palaces.Get(r.Context(), c.opts.Namespace(p, project))
+	key, err := c.opts.NamespaceCtx(ctx, p, project)
+	if err != nil {
+		return nil, err
+	}
+	return c.palaces.Get(ctx, key)
 }
 
 // Close stops the project-scoped entrypoints (the per-project MCP servers

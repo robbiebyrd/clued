@@ -13,6 +13,7 @@ import (
 
 	"github.com/robbiebyrd/clued/mind-palace/kind"
 	"github.com/robbiebyrd/clued/mind-palace/ops"
+	"github.com/robbiebyrd/clued/mind-palace/server/auth"
 	"github.com/robbiebyrd/clued/mind-palace/server/httpapi"
 	"github.com/robbiebyrd/clued/mind-palace/server/mcpserver"
 	"github.com/robbiebyrd/clued/mind-palace/server/projects"
@@ -47,13 +48,18 @@ type Options struct {
 var (
 	// ErrMissingProject: the request names no project.
 	ErrMissingProject = errors.New("missing project: set the " + ProjectHeader + " header or ?project=")
-	// ErrProjectForbidden: the principal's token does not list the project.
-	ErrProjectForbidden = errors.New("project not allowed for this token")
+	// ErrProjectForbidden: the principal's token does not list the project
+	// (auth.ErrProjectForbidden, which storeapi maps too).
+	ErrProjectForbidden = auth.ErrProjectForbidden
 )
 
 // mapResolveError turns a Resolve failure into the envelope's status and
 // kind, as the clued server's other transports answer them.
 func mapResolveError(err error) *httpapi.StatusError {
+	var se *httpapi.StatusError
+	if errors.As(err, &se) {
+		return se
+	}
 	switch {
 	case errors.Is(err, ErrMissingProject), errors.Is(err, projects.ErrInvalidProject):
 		return &httpapi.StatusError{Status: http.StatusBadRequest, Kind: "invalid", Message: err.Error()}

@@ -306,6 +306,11 @@ func clientLabel(name string) string {
 	return b.String()
 }
 
+// ErrProjectForbidden is the failure of a principal whose token does not
+// list the project (see AllowProject). The clued server's transports answer
+// it with 403 "forbidden".
+var ErrProjectForbidden = errors.New("project not allowed for this token")
+
 // ErrTokenExists is returned (wrapped, naming the token) by Create for a
 // name the file already holds.
 var ErrTokenExists = errors.New("auth: token already exists")
