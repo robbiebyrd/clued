@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -254,10 +255,18 @@ func (s *Store) AcquireLease(ctx context.Context, kindName, id string, ttl time.
 }
 
 // ReleaseLease ends the lease when lease still holds it (store.Leaser).
+// A lease that store.NewLeaseID could not have made holds nothing, so it
+// releases nothing; the value is only ever compared with $eq.
 func (s *Store) ReleaseLease(ctx context.Context, kindName, id, lease string) error {
-	_, err := s.leases.DeleteOne(ctx, bson.M{"_id": kindName + "/" + id, "lease": lease})
+	if !leaseIDPattern.MatchString(lease) {
+		return nil
+	}
+	_, err := s.leases.DeleteOne(ctx, bson.M{"_id": kindName + "/" + id, "lease": bson.M{"$eq": lease}})
 	return err
 }
+
+// leaseIDPattern matches the ids store.NewLeaseID returns.
+var leaseIDPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 func (s *Store) Delete(ctx context.Context, kindName, id string) error {
 	col, err := s.collection(kindName)
