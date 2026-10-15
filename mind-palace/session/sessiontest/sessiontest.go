@@ -76,6 +76,7 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"forget limit zero keeps today's behaviour", forgetLimitZero},
 		{"forget orphans deletes captures without a session record", forgetOrphans},
 		{"forget orphans without before is ignored", forgetOrphansWithoutBefore},
+		{"purge content forgets lines, blobs and hook content and keeps the sessions", purgeContent},
 		{"redacted rule names are stored with lines and blobs", redactedField},
 		{"memory events filter by regex, kind, session and account, newest first", memoryEvents},
 		{"memory events reject an invalid regex", memoryEventsInvalidRegex},
@@ -1803,6 +1804,85 @@ func forgetOrphansWithoutBefore(t *testing.T, s session.Store) {
 	must(t, s.InsertHookEvent(ctx, bash("sid-x", "acc", "make sid-x", t0)))
 	eq(t, "nothing deleted", ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", Orphans: true})), session.Forgotten{Sessions: []string{}})
 	eq(t, "the orphan stays", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "acc", Limit: 10}))), 1)
+}
+
+func purgeContent(t *testing.T, s session.Store) {
+	seed := func(sid, acc string) {
+		must(t, s.UpsertSession(ctx, session.Session{SessionID: sid, AccountID: acc, ProjectPath: "/p/" + sid, LastSeen: t0}))
+		must(t, s.SetSessionMeta(ctx, acc, sid, session.Doc{"title": "Fix the secret bug", "title_kind": "ai", "entrypoint": "cli"}))
+		for _, ev := range []session.Doc{
+			bash(sid, acc, "make "+sid, t0),
+			{"session_id": sid, "account_id": acc, "hook_event_name": "PostToolUse", "tool_name": "Edit", "tool_use_id": "e-" + sid,
+				"tool_input": session.Doc{"file_path": "/p/f.go", "old_string": "a", "new_string": "b"}, "tool_response": session.Doc{"ok": true}, "created_at": t0},
+			{"session_id": sid, "account_id": acc, "hook_event_name": "UserPromptSubmit", "prompt": "fix the bug", "created_at": t0},
+			{"session_id": sid, "account_id": acc, "hook_event_name": "Stop", "created_at": t0},
+		} {
+			must(t, s.InsertHookEvent(ctx, ev))
+		}
+		mem := memoryEvent(sid, acc, "entry", "remember "+sid, t0)
+		mem["enrichments"] = session.Doc{"privacy-redact-memory": session.Doc{"redacted_text": "remember " + sid}}
+		must(t, s.InsertHookEvent(ctx, mem))
+		must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl(sid, 1, "user", acc), tl(sid, 2, "assistant", acc)}))
+		must(t, s.UpsertSubagentLine(ctx, sub(sid, "agent", 1, acc)))
+		must(t, s.UpsertBlob(ctx, blob(sid, "tool-result", "r", "x", acc)))
+		ok(s.InsertOtelEvents(ctx, []session.OtelEvent{otelEvent(sid, acc, "p", "api_request", 1, t0)}))
+	}
+	seed("s1", "acc")
+	seed("s2", "acc")
+	seed("s3", "other")
+	if _, err := s.PurgeContent(ctx, "", nil); !errors.Is(err, session.ErrNoAccount) {
+		t.Fatalf("PurgeContent without an account = %v, want ErrNoAccount", err)
+	}
+	got := ok(s.PurgeContent(ctx, "acc", []string{"s1"}))
+	eq(t, "deleted (2 lines, a subagent line, a blob)", got.Deleted, int64(4))
+	eq(t, "stripped (bash, edit, prompt, memory)", got.Stripped, int64(4))
+
+	eq(t, "titles removed", got.Sessions, int64(1))
+	rec := ok(s.GetSession(ctx, "acc", "s1"))
+	eq(t, "s1's title and entrypoint", []any{rec["title"], rec["title_kind"], rec["entrypoint"], rec["project_path"]}, []any{nil, nil, "cli", "/p/s1"})
+	eq(t, "s2 keeps its title", ok(s.GetSession(ctx, "acc", "s2"))["title"], "Fix the secret bug")
+	eq(t, "s1's transcript lines", ok(s.CountTranscriptLines(ctx, "acc", "s1")), 0)
+	eq(t, "s1's blobs", len(ok(s.Blobs(ctx, "acc", "s1"))), 0)
+	eq(t, "s1's subagents", len(ok(s.SubagentIDs(ctx, "acc", "s1"))), 0)
+	eq(t, "s1's otel events stay", len(ok(s.OtelEvents(ctx, session.OtelQuery{AccountID: "acc", SessionIDs: []string{"s1"}}))), 1)
+	byName := map[string]session.Doc{}
+	events := docList(t, ok(s.FullSession(ctx, "acc", "s1")), "hook_events")
+	eq(t, "s1's hook events stay", len(events), 5)
+	for _, ev := range events {
+		name, _ := ev.String("hook_event_name")
+		if name == "" {
+			name, _ = ev.String("tool_name")
+		}
+		byName[name] = ev
+		for _, f := range session.HookContentFields {
+			if hasKey(ev, f) {
+				t.Errorf("%s still has %s: %v", name, f, ev)
+			}
+		}
+	}
+	eq(t, "bash tool_input", hasKey(byName["Bash"], "tool_input"), false)
+	eq(t, "edit tool_input", byName["PostToolUse"].Map("tool_input"), session.Doc{"file_path": "/p/f.go"})
+	eq(t, "edit tool_use_id", byName["PostToolUse"]["tool_use_id"], "e-s1")
+	eq(t, "memory text", byName[session.MemoryEventName].Map("memory")["text"], "")
+	eq(t, "memory hash", byName[session.MemoryEventName].Map("memory")["hash"], "h-acc-remember s1")
+	eq(t, "memory redaction", hasKey(byName[session.MemoryEventName].Map("enrichments"), "privacy-redact-memory"), false)
+	eq(t, "stop event", byName["Stop"] != nil, true)
+
+	eq(t, "s2 is untouched", ok(s.CountTranscriptLines(ctx, "acc", "s2")), 2)
+	eq(t, "s2's bash event is untouched", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "acc", PatternRe: "make s2"}))), 1)
+	eq(t, "another account is untouched", ok(s.CountTranscriptLines(ctx, "other", "s3")), 2)
+	eq(t, "a second run changes nothing", ok(s.PurgeContent(ctx, "acc", []string{"s1"})), session.ContentPurged{})
+
+	// No session ids: the whole account, a memory record of a session
+	// without a session record included.
+	must(t, s.InsertHookEvent(ctx, memoryEvent("loose", "acc", "recent", "loose memory", t0)))
+	got = ok(s.PurgeContent(ctx, "acc", nil))
+	eq(t, "the account's other session and the loose record", got, session.ContentPurged{Deleted: 4, Stripped: 5, Sessions: 1})
+	for _, m := range ok(s.MemoryEvents(ctx, session.MemoryQuery{AccountID: "acc"})) {
+		eq(t, "memory text after the account purge", m.Map("memory")["text"], "")
+	}
+	eq(t, "the other account's memory keeps its text", ok(s.MemoryEvents(ctx, session.MemoryQuery{AccountID: "other"}))[0].Map("memory")["text"], "remember s3")
+	eq(t, "the other account's bash event stays", len(ok(s.BashEvents(ctx, session.CommandQuery{AccountID: "other", PatternRe: "make"}))), 1)
 }
 
 func redactedField(t *testing.T, s session.Store) {

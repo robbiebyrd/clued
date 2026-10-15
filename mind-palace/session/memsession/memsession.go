@@ -165,6 +165,58 @@ func (s *Store) orphans(q session.ForgetQuery, inSessions, ids map[string]bool) 
 	return more
 }
 
+// PurgeContent deletes the selected sessions' lines and blobs and strips
+// their hook events (session.WithoutContent); session records stay.
+func (s *Store) PurgeContent(_ context.Context, accountID string, sessionIDs []string) (session.ContentPurged, error) {
+	var out session.ContentPurged
+	if accountID == "" {
+		return out, session.ErrNoAccount
+	}
+	ids := setOf(sessionIDs)
+	selected := func(d session.Doc) bool {
+		return owned(d, accountID) && (len(ids) == 0 || ids[strOf(d, "session_id")])
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, name := range []string{transcriptLines, subagentLines, blobs} {
+		docs := s.cols[name]
+		kept := docs[:0]
+		for _, d := range docs {
+			if selected(d) {
+				out.Deleted++
+				continue
+			}
+			kept = append(kept, d)
+		}
+		s.cols[name] = kept
+	}
+	for i, d := range s.cols[hookEvents] {
+		if !selected(d) {
+			continue
+		}
+		if stripped, changed := session.WithoutContent(d); changed {
+			s.cols[hookEvents][i] = stripped
+			out.Stripped++
+		}
+	}
+	for _, d := range s.cols[sessions] {
+		if !selected(d) {
+			continue
+		}
+		changed := false
+		for _, f := range session.SessionContentFields {
+			if _, ok := d[f]; ok {
+				delete(d, f)
+				changed = true
+			}
+		}
+		if changed {
+			out.Sessions++
+		}
+	}
+	return out, nil
+}
+
 // DeleteAccount drops every document of every collection stamped with the account.
 func (s *Store) DeleteAccount(_ context.Context, accountID string) (int64, error) {
 	if accountID == "" {

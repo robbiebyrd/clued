@@ -64,11 +64,15 @@ func (p Paths) Excludes(path string) bool {
 // A session is known to be excluded from the cwd or project path of its
 // session record, its hook events or its transcript lines; a batch of lines
 // with one excluded line is dropped whole for that session. Reads pass
-// through.
+// through. With MetadataOnly, content is never written either: transcript
+// and subagent lines and blobs are dropped (with a nil error, so a caller
+// moves on rather than retrying) and hook events are stored as
+// session.WithoutContent of them, and a session's title is not set.
 type Store struct {
 	session.Store
-	R       *Redactor
-	Exclude Paths
+	R            *Redactor
+	Exclude      Paths
+	MetadataOnly bool
 
 	mu       sync.Mutex
 	excluded map[string]bool
@@ -84,9 +88,10 @@ func Wrap(inner session.Store, r *Redactor, exclude Paths) session.Store {
 }
 
 // FromConfig wraps inner as cfg says: redaction when cfg.RedactAtCapture,
-// with cfg.RedactPatterns, and cfg.ExcludePaths. Patterns that do not
-// compile are skipped and returned as one error beside the store, which
-// still applies the others.
+// with cfg.RedactPatterns, cfg.ExcludePaths, and metadata-only capture
+// when cfg.CaptureContent is false. Patterns that do not compile are
+// skipped and returned as one error beside the store, which still applies
+// the others.
 func FromConfig(inner session.Store, cfg session.Config) (session.Store, error) {
 	var errs []error
 	var r *Redactor
@@ -97,6 +102,9 @@ func FromConfig(inner session.Store, cfg session.Config) (session.Store, error) 
 	}
 	paths, bad := NewPaths(cfg.ExcludePaths)
 	errs = append(errs, bad...)
+	if !cfg.CapturesContent() {
+		return &Store{Store: inner, R: r, Exclude: paths, MetadataOnly: true}, errors.Join(errs...)
+	}
 	return Wrap(inner, r, paths), errors.Join(errs...)
 }
 
@@ -156,6 +164,28 @@ func (s *Store) SetGitInfoIfMissing(ctx context.Context, sessionID, origin, bran
 	return s.Store.SetGitInfoIfMissing(ctx, sessionID, origin, branch)
 }
 
+// SetSessionMeta drops session.SessionContentFields (the title) under
+// MetadataOnly; the other fields pass through.
+func (s *Store) SetSessionMeta(ctx context.Context, accountID, sessionID string, fields session.Doc) error {
+	if s.isExcluded(sessionID) {
+		return nil
+	}
+	if s.MetadataOnly {
+		kept := make(session.Doc, len(fields))
+		for k, v := range fields {
+			kept[k] = v
+		}
+		for _, f := range session.SessionContentFields {
+			delete(kept, f)
+		}
+		if len(kept) == 0 {
+			return nil
+		}
+		fields = kept
+	}
+	return s.Store.SetSessionMeta(ctx, accountID, sessionID, fields)
+}
+
 // InsertHookEvent redacts every string of the event; a redacted event
 // carries the names of the rules that fired under "redacted".
 func (s *Store) InsertHookEvent(ctx context.Context, ev session.Doc) error {
@@ -163,6 +193,9 @@ func (s *Store) InsertHookEvent(ctx context.Context, ev session.Doc) error {
 	cwd, _ := ev.String("cwd")
 	if s.excludes(sid, cwd) {
 		return nil
+	}
+	if s.MetadataOnly {
+		ev, _ = session.WithoutContent(ev)
 	}
 	if s.R != nil {
 		masked, fired := s.R.Value(ev)
@@ -177,6 +210,9 @@ func (s *Store) InsertHookEvent(ctx context.Context, ev session.Doc) error {
 func (s *Store) UpsertTranscriptLines(ctx context.Context, lines []session.TranscriptLine) error {
 	for _, l := range lines {
 		s.excludes(l.SessionID, lineCwd(l.Line))
+	}
+	if s.MetadataOnly {
+		return nil
 	}
 	kept := make([]session.TranscriptLine, 0, len(lines))
 	for _, l := range lines {
@@ -196,7 +232,7 @@ func (s *Store) UpsertTranscriptLines(ctx context.Context, lines []session.Trans
 }
 
 func (s *Store) UpsertSubagentLine(ctx context.Context, l session.SubagentLine) error {
-	if s.excludes(l.SessionID, lineCwd(l.Line)) {
+	if s.excludes(l.SessionID, lineCwd(l.Line)) || s.MetadataOnly {
 		return nil
 	}
 	if s.R != nil {
@@ -208,7 +244,7 @@ func (s *Store) UpsertSubagentLine(ctx context.Context, l session.SubagentLine) 
 
 // UpsertBlob redacts text content; base64 content is stored as given.
 func (s *Store) UpsertBlob(ctx context.Context, b session.Blob) error {
-	if s.isExcluded(b.SessionID) {
+	if s.isExcluded(b.SessionID) || s.MetadataOnly {
 		return nil
 	}
 	if s.R != nil && b.Encoding != "base64" {

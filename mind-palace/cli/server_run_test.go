@@ -676,3 +676,16 @@ func TestServerRunStoresSessionsItselfEvenWhenItsConfigNamesAServer(t *testing.T
 		t.Errorf("the config's other keys were lost: %q", opened.MongoURL)
 	}
 }
+
+func TestClientConfigFromServesTheCaptureHint(t *testing.T) {
+	started := time.Unix(1700000000, 0)
+	cfg, _ := clientConfigFrom(session.Config{EnabledEnrichers: []string{}, DisabledEnrichers: []string{}}, filepath.Join(t.TempDir(), "none.json"), started)()
+	if _, ok := cfg["captureContent"]; ok {
+		t.Errorf("an unset captureContent was served: %v", cfg)
+	}
+	off := false
+	cfg, at := clientConfigFrom(session.Config{CaptureContent: &off}, filepath.Join(t.TempDir(), "none.json"), started)()
+	if cfg["captureContent"] != false || !at.Equal(started) {
+		t.Errorf("served %v at %v, want captureContent false at the start time", cfg, at)
+	}
+}

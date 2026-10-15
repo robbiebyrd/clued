@@ -1007,8 +1007,12 @@ The enrichment methods of the port (`Unenriched`, `SetEnrichment*`),
 of the account's labelled and error lines per UTC hour of each line's
 `line.timestamp`, else its `created_at`, and per hour of `LimitsSampled`
 events the largest five-hour, seven-day and context percentages and cost,
-`-1` when unknown) and `DeleteAccount` are not served: enrichment runs on the server, and deleting
-an account's data is the operator's job. The remote adapter answers
+`-1` when unknown), `DeleteAccount` and `PurgeContent` (forget a session's
+content and keep the session: lines and blobs deleted, hook events stripped
+as metadata-only capture would have stored them, the title removed) are not
+served: enrichment runs on the server, and deleting an account's data or
+content is the operator's job (a clued cloud runs `PurgeContent` when a
+workspace switches to metadata capture). The remote adapter answers
 `ErrUnsupported` for them.
 
 ### 7.4 Store transport: `/api/v1/projects/{project}/store`
@@ -1165,7 +1169,7 @@ memory for 15 minutes and mints the approved token into its token file.
 | `POST /api/v1/device/approve` | bearer | `{"user_code", "name"?, "projects"?}` | `{"user_code", "name", "account_id", "projects"}` |
 | `POST /api/v1/device/deny` | bearer | `{"user_code"}` | `{"user_code", "denied": true}` |
 | `DELETE /api/v1/me/tokens/current` | bearer | | `{"revoked": "<token name>", "current": true}`; the token stops working at once |
-| `GET /api/v1/me/config` | bearer | | `{"client_config": {"enabledEnrichers", "disabledEnrichers", "projectsDir", "fileHistoryDir", "redactAtCapture", "redactPatterns", "excludePaths", "managed": [<key>, …], "managedBy": {<key>: "<workspace>"}}, "updated_at"}`; `managed` and `managedBy` may also sit beside `client_config` |
+| `GET /api/v1/me/config` | bearer | | `{"client_config": {"enabledEnrichers", "disabledEnrichers", "projectsDir", "fileHistoryDir", "redactAtCapture", "redactPatterns", "excludePaths", "captureContent"?, "managed": [<key>, …], "managedBy": {<key>: "<workspace>"}}, "updated_at"}`; `managed` and `managedBy` may also sit beside `client_config` |
 
 The user code is eight letters and digits shown as `BCDF-GHJK`; case and
 punctuation do not matter when it is sent back. The approved token belongs
@@ -1190,13 +1194,18 @@ token in the config file by hand. `session logout` calls
 `DELETE /api/v1/me/tokens/current` and removes the remote keys from the
 config file. `session config-pull` reads `GET /api/v1/me/config` and copies
 `enabledEnrichers`, `disabledEnrichers`, `projectsDir`, `fileHistoryDir`,
-`redactAtCapture`, `redactPatterns` and `excludePaths` into the config
-file when the server sets them. A key the server lists in `managed` (a
-workspace policy enforces it) replaces a local value that differs and
-prints `clued: <key> is managed by <workspace>; the local value in <path>
-was replaced` on stderr, also with `--quiet`; the result carries
-`managed` and `overridden`; the self-hosted server
-serves the enricher lists of its own session config. The clued cloud, a
+`redactAtCapture`, `redactPatterns`, `excludePaths` and `captureContent`
+into the config file when the server sets them, and removes
+`captureContent` when the server sends no boolean for it (it is the
+server's capture hint: `false` for an account the server stores metadata
+only for, a clued cloud workspace on zero retention). A key the server
+lists in `managed` (a workspace policy enforces it) replaces a local value
+that differs and prints `clued: <key> is managed by <workspace>; the local
+value in <path> was replaced` on stderr, also with `--quiet`. Its result
+is `{"remote", "supported", "updated", "removed", "managed", "overridden",
+"updated_at"}`. `session logout` removes `captureContent` with the server
+keys. The self-hosted server serves the enricher lists of its own session
+config, and its `captureContent` when that config sets it. The clued cloud, a
 hosted multi-tenant clued, speaks the same routes and approves the code in
 a browser at `verification_uri`.
 
@@ -1536,6 +1545,7 @@ the environment:
 | `redactAtCapture` | `CLUED_REDACT_AT_CAPTURE` | off (absent); `/clued-setup` writes `true` | Mask secrets before anything captured is written (the local store, or the request to the server): the rules `private-key` (PEM private keys), `api-key` (`sk-…`), `aws-key` (`AKIA…`), `jwt`, `github-token` (`ghp_…`, `github_pat_…`), `slack-token` (`xox?-…`), each match replaced by `[REDACTED:<rule>]`, and `<private>…</private>` spans (an unclosed one to the end of its line) by `[PRIVATE]`. Every string of a hook event, transcript and subagent line and text blob is masked; a masked document records the rules that fired under `redacted`. `server run` applies its own config's setting to what clients send |
 | `redactPatterns` | | `[]` | Extra regular expressions masked with `redactAtCapture` (`[REDACTED:pattern-<n>]`); one that does not compile is logged and skipped |
 | `excludePaths` | | `[]` | Globs (`filepath.Match`, `~` for the home directory) over a session's cwd and project path; a session in a matching directory, or below one, is never stored: its session record, hook events, lines and blobs are dropped |
+| `captureContent` | `CLUED_CAPTURE_CONTENT` | `true` (absent) | `false` makes capture metadata-only: transcript and subagent lines and artifact files are not written or sent, hook events lose their content (`session.WithoutContent`: `prompt`, `tool_response`, `message`, `last_assistant_message`, `custom_instructions`, `tool_input` except `file_path`, a `MemorySaved` record's `memory.text`, the `privacy-redact-memory` enrichment) and a session's `title` and `title_kind` are not set; sessions, event and tool names, ids, file paths, timestamps, models, OpenTelemetry events and limit samples are still captured. In remote mode it is the server's hint, written by `session config-pull` from `GET /api/v1/me/config` and removed when the server sends no boolean; the server enforces its own policy whatever the client sends. `server run` applies its own config's setting to what clients send and serves it to them |
 | `retentionDays` | | `0` (keep) | MongoDB deletes captured documents that many days after they were stored (TTL indexes `retention_ttl` on `created_at`, and on `last_seen` for sessions); `0` drops the indexes |
 | `otelEndpoint` | `CLUED_OTEL_ENDPOINT` | (none) | An OTLP/HTTP collector (`http://localhost:4318`; `/v1/traces` is appended unless present). Each session's trace is sent when it ends: by the daemon 5 s after `SessionEnd` is stored, by `hook relay` right after its catch-up in remote mode, or by `session otel-export`. The trace: a root span `invoke_agent claude-code` (`gen_ai.operation.name`, `gen_ai.agent.name`, `gen_ai.conversation.id` = the session id, `clued.project_path`, `clued.git_origin`, …), a `turn` span per `UserPromptSubmit` (to the next one or the session's last event; `clued.turn.index`, `clued.prompt.chars`, and `gen_ai.usage.input_tokens`, `output_tokens`, `cache_read.input_tokens`, `cache_creation.input_tokens`, `gen_ai.response.model` from the `usage` enrichment, each message once; the session span holds the totals), an `execute_tool <name>` span per tool use from `PreToolUse` to `PostToolUse` or `PostToolUseFailure` (`gen_ai.tool.name`, `gen_ai.tool.call.id`; a failure has status error and `error.type`), and an `invoke_agent <agent_type>` span per subagent. Resource: `service.name` `claude-code`. Trace and span ids derive from the account and session, and `<config dir>/otel/<session>.json` records the spans sent, so each span is sent at most once and a resumed session adds only its new spans. A collector that is down costs a log line (the daemon log, or `relay.log`), never a hook; nothing is retried until the session is exported again |
 | `otelHeaders` | | `{}` | Headers sent with every OTLP request (`{"Authorization": "Bearer …"}`); secrets, never logged |

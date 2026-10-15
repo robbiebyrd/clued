@@ -195,7 +195,10 @@ With `redactAtCapture` on, every write is masked first (see
 hold `[REDACTED:<rule>]` where the secret was, and the document lists the
 rules under `redacted`. Sessions under `excludePaths` are not written at
 all; `session forget` takes back what was, and `retentionDays` bounds how
-long MongoDB keeps the rest.
+long MongoDB keeps the rest. With `captureContent` set to `false` only
+metadata is written: sessions, which events and tools ran, file paths,
+timestamps, models and usage, but no transcript, prompt, tool input or
+output, or title.
 
 ### Enrichers
 
@@ -363,6 +366,7 @@ sessions and other machines can search it:
 | `redactAtCapture` | off; `/clued-setup` writes `true` | `CLUED_REDACT_AT_CAPTURE` | Mask API keys, AWS access key ids, JWTs, GitHub and Slack tokens, PEM private keys and `<private>…</private>` spans in everything captured before it is written or sent to the server |
 | `redactPatterns` | `[]` | | More regular expressions to mask with `redactAtCapture` (e-mail addresses, internal host names) |
 | `excludePaths` | `[]` | | Globs over the session's directory (`["~/work/client-*"]`): sessions in or below a match are never stored |
+| `captureContent` | `true` | `CLUED_CAPTURE_CONTENT` | `false` captures metadata only: no transcript lines or artifact files, hook events without prompts, tool inputs (file paths aside) or responses, no session titles. In remote mode the server sets it (`session config-pull`) when it keeps metadata only for the account |
 | `retentionDays` | `0` | | MongoDB deletes captured documents after this many days |
 | `otelEndpoint` | (none) | `CLUED_OTEL_ENDPOINT` | An OTLP/HTTP collector (Grafana Alloy, Langfuse, Phoenix, an OpenTelemetry Collector) that receives each session as a trace when it ends: a span per prompt turn, tool use and subagent, with token usage, under the GenAI conventions |
 | `otelHeaders` | `{}` | | Headers for the collector (`Authorization`); never logged |
