@@ -66,6 +66,10 @@ func Run(t *testing.T, open func(*testing.T) session.Store) {
 		{"search vectors ignores lines without or with another model's embedding", searchVectorsOtherModels},
 		{"search vectors caps limit at 100", searchVectorsLimitCap},
 		{"forget drops vectors", forgetDropsVectors},
+		{"activity and error counts bucket lines by the hour they were written", hourlyCountsBoundaries},
+		{"hourly aggregates are per account and Until is exclusive", hourlyAggregatesScoping},
+		{"limit buckets keep each hour's maxima and -1 for unknown", limitBuckets},
+		{"hourly aggregates of nothing are empty lists", hourlyAggregatesEmpty},
 		{"delete sessions forgets the selected sessions and what was captured for them", deleteSessions},
 		{"forget before with limit deletes the oldest first and reports more", forgetWithLimit},
 		{"forget limit zero keeps today's behaviour", forgetLimitZero},
@@ -1891,4 +1895,123 @@ func forgetDropsVectors(t *testing.T, s session.Store) {
 	embedLine(t, s, "s2", 0, "acc", "m", []float32{1, 0})
 	ok(s.DeleteSessions(ctx, session.ForgetQuery{AccountID: "acc", SessionIDs: []string{"s1"}}))
 	eq(t, "the forgotten session's vectors are gone", vectorKeys(t, s, session.VectorQuery{AccountID: "acc", Model: "m", Vector: []float32{1, 0}}), []string{"s2/0"})
+}
+
+// hour0 is the hour the aggregate cases are about.
+var hour0 = time.Date(2026, 3, 4, 10, 0, 0, 0, time.UTC)
+
+// labelLine stores a line written at at (its line.timestamp) with an
+// activity kind and, when errType is not empty, an error flag.
+func labelLine(t *testing.T, s session.Store, sid string, seq int, acc string, at time.Time, kind, errType string) {
+	t.Helper()
+	line := tl(sid, seq, "assistant", acc)
+	line.Line = map[string]any{"type": "assistant", "timestamp": at.UTC().Format("2006-01-02T15:04:05.000Z07:00")}
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{line}))
+	var id any
+	for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "activity-kind", 0)) {
+		if d["session_id"] == sid && num(d["seq"]) == seq {
+			id = d["_id"]
+		}
+	}
+	must(t, s.SetEnrichment(ctx, "transcript_lines", id, "activity-kind", session.Doc{"kind": kind, "label": kind}))
+	if errType != "" {
+		must(t, s.SetEnrichment(ctx, "transcript_lines", id, "error-flag", session.Doc{"is_error": true, "error_type": errType}))
+	}
+}
+
+func hourCountKeys(counts []session.HourCount) []string {
+	out := []string{}
+	for _, c := range counts {
+		out = append(out, fmt.Sprintf("%s/%s=%d", c.Hour.UTC().Format("15:04"), c.Kind, c.Count))
+	}
+	return out
+}
+
+func hourlyCountsBoundaries(t *testing.T, s session.Store) {
+	labelLine(t, s, "s1", 0, "acc", hour0, "user", "")
+	labelLine(t, s, "s1", 1, "acc", hour0.Add(59*time.Minute+59*time.Second+999*time.Millisecond), "user", "tool_failure")
+	labelLine(t, s, "s1", 2, "acc", hour0.Add(time.Hour), "user", "tool_failure")
+	labelLine(t, s, "s1", 3, "acc", hour0.Add(time.Hour+time.Minute), "bash", "hook_error")
+	// A line without a timestamp counts at its created_at, which is now.
+	before := time.Now().UTC()
+	must(t, s.UpsertTranscriptLines(ctx, []session.TranscriptLine{tl("s1", 4, "assistant", "acc")}))
+	for _, d := range ok(s.Unenriched(ctx, "transcript_lines", "activity-kind", 0)) {
+		must(t, s.SetEnrichment(ctx, "transcript_lines", d["_id"], "activity-kind", session.Doc{"kind": "response"}))
+	}
+	q := session.CountQuery{AccountID: "acc", Since: hour0, Until: hour0.Add(2 * time.Hour)}
+	activity := ok(s.ActivityCounts(ctx, q))
+	eq(t, "activity by hour and kind", hourCountKeys(activity), []string{"10:00/user=2", "11:00/bash=1", "11:00/user=1"})
+	eq(t, "hours are UTC hour starts", activity[0].Hour.Equal(hour0), true)
+	eq(t, "errors by hour and type", hourCountKeys(ok(s.ErrorCounts(ctx, q))), []string{"10:00/tool_failure=1", "11:00/hook_error=1", "11:00/tool_failure=1"})
+	after := time.Now().UTC()
+	recent := ok(s.ActivityCounts(ctx, session.CountQuery{AccountID: "acc", Since: before.Add(-time.Hour)}))
+	if len(recent) != 1 || recent[0].Kind != "response" || recent[0].Count != 1 ||
+		recent[0].Hour.Before(before.Truncate(time.Hour)) || recent[0].Hour.After(after.Truncate(time.Hour)) {
+		t.Errorf("a line without a timestamp counts at created_at: %+v", recent)
+	}
+}
+
+func hourlyAggregatesScoping(t *testing.T, s session.Store) {
+	labelLine(t, s, "s1", 0, "acc", hour0.Add(30*time.Minute), "user", "error_text")
+	labelLine(t, s, "s1", 1, "acc", hour0.Add(time.Hour), "user", "error_text")
+	labelLine(t, s, "s2", 0, "other", hour0.Add(30*time.Minute), "user", "error_text")
+	sample := func(acc string, at time.Time) {
+		must(t, s.InsertHookEvent(ctx, session.Doc{"session_id": "s1", "account_id": acc, "hook_event_name": session.LimitsEventName, "created_at": at,
+			"rate_limits": session.Doc{"five_hour": session.Doc{"used_percentage": 10.0}}}))
+	}
+	sample("acc", hour0.Add(30*time.Minute))
+	sample("acc", hour0.Add(time.Hour))
+	sample("other", hour0.Add(30*time.Minute))
+	q := session.CountQuery{AccountID: "acc", Since: hour0, Until: hour0.Add(time.Hour)}
+	eq(t, "own account, until exclusive", hourCountKeys(ok(s.ActivityCounts(ctx, q))), []string{"10:00/user=1"})
+	eq(t, "errors too", hourCountKeys(ok(s.ErrorCounts(ctx, q))), []string{"10:00/error_text=1"})
+	buckets := ok(s.LimitBuckets(ctx, q))
+	eq(t, "limit buckets, own account, until exclusive", len(buckets), 1)
+	if len(buckets) == 1 {
+		eq(t, "one sample", buckets[0].Samples, int64(1))
+	}
+	eq(t, "no bounds", hourCountKeys(ok(s.ActivityCounts(ctx, session.CountQuery{AccountID: "acc"}))), []string{"10:00/user=1", "11:00/user=1"})
+	eq(t, "the other account", hourCountKeys(ok(s.ErrorCounts(ctx, session.CountQuery{AccountID: "other"}))), []string{"10:00/error_text=1"})
+}
+
+func limitBuckets(t *testing.T, s session.Store) {
+	sample := func(at time.Time, fields session.Doc) {
+		ev := session.Doc{"session_id": "s1", "account_id": "acc", "hook_event_name": session.LimitsEventName, "created_at": at}
+		for k, v := range fields {
+			ev[k] = v
+		}
+		must(t, s.InsertHookEvent(ctx, ev))
+	}
+	sample(hour0, session.Doc{
+		"rate_limits":    session.Doc{"five_hour": session.Doc{"used_percentage": 20.0}, "seven_day": session.Doc{"used_percentage": 5.0}},
+		"context_window": session.Doc{"used_percentage": 40.0}, "cost": session.Doc{"total_cost_usd": 0.5},
+	})
+	sample(hour0.Add(59*time.Minute+59*time.Second+999*time.Millisecond), session.Doc{
+		"rate_limits":    session.Doc{"five_hour": session.Doc{"used_percentage": 35.5}},
+		"context_window": session.Doc{"used_percentage": 12.0}, "cost": session.Doc{"total_cost_usd": 1.25},
+	})
+	sample(hour0.Add(time.Hour), session.Doc{"cost": session.Doc{"total_cost_usd": 2}})
+	// Another event of the hour is not a sample.
+	must(t, s.InsertHookEvent(ctx, session.Doc{"session_id": "s1", "account_id": "acc", "hook_event_name": "Stop", "created_at": hour0}))
+	got := ok(s.LimitBuckets(ctx, session.CountQuery{AccountID: "acc", Since: hour0}))
+	want := []session.LimitBucket{
+		{Hour: hour0, FiveHourMax: 35.5, SevenDayMax: 5, ContextMax: 40, CostUSDMax: 1.25, Samples: 2},
+		{Hour: hour0.Add(time.Hour), FiveHourMax: -1, SevenDayMax: -1, ContextMax: -1, CostUSDMax: 2, Samples: 1},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("buckets = %+v", got)
+	}
+	for i := range want {
+		got[i].Hour = got[i].Hour.UTC()
+		eq(t, fmt.Sprintf("bucket %d", i), got[i], want[i])
+	}
+}
+
+func hourlyAggregatesEmpty(t *testing.T, s session.Store) {
+	activity := ok(s.ActivityCounts(ctx, session.CountQuery{AccountID: "acc"}))
+	errs := ok(s.ErrorCounts(ctx, session.CountQuery{AccountID: "acc"}))
+	limits := ok(s.LimitBuckets(ctx, session.CountQuery{AccountID: "acc"}))
+	if activity == nil || errs == nil || limits == nil || len(activity)+len(errs)+len(limits) != 0 {
+		t.Errorf("empty aggregates = %#v %#v %#v, want [] each", activity, errs, limits)
+	}
 }

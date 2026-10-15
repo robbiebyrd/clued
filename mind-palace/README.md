@@ -420,7 +420,11 @@ expose them next to the plan and story tools.
 `session/mongosession` is the MongoDB implementation (collections `sessions`,
 `hook_events`, `transcript_lines`, `subagent_lines`, `blobs` and the
 `session_full` view, as the TypeScript plugin created them) and
-`session/memsession` the in-memory one used by tests. `daemon`, `tail`,
+`session/memsession` the in-memory one used by tests. Besides the queries
+the tools use, the port has hourly aggregates for analytics
+(`ActivityCounts`, `ErrorCounts`, `LimitBuckets` over a `CountQuery`) and
+`SearchVectors` for semantic search; the remote adapter answers
+`ErrUnsupported` for those. `daemon`, `tail`,
 `backfill`, `enrich`/`enrichers`, `query`, `restore`, `wal`, `gitinfo`,
 `hostinfo` and `sessionmcp` sit on top of it.
 

@@ -312,6 +312,20 @@ func (s *Store) SearchVectors(context.Context, session.VectorQuery) ([]session.D
 	return nil, session.ErrUnsupported
 }
 
+// ActivityCounts, ErrorCounts and LimitBuckets are not part of the
+// transport: the hourly aggregates serve the server's own analytics.
+func (s *Store) ActivityCounts(context.Context, session.CountQuery) ([]session.HourCount, error) {
+	return nil, session.ErrUnsupported
+}
+
+func (s *Store) ErrorCounts(context.Context, session.CountQuery) ([]session.HourCount, error) {
+	return nil, session.ErrUnsupported
+}
+
+func (s *Store) LimitBuckets(context.Context, session.CountQuery) ([]session.LimitBucket, error) {
+	return nil, session.ErrUnsupported
+}
+
 // RequeueSkipped is the server's: the enrichment queue is not part of the
 // transport.
 func (s *Store) RequeueSkipped(context.Context, string, string, string) (int64, error) {
