@@ -2,11 +2,13 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"os/user"
+	"reflect"
 	"runtime"
 	"strings"
 	"time"
@@ -30,8 +32,50 @@ const (
 )
 
 // Config keys the server's client settings may set (the same names as in
-// config.json); nothing else from the server reaches the file.
-var pulledConfigKeys = []string{"enabledEnrichers", "disabledEnrichers", "projectsDir", "fileHistoryDir"}
+// config.json); nothing else from the server reaches the file. The
+// redaction keys carry a workspace's enforced capture redaction.
+var pulledConfigKeys = []string{"enabledEnrichers", "disabledEnrichers", "projectsDir", "fileHistoryDir", "redactAtCapture", "redactPatterns", "excludePaths"}
+
+// meConfig is the body of GET /api/v1/me/config. Managed lists the keys a
+// workspace policy enforces and ManagedBy who manages each; the cloud may
+// send them inside client_config (as config.json-style keys) or beside it.
+type meConfig struct {
+	ClientConfig map[string]any    `json:"client_config"`
+	UpdatedAt    string            `json:"updated_at"`
+	Managed      []string          `json:"managed"`
+	ManagedBy    map[string]string `json:"managedBy"`
+}
+
+// managed returns the managed keys and their managers from wherever the
+// body carries them.
+func (m meConfig) managed() ([]string, map[string]string) {
+	keys, by := m.Managed, m.ManagedBy
+	if raw, ok := m.ClientConfig["managed"].([]any); ok && keys == nil {
+		for _, k := range raw {
+			if s, ok := k.(string); ok {
+				keys = append(keys, s)
+			}
+		}
+	}
+	if raw, ok := m.ClientConfig["managedBy"].(map[string]any); ok && by == nil {
+		by = map[string]string{}
+		for k, v := range raw {
+			if s, ok := v.(string); ok {
+				by[k] = s
+			}
+		}
+	}
+	return keys, by
+}
+
+// readConfigJSON reads config.json as a document ({} when it is missing).
+func readConfigJSON(path string) map[string]any {
+	doc := map[string]any{}
+	if raw, err := os.ReadFile(path); err == nil {
+		_ = json.Unmarshal(raw, &doc)
+	}
+	return doc
+}
 
 // deviceStart is the body of POST /api/v1/device/code.
 type deviceStart struct {
@@ -257,8 +301,11 @@ func (a *App) sessionConfigPullCmd() *cobra.Command {
 		Short: "Apply the client settings managed in the clued cloud to config.json",
 		Long: `Fetches GET /api/v1/me/config from the configured server and writes the
 keys it carries (enabledEnrichers, disabledEnrichers, projectsDir,
-fileHistoryDir) into the config file, keeping every other key. Keys the
-server does not set are left as they are. Not in remote mode, or against a
+fileHistoryDir, redactAtCapture, redactPatterns, excludePaths) into the
+config file, keeping every other key. Keys the server does not set are
+left as they are. Keys the server lists as managed (a workspace policy
+enforces them) replace a local value that differs, with a note on stderr
+naming who manages the key (printed with --quiet too). Not in remote mode, or against a
 plain clued server (no such route), nothing changes and the command
 succeeds; the session-start hook runs it with --quiet.`,
 		Args: cobra.NoArgs,
@@ -270,10 +317,7 @@ succeeds; the session-start hook runs it with --quiet.`,
 			}
 			res := map[string]any{"remote": client != nil, "supported": false, "updated": []string{}}
 			if client != nil {
-				var body struct {
-					ClientConfig map[string]any `json:"client_config"`
-					UpdatedAt    string         `json:"updated_at"`
-				}
+				var body meConfig
 				err := client.Do(cmd.Context(), http.MethodGet, meConfigPath, nil, &body)
 				switch {
 				case err == nil:
@@ -285,12 +329,33 @@ succeeds; the session-start hook runs it with --quiet.`,
 							updated = append(updated, k)
 						}
 					}
+					managed, managedBy := body.managed()
+					overridden := []string{}
+					local := readConfigJSON(a.sess.configPath)
+					for _, k := range managed {
+						v, ok := set[k]
+						if !ok {
+							continue
+						}
+						if cur, has := local[k]; has && !reflect.DeepEqual(normalizeJSON(cur), normalizeJSON(v)) {
+							overridden = append(overridden, k)
+							by := managedBy[k]
+							if by == "" {
+								by = "your workspace"
+							}
+							fmt.Fprintf(a.Stderr, "clued: %s is managed by %s; the local value in %s was replaced\n", k, by, a.sess.configPath)
+						}
+					}
 					if len(set) > 0 {
 						if err := session.UpdateConfigFile(a.sess.configPath, set, nil); err != nil {
 							return a.sessionFail(err)
 						}
 					}
+					if managed == nil {
+						managed = []string{}
+					}
 					res["supported"], res["updated"], res["updated_at"] = true, updated, body.UpdatedAt
+					res["managed"], res["overridden"] = managed, overridden
 				case remote.IsNotFound(err):
 				default:
 					return a.sessionFail(err)
@@ -304,4 +369,16 @@ succeeds; the session-start hook runs it with --quiet.`,
 	}
 	c.Flags().BoolVar(&quiet, "quiet", false, "print nothing on success")
 	return c
+}
+
+// normalizeJSON round-trips v through JSON so values read from a file and
+// decoded from a response compare by content.
+func normalizeJSON(v any) any {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return v
+	}
+	var out any
+	_ = json.Unmarshal(b, &out)
+	return out
 }

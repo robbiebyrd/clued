@@ -288,6 +288,10 @@ func TestSessionStartStartsNoDaemonInRemoteMode(t *testing.T) {
 	// The relay runs detached: the starting session reaches the server
 	// shortly after the hook returned.
 	srv.waitTracked(t, "s-start")
+	// The session record can arrive before the event itself: wait for it.
+	for deadline := time.Now().Add(15 * time.Second); srv.count("POST", sessionapi.Prefix+"/hook-events") == 0 && time.Now().Before(deadline); {
+		time.Sleep(50 * time.Millisecond)
+	}
 	if n := srv.count("POST", sessionapi.Prefix+"/hook-events"); n != 1 {
 		t.Errorf("hook-events requests = %d, want 1 (the SessionStart event)", n)
 	}

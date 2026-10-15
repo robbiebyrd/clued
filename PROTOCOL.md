@@ -678,7 +678,7 @@ malformed one, is an error.
 
 | Tool | Parameters | Returns |
 |---|---|---|
-| `find_sessions` | `project_path` (regex), `git_origin` (regex), `query` (regex against project path or cwd), `title` (regex), `live_state` (`working`, `waiting`, `ended`), `hotness` (`hot`, `warm`, `cool`, `cold`), `limit` (default 10, max 500) | sessions, newest first: `session_id`, `project_path`, `git_origin`, `cwd`, `model` (when known, section 4.5), `live_state`, `live_state_at`, `live_state_reason` (when known, section 4.6), `hotness`, `title`, `title_kind`, `slug`, `permission_mode`, `pr_link`, `worktree`, `entrypoint`, `claude_version` (when set, section 4.7), `started_at`, `last_seen`, `event_count` |
+| `find_sessions` | `project_path` (regex), `git_origin` (regex), `query` (regex against project path or cwd), `title` (regex), `live_state` (`working`, `waiting`, `ended`), `hotness` (`hot`, `warm`, `cool`, `cold`), `limit` (default 10, max 500) | sessions, newest first: `session_id`, `project_path`, `git_origin`, `project_slug` (the server project slug of `git_origin`), `cwd`, `model` (when known, section 4.5), `live_state`, `live_state_at`, `live_state_reason` (when known, section 4.6), `hotness`, `title`, `title_kind`, `slug`, `permission_mode`, `pr_link`, `worktree`, `entrypoint`, `claude_version` (when set, section 4.7), `started_at`, `last_seen`, `event_count` |
 | `get_session_context` | `session_id` (required) | metadata (`session` with `model` and `model_changed_at` once known, `live_state`, `live_state_at` and `live_state_reason` once known, `hotness`, and the section 4.7 fields once set), `turns` (`turns`, `total_ms`, `mean_ms`, `longest_ms` from the `turn_duration` records; `null` without any), `telemetry` (the session's OpenTelemetry events of section 7.10 summed: `events`, `prompts`, `api_requests`, `api_errors`, `cost_usd`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_creation_tokens`, `api_ms`, `models`, `tools` (`name`, `calls`, `failures`, `total_ms`, most calls first, at most 10), `last_error` (`model`, `status_code`, `error`, `timestamp`) and `truncated` past 10 000 events; `null` without any, or against a server that has no telemetry), the most recent distinct Bash commands, first and last transcript lines, the latest memory records, and `usage` (the session's group of the `usage` tool, with its per-model breakdown; `null` when no usage is recorded) |
 | `get_full_session` | `session_id` (required), `sections` (`transcript`, `subagents`, `blobs`, `hook_events`; default all), `max_tokens`, `cursor` | metadata and the sections asked for: transcript and subagent lines, blob metadata without content, hook events |
 | `search_commands` | `pattern` (required regex), `session_id`, `git_origin` (regex), `include_rejected` (keep the commands the harness refused to run, section 6.1.5), `limit` (default 20, max 500) | Bash commands, newest first |
@@ -999,8 +999,14 @@ expired one (`expires` passed) and an environment key (`"kind":
 
 ```
 GET /health          → 200 {"ok": true, "service": "clued-server", "version": "<version>", "auth": "bearer"}
-GET /api/v1/whoami   → 200 {"ok": true, "result": {"name": "laptop", "account_id": "…", "projects": ["*"], "version": "<server version>"}}
+GET /api/v1/whoami   → 200 {"ok": true, "result": {"name": "laptop", "account_id": "…", "projects": ["*"], "version": "<server version>", "assignee": "github:octocat"}}
 ```
+
+`assignee` is the `provider:handle` the server suggests the principal
+claims plans and stories as (a clued cloud: `github:<login>` with a linked
+GitHub identity, else `clued:<user id>`), so agents and the server's own
+pages agree; the self-hosted server has none and leaves the field out.
+`session whoami` prints it.
 
 ### 7.2 Projects
 
@@ -1021,7 +1027,12 @@ all give `github.com__owner__repo`. `remote.project` in
 directory's base name is used. On the server the slug prefixes each
 storage plugin's namespace (a directory for file storage, a table or
 collection prefix otherwise); a multi-tenant deployment may also namespace
-by account.
+by account. An embedding server maps the principal and slug to the store
+key with `CluedOptions.Namespace` or, with the request context and a
+possible error, `CluedOptions.NamespaceCtx`; it runs on every service API
+and store request (once per WebSocket connection or MCP session), and its
+error fails the request: 403 `forbidden` for `auth.ErrProjectForbidden`,
+an `httpapi.StatusError`'s own status and kind, 502 `store` otherwise.
 
 ### 7.3 Session transport: `/api/v1/session`
 
@@ -1034,10 +1045,10 @@ MiB (413 `too_large`); ids must be single safe path elements (400
 
 | Route | Body | Result |
 |---|---|---|
-| `PUT /sessions` | a `Session` (`session_id`, `transcript_path`, `cwd`, `project_path`, `git_origin`, `git_branch`, `host`, `last_seen`) | `{"session_id"}` |
-| `POST /sessions/find` | `{"projectPathRe", "gitOriginRe", "queryRe", "titleRe", "liveStates": […], "lastSeenFrom", "lastSeenBefore" (RFC 3339; inclusive from, exclusive before, zero for none), "limit"}` | sessions, projected to `session_id`, `project_path`, `git_origin`, `cwd`, `model`, `live_state`, `live_state_at`, `live_state_reason`, `title`, `title_kind`, `slug`, `permission_mode`, `pr_link`, `worktree`, `entrypoint`, `claude_version`, `started_at`, `last_seen` |
+| `PUT /sessions` | a `Session` (`session_id`, `transcript_path`, `cwd`, `project_path`, `git_origin`, `git_branch`, `project_slug`, `host`, `last_seen`); without `project_slug` the store derives it from `git_origin` (section 7.2's slug) | `{"session_id"}` |
+| `POST /sessions/find` | `{"projectPathRe", "gitOriginRe", "queryRe", "titleRe", "liveStates": […], "projectSlugs": […] (exact), "lastSeenFrom", "lastSeenBefore" (RFC 3339; inclusive from, exclusive before, zero for none), "limit"}` | sessions, projected to `session_id`, `project_path`, `git_origin`, `project_slug`, `cwd`, `model`, `live_state`, `live_state_at`, `live_state_reason`, `title`, `title_kind`, `slug`, `permission_mode`, `pr_link`, `worktree`, `entrypoint`, `claude_version`, `started_at`, `last_seen` |
 | `POST /sessions/{id}/touch` | `{"at": "<RFC3339>"}` | `{"session_id"}` |
-| `POST /sessions/{id}/git` | `{"origin", "branch"}` (set once; a foreign session is silently ignored) | `{"session_id"}` |
+| `POST /sessions/{id}/git` | `{"origin", "branch"}` (set once, with the `project_slug` derived from `origin`; a foreign session is silently ignored) | `{"session_id"}` |
 | `POST /sessions/{id}/model` | `{"model", "at"}` (`at` defaults to now) | `{"previous", "changed"}`: the stored model (`""` when none) and whether `model` and `model_changed_at` were written (section 4.5); 404 when the account has no such session |
 | `POST /sessions/{id}/meta` | `{"fields": {…}}` (only `title`, `title_kind`, `slug`, `permission_mode`, `pr_link`, `worktree`, `entrypoint`, `claude_version`; another key is 400) | `{"session_id"}`; sets the fields (section 4.7); 404 when the account has no such session |
 | `POST /sessions/{id}/state` | `{"state", "reason", "at"}` (`at` defaults to now) | `{"previous", "changed"}`: the stored live state (`""` when none) and whether `live_state`, `live_state_at` and `live_state_reason` were written (section 4.6); 404 when the account has no such session |
@@ -1095,14 +1106,38 @@ kind, store open.
 | Route | Body | Result |
 |---|---|---|
 | `GET …/{kind}` | | every document (`[]` when none) |
-| `GET …/{kind}/{id}` | | the document |
-| `PUT …/{kind}/{id}` | a document `{"kind", "path", "frontMatter": {…}, "content"}`; `kind` must match the path, `frontMatter.id` the id, and `path` be local and clean | the document |
+| `GET …/{kind}/{id}` | | the document, with `ETag: "<frontMatter.updated>"` |
+| `PUT …/{kind}/{id}` | a document `{"kind", "path", "frontMatter": {…}, "content"}`; `kind` must match the path, `frontMatter.id` the id, and `path` be local and clean. Optional `If-Match: "<updated>"` (a weak `W/` tag compares the same) | the document, with its new `ETag`; 412 `precondition` when `If-Match` names an `updated` the stored copy no longer has, or the document does not exist (nothing is written) |
 | `DELETE …/{kind}/{id}` | | `{"kind", "id"}` |
+| `POST …/{kind}/{id}/lock` | | `{"lease", "expires_at"}`: the document's lease for 30 s; 409 `locked` while another client holds it (the route does not wait; clients retry) |
+| `POST …/{kind}/{id}/unlock` | `{"lease"}` | `{"kind", "id"}`; releasing a lease that expired or was taken over is not an error |
 | `GET …/{kind}/templates` | | templates |
 | `GET`, `PUT`, `DELETE …/{kind}/templates/{id}` | on `PUT`: `{"kind", "id", "content", "updated"}` | the template |
 
 A write that fans out to several stores and partly fails answers 200 with
 a `warning` of kind `partial` listing the `problems`.
+
+A conditional `PUT` is atomic on a store that can compare and replace (the
+MongoDB and memory plugins); on another it reads, compares and writes. The
+server's `BeforePut` hook (`CluedOptions.BeforePut`), when an embedding
+server sets one, sees every document `PUT` with the stored copy (none for
+a new document) and the new one, and may refuse it: 403 `forbidden` with
+its message, or its own status. The request's `X-Clued-Force: 1` header
+reaches the hook (`storeapi.Forced`); the write after an accepted check is
+conditional on the copy the hook saw (412 when it changed in between).
+Leases live in the store when it keeps them (MongoDB: `<prefix>leases`,
+seen by every server process), else in the serving process.
+
+The `clued` storage plugin sends `If-Match` with the `updated` it last read
+for a document (a document it never read is written unconditionally) and
+maps 412 to a failed precondition. It takes the lock route as its claim
+lock, so when the server is a project's primary store (a shared project,
+below) two members' claims serialise on the server. A client in remote
+mode asks `GET /api/v1/me/workspaces` (a clued cloud route; 404 elsewhere)
+at open: `{"workspaces": [{"id", "name", "role", "projects": ["<slug>", …]}]}`
+(or the bare list; a project may also be `{"slug"}`). A project listed
+there is opened with the server as the primary store, so reads see the
+other members' writes; the local file store becomes a fan-out copy.
 
 ### 7.5 Service API: `/api/v1`
 
@@ -1215,7 +1250,7 @@ memory for 15 minutes and mints the approved token into its token file.
 | `POST /api/v1/device/approve` | bearer | `{"user_code", "name"?, "projects"?}` | `{"user_code", "name", "account_id", "projects"}` |
 | `POST /api/v1/device/deny` | bearer | `{"user_code"}` | `{"user_code", "denied": true}` |
 | `DELETE /api/v1/me/tokens/current` | bearer | | `{"revoked": "<token name>", "current": true}`; the token stops working at once |
-| `GET /api/v1/me/config` | bearer | | `{"client_config": {"enabledEnrichers", "disabledEnrichers"}, "updated_at"}` |
+| `GET /api/v1/me/config` | bearer | | `{"client_config": {"enabledEnrichers", "disabledEnrichers", "projectsDir", "fileHistoryDir", "redactAtCapture", "redactPatterns", "excludePaths", "managed": [<key>, …], "managedBy": {<key>: "<workspace>"}}, "updated_at"}`; `managed` and `managedBy` may also sit beside `client_config` |
 
 The user code is eight letters and digits shown as `BCDF-GHJK`; case and
 punctuation do not matter when it is sent back. The approved token belongs
@@ -1239,8 +1274,13 @@ routes (an older one answers 401 or 404 there) it tells the user to put a
 token in the config file by hand. `session logout` calls
 `DELETE /api/v1/me/tokens/current` and removes the remote keys from the
 config file. `session config-pull` reads `GET /api/v1/me/config` and copies
-`enabledEnrichers`, `disabledEnrichers`, `projectsDir` and `fileHistoryDir`
-into the config file when the server sets them; the self-hosted server
+`enabledEnrichers`, `disabledEnrichers`, `projectsDir`, `fileHistoryDir`,
+`redactAtCapture`, `redactPatterns` and `excludePaths` into the config
+file when the server sets them. A key the server lists in `managed` (a
+workspace policy enforces it) replaces a local value that differs and
+prints `clued: <key> is managed by <workspace>; the local value in <path>
+was replaced` on stderr, also with `--quiet`; the result carries
+`managed` and `overridden`; the self-hosted server
 serves the enricher lists of its own session config. The clued cloud, a
 hosted multi-tenant clued, speaks the same routes and approves the code in
 a browser at `verification_uri`.
@@ -1593,7 +1633,7 @@ the environment:
 | `memory.budgetTokens` | `CLUED_MEMORY_BUDGET` | `1500` | the MEMORY bundle's budget (four characters a token) |
 | `memory.exclude` | | `[]` | project path globs (the `excludePaths` syntax) whose sessions get no note |
 | `statusLine` | `CLUED_STATUS_LINE` | `false` | `register-hooks` makes `hook status` the Claude Code status line, keeping the previous command in `statusline.json` to run after each sample, and puts it back when unset |
-| `modelPrices` | | | Prices for the `usage` estimates, by model id prefix, in US dollars per million tokens: `{"<prefix>": {"input": n, "output": n, "cacheRead": n, "longPrompt": {"input": n, "output": n, "cacheRead": n}}}` (`cacheRead` defaults to 0.1× `input`; `longPrompt` prices messages whose prompt is over 100,000 tokens). The longest matching prefix wins and these come before the built-in table, whose entries match only their own model ids and those ids' dated or platform forms (`claude-opus-4-1-20250805`, `anthropic.claude-sonnet-4-5-20250929-v1:0`), never a newer model whose id starts with them |
+| `modelPrices` | | | Prices for the `usage` estimates, by model id prefix, in US dollars per million tokens: `{"<prefix>": {"input": n, "output": n, "cacheRead": n, "longPrompt": {"input": n, "output": n, "cacheRead": n}}}` (`cacheRead` defaults to 0.1× `input`; `longPrompt` prices messages whose prompt is over 100,000 tokens). The longest matching prefix wins and these come before the built-in table, whose entries match only their own model ids and those ids' dated or platform forms (`claude-opus-4-1-20250805`, Bedrock's `anthropic.claude-sonnet-4-5-20250929-v1:0`, `us.`/`global.` inference profiles and ARNs, Vertex's `claude-opus-4-1@20250805` and publisher paths, a `[1m]` tag), never a newer model whose id starts with them; a prefix matches the id as reported or its normalized form (`claude-opus-4-1`) |
 | `devRepoPath` | | | read by the shim and `session-start` only: build from this checkout |
 
 Session collections in MongoDB: `sessions`, `hook_events`,

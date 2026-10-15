@@ -243,3 +243,49 @@ func TestSessionConfigPullAndLogoutOnAPlainServer(t *testing.T) {
 		t.Errorf("result = %v", res)
 	}
 }
+
+func TestSessionConfigPullWritesRedactionKeysAndEnforcesManaged(t *testing.T) {
+	for name, cfg := range map[string]map[string]any{
+		// The cloud's effective config: managed keys inside client_config…
+		"inside client_config": {
+			"redactAtCapture": true, "redactPatterns": []string{`acme-[0-9a-f]{32}`}, "excludePaths": []string{"~/secret/**"},
+			"enabledEnrichers": []string{"privacy-redact"}, "projectsDir": "~/p",
+			"managed":   []string{"redactAtCapture", "redactPatterns", "excludePaths", "enabledEnrichers"},
+			"managedBy": map[string]string{"redactAtCapture": "Acme", "redactPatterns": "Acme", "excludePaths": "Acme", "enabledEnrichers": "Acme"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			stub := newCloudStub(t)
+			stub.config = cfg
+			configPath := filepath.Join(t.TempDir(), "config.json")
+			// The user loosened the policy locally and has a key of their own.
+			_ = os.WriteFile(configPath, []byte(`{"serverUrl":"`+stub.srv.URL+`","serverToken":"cloud-token","redactAtCapture":false,"redactPatterns":[],"enabledEnrichers":["privacy-redact"],"port":7}`), 0o600)
+			r := execStdin(t, "", "session", "--config", configPath, "config-pull", "--quiet")
+			if r.code != 0 || r.stdout != "" {
+				t.Fatalf("config-pull --quiet: %+v", r)
+			}
+			for _, key := range []string{"redactAtCapture", "redactPatterns"} {
+				if !strings.Contains(r.stderr, key+" is managed by Acme") {
+					t.Errorf("no note for the overwritten %s: %q", key, r.stderr)
+				}
+			}
+			for _, key := range []string{"excludePaths", "enabledEnrichers"} { // absent or already equal locally
+				if strings.Contains(r.stderr, key+" is managed") {
+					t.Errorf("a note for %s although nothing local was replaced: %q", key, r.stderr)
+				}
+			}
+			doc := readConfigDoc(t, configPath)
+			if doc["redactAtCapture"] != true || len(doc["redactPatterns"].([]any)) != 1 || doc["excludePaths"].([]any)[0] != "~/secret/**" || doc["port"] != float64(7) || doc["projectsDir"] != "~/p" {
+				t.Errorf("config after pull = %v", doc)
+			}
+			if _, leaked := doc["managed"]; leaked {
+				t.Errorf("the managed list was written into config.json: %v", doc)
+			}
+			r = execStdin(t, "", "session", "--config", configPath, "config-pull")
+			res := result(t, r)
+			if len(res["managed"].([]any)) != 4 || len(res["overridden"].([]any)) != 0 {
+				t.Errorf("second pull result = %v", res)
+			}
+		})
+	}
+}

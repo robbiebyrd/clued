@@ -35,7 +35,7 @@ func newRelayServer(t *testing.T, store session.Store) *relayServer {
 	t.Helper()
 	s := &relayServer{requests: map[string]int{}}
 	mux := http.NewServeMux()
-	mux.Handle("/api/v1/whoami", auth.WhoamiHandler("test"))
+	mux.Handle("/api/v1/whoami", auth.WhoamiHandlerWith("test", func(_ context.Context, p auth.Principal) string { return "clued:" + p.AccountID }))
 	mux.Handle(sessionapi.Prefix+"/", sessionapi.Handler(store, sessionapi.Options{Account: func(r *http.Request) (string, bool) {
 		p, ok := auth.FromContext(r.Context())
 		return p.AccountID, ok
@@ -373,6 +373,9 @@ func TestSessionWhoamiPrintsThePrincipal(t *testing.T) {
 	res := sessionResult(t, runWhoami(t, configPath)).(map[string]any)
 	if res["name"] != "test" || res["account_id"] != testAccount || res["version"] != "test" || res["server"] != srv.srv.URL {
 		t.Errorf("whoami = %v", res)
+	}
+	if res["assignee"] != "clued:"+testAccount {
+		t.Errorf("assignee = %v, want the server's suggestion", res["assignee"])
 	}
 	if _, ok := res["projects"].([]any); !ok {
 		t.Errorf("projects = %v, want a list", res["projects"])
