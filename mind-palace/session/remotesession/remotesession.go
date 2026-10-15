@@ -187,6 +187,21 @@ func (s *Store) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]sess
 	return s.docs(ctx, "POST", prefix+"/memory-events", q)
 }
 
+// DeleteMemory asks the server to delete the token's account's memory
+// records by id or hash. A delete that selects nothing is not sent.
+func (s *Store) DeleteMemory(ctx context.Context, q session.MemoryDelete) (int, error) {
+	if q.Empty() {
+		return 0, nil
+	}
+	var out struct {
+		Deleted int `json:"deleted"`
+	}
+	if err := s.do(ctx, "POST", prefix+"/memory-delete", q, &out); err != nil {
+		return 0, err
+	}
+	return out.Deleted, nil
+}
+
 func (s *Store) FileEvents(ctx context.Context, q session.FileQuery) ([]session.Doc, error) {
 	return s.docs(ctx, "POST", prefix+"/file-events", q)
 }

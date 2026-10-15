@@ -587,10 +587,7 @@ func (s *Store) MemoryEvents(_ context.Context, q session.MemoryQuery) ([]sessio
 	for _, id := range q.SessionIDs {
 		inSessions[id] = true
 	}
-	inKinds := map[string]bool{}
-	for _, k := range q.Kinds {
-		inKinds[k] = true
-	}
+	inKinds, inProjects, inIDs := set(q.Kinds), set(q.Projects), set(q.IDs)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -605,6 +602,19 @@ func (s *Store) MemoryEvents(_ context.Context, q session.MemoryQuery) ([]sessio
 		if len(inKinds) > 0 && !inKinds[strOf(mem, "kind")] {
 			return false
 		}
+		if len(inProjects) > 0 && !inProjects[strOf(mem, "project")] {
+			return false
+		}
+		if len(inIDs) > 0 && !inIDs[strOf(mem, "id")] {
+			return false
+		}
+		if private, _ := mem["private"].(bool); private && !q.IncludePrivate {
+			return false
+		}
+		at := timeOf(d, "created_at")
+		if (!q.Since.IsZero() && at.Before(q.Since)) || (!q.Until.IsZero() && !at.Before(q.Until)) {
+			return false
+		}
 		text, isString := mem.String("text")
 		return isString && (re == nil || re.MatchString(text))
 	})
@@ -615,6 +625,40 @@ func (s *Store) MemoryEvents(_ context.Context, q session.MemoryQuery) ([]sessio
 		out = append(out, project(d, "session_id", "cwd", "memory", "created_at"))
 	}
 	return out, nil
+}
+
+func (s *Store) DeleteMemory(_ context.Context, q session.MemoryDelete) (int, error) {
+	if q.AccountID == "" {
+		return 0, session.ErrNoAccount
+	}
+	if q.Empty() {
+		return 0, nil
+	}
+	ids, hashes := set(q.IDs), set(q.Hashes)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	kept := s.cols[hookEvents][:0]
+	for _, d := range s.cols[hookEvents] {
+		mem := d.Map("memory")
+		if strOf(d, "hook_event_name") == session.MemoryEventName && owned(d, q.AccountID) &&
+			(ids[strOf(mem, "id")] && strOf(mem, "id") != "" || hashes[strOf(mem, "hash")] && strOf(mem, "hash") != "") {
+			n++
+			continue
+		}
+		kept = append(kept, d)
+	}
+	s.cols[hookEvents] = kept
+	return n, nil
+}
+
+// set is the set of the strings.
+func set(values []string) map[string]bool {
+	out := make(map[string]bool, len(values))
+	for _, v := range values {
+		out[v] = true
+	}
+	return out
 }
 
 // limitProjection is what LimitSamples returns of a LimitsSampled event.
