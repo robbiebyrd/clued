@@ -272,6 +272,14 @@ func (s *Service) eligible(ctx context.Context, sessionID string) (material, err
 	return m, nil
 }
 
+// Eligible reports whether the session gets a note: nil, an ErrSkipped
+// error saying why not, or ErrNotFound for a session the account does not
+// have.
+func (s *Service) Eligible(ctx context.Context, sessionID string) error {
+	_, err := s.eligible(ctx, sessionID)
+	return err
+}
+
 // clean drops private spans and masks secrets.
 func (s *Service) clean(text string) string {
 	text = redact.StripPrivate(text)
