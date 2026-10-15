@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Removes the listener older clued versions installed into claude-remember
+# plugins (hooks.d/after_save/70-clued-ingest.sh and
+# hooks.d/after_consolidate/70-clued-ingest.sh). clued now has its own
+# memory and writes nothing into another plugin. Only a file carrying the
+# marker line clued wrote into it is deleted; any other file is left as it
+# is. session-start runs this once (it then leaves a stamp in the clued data
+# directory) and uninstall runs it again. Nothing is printed on success; a
+# missing claude-remember is not an error.
+#
+# CLUED_REMEMBER_ROOTS (colon-separated plugin roots) overrides the search.
+
+LISTENER_NAME="70-clued-ingest.sh"
+# The marker line older clued versions wrote as the listener's second line
+# ("# Installed by the clued plugin (hooks/<the installer>) and rewritten").
+MARKER='^# Installed by the clued plugin \(hooks/[a-z]+-remember-listener\)( |$)'
+PLUGINS_DIR="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/plugins"
+
+# remember_roots prints the candidate claude-remember plugin roots, one per line.
+remember_roots() {
+  if [[ -n "${CLUED_REMEMBER_ROOTS:-}" ]]; then
+    tr ':' '\n' <<< "$CLUED_REMEMBER_ROOTS"
+    return
+  fi
+  if command -v jq &>/dev/null && [[ -f "${PLUGINS_DIR}/installed_plugins.json" ]]; then
+    jq -r '(.plugins // {}) | to_entries[] | select(.key | startswith("remember@")) | .value | if type == "array" then .[] else . end | .installPath // empty' \
+      "${PLUGINS_DIR}/installed_plugins.json" 2>/dev/null
+  fi
+  for d in "${PLUGINS_DIR}"/cache/*/remember/* "${PLUGINS_DIR}"/synced/*/remember "${PLUGINS_DIR}"/marketplaces/*/plugins/remember; do
+    [[ -d "$d" ]] && echo "$d"
+  done
+}
+
+while IFS= read -r root; do
+  [[ -n "$root" && -d "${root}/hooks.d" ]] || continue
+  for event in after_save after_consolidate; do
+    target="${root}/hooks.d/${event}/${LISTENER_NAME}"
+    [[ -f "$target" && ! -L "$target" ]] || continue
+    if grep -qE "$MARKER" "$target" 2>/dev/null; then
+      rm -f "$target" || echo "clued: could not remove the old claude-remember listener ${target}" >&2
+    fi
+  done
+done < <(remember_roots | awk '!seen[$0]++')
+exit 0

@@ -50,16 +50,38 @@ type CommandQuery struct {
 	Limit      int      `json:"limit"`
 }
 
-// MemoryQuery selects MemorySaved events (summaries ingested from a
-// claude-remember store), newest first. PatternRe is a case-insensitive
-// regex over memory.text; empty Kinds and SessionIDs mean no filter.
+// MemoryQuery selects MemorySaved events (native memory records, digests
+// and the claude-remember records ingested before native memory), newest
+// first. PatternRe is a case-insensitive regex over memory.text; empty
+// Kinds, SessionIDs, Projects and IDs mean no filter. Projects keeps the
+// records whose memory.project is one of them, IDs those whose memory.id
+// is; Since (inclusive) and Until (exclusive) bound created_at, a zero time
+// being no bound. Records with memory.private true are left out unless
+// IncludePrivate is set.
 type MemoryQuery struct {
-	AccountID  string   `json:"-"`
-	PatternRe  string   `json:"patternRe"`
-	Kinds      []string `json:"kinds"`
-	SessionIDs []string `json:"sessionIds"`
-	Limit      int      `json:"limit"`
+	AccountID      string    `json:"-"`
+	PatternRe      string    `json:"patternRe"`
+	Kinds          []string  `json:"kinds"`
+	SessionIDs     []string  `json:"sessionIds"`
+	Projects       []string  `json:"projects,omitempty"`
+	Since          time.Time `json:"since,omitzero"`
+	Until          time.Time `json:"until,omitzero"`
+	IDs            []string  `json:"ids,omitempty"`
+	IncludePrivate bool      `json:"includePrivate,omitempty"`
+	Limit          int       `json:"limit"`
 }
+
+// MemoryDelete selects the account's MemorySaved events to delete: those
+// whose memory.id is one of IDs or whose memory.hash is one of Hashes. Both
+// empty deletes nothing.
+type MemoryDelete struct {
+	AccountID string   `json:"-"`
+	IDs       []string `json:"ids,omitempty"`
+	Hashes    []string `json:"hashes,omitempty"`
+}
+
+// Empty reports whether the delete selects nothing.
+func (d MemoryDelete) Empty() bool { return len(d.IDs) == 0 && len(d.Hashes) == 0 }
 
 // FileQuery selects the hook events that touched a file, newest first: the
 // PreToolUse events the file-tracker enricher recorded (by
@@ -226,7 +248,8 @@ var ErrNotFound = errors.New("session not found")
 // for a 413. Callers record such a refusal instead of retrying it.
 var ErrTooLarge = errors.New("content too large")
 
-// ErrNoAccount is returned by DeleteAccount for an empty account id.
+// ErrNoAccount is returned by DeleteAccount, DeleteSessions and
+// DeleteMemory for an empty account id.
 var ErrNoAccount = errors.New("account id is required")
 
 // ErrUnsupported is returned by a store that cannot perform an operation at
@@ -299,6 +322,10 @@ type Store interface {
 	// MemoryEvents projects session_id, cwd, memory and created_at of the
 	// MemorySaved events matching the query, newest first.
 	MemoryEvents(ctx context.Context, q MemoryQuery) ([]Doc, error)
+	// DeleteMemory deletes the account's MemorySaved events MemoryDelete
+	// selects and reports how many went; an empty AccountID is
+	// ErrNoAccount.
+	DeleteMemory(ctx context.Context, d MemoryDelete) (int, error)
 	// FileEvents projects session_id, hook_event_name, tool_name,
 	// tool_use_id, tool_input.file_path, enrichments.file-tracker,
 	// enrichments.edit-diff-stats and created_at of the events FileQuery

@@ -187,6 +187,38 @@ func (s *Store) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]sess
 	return s.docs(ctx, "POST", prefix+"/memory-events", q)
 }
 
+// Complete asks a clued cloud for one memory completion (the hosted
+// memory engine, memory.HostedClient): POST /memory-complete with the
+// prompt and the model, answered with the text and its cost. A plain
+// clued server does not serve it (ErrNotFound), and the memory run falls
+// back to the free engine.
+func (s *Store) Complete(ctx context.Context, prompt, model string) (string, float64, error) {
+	var out struct {
+		Text    string  `json:"text"`
+		CostUSD float64 `json:"cost_usd"`
+	}
+	in := map[string]string{"prompt": prompt, "model": model}
+	if err := s.do(ctx, "POST", prefix+"/memory-complete", in, &out); err != nil {
+		return "", 0, err
+	}
+	return out.Text, out.CostUSD, nil
+}
+
+// DeleteMemory asks the server to delete the token's account's memory
+// records by id or hash. A delete that selects nothing is not sent.
+func (s *Store) DeleteMemory(ctx context.Context, q session.MemoryDelete) (int, error) {
+	if q.Empty() {
+		return 0, nil
+	}
+	var out struct {
+		Deleted int `json:"deleted"`
+	}
+	if err := s.do(ctx, "POST", prefix+"/memory-delete", q, &out); err != nil {
+		return 0, err
+	}
+	return out.Deleted, nil
+}
+
 func (s *Store) FileEvents(ctx context.Context, q session.FileQuery) ([]session.Doc, error) {
 	return s.docs(ctx, "POST", prefix+"/file-events", q)
 }

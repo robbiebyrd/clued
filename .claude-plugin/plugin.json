@@ -9,5 +9,6 @@
   },
   "homepage": "https://github.com/robbiebyrd/clued",
   "repository": "https://github.com/robbiebyrd/clued",
+  "license": "Apache-2.0",
   "keywords": ["sessions", "transcripts", "mongodb", "plans", "stories", "mcp"]
 }

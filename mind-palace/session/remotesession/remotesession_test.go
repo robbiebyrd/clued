@@ -267,6 +267,15 @@ func (h *harness) MemoryEvents(ctx context.Context, q session.MemoryQuery) ([]se
 	return h.as(q.AccountID).MemoryEvents(ctx, q)
 }
 
+// DeleteMemory without an account cannot be sent (the token names the
+// account), so that case goes to the backing store.
+func (h *harness) DeleteMemory(ctx context.Context, q session.MemoryDelete) (int, error) {
+	if q.AccountID == "" {
+		return h.server.backing.DeleteMemory(ctx, q)
+	}
+	return h.as(q.AccountID).DeleteMemory(ctx, q)
+}
+
 func (h *harness) FileEvents(ctx context.Context, q session.FileQuery) ([]session.Doc, error) {
 	return h.as(q.AccountID).FileEvents(ctx, q)
 }

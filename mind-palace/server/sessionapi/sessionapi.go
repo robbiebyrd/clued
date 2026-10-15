@@ -29,6 +29,7 @@
 //	POST /blobs/query                    Blobs                  body: {"session_id"}
 //	POST /bash-events                    BashEvents             body: session.CommandQuery
 //	POST /memory-events                  MemoryEvents           body: session.MemoryQuery
+//	POST /memory-delete                  DeleteMemory           body: session.MemoryDelete → {"deleted"}
 //	POST /file-events                    FileEvents             body: session.FileQuery
 //	POST /error-lines                    ErrorLines             body: session.ErrorQuery
 //	POST /transcript-search              SearchTranscripts      body: session.TextQuery
@@ -142,6 +143,7 @@ func Handler(store session.Store, opts Options) http.Handler {
 	route("POST", "/blobs/query", a.blobs)
 	route("POST", "/bash-events", a.bashEvents)
 	route("POST", "/memory-events", a.memoryEvents)
+	route("POST", "/memory-delete", a.deleteMemory)
 	route("POST", "/file-events", a.fileEvents)
 	route("POST", "/error-lines", a.errorLines)
 	route("POST", "/transcript-search", a.searchTranscripts)
@@ -393,7 +395,9 @@ func (a *api) insertHookEvents(w http.ResponseWriter, r *http.Request, account s
 			return
 		}
 		sid, _ := ev.String("session_id")
-		if !validID(sid) {
+		// A memory record may belong to no session (a day roll-up, a
+		// pinned note, a digest): it is stored under the account alone.
+		if name, _ := ev.String("hook_event_name"); !(sid == "" && name == session.MemoryEventName) && !validID(sid) {
 			invalid(w, fmt.Sprintf("hook event %d: session_id %q is not a single safe path element", i, sid))
 			return
 		}
@@ -490,7 +494,7 @@ func (a *api) setSessionMeta(w http.ResponseWriter, r *http.Request, account str
 
 // sessionMetaFields are the session fields SetSessionMeta may set over
 // the transport.
-var sessionMetaFields = map[string]bool{"title": true, "title_kind": true, "slug": true, "permission_mode": true, "pr_link": true, "worktree": true, "entrypoint": true, "claude_version": true}
+var sessionMetaFields = map[string]bool{"memory": true, "title": true, "title_kind": true, "slug": true, "permission_mode": true, "pr_link": true, "worktree": true, "entrypoint": true, "claude_version": true}
 
 func (a *api) stateChanges(w http.ResponseWriter, r *http.Request, account string) {
 	var q session.ActivityQuery
@@ -673,6 +677,22 @@ func (a *api) memoryEvents(w http.ResponseWriter, r *http.Request, account strin
 		return
 	}
 	ok(w, docs(found))
+}
+
+// deleteMemory deletes memory records of the caller's account only: the
+// account the body might name is never read.
+func (a *api) deleteMemory(w http.ResponseWriter, r *http.Request, account string) {
+	var q session.MemoryDelete
+	if !a.decode(w, r, &q) {
+		return
+	}
+	q.AccountID = account
+	n, err := a.store.DeleteMemory(r.Context(), q)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	ok(w, map[string]any{"deleted": n})
 }
 
 func (a *api) fileEvents(w http.ResponseWriter, r *http.Request, account string) {
