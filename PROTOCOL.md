@@ -605,6 +605,7 @@ malformed one, is an error.
 | `file_history` | `path` (required regex over the file path), `session_id`, `git_origin`, `project_path`, `include_rejected` (count the calls the harness refused to run, section 6.1.5), `limit` (sessions, default 10, max 500) | per session, most recent first, from the newest 500 file events: `files` (at most 10), `operations` (`read`, `edit`, `write`, `glob`, `ls` counts from `file-tracker`), `lines_added` and `lines_removed` (from `edit-diff-stats`), `spans` (`<file> L10-12` of each edit whose hook carried the patch, newest first, at most 20), `first_touch`, `last_touch`, `project_path`, `git_origin` |
 | `find_errors` | `type` (`hook_error`, `api_error`, `tool_failure`, `error_text`), `session_id`, `git_origin`, `project_path`, `limit` (default 20, max 500) | lines `error-flag` marked, newest first: `session_id`, `seq`, `type`, `text` (300 characters), `timestamp`, `project_path`, `git_origin`, `created_at` |
 | `search_transcripts` | `query` (required: words, any of which matches, `"quoted phrases"` that must appear, `-words` to exclude; matching ignores case), `session_id`, `git_origin` (regex), `project_path` (regex), `limit` (default 20, max 500) | transcript lines ranked by relevance (MongoDB text score; term frequency in the in-memory store), best first: `session_id`, `seq`, `score`, `snippet` (240 characters around the first matching word), `project_path`, `git_origin`, `created_at`. It searches the `search-text` enrichment, so a line is found once the enricher has run on it |
+| `search_semantic` | `query` (required; at most 1,000 characters are embedded), `session_id`, `git_origin` (regex), `project_path` (regex), `since` (an RFC 3339 time, or a duration back from now such as `720h`; bounds `created_at`), `limit` (default 20, max 100), `max_tokens`, `cursor` | prompts and replies ranked by meaning, best first, in the shape of `search_transcripts` (`session_id`, `seq`, `score`, `snippet` of the line's `search-text`, `project_path`, `git_origin`, `created_at`); `score` is the cosine similarity of the query's embedding (input type `query`) and the line's stored one (section 6.1.6). Offered only when the server is given an embedder (the clued server's `CluedOptions.Semantic`; none is configured by default) |
 | `usage` | `group_by` (`session`, the default, `model` or `day`), `session_id`, `git_origin` (regex), `project_path` (regex), `since` and `until` (inclusive UTC days, `YYYY-MM-DD`), `limit` (groups, default 50, max 500) | `{"group_by", "groups", "total", "unpriced_models"}`. Each group has `key` (the session id, model or day), `messages`, `input_tokens`, `cache_creation_input_tokens`, `cache_creation_1h_tokens`, `cache_read_input_tokens`, `output_tokens`, `peak_context_tokens` (the largest input context of one message), `cost_usd` and, unless grouped by model, `models` (the same counters per model). Every assistant message counts once (the lines of one message repeat its usage). `cost_usd` is an estimate at list prices (cache writes 1.25× the input price, 2× for the one-hour cache; cache reads at the model's cache-read price, 0.1× the input price unless the table says otherwise; a message whose prompt, input plus cache tokens, is over 100,000 tokens at the model's long-prompt price when it has one, as Claude Haiku 5.5 does) from the built-in table (the models and prices on Anthropic's pricing page; batch, fast-mode and US-only prices are not applied) and the config's `modelPrices`, rounded to 0.0001; it covers the priced models only and is `null` when none is priced; the others are listed in `unpriced_models`. Groups come costliest first, or in day order by day; `total` covers every group |
 | `get_limits` | `session_id`, `git_origin` (regex), `project_path` (regex), `since` (an RFC 3339 time, or a duration back from now such as `24h`), `limit` (default 20, max 500), `max_tokens`, `cursor` | `LimitsSampled` samples newest first: `session_id`, `project_path`, `git_origin`, `cwd`, `model`, `version`, `context_window`, `rate_limits`, `cost`, `live_state` (when stamped), `sampled_at`, `created_at` (section 5.1) |
 | `get_activities` | `session_id`, `git_origin` (regex), `project_path` (regex), `kinds` (list of `user`, `response`, `thinking`, `bash`, `commit`, `edit`, `read`, `task`, `tool`, `result`, `compaction`, `api_error`, `turn`, `other`, `state`), `since` (an RFC 3339 time, or a duration back from now such as `24h`), `include_rejected` (keep the tool calls the harness refused to run and their results, section 6.1.5), `limit` (lines and state changes read, each, default 50, max 500), `max_tokens`, `cursor` | the timeline, newest first: per line `session_id`, `seq`, `kind`, `label`, `detail`, `tool_name`, `tool_use_id`, `is_error`, `blocks` (the `activity-kind` enrichment, section 6.1.1), `count` (consecutive repeats of one `bash`, `commit`, `edit`, `read`, `task` or `tool` activity with the same label and detail in one session are one entry; `seq`, `tool_use_id` and `timestamp` are the newest's), `timestamp` (the line's own), `project_path`, `git_origin`, `created_at`, and on a `result` line `result` (its `tool-result-detail`, section 6.1.3, without `diff`, `stdout`, `stderr`, `result`, `text` and `hunks`) with that enrichment's `summary` as the `detail`; a `SessionStateChanged` event (section 4.6) is an entry of kind `state` whose `label` is the state entered, `detail` the hook that set it, `seq` -1 and `timestamp` the change's `at`, merged by `created_at` |
@@ -732,6 +733,37 @@ the call (written before the refusal) are not marked; `search_commands`,
 `file_history` and `get_activities` look the rejected `tool_use_id`s of
 their scope up (`POST /rejected-tool-uses`, the newest 500) and leave those
 calls, and their results, out unless `include_rejected` is true.
+
+#### 6.1.6 The `embedding` enrichment
+
+`enrichers.Embedding(embedder, meter)` stores a vector for each prompt and
+reply, under `enrichments.embedding`: `{"model", "dim", "v", "scale"}`,
+with `v` the vector quantised to int8 (each component `v[i] * scale`;
+MongoDB keeps `v` as a BSON binary vector of subtype 9, int8). It is not
+registered and is off by default: a server that holds an embedder adds it
+to its enrichers and switches it on per account (it sends the text to the
+embedder's provider). It applies to `user` and `assistant` lines that are
+not `isMeta`, embedding their string content or their `text` blocks
+(tool calls, tool results and thinking are left out) when that is at
+least 24 characters long; the credential patterns of `search-text` are
+masked first and the text is cut to 8 KB. It embeds up to 64 lines per
+pass in one call (`EnrichBatch`), with input type `document`. The meter,
+when given, is called once per account of the batch before anything is
+sent, with that account's number of lines; an error marks those lines
+`embedding_skipped` (`session.ErrSkip`), so `RequeueSkipped` puts them
+back later. An embedder failure is recorded as `embedding_failed`.
+`Store.SearchVectors` ranks the account's lines with an embedding of the
+query's model and length by cosine similarity, at most 100: the in-memory
+store scans; MongoDB reads a cursor over the index `{account_id,
+enrichments.embedding.model, created_at}` into a top-k heap.
+
+`session/embed/voyage` is the Voyage AI embedder: `POST
+https://api.voyageai.com/v1/embeddings` with `input`, `model` (default
+`voyage-3.5`), `input_type` (`document` or `query`), `output_dimension`
+(default 512), `output_dtype: "int8"` and `truncation: true`, the key as a
+bearer token. A 401 or 403 is the fixed `voyage.ErrUnauthorized` and a 429
+`voyage.ErrRateLimited`; another status reports only its code, so no
+error carries the key or the request's text.
 
 ### 6.2 `mind-palace`: the plan and story tools
 
@@ -957,8 +989,9 @@ case-insensitively, so the Go field names an older client sent
 (`ProjectPathRe`, `SessionID`, `PatternRe`, `SessionIDs`) still work, and an
 older server reads the new keys the same way. No query carries an account.
 
-The enrichment methods of the port (`Unenriched`, `SetEnrichment*`) and
-`DeleteAccount` are not served: enrichment runs on the server, and deleting
+The enrichment methods of the port (`Unenriched`, `SetEnrichment*`),
+`SearchVectors` (semantic search runs on the server, as its `/mcp`
+`search_semantic` tool) and `DeleteAccount` are not served: enrichment runs on the server, and deleting
 an account's data is the operator's job. The remote adapter answers
 `ErrUnsupported` for them.
 
@@ -1054,7 +1087,10 @@ use. Clients send `Authorization: Bearer`, `X-Clued-Project` (or
 `?project=`) and `Accept: application/json, text/event-stream`. The server
 carries every tool of section 6.2 plus the session tools of section 6.1
 minus `restore_session` and `prime_context`; session tool calls use the
-principal's account. An `Mcp-Session-Id` from another project answers 404
+principal's account. `search_semantic` is listed only when the server was
+built with `CluedOptions.Semantic` (an embedder, and an `Allow` hook asked
+with the principal's account before each search, whose error is the tool's
+error); `mind-palace server run` configures none. An `Mcp-Session-Id` from another project answers 404
 `not_found` ("MCP session … belongs to another project; initialize a new
 session"). Register it in Claude Code with
 `claude mcp add --transport http clued-remote https://<host>/mcp --header "Authorization: Bearer <token>" --header "X-Clued-Project: <slug>"`.
