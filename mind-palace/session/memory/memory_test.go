@@ -166,3 +166,30 @@ func TestRememberStoresNotesHandoffsAndOnePinned(t *testing.T) {
 		t.Errorf("private note = %+v (secrets are masked even in private notes)", p)
 	}
 }
+
+type fakeHosted struct{ prompts int }
+
+func (f *fakeHosted) Complete(_ context.Context, prompt, model string) (string, float64, error) {
+	f.prompts++
+	return "hosted note for " + model, 0.001, nil
+}
+
+func TestHostedEngineUsesItsClientAndFallsBackWithout(t *testing.T) {
+	st := memsession.New()
+	addSession(t, st, account, "s1", "/w/alpha", "", day1)
+	c := &clock{t: day1.AddDate(0, 0, 1)}
+	svc := newService(st, c)
+	hosted := &fakeHosted{}
+	rep, err := svc.Run(ctx, "/w/alpha", HostedEngine{Client: hosted}, "claude-haiku-5-5")
+	must(t, err)
+	if hosted.prompts == 0 || rep.EngineRuns == 0 || rep.Engine != "hosted" {
+		t.Errorf("hosted run = %+v (%d prompts)", rep, hosted.prompts)
+	}
+	fresh := newService(memsession.New(), c)
+	addSession(t, fresh.Store, account, "s2", "/w/alpha", "", day1)
+	rep, err = fresh.Run(ctx, "/w/alpha", HostedEngine{}, "")
+	must(t, err)
+	if rep.Notes != 1 || rep.Fallbacks == 0 || len(rep.Errors) == 0 || !strings.Contains(rep.Errors[0], "Clued Cloud") {
+		t.Errorf("without a client the run falls back to extract: %+v", rep)
+	}
+}
