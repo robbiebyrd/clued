@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # The WAL holds session content: keep it and its directory private.
 umask 077
+
+# A memory engine's own `claude -p` runs with CLUED_NO_CAPTURE=1: it is
+# never captured, relayed or primed.
+if [[ "${CLUED_NO_CAPTURE:-}" == "1" ]]; then
+  cat >/dev/null 2>&1
+  exit 0
+fi
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="${HOME}/.claude/plugins/data/clued/config.json"
 DEFAULT_PORT=8085
@@ -17,16 +24,22 @@ PORT="${CLUED_PORT:-$PORT}"
 SERVER_URL="${CLUED_SERVER_URL:-$SERVER_URL}"
 WAL_FILE="${CLUED_WAL_PATH:-${WAL_DIR}/events.wal}"
 
+BODY=$(cat)
+
+# A session started with CLUED_MEMORY=off keeps out of memory: every event
+# says so, and the capture records it on the session.
+if [[ "${CLUED_MEMORY:-}" == "off" ]] && command -v jq &>/dev/null; then
+  BODY=$(printf '%s' "$BODY" | jq -c '. + {clued_memory: "off"}' 2>/dev/null || printf '%s' "$BODY")
+fi
+
 # Remote mode: no daemon listens on loopback. The Go relay stores the event
 # on the server, pushes the session's transcript delta and owns the WAL
 # (it buffers a failed insert itself), so nothing is written from here. The
 # hook is async and must never fail the session, whatever the relay did.
 if [[ -n "$SERVER_URL" ]]; then
-  "${PLUGIN_ROOT}/scripts/clued" hook relay >/dev/null 2>&1
+  printf '%s' "$BODY" | "${PLUGIN_ROOT}/scripts/clued" hook relay >/dev/null 2>&1
   exit 0
 fi
-
-BODY=$(cat)
 
 # A Claude Code cloud container without a server runs no daemon (see
 # session-start): a WAL there would only fill a disk that is thrown away.

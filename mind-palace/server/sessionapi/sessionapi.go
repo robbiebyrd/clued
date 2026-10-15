@@ -494,7 +494,7 @@ func (a *api) setSessionMeta(w http.ResponseWriter, r *http.Request, account str
 
 // sessionMetaFields are the session fields SetSessionMeta may set over
 // the transport.
-var sessionMetaFields = map[string]bool{"title": true, "title_kind": true, "slug": true, "permission_mode": true, "pr_link": true, "worktree": true, "entrypoint": true, "claude_version": true}
+var sessionMetaFields = map[string]bool{"memory": true, "title": true, "title_kind": true, "slug": true, "permission_mode": true, "pr_link": true, "worktree": true, "entrypoint": true, "claude_version": true}
 
 func (a *api) stateChanges(w http.ResponseWriter, r *http.Request, account string) {
 	var q session.ActivityQuery
