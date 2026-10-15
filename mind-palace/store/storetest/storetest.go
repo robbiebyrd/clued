@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/kind"
 	"github.com/robbiebyrd/clued/mind-palace/model"
@@ -186,6 +187,55 @@ func Run(t *testing.T, newStore Factory) {
 		}
 		RunConditionalPut(t, s, c)
 	})
+
+	t.Run("leases", func(t *testing.T) {
+		s := newStore(t)
+		l, ok := s.(store.Leaser)
+		if !ok {
+			t.Skip("the store is not a store.Leaser")
+		}
+		RunLeases(t, l)
+	})
+}
+
+// RunLeases checks a store.Leaser: one holder at a time, release by the
+// holder only, and an expired lease is free.
+func RunLeases(t *testing.T, l store.Leaser) {
+	t.Helper()
+	ctx := context.Background()
+	lease, err := l.AcquireLease(ctx, kind.Story, "0005-eee", time.Minute)
+	if err != nil || lease == "" {
+		t.Fatalf("AcquireLease: %q %v", lease, err)
+	}
+	if _, err := l.AcquireLease(ctx, kind.Story, "0005-eee", time.Minute); !errors.Is(err, store.ErrLeased) {
+		t.Fatalf("second AcquireLease = %v, want ErrLeased", err)
+	}
+	if other, err := l.AcquireLease(ctx, kind.Plan, "0005-eee", time.Minute); err != nil || other == lease {
+		t.Fatalf("a plan with the same id shares the story's lease: %q %v", other, err)
+	}
+	if err := l.ReleaseLease(ctx, kind.Story, "0005-eee", "not-the-lease"); err != nil {
+		t.Fatalf("ReleaseLease by a non-holder: %v", err)
+	}
+	if _, err := l.AcquireLease(ctx, kind.Story, "0005-eee", time.Minute); !errors.Is(err, store.ErrLeased) {
+		t.Fatalf("a non-holder released the lease: %v", err)
+	}
+	if err := l.ReleaseLease(ctx, kind.Story, "0005-eee", lease); err != nil {
+		t.Fatal(err)
+	}
+	short, err := l.AcquireLease(ctx, kind.Story, "0005-eee", 150*time.Millisecond)
+	if err != nil {
+		t.Fatalf("AcquireLease after release: %v", err)
+	}
+	time.Sleep(400 * time.Millisecond)
+	taken, err := l.AcquireLease(ctx, kind.Story, "0005-eee", time.Minute)
+	if err != nil || taken == short {
+		t.Fatalf("AcquireLease over an expired lease: %q %v", taken, err)
+	}
+	// The expired holder's late release does not end the new lease.
+	_ = l.ReleaseLease(ctx, kind.Story, "0005-eee", short)
+	if _, err := l.AcquireLease(ctx, kind.Story, "0005-eee", time.Minute); !errors.Is(err, store.ErrLeased) {
+		t.Fatalf("an expired holder released the new lease: %v", err)
+	}
 }
 
 // RunConditionalPut checks a store.ConditionalPutter over s: a write with

@@ -597,3 +597,41 @@ func TestBeforePut(t *testing.T) {
 	tea.FrontMatter.Title = "teapot"
 	c.expectError("PUT", path, tea, http.StatusConflict, "stale")
 }
+
+// noLeases hides memstore's Leaser, as a file or SQL store has none.
+type noLeases struct{ store.Store }
+
+func TestLockRoutes(t *testing.T) {
+	for name, open := range map[string]func(context.Context, string) (store.Store, error){
+		"store lease":   newOpener().Open,
+		"process lease": func(context.Context, string) (store.Store, error) { return noLeases{memstore.New("x")}, nil },
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := &client{t: t, h: Handler(Options{Open: open})}
+			lock := base(projA, kind.Story) + "/0001-abc/lock"
+			unlock := base(projA, kind.Story) + "/0001-abc/unlock"
+			code, env := c.do("POST", lock, nil)
+			var l Lease
+			if code != 200 || json.Unmarshal(env.Result, &l) != nil || l.Lease == "" || l.ExpiresAt.IsZero() {
+				t.Fatalf("lock: %d %s", code, env.Result)
+			}
+			c.expectError("POST", lock, nil, http.StatusConflict, ErrLocked)
+			// Another document, or the same id in another project, is free.
+			if code, _ := c.do("POST", base(projA, kind.Plan)+"/0001-abc/lock", nil); code != 200 {
+				t.Errorf("another kind's lock: %d", code)
+			}
+			c.expectError("POST", unlock, map[string]string{}, http.StatusBadRequest, ErrInvalid)
+			if code, _ := c.do("POST", unlock, Lease{Lease: "someone-else"}); code != 200 {
+				t.Errorf("unlock by a non-holder: %d", code)
+			}
+			c.expectError("POST", lock, nil, http.StatusConflict, ErrLocked)
+			if code, env := c.do("POST", unlock, Lease{Lease: l.Lease}); code != 200 {
+				t.Fatalf("unlock: %d %+v", code, env.Error)
+			}
+			if code, _ := c.do("POST", lock, nil); code != 200 {
+				t.Errorf("lock after unlock: %d", code)
+			}
+			c.expectError("POST", base(projA, kind.Story)+"/not-an-id/lock", nil, http.StatusBadRequest, ErrInvalid)
+		})
+	}
+}

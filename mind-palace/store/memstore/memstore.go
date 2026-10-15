@@ -30,6 +30,8 @@ type Store struct {
 	templates map[key]*model.Template
 	// FailWrites makes every write fail; used to exercise fan-out errors.
 	FailWrites error
+	// MemLeases gives the store an in-process store.Leaser.
+	store.MemLeases
 }
 
 // New returns an empty store.

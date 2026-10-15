@@ -29,6 +29,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/kind"
@@ -130,6 +131,9 @@ func NewWithClient(name, project string, client *remote.Client) (*Store, error) 
 
 func (s *Store) Name() string   { return s.name }
 func (s *Store) Driver() string { return Driver }
+
+// Client is the client the store talks to the server with.
+func (s *Store) Client() *remote.Client { return s.client }
 
 // Project is the slug the store's documents live under.
 func (s *Store) Project() string { return s.project }
@@ -307,6 +311,44 @@ func (s *Store) Delete(ctx context.Context, kindName, id string) error {
 	return mapErr(err)
 }
 
+// lockRetry is how long Lock waits before asking for a held lease again.
+const lockRetry = 100 * time.Millisecond
+
+// Lock takes the server's lease on a document (store.Locker) through the
+// storeapi lock route, asking again while another client holds it until
+// ctx is done; the returned function releases it. A server without the
+// route (404) holds nothing and Lock returns at once, as before leases
+// existed. When the server is the primary store (a shared project, see
+// clientcfg), claims from every member's client serialise on it.
+func (s *Store) Lock(ctx context.Context, kindName, id string) (func(), error) {
+	if err := checkKind(kindName); err != nil {
+		return nil, err
+	}
+	for {
+		var got storeapi.Lease
+		err := s.client.Do(ctx, http.MethodPost, s.path(kindName, id, "lock"), map[string]string{}, &got)
+		var re *remote.Error
+		switch {
+		case err == nil:
+			return func() {
+				rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+				defer cancel()
+				_ = s.client.Do(rctx, http.MethodPost, s.path(kindName, id, "unlock"), storeapi.Lease{Lease: got.Lease}, nil)
+			}, nil
+		case remote.IsNotFound(err), errors.As(err, &re) && (re.Status == http.StatusNotFound || re.Status == http.StatusMethodNotAllowed):
+			return func() {}, nil
+		case errors.As(err, &re) && re.Kind == storeapi.ErrLocked:
+		default:
+			return nil, mapErr(err)
+		}
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("remotestore: %s %s: %w (%v)", kindName, id, store.ErrLeased, ctx.Err())
+		case <-time.After(lockRetry):
+		}
+	}
+}
+
 func (s *Store) ListTemplates(ctx context.Context, kindName string) ([]*model.Template, error) {
 	if err := checkKind(kindName); err != nil {
 		return nil, err
@@ -352,4 +394,5 @@ func (s *Store) DeleteTemplate(ctx context.Context, kindName, id string) error {
 var (
 	_ store.Store             = (*Store)(nil)
 	_ store.ConditionalPutter = (*Store)(nil)
+	_ store.Locker            = (*Store)(nil)
 )

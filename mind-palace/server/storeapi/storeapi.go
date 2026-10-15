@@ -10,6 +10,8 @@
 //	GET    /api/v1/projects/{project}/store/{kind}/{id}             Get
 //	PUT    /api/v1/projects/{project}/store/{kind}/{id}             Put (body: model.Document)
 //	DELETE /api/v1/projects/{project}/store/{kind}/{id}             Delete
+//	POST   /api/v1/projects/{project}/store/{kind}/{id}/lock        take the lease (LeaseTTL)
+//	POST   /api/v1/projects/{project}/store/{kind}/{id}/unlock      release it (body: {"lease": "…"})
 //	GET    /api/v1/projects/{project}/store/{kind}/templates        ListTemplates
 //	GET    /api/v1/projects/{project}/store/{kind}/templates/{id}   GetTemplate
 //	PUT    /api/v1/projects/{project}/store/{kind}/templates/{id}   PutTemplate (body: model.Template)
@@ -41,6 +43,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/kind"
 	"github.com/robbiebyrd/clued/mind-palace/model"
@@ -134,11 +137,29 @@ func Handler(opts Options) http.Handler {
 	mux.HandleFunc("GET "+p+"/{id}", a.handle(a.get))
 	mux.HandleFunc("PUT "+p+"/{id}", a.handle(a.put))
 	mux.HandleFunc("DELETE "+p+"/{id}", a.handle(a.delete))
+	mux.HandleFunc("POST "+p+"/{id}/lock", a.handle(a.lock))
+	mux.HandleFunc("POST "+p+"/{id}/unlock", a.handle(a.unlock))
 	return mux
+}
+
+// LeaseTTL is how long a lease from the lock route lives unless released.
+const LeaseTTL = store.DefaultLeaseTTL
+
+// ErrLocked is the kind of a 409 from the lock route: another client holds
+// the document's lease.
+const ErrLocked = "locked"
+
+// Lease is the body of a lock answer, and the lease an unlock names.
+type Lease struct {
+	Lease     string    `json:"lease"`
+	ExpiresAt time.Time `json:"expires_at,omitzero"`
 }
 
 type api struct {
 	opts Options
+	// leases serves the lock routes for stores that keep none themselves
+	// (no store.Leaser): exclusive within this process only.
+	leases store.MemLeases
 }
 
 // request carries what every operation needs once the checks passed.
@@ -399,6 +420,61 @@ func writePrecondition(w http.ResponseWriter, what string) {
 func (a *api) delete(w http.ResponseWriter, r *http.Request, req *request) {
 	err := req.store.Delete(r.Context(), req.kind, req.id)
 	writeWriteResult(w, map[string]string{"kind": req.kind, "id": req.id}, err, req.kind+" "+req.id)
+}
+
+// leaser is the store's own Leaser, or this process's for one that keeps none.
+func (a *api) leaser(req *request) (store.Leaser, string) {
+	if l, ok := req.store.(store.Leaser); ok {
+		return l, req.kind
+	}
+	return &a.leases, req.project + "/" + req.kind
+}
+
+// lock takes the document's lease for LeaseTTL: 200 with the lease, 409
+// locked while another holder's lease is unexpired. It does not wait;
+// clients retry.
+func (a *api) lock(w http.ResponseWriter, r *http.Request, req *request) {
+	if _, ok := model.CanonicalID(req.id); !ok {
+		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, fmt.Sprintf("invalid document id %q", req.id))
+		return
+	}
+	l, k := a.leaser(req)
+	lease, err := l.AcquireLease(r.Context(), k, req.id, LeaseTTL)
+	if errors.Is(err, store.ErrNoLease) {
+		l, k = &a.leases, req.project+"/"+req.kind
+		lease, err = l.AcquireLease(r.Context(), k, req.id, LeaseTTL)
+	}
+	switch {
+	case errors.Is(err, store.ErrLeased):
+		httpapi.WriteError(w, http.StatusConflict, ErrLocked, fmt.Sprintf("%s %s is locked by another client; retry", req.kind, req.id))
+	case err != nil:
+		writeStoreError(w, err, req.kind+" "+req.id)
+	default:
+		httpapi.WriteResult(w, http.StatusOK, Lease{Lease: lease, ExpiresAt: time.Now().UTC().Add(LeaseTTL)})
+	}
+}
+
+// unlock releases the lease the body names; a lease that expired or was
+// taken over is released already, so it answers 200 too.
+func (a *api) unlock(w http.ResponseWriter, r *http.Request, req *request) {
+	var in Lease
+	if !a.readJSON(w, r, &in) {
+		return
+	}
+	if strings.TrimSpace(in.Lease) == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, ErrInvalid, "the body must name the lease")
+		return
+	}
+	l, k := a.leaser(req)
+	err := l.ReleaseLease(r.Context(), k, req.id, in.Lease)
+	if errors.Is(err, store.ErrNoLease) {
+		err = a.leases.ReleaseLease(r.Context(), req.project+"/"+req.kind, req.id, in.Lease)
+	}
+	if err != nil {
+		writeStoreError(w, err, req.kind+" "+req.id)
+		return
+	}
+	httpapi.WriteResult(w, http.StatusOK, map[string]string{"kind": req.kind, "id": req.id})
 }
 
 func (a *api) listTemplates(w http.ResponseWriter, r *http.Request, req *request) {
