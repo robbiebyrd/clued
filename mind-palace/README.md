@@ -453,5 +453,5 @@ expose them next to the plan and story tools.
 | `session/catchup` | One-shot replacement for the tailers: pushes a session's transcript delta and changed artifact files, with state and lock files per session |
 | `session/remotesession` | `session.Store` over a clued server (one HTTP call per port method to `server/sessionapi`); the query service, restore, backfill and the MCP tools run unchanged on it |
 | `hookguard` | Rules behind the Claude Code hooks the binary serves (the Stop guard) |
-| `plugin` | Tests for the Claude Code plugin glue (`scripts/clued`, the bash hooks, `hooks.json`) in local and remote mode |
+| `plugin` | Tests for the Claude Code plugin glue (`scripts/clued`, the bash hooks, `hooks/hooks.json`, `scripts/verify-prime.sh`) in local and remote mode |
 | `cli`, `cmd/*` | Command line: `mind-palace`, plus the `plan` and `story` wrappers |

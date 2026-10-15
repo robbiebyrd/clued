@@ -10,7 +10,8 @@ binary.
 
 | Path | What it is |
 |---|---|
-| `hooks.json`, `hooks/` | Hook registrations and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `install-remember-listener`, `uninstall`) |
+| `hooks/hooks.json`, `hooks/` | The plugin's hook registrations (the only ones: Claude Code loads `hooks/hooks.json`, never a root `hooks.json`) and the bash hooks (`event-relay`, `session-start`, `check-setup`, `register-hooks`, `install-remember-listener`, `uninstall`) |
+| `scripts/verify-prime.sh` | Manual check, on each release, that the prime report reaches the model once with the plugin's hooks, the settings mirror, an upgrade and a resume (real `claude -p` sessions; `plugin/verify_prime_test.go` runs it only with `CLUED_VERIFY_PRIME=1`) |
 | `scripts/clued` | Shim that locates `mind-palace` (dev checkout via `devRepoPath`, then the release pinned by `.claude-plugin/plugin.json`'s `version`, downloaded once into `~/.claude/plugins/data/clued/bin/releases/v<version>/`, then PATH, then `~/.claude/plugins/data/clued/bin/mind-palace`); `--locate` prints the choice |
 | `LICENSE`, `NOTICE` | Apache-2.0 (verbatim) and the NOTICE (`Copyright 2026 Space Hippo, LC`), with byte-identical copies in `mind-palace/` so the Go module zip carries them; `plugin/license_test.go` checks both pairs |
 | `.claude/CLAUDE.md` | This file; it lives under `.claude/` because a `CLAUDE.md` at the plugin root fails `claude plugin validate . --strict` (`plugin/license_test.go` runs it when `claude` is installed) |
@@ -101,8 +102,8 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   `sessionmcp`) only translate. Hooks the binary serves are `mind-palace
   hook …` subcommands (`write-guard`, `stop-guard`, `status-review`,
   `prime`, and `relay`, which `hooks/event-relay` and `hooks/session-start`
-  run in remote mode) registered in `hooks.json` and `hooks/register-hooks` as
-  `${CLAUDE_PLUGIN_ROOT}/scripts/clued hook …`; they print bare hook JSON,
+  run in remote mode) registered in `hooks/hooks.json` as
+  `"${CLAUDE_PLUGIN_ROOT}/scripts/clued" hook …`; they print bare hook JSON,
   not the `{"ok": …}` envelope, and `hook relay` prints nothing and always
   exits 0.
   Store plugins persist what they are given and must pass `store/storetest`;
@@ -125,6 +126,16 @@ Use port `27017` for a local `mongod` (what CI's service container uses) or
   `remote.project` key overrides the project slug on the server). The hooks
   detect the mode the same way: `serverUrl` from the file, overridden by
   `CLUED_SERVER_URL`.
+- Each hook is registered exactly once, in `hooks/hooks.json`
+  (`plugin/hooks_layout_test.go`). `hooks/register-hooks` writes no hook
+  into `settings.json` by default and removes an older clued's mirror (a
+  hook registered in both places runs twice); `--settings` mirrors
+  `hooks/hooks.json` through the launcher
+  `${CLAUDE_PLUGIN_DATA:-~/.claude/plugins/data/clued}/bin/clued-hook`
+  (which reads `plugin-root`, so a moved plugin root does not strand it),
+  for setups where the plugin's hooks are not loaded. The status line is
+  the one clued entry settings keep. See README "Where the hooks are
+  registered" and anthropics/claude-code#16538.
 - Paths that come from hook requests are validated inline with
   `filepath.IsLocal` / `filepath.Clean` + prefix checks (CodeQL needs to see
   the guard at the point of use).

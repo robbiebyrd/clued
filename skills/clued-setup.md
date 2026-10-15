@@ -570,8 +570,10 @@ Confirm the path looks right before continuing.
 
 ## Step 9 — Register hooks, then start the daemon (local MongoDB) or check the server (clued server)
 
-Register clued's hooks into `~/.claude/settings.json` now rather than at the next
-session start. This is the same in both modes:
+Run `register-hooks` now rather than at the next session start: it writes the hook
+launcher and removes any clued hook an older version mirrored into
+`~/.claude/settings.json` (the plugin's `hooks/hooks.json` registers every hook).
+This is the same in both modes:
 
 ```bash
 bash "${CLUED_PLUGIN_ROOT}/hooks/register-hooks"
@@ -657,7 +659,7 @@ Tell the user:
 - Config written to `~/.claude/plugins/data/clued/config.json` (mode `0600` in server mode, it holds the token)
 - mind-palace binary location as printed by `scripts/clued --locate` (the downloaded release under `~/.claude/plugins/data/clued/bin/releases/`, on PATH, or `~/.claude/plugins/data/clued/bin/mind-palace`)
 - MCP servers: `clued` (session tools) and `mind-palace` (plan and story tools), provided by the plugin's `.mcp.json` (stdio) — Claude Code spawns them automatically; tools appear in the **next fresh session** (not just `/reload-plugins`)
-- Hooks registered in `~/.claude/settings.json` via `register-hooks` — self-healing: re-runs on every `SessionStart`. Three of them run the binary directly: `scripts/clued hook write-guard` on PreToolUse (plans and stories change only through mind-palace), `scripts/clued hook stop-guard` on Stop and `scripts/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit; in server mode `hooks/event-relay` runs `scripts/clued hook relay` for every other event
+- Hooks registered once, by the plugin's `hooks/hooks.json` (Claude Code loads it from the installed plugin; `scripts/verify-prime.sh` checks the prime report arrives) — no settings edit needed: `register-hooks` keeps only the status line in `~/.claude/settings.json` and removes the mirror older clued versions wrote there, since a hook registered in both places runs twice ([anthropics/claude-code#16538](https://github.com/anthropics/claude-code/issues/16538) was why the mirror existed). `register-hooks --settings` mirrors them into settings through the launcher `~/.claude/plugins/data/clued/bin/clued-hook` only where the plugin's hooks are not loaded. Three of them run the binary directly: `scripts/clued hook write-guard` on PreToolUse (plans and stories change only through mind-palace), `scripts/clued hook stop-guard` on Stop and `scripts/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit; in server mode `hooks/event-relay` runs `scripts/clued hook relay` for every other event
 - Local MongoDB: daemon status: running on port 8085 / failed (show error output)
 - clued server: nothing runs on this machine between hooks; each hook relays to the server, failures are logged to `~/.claude/plugins/data/clued/relay.log` and buffered in the WAL until the server answers; if the project was not covered, the `server token grant` command the operator must run
 - clued server in containers: the stack lives in `~/.clued-server` (`stack.json` names the runtime; the compose file or `up.sh` and `down.sh`; `tokens.json`; `tls/`); with Docker it restarts with Docker, with Apple Containers the launchd agent `com.robbiebyrd.clued-server` starts it at login; it stops with the result's `down` command (`docker compose -f ~/.clued-server/docker-compose.yml down`, or `bash ~/.clued-server/down.sh`) or `/clued-uninstall`. Another machine connects with `https://<this host's name>:8443` (add the name with `server init --host <name> --force` if it was not covered), a copy of `~/.clued-server/tls/ca.pem` as its `serverCaFile`, and its own token from `scripts/clued server token create --tokens ~/.clued-server/tokens.json --name <machine> --project '*'`
