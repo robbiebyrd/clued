@@ -118,6 +118,22 @@ type CluedOptions struct {
 	// linked machine applies with `session config-pull` (config.json keys
 	// such as enabledEnrichers) and when they last changed.
 	ClientConfig func() (map[string]any, time.Time)
+	// Semantic, when set, offers search_semantic on the MCP endpoint.
+	// The enrichment that stores the vectors is one of Enrichers
+	// (enrichers.Embedding over the same Embedder).
+	Semantic *SemanticOptions
+}
+
+// SemanticOptions configure the search_semantic tool of the clued
+// server's MCP endpoint.
+type SemanticOptions struct {
+	// Embedder embeds the queries; it must be the model the embedding
+	// enricher stores vectors with. Required.
+	Embedder session.Embedder
+	// Allow, when set, is asked before each search with the principal's
+	// account; its error is the tool's error (no entitlement, a rate
+	// limit). Nil allows every account.
+	Allow func(ctx context.Context, accountID string) error
 }
 
 // Clued is the composed clued server. Handler serves every route; Serve
@@ -168,6 +184,10 @@ func NewClued(opts CluedOptions) *Clued {
 	sessionTools.Account = func(ctx context.Context) string {
 		p, _ := auth.FromContext(ctx)
 		return p.AccountID
+	}
+	if opts.Semantic != nil && opts.Semantic.Embedder != nil {
+		sessionTools.Embedder = opts.Semantic.Embedder
+		sessionTools.AllowSemantic = opts.Semantic.Allow
 	}
 	c.svc = New(nil, ops.All(), Options{
 		HTTP: true, WebSocket: true, MCP: true,

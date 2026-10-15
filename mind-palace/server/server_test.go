@@ -44,9 +44,15 @@ const (
 // two tokens. opens counts the project stores opened.
 func newCluedServer(t *testing.T) (*httptest.Server, *Clued, session.Store, *int) {
 	t.Helper()
+	return newCluedServerWith(t, func(*CluedOptions) {})
+}
+
+// newCluedServerWith is newCluedServer with the options changed by edit.
+func newCluedServerWith(t *testing.T, edit func(*CluedOptions)) (*httptest.Server, *Clued, session.Store, *int) {
+	t.Helper()
 	sessions := memsession.New()
 	opens := 0
-	c := NewClued(CluedOptions{
+	opts := CluedOptions{
 		Version: "test",
 		Tokens: stubTokens{
 			tokenAB:   {Name: "ab", AccountID: "acct-ab", Projects: []string{"a", "b"}},
@@ -62,7 +68,9 @@ func newCluedServer(t *testing.T) (*httptest.Server, *Clued, session.Store, *int
 		},
 		Config: config.Default(),
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-	})
+	}
+	edit(&opts)
+	c := NewClued(opts)
 	t.Cleanup(c.Close)
 	ts := httptest.NewServer(c.Handler)
 	t.Cleanup(ts.Close)
