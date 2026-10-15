@@ -1,5 +1,8 @@
-# Dockerfile.server copies pre-built binaries (BINARIES, dist/ by default,
-# release-assets/ in the release job); nothing else enters the context.
+# Dockerfile.server copies pre-built binaries and the third-party licence
+# tree (BINARIES, dist/ by default, release-assets/ in the release job) and
+# clued's own LICENSE and NOTICE; nothing else enters the context.
 *
 !dist
 !release-assets
+!LICENSE
+!NOTICE

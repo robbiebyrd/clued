@@ -15,6 +15,9 @@ on:
       - 'scripts/**'
       - '.mcp.json'
       - '.claude-plugin/plugin.json'
+      - '.claude-plugin/marketplace.json'
+      - 'LICENSE'
+      - 'NOTICE'
       - 'Dockerfile.server'
       - '.dockerignore'
       - '.github/workflows/mind-palace.yml'
@@ -32,6 +35,9 @@ on:
       - 'scripts/**'
       - '.mcp.json'
       - '.claude-plugin/plugin.json'
+      - '.claude-plugin/marketplace.json'
+      - 'LICENSE'
+      - 'NOTICE'
       - 'Dockerfile.server'
       - '.dockerignore'
       - '.github/workflows/mind-palace.yml'
@@ -67,6 +73,11 @@ jobs:
       - run: go test -race ./...
         env:
           MIND_PALACE_TEST_MONGODB_URI: mongodb://127.0.0.1:27017
+      - name: No dependency under a forbidden, restricted or unknown licence
+        # github.com/segmentio/asm is MIT No Attribution, which the
+        # classifier does not recognise (scripts/build-binaries.sh
+        # --licenses copies its LICENSE by hand).
+        run: go run github.com/google/go-licenses/v2@v2.0.1 check ./... --disallowed_types=forbidden,restricted,unknown --ignore github.com/segmentio/asm
 
   version:
     # What this run would release (scripts/release-plan.sh), decided before
@@ -148,6 +159,12 @@ jobs:
           pattern: mind-palace-binary-linux-*
           merge-multiple: true
           path: dist
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: mind-palace/go.mod
+          cache-dependency-path: mind-palace/go.sum
+      - name: Third-party licences for /usr/share/licenses/clued-server/
+        run: scripts/build-binaries.sh --licenses dist
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
@@ -183,7 +200,8 @@ jobs:
     # Publishing writes SHA256SUMS over the collected binaries, assembles
     # and pushes ghcr.io/robbiebyrd/clued-server:v<version> and :latest from
     # the Linux ones and creates the release v<version> with every binary,
-    # which also creates the tag at the commit released. scripts/clued
+    # SHA256SUMS and THIRD_PARTY_LICENSES.tar.gz, which also creates the
+    # tag at the commit released. scripts/clued
     # downloads that release and `mind-palace server init` pins that image.
     needs: [version, test, binaries, image]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
@@ -255,7 +273,7 @@ jobs:
       - if: steps.version.outputs.publish == 'true' && steps.version.outputs.rebuild != 'true'
         name: Write SHA256SUMS
         run: scripts/build-binaries.sh --sums release-assets
-      - if: steps.version.outputs.rebuild == 'true'
+      - if: steps.version.outputs.publish == 'true'
         uses: actions/setup-go@v5
         with:
           go-version-file: mind-palace/go.mod
@@ -268,6 +286,13 @@ jobs:
         run: scripts/build-binaries.sh release-assets
         env:
           VERSION: ${{ steps.version.outputs.version }}
+      - if: steps.version.outputs.publish == 'true'
+        name: Third-party licences (release asset and image)
+        # THIRD_PARTY_LICENSES/ is copied into the image and
+        # THIRD_PARTY_LICENSES.tar.gz attached to the release; the
+        # release plan's asset count does not include it, so a release
+        # published before it existed is not reopened for it.
+        run: scripts/build-binaries.sh --licenses release-assets
       - if: steps.version.outputs.publish == 'true'
         uses: docker/setup-qemu-action@v3
       - if: steps.version.outputs.publish == 'true'
@@ -286,7 +311,9 @@ jobs:
           file: Dockerfile.server
           platforms: linux/amd64,linux/arm64
           push: true
-          build-args: BINARIES=release-assets
+          build-args: |
+            BINARIES=release-assets
+            VERSION=${{ steps.version.outputs.version }}
           tags: |
             ghcr.io/robbiebyrd/clued-server:${{ steps.version.outputs.tag }}
             ghcr.io/robbiebyrd/clued-server:latest
@@ -298,9 +325,10 @@ jobs:
         run: |
           tag="${{ steps.version.outputs.tag }}"
           ls -l release-assets
+          assets=(release-assets/mind-palace_* release-assets/SHA256SUMS release-assets/THIRD_PARTY_LICENSES.tar.gz)
           if [ "${{ steps.version.outputs.exists }}" = "true" ]; then
-            gh release upload "$tag" release-assets/* --clobber
+            gh release upload "$tag" "${assets[@]}" --clobber
           else
-            gh release create "$tag" --target "${{ steps.version.outputs.sha }}" --title "$tag" --generate-notes release-assets/*
+            gh release create "$tag" --target "${{ steps.version.outputs.sha }}" --title "$tag" --generate-notes "${assets[@]}"
           fi
           gh release view "$tag" --json assets --jq '.assets[].name'
