@@ -252,6 +252,7 @@ func bundleFromJSONL(path string) (Bundle, error) {
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 0, 1<<20), 64<<20)
 	seq := 0
+	var first, last time.Time
 	for sc.Scan() {
 		raw := bytes.TrimSpace(sc.Bytes())
 		if len(raw) == 0 {
@@ -268,6 +269,14 @@ func bundleFromJSONL(path string) (Bundle, error) {
 			if c, _ := m["cwd"].(string); c != "" && b.Session["cwd"] == nil {
 				b.Session["cwd"], b.Session["project_path"] = c, c
 			}
+			if at := timeOf(m["timestamp"]); !at.IsZero() {
+				if first.IsZero() || at.Before(first) {
+					first = at
+				}
+				if at.After(last) {
+					last = at
+				}
+			}
 		}
 		b.TranscriptLines = append(b.TranscriptLines, session.Doc{"seq": seq, "line": line})
 		seq++
@@ -277,6 +286,11 @@ func bundleFromJSONL(path string) (Bundle, error) {
 	}
 	if b.Session["session_id"] == nil {
 		b.Session["session_id"] = id
+	}
+	// The session ran when its lines say, not when it is imported: the
+	// memory jobs wait for a session to go idle and listings sort by it.
+	if !last.IsZero() {
+		b.Session["started_at"], b.Session["last_seen"] = first, last
 	}
 	return b, nil
 }
@@ -300,6 +314,15 @@ func importBundle(ctx context.Context, store session.Store, accountID string, b 
 	s.LastSeen = timeOf(b.Session["last_seen"])
 	if s.LastSeen.IsZero() {
 		s.LastSeen = time.Now()
+	}
+	// A store sets started_at from the first upsert's last_seen, so a new
+	// session is upserted at its start first.
+	if started := timeOf(b.Session["started_at"]); !existed && !started.IsZero() && started.Before(s.LastSeen) {
+		first := s
+		first.LastSeen = started
+		if err := store.UpsertSession(ctx, first); err != nil {
+			return err
+		}
 	}
 	if err := store.UpsertSession(ctx, s); err != nil {
 		return err

@@ -165,6 +165,27 @@ func TestAJSONLRoundTripsThroughImport(t *testing.T) {
 	}
 }
 
+func TestAJSONLImportKeepsTheTranscriptsTimes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "22222222-3333-4444-5555-666666666666.jsonl")
+	body := `{"type":"user","cwd":"/repo","timestamp":"2026-10-14T09:00:00.000Z","message":{"role":"user","content":"hi"}}
+{"type":"assistant","timestamp":"2026-10-14T09:42:10.500Z","message":{"role":"assistant","content":[{"type":"text","text":"hello"}]}}
+{"type":"summary","summary":"no timestamp here"}
+`
+	must(t, os.WriteFile(path, []byte(body), 0o600))
+	st := memsession.New()
+	imported, err := export.Import(ctx, st, account, path)
+	must(t, err)
+	got, err := st.GetSession(ctx, account, imported.Sessions[0])
+	must(t, err)
+	start, end := time.Date(2026, 10, 14, 9, 0, 0, 0, time.UTC), time.Date(2026, 10, 14, 9, 42, 10, 500e6, time.UTC)
+	if at, _ := got["started_at"].(time.Time); !at.Equal(start) {
+		t.Errorf("started_at = %v, want %v", got["started_at"], start)
+	}
+	if at, _ := got["last_seen"].(time.Time); !at.Equal(end) {
+		t.Errorf("last_seen = %v, want %v", got["last_seen"], end)
+	}
+}
+
 func TestRunRefusesWhatItCannotWrite(t *testing.T) {
 	st := memsession.New()
 	seed(t, st, "s1", "/repo")
