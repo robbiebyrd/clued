@@ -9,6 +9,7 @@ import (
 )
 
 func TestUpdateConfigFile(t *testing.T) {
+	cleanEnv(t)
 	path := filepath.Join(t.TempDir(), "data", "config.json")
 	if err := UpdateConfigFile(path, map[string]any{"serverUrl": "https://x", "serverToken": "t"}, nil); err != nil {
 		t.Fatal(err)
@@ -35,7 +36,7 @@ func TestUpdateConfigFile(t *testing.T) {
 	}
 	cfg := LoadConfig(path)
 	if cfg.ServerURL != "https://new" || cfg.ServerToken != "" {
-		t.Fatalf("LoadConfig after update = %+v", cfg)
+		t.Fatalf("LoadConfig after update: serverUrl %q, serverToken set %t", cfg.ServerURL, cfg.ServerToken != "")
 	}
 	// A file that is not an object is left alone.
 	_ = os.WriteFile(path, []byte(`[1,2]`), 0o600)
