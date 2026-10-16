@@ -65,3 +65,22 @@ func TestReadAccountIDUnknownAndWarns(t *testing.T) {
 		})
 	}
 }
+
+func TestAccountIDForWarnsOnlyInLocalMode(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "absent.json")
+
+	buf := captureLog(t)
+	if got := AccountIDFor(Config{ClaudeAppConfigPath: missing, ServerURL: "https://clued.example"}); got != unknownAccount {
+		t.Fatalf("remote AccountIDFor = %s, want %s", got, unknownAccount)
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("remote mode warned: %q", buf.String())
+	}
+
+	if got := AccountIDFor(Config{ClaudeAppConfigPath: missing}); got != unknownAccount {
+		t.Fatalf("local AccountIDFor = %s, want %s", got, unknownAccount)
+	}
+	if !strings.Contains(buf.String(), accountWarning) {
+		t.Fatalf("local mode did not warn: %q", buf.String())
+	}
+}

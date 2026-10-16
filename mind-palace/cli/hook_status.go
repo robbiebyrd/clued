@@ -141,7 +141,7 @@ func (a *App) postSample(ctx context.Context, cfg session.Config, doc session.Do
 	defer a.closeSessionStore()
 	svc := &ingest.Service{
 		Store:     store,
-		AccountID: session.ReadAccountID(cfg.ClaudeAppConfigPath),
+		AccountID: session.AccountIDFor(cfg),
 		Host:      hostinfo.Read(),
 		Logger:    slog.New(slog.NewTextHandler(a.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
 		WALPath:   cfg.WalPath,

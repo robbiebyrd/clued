@@ -106,7 +106,7 @@ func (a *App) relay(parent context.Context) {
 
 	problems := &problems{}
 	host := hostinfo.Read()
-	accountID := session.ReadAccountID(cfg.ClaudeAppConfigPath)
+	accountID := session.AccountIDFor(cfg)
 	svc := &ingest.Service{
 		Store:     store,
 		AccountID: accountID,

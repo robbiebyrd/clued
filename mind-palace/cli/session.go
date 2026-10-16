@@ -114,7 +114,7 @@ func (a *App) sessionTools() *sessionmcp.Tools {
 		}
 		return capturing(store, cfg), nil
 	}
-	tools := sessionmcp.New(cfg, connect, session.ReadAccountID(cfg.ClaudeAppConfigPath))
+	tools := sessionmcp.New(cfg, connect, session.AccountIDFor(cfg))
 	tools.ConfigPath = a.sess.configPath
 	return tools
 }
@@ -286,7 +286,7 @@ func (a *App) sessionAction(fn func(ctx context.Context, store session.Store, sv
 			return a.sessionFail(err)
 		}
 		cfg := a.sessionConfig()
-		svc := &query.Service{Store: store, AccountID: session.ReadAccountID(cfg.ClaudeAppConfigPath), Prices: cfg.ModelPrices}
+		svc := &query.Service{Store: store, AccountID: session.AccountIDFor(cfg), Prices: cfg.ModelPrices}
 		result, err := fn(cmd.Context(), store, svc)
 		if err != nil {
 			return a.sessionFail(err)
@@ -754,7 +754,7 @@ func (a *App) sessionDaemonCmd() *cobra.Command {
 				Config:    cfg,
 				Store:     store,
 				Enrichers: session.Active(cfg.DisabledEnrichers, cfg.EnabledEnrichers),
-				AccountID: session.ReadAccountID(cfg.ClaudeAppConfigPath),
+				AccountID: session.AccountIDFor(cfg),
 				Host:      hostinfo.Read(),
 				Git: func(ctx context.Context, dir string) (string, string) {
 					return gitinfo.Origin(ctx, dir), gitinfo.Branch(ctx, dir)
