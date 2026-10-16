@@ -219,7 +219,7 @@ func (f *TokenFile) CreateEnvironmentKey(name, accountID string, projects []stri
 }
 
 // Exchange trades an environment key for a new token named
-// <key>@<client>-<4 hex> with the key's account and projects, expiring after
+// <key>@<client>-<8 hex> with the key's account and projects, expiring after
 // the key's TokenTTL. Tokens exchanged before and expired for more than a
 // day leave the file on the way.
 func (f *TokenFile) Exchange(_ context.Context, key, clientName string, _ map[string]string) (Exchanged, error) {
@@ -234,13 +234,9 @@ func (f *TokenFile) Exchange(_ context.Context, key, clientName string, _ map[st
 	if !f.allowExchange(k.Name, now) {
 		return Exchanged{}, ErrRateLimited
 	}
-	suffix := make([]byte, 2)
-	if _, err := rand.Read(suffix); err != nil {
-		return Exchanged{}, fmt.Errorf("auth: generate token name: %w", err)
-	}
-	name := k.Name + "@" + hex.EncodeToString(suffix)
-	if c := clientLabel(clientName); c != "" {
-		name = k.Name + "@" + c + "-" + hex.EncodeToString(suffix)
+	name, err := f.exchangedName(k.Name, clientLabel(clientName))
+	if err != nil {
+		return Exchanged{}, err
 	}
 	ttl := time.Duration(k.TokenTTL)
 	if ttl <= 0 {
@@ -255,6 +251,31 @@ func (f *TokenFile) Exchange(_ context.Context, key, clientName string, _ map[st
 		return Exchanged{}, err
 	}
 	return Exchanged{Token: raw, TokenID: name, Name: name, AccountID: k.AccountID, ExpiresAt: expires}, nil
+}
+
+// nameRand fills the suffix of an exchanged token's name; tests replace it.
+var nameRand = rand.Read
+
+// exchangedName names a token exchanged from key: key@<suffix>, or
+// key@<client>-<suffix>, with a random suffix of 8 hex digits no token in
+// the file has. A key may hold a day of hourly exchanges at once, which a
+// shorter suffix would repeat.
+func (f *TokenFile) exchangedName(key, client string) (string, error) {
+	prefix := key + "@"
+	if client != "" {
+		prefix += client + "-"
+	}
+	suffix := make([]byte, 4)
+	for range 8 {
+		if _, err := nameRand(suffix); err != nil {
+			return "", fmt.Errorf("auth: generate token name: %w", err)
+		}
+		name := prefix + hex.EncodeToString(suffix)
+		if !slices.ContainsFunc(f.tokens, func(t Token) bool { return t.Name == name }) {
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("auth: generate token name: no free name for %q", key)
 }
 
 // allowExchange counts an exchange of the named key, refusing it past

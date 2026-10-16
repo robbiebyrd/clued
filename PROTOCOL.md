@@ -1367,7 +1367,7 @@ not an environment key (a token sent as one) is 401 `unauthorized`; more
 than 60 exchanges of one key in an hour is 429 `rate_limited` with
 `Retry-After`; a body over 64 KiB is 413. A server whose `CluedOptions.Exchange`
 is nil (and an older server) answers 404. The clued server names the token
-`<key>@<client>-<4 hex>` (the client name reduced to letters, digits, `.`,
+`<key>@<client>-<8 hex>` (the client name reduced to letters, digits, `.`,
 `-` and `_`, at most 40) with `"parent": "<key>"` and `"expires"` set,
 and drops exchanged tokens that expired more than a day before the next
 exchange. Revoking the key (`server token revoke <key>`) revokes every token
