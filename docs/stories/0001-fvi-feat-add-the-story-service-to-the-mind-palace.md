@@ -3,12 +3,19 @@ id: 0001-fvi
 title: Add the Story service to the mind-palace
 purpose: Track stories (bugs, features, chores) with the same tooling, rules and storage as plans.
 type: feat
-status: in_progress
+status: complete
 priority: "2"
 effort: L
 created: "2026-10-10T02:27:00.171Z"
-updated: "2026-10-10T03:05:44.604Z"
+updated: "2026-10-16T17:00:49.254Z"
 started: "2026-10-10T02:27:00.171Z"
+completed: "2026-10-16T17:00:49.254Z"
+tags: []
+milestone: ""
+due_date: ""
+planned_start: ""
+planned_end: ""
+order: 0
 links:
   repo:
     remote: git@github.com:robbiebyrd/clued.git
@@ -55,7 +62,7 @@ Cover every kind in the conformance suite, service, ops and entrypoint tests; up
 ## Acceptance Criteria
 
 - [x] VERIFY: cd mind-palace && go test ./...
-- [ ] A story can be created, linked to a plan section, progressed, checked and completed from the CLI, HTTP, WebSocket and MCP entrypoints
+- [x] A story can be created, linked to a plan section, progressed, checked and completed from the CLI, HTTP, WebSocket and MCP entrypoints
 - [x] Every store plugin round-trips both plans and stories
 
 ## Files
@@ -74,3 +81,5 @@ Cover every kind in the conformance suite, service, ops and entrypoint tests; up
 ## Work Log
 
 ### 2026-10-10T02:27:00.374Z - Refactor, story rules, entrypoints and tests landed; waiting on the entrypoint walkthrough before closing
+
+### 2026-10-16T17:00:45.149Z - Entrypoint walkthrough (2026-10-16, mind-palace built from main b58298e, file store, fresh git repo per entrypoint): through each of the CLI (story subcommands), HTTP (mind-palace serve: POST /api/v1/stories, ops/addPlanLink, PUT …/status, ops/setProgress, ops/setCriterion, GET), WebSocket (/ws, kind story) and MCP (mind-palace mcp over stdio, story_* tools, 55 of them) a story was created from testdata/create-story.json, linked to plan section 1.1 (included), moved to in_progress, steps 1, 1.1 and 2 completed, both criteria checked, then completed and read back: status complete, completed set, link [plan, included, [1.1]] kept. All four PASS. Script: scratchpad walk/walk.py, log walk/walk.log.
