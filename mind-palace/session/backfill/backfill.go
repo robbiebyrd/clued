@@ -96,20 +96,6 @@ func processSession(ctx context.Context, store session.Store, t transcript, acco
 	if err != nil {
 		return 0, err
 	}
-	s := session.Session{
-		SessionID:      t.sessionID,
-		ProjectPath:    t.projectPath,
-		TranscriptPath: t.filePath,
-		AccountID:      accountID,
-		LastSeen:       info.ModTime(),
-	}
-	if git != nil {
-		s.GitOrigin, s.GitBranch = git(ctx, t.projectPath)
-	}
-	if err := store.UpsertSession(ctx, s); err != nil {
-		return 0, err
-	}
-
 	content, err := os.ReadFile(t.filePath)
 	if err != nil {
 		return 0, err
@@ -125,6 +111,29 @@ func processSession(ctx context.Context, store session.Store, t transcript, acco
 			Line:      parseLine(raw),
 			AccountID: accountID,
 		})
+	}
+	// The session starts at its first line and was last seen at its last
+	// (the file's modification time when no line is dated): a new session's
+	// started_at is the LastSeen it is upserted with.
+	first, last := session.TranscriptSpan(batch)
+	if first.IsZero() {
+		first, last = info.ModTime(), info.ModTime()
+	}
+	s := session.Session{
+		SessionID:      t.sessionID,
+		ProjectPath:    t.projectPath,
+		TranscriptPath: t.filePath,
+		AccountID:      accountID,
+		LastSeen:       first,
+	}
+	if git != nil {
+		s.GitOrigin, s.GitBranch = git(ctx, t.projectPath)
+	}
+	if err := store.UpsertSession(ctx, s); err != nil {
+		return 0, err
+	}
+	if err := store.TouchSession(ctx, accountID, t.sessionID, last); err != nil {
+		return 0, err
 	}
 	if len(batch) == 0 {
 		return 0, nil

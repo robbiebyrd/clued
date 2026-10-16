@@ -264,3 +264,33 @@ func TestRunStampsLastSeenAndStartedAtWithTheTranscriptModificationTime(t *testi
 		}
 	}
 }
+
+func TestRunDatesASessionByItsTranscriptNotTheFile(t *testing.T) {
+	dir := t.TempDir()
+	path := writeSession(t, dir, "-Users-test-myproject", sessionID,
+		`{"type":"user","timestamp":"2026-10-14T09:00:00.000Z"}`+"\n"+
+			`{"type":"summary","summary":"undated"}`+"\n"+
+			`{"type":"assistant","timestamp":"2026-10-14T09:42:10.500Z"}`+"\n")
+	mtime := time.Date(2026, 10, 16, 16, 39, 0, 0, time.UTC)
+	if err := os.Chtimes(path, mtime, mtime); err != nil {
+		t.Fatal(err)
+	}
+	store := memsession.New()
+
+	run(t, store, dir, "", nil)
+	run(t, store, dir, "", nil)
+
+	sess, err := store.GetSession(context.Background(), "", sessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]time.Time{
+		"started_at": time.Date(2026, 10, 14, 9, 0, 0, 0, time.UTC),
+		"last_seen":  time.Date(2026, 10, 14, 9, 42, 10, 500e6, time.UTC),
+	}
+	for field, at := range want {
+		if got, ok := sess[field].(time.Time); !ok || !got.Equal(at) {
+			t.Errorf("%s = %v, want %v", field, sess[field], at)
+		}
+	}
+}
