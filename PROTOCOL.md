@@ -1479,7 +1479,8 @@ It is redacted with the capture rules and `redactPatterns` unless `--raw`,
 written with mode `0600`, and never replaces a file unless `--force`; it
 prints `{"path", "format", "sessions", "redacted"}`. `session import` reads
 a JSONL transcript (the session id from the file name or the lines'
-`sessionId`, the project from their `cwd`) or such a zip into the store
+`sessionId`, the project from their `cwd`, `started_at` and `last_seen`
+from their earliest and latest `timestamp`) or such a zip into the store
 through the capture wrapper (so `redactAtCapture` and `excludePaths`
 apply); lines and blobs are upserted, hook events are inserted only for a
 session the store did not hold, and it prints `{"sessions", "lines",
