@@ -194,7 +194,7 @@ nothing.`,
 // account and the template override directory of the config.
 func (a *App) digestService(store session.Store) *digest.Service {
 	cfg := a.sessionConfig()
-	account := session.ReadAccountID(cfg.ClaudeAppConfigPath)
+	account := session.AccountIDFor(cfg)
 	return &digest.Service{
 		Store:       store,
 		AccountID:   account,

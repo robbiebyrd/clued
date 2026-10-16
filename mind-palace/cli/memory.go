@@ -101,7 +101,7 @@ func (a *App) memoryDir() string {
 // config's limits; built-in and configured redaction always apply.
 func (a *App) memoryService(store session.Store, engine string) *memory.Service {
 	cfg := a.sessionConfig()
-	account := session.ReadAccountID(cfg.ClaudeAppConfigPath)
+	account := session.AccountIDFor(cfg)
 	r, errs := redact.New(cfg.RedactPatterns)
 	for _, err := range errs {
 		log.Printf("clued: %v", err)

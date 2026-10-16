@@ -57,7 +57,7 @@ func (a *App) jsonProbe() *jsonprobe.Probe {
 // returned function closes what was opened.
 func (a *App) primeCollector(ctx context.Context, root string, opts prime.Options) (*prime.Collector, func()) {
 	cfg := a.sessionConfig()
-	accountID := session.ReadAccountID(cfg.ClaudeAppConfigPath)
+	accountID := session.AccountIDFor(cfg)
 	c := &prime.Collector{
 		Root:              root,
 		FS:                &fsprobe.Probe{Root: root},
@@ -210,7 +210,7 @@ exit 0; failures print a sentinel (yes/no, none, 0, unknown, not a git repo,
 			return prime.HostLine(hostinfo.Read())
 		}),
 		a.probe("account", "The Claude account id clued stores sessions under (unknown when unavailable)", 0, func(ctx context.Context, args []string) string {
-			return session.ReadAccountID(a.sessionConfig().ClaudeAppConfigPath)
+			return session.AccountIDFor(a.sessionConfig())
 		}),
 		a.probe("project-path", "The ~/.claude/projects directory name of the project directory", 0, func(ctx context.Context, args []string) string {
 			return session.EncodeProjectPath(filepath.ToSlash(a.contextRoot()))
@@ -224,7 +224,7 @@ exit 0; failures print a sentinel (yes/no, none, 0, unknown, not a git repo,
 		}),
 		a.probe("session", "The most recent captured session for the project directory, with its top commands", 0, func(ctx context.Context, args []string) string {
 			cfg := a.sessionConfig()
-			src := sessionsource.New(func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }, session.ReadAccountID(cfg.ClaudeAppConfigPath))
+			src := sessionsource.New(func(ctx context.Context) (session.Store, error) { return openSessionStore(ctx, cfg) }, session.AccountIDFor(cfg))
 			defer func() { _ = src.Close(context.Background()) }()
 			timeout := prime.StoreTimeout
 			if cfg.Remote() {
@@ -426,7 +426,7 @@ func (a *App) postSnapshot(ctx context.Context, root string, result prime.Result
 	if err != nil {
 		return err
 	}
-	svc := &ingest.Service{Store: store, AccountID: session.ReadAccountID(cfg.ClaudeAppConfigPath), Host: hostinfo.Read(), WALPath: cfg.WalPath}
+	svc := &ingest.Service{Store: store, AccountID: session.AccountIDFor(cfg), Host: hostinfo.Read(), WALPath: cfg.WalPath}
 	err = snapshot.Insert(ctx, svc, snapshotEvent(root, result))
 	if errors.Is(err, snapshot.ErrNoSession) {
 		return nil // no session to attach the report to: nothing to store
