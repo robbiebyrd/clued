@@ -648,9 +648,29 @@ func (x *extraction) resolveDefs() []*def {
 			types[t.name] = j
 		}
 	}
-	for _, d := range defs {
-		if j, ok := types[d.receiver]; ok && d.receiver != "" && d.parent < 0 {
-			d.parent = j
+	// A nested one (C++'s Circle::area inside namespace geometry) belongs
+	// to the first such definition that is, or is in or under, its
+	// container; when the
+	// file has none it keeps the container as parent and the receiver in
+	// its qualified name (viaReceiver).
+	viaReceiver := make([]bool, len(defs))
+	for i, d := range defs {
+		if d.receiver == "" {
+			continue
+		}
+		if d.container < 0 {
+			if j, ok := types[d.receiver]; ok {
+				d.parent = j
+			}
+			continue
+		}
+		viaReceiver[i] = true
+		c := defs[d.container]
+		for j, t := range defs {
+			if j != i && t.name == d.receiver && t.receiver == "" && !callableKinds[t.kind] && (t == c || strictlyContains(c, t)) {
+				d.parent, viaReceiver[i] = j, false
+				break
+			}
 		}
 	}
 	sep := x.l.profile.Scope.Separators[0]
@@ -661,6 +681,8 @@ func (x *extraction) resolveDefs() []*def {
 			return d.qual
 		}
 		switch {
+		case viaReceiver[i]:
+			d.qual = qual(d.parent) + sep + d.receiver + sep + d.name
 		case d.parent >= 0:
 			d.qual = qual(d.parent) + sep + d.name
 		case d.receiver != "":
@@ -695,11 +717,22 @@ func strictlyContains(a, b *def) bool {
 }
 
 // defaultSignature is a definition's text up to its body (the child in
-// field body), or its first line when it has no body.
+// field body), less the comments just before the body (Ruby's
+// "module Shop # The currency…"), or its first line when it has no body.
 func (x *extraction) defaultSignature(n *ts.Node) string {
 	start, end := int(n.StartByte()), int(n.EndByte())
 	if body := n.ChildByFieldName("body", x.l.lang); body != nil && int(body.StartByte()) > start {
 		end = int(body.StartByte())
+		for i := n.ChildCount() - 1; i >= 0; i-- {
+			c := n.Child(i)
+			if c == nil || int(c.EndByte()) > end {
+				continue
+			}
+			if !strings.Contains(c.Type(x.l.lang), "comment") || int(c.StartByte()) <= start {
+				break
+			}
+			end = int(c.StartByte())
+		}
 	} else if first := x.lines.line(start); x.lines.line(max(start, end-1)) > first {
 		end = x.lines.end(first)
 	}
