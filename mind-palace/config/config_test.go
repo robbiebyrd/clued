@@ -398,3 +398,50 @@ func TestRemoteProjectKey(t *testing.T) {
 		t.Error("an unknown remote key must be rejected")
 	}
 }
+
+func TestCodeSyncKey(t *testing.T) {
+	if Default().CodeSync != nil || !Default().CodeSyncAllowed() {
+		t.Error("the default config opts out of code sync")
+	}
+	dir := t.TempDir()
+	yamlPath := filepath.Join(dir, "mind-palace.config.yaml")
+	for _, tc := range []struct {
+		body    string
+		allowed bool
+		set     bool
+	}{
+		{"codeSync: false\n", false, true},
+		{"codeSync: true\n", true, true},
+		{"remote:\n  project: owner__repo\n", true, false},
+	} {
+		os.WriteFile(yamlPath, []byte(tc.body), 0o644)
+		c, err := Load(yamlPath)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.body, err)
+		}
+		if c.CodeSyncAllowed() != tc.allowed || (c.CodeSync != nil) != tc.set {
+			t.Errorf("%q: allowed %v, set %v; want %v, %v", tc.body, c.CodeSyncAllowed(), c.CodeSync != nil, tc.allowed, tc.set)
+		}
+	}
+	jsonPath := filepath.Join(dir, "mind-palace.config.json")
+	os.WriteFile(jsonPath, []byte(`{"codeSync": false}`), 0o644)
+	if c, err := Load(jsonPath); err != nil || c.CodeSyncAllowed() {
+		t.Errorf("codeSync false from JSON: allowed %v, %v", c != nil && c.CodeSyncAllowed(), err)
+	}
+	// A value that is not a boolean is rejected.
+	os.WriteFile(yamlPath, []byte("codeSync: sometimes\n"), 0o644)
+	if _, err := Load(yamlPath); err == nil {
+		t.Error("a non-boolean codeSync must be rejected")
+	}
+	// Overlaying a file without the key keeps an earlier opt-out.
+	c := Default()
+	if err := c.Overlay([]byte("codeSync: false\n"), ".yaml"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Overlay([]byte("server:\n  addr: 127.0.0.1:9\n"), ".yaml"); err != nil {
+		t.Fatal(err)
+	}
+	if c.CodeSyncAllowed() {
+		t.Error("a later overlay without codeSync cleared the opt-out")
+	}
+}
