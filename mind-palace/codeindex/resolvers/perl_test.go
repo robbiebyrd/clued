@@ -263,17 +263,19 @@ func TestResolve_perl(t *testing.T) {
 	})
 	e.want(codegraph.RelCallees, circle, "My::Shape::Registry::register", map[string]string{})
 
-	// report.pl: its own subs, Package::sub and Class->method by qualified
-	// name, unknown objects and UNIVERSAL::can left out.
+	// report.pl: its own subs, Package::sub and Class->method by their
+	// whole qualified name (AbsoluteQualifiers: exact), unknown objects and
+	// UNIVERSAL::can left out. Every qualified call below is exact for
+	// that reason: a Perl qualifier names its package from the root.
 	e.want(codegraph.RelCallees, report, "main", map[string]string{
 		report + "#load_shapes":            "exact",
 		report + "#report":                 "exact",
 		report + "#log_line":               "exact",
-		rep + "#My::Report::emit":          "qualified",
-		rep + "#My::Report::flush":         "qualified",
-		circle + "#My::Shape::Circle::new": "qualified",
+		rep + "#My::Report::emit":          "exact",
+		rep + "#My::Report::flush":         "exact",
+		circle + "#My::Shape::Circle::new": "exact",
 	})
-	e.want(codegraph.RelCallees, report, "load_shapes", map[string]string{circle + "#My::Shape::Circle::new": "qualified"})
+	e.want(codegraph.RelCallees, report, "load_shapes", map[string]string{circle + "#My::Shape::Circle::new": "exact"})
 
 	// Modern.pm: $self in a block package reaches its attribute (a
 	// definition of the package, which only a package block encloses);
@@ -283,8 +285,8 @@ func TestResolve_perl(t *testing.T) {
 
 	// Several packages in one file.
 	e.want(codegraph.RelCallees, multi, "Multi::run", map[string]string{
-		multi + "#Multi::Inner::step": "qualified",
-		multi + "#Other::absolute":    "qualified",
+		multi + "#Multi::Inner::step": "exact",
+		multi + "#Other::absolute":    "exact",
 	})
 	e.want(codegraph.RelCallees, multi, "Multi::Inner::step", map[string]string{multi + "#Multi::run": "exact"})
 	e.want(codegraph.RelCallees, "lib/Multi/More.pm", "Multi::more", map[string]string{
@@ -297,13 +299,13 @@ func TestResolve_perl(t *testing.T) {
 	e.want(codegraph.RelCallees, "bin/caller.pl", "go", map[string]string{
 		multi + "#Multi::run":                     "exact",
 		rep + "#My::Report::emit":                 "exact",
-		rep + "#My::Report::_private":             "qualified",
-		circle + "#My::Shape::Registry::register": "qualified",
+		rep + "#My::Report::_private":             "exact",
+		circle + "#My::Shape::Registry::register": "exact",
 	})
 	e.want(codegraph.RelCallees, "bin/caller2.pl", "go", map[string]string{
-		multi + "#Multi::run":         "qualified",
-		multi + "#Multi::Inner::step": "qualified",
-		multi + "#Other::absolute":    "qualified",
+		multi + "#Multi::run":         "exact",
+		multi + "#Multi::Inner::step": "exact",
+		multi + "#Other::absolute":    "exact",
 		rep + "#My::Report::flush":    "exact",
 		rep + "#My::Report::emit":     "name",
 	})
@@ -312,7 +314,7 @@ func TestResolve_perl(t *testing.T) {
 	e.want(codegraph.RelCallees, "bin/run.pl", "main", map[string]string{
 		"shapes/config.pl#config_value": "exact",
 		"shapes/config.pl#_hidden":      "exact",
-		rep + "#My::Report::emit":       "qualified",
+		rep + "#My::Report::emit":       "exact",
 	})
 	e.want(codegraph.RelCallees, "bin/other.pl", "main", map[string]string{
 		"shapes/config.pl#config_value": "name",
@@ -356,7 +358,7 @@ func TestPackageAndScope_perl(t *testing.T) {
 	if fam, r, ok := resolvers.ForLang("perl"); !ok || fam != codeparse.FamilyPerl || r != res {
 		t.Fatalf("ForLang(perl) = %q, %v", fam, ok)
 	}
-	if r := res.Rules(); !reflect.DeepEqual(r.Separators, []string{"::"}) || r.CaseInsensitive || !r.NameFallback || !r.MemberFallback {
+	if r := res.Rules(); !reflect.DeepEqual(r.Separators, []string{"::"}) || r.CaseInsensitive || !r.NameFallback || !r.MemberFallback || !r.AbsoluteQualifiers {
 		t.Errorf("Rules = %+v", r)
 	}
 
@@ -405,18 +407,18 @@ func TestPackageAndScope_perl(t *testing.T) {
 		t.Errorf("Scope(report.pl) =\n %+v\nwant\n %+v", sc, want)
 	}
 
-	// Sigils and tags in an import list; a .pm path is its module; a
-	// single-segment module that also prefixes a longer qualifier is not
-	// bound; several packages leave $self unbound.
+	// Sigils and tags in an import list; a .pm path is its module, bound
+	// by its full name (Fixture::Two); a module that also prefixes a
+	// longer qualifier is not bound; several packages leave $self unbound.
 	f := perlFile("Multi").use("use", "Exp", "$VERSION", "&f", ":all").use("require", "Fixture/Two.pm").
 		use("require", "/abs/x.pl").use("require", "../../up.pl").use("use", "Fixture").
 		sub("Multi::a").sub("Other::b").call("Multi::a", "Fixture::One::c").f
-	sc, err = res.Scope(ctx, perlView{packages: map[string][]*resolvers.File{"Exp": {{}}, "Fixture": {{}}}},
+	sc, err = res.Scope(ctx, perlView{packages: map[string][]*resolvers.File{"Exp": {{}}, "Fixture": {{}}, "Fixture::Two": {{}}}},
 		&resolvers.File{Path: "lib/Multi.pm", Package: "Multi", Facts: &f})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want = resolvers.Scope{Qualifiers: map[string][]string{"Exp": {"Exp"}},
+	want = resolvers.Scope{Qualifiers: map[string][]string{"Exp": {"Exp"}, "Fixture::Two": {"Fixture::Two"}},
 		Names: map[string][]string{"VERSION": {"Exp"}, "f": {"Exp"}}, Open: []string{"Exp", "Fixture"}}
 	if !reflect.DeepEqual(sc, want) {
 		t.Errorf("Scope(hand-built) =\n %+v\nwant\n %+v", sc, want)

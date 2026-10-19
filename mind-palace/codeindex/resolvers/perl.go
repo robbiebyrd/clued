@@ -20,11 +20,14 @@ import (
 // Imports: `use Module LIST` binds the listed names (sigils dropped; a
 // :tag opens the module), `use Module` with no list opens it (its @EXPORT
 // is not known, so every exported top-level sub is reachable), and
-// `require Module` imports nothing. A single-segment module the project
-// holds (Carp, Fixture) is also bound as a qualifier, so Module::sub is an
-// exact match in it; a module of several segments is not (the engine binds
-// a qualifier by its first segment, and My of My::Report says nothing about
-// My::Other). `require "file.pl"` of a script without a package opens it,
+// `require Module` imports nothing. A module the project holds (Carp,
+// My::Report) is also bound as a qualifier by its full name, so
+// My::Report::emit is an exact match in it (the engine binds the longest
+// leading part of a qualifier), unless the file names a package below it
+// (My::Report::Sub::f), which the binding would confine to My::Report. A
+// qualified name is otherwise matched whole from the root
+// (AbsoluteQualifiers: Other::f is exact wherever it is written). `require
+// "file.pl"` of a script without a package opens it,
 // `require "My/Module.pm"` is `require My::Module`. Pragmas (strict,
 // parent, constant) import nothing.
 //
@@ -47,7 +50,7 @@ func init() { Register(codeparse.FamilyPerl, perl{}) }
 
 type perl struct{}
 
-var perlRules = Rules{Separators: []string{"::"}, NameFallback: true, MemberFallback: true}
+var perlRules = Rules{Separators: []string{"::"}, NameFallback: true, MemberFallback: true, AbsoluteQualifiers: true}
 
 // Rules implements Resolver.
 func (perl) Rules() Rules { return perlRules }
@@ -78,7 +81,7 @@ func (perl) Scope(_ context.Context, v View, f *File) (Scope, error) {
 		return s, nil
 	}
 	bind := func(module string) {
-		if strings.Contains(module, "::") || len(v.Package(codeparse.FamilyPerl, module)) == 0 {
+		if len(v.Package(codeparse.FamilyPerl, module)) == 0 {
 			return
 		}
 		for _, r := range f.Facts.Refs {
