@@ -3,11 +3,13 @@ id: 0125-067
 title: Evaluation harness and task set
 purpose: Measures tokens, turns and success with and without the tools; built in parallel with everything else.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:53.687Z"
-updated: "2026-10-19T18:33:43.800Z"
+updated: "2026-10-19T19:20:21.665Z"
+started: "2026-10-19T18:57:30.629Z"
+completed: "2026-10-19T19:20:12.649Z"
 tags:
   - plan-0012-cgi
   - wave-1
@@ -33,13 +35,13 @@ links:
     - ["0012-cgi", "included", ["5.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Evaluation harness and task set
@@ -72,9 +74,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./eval/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./eval/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./eval/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./eval/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -86,3 +88,7 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `scripts/eval-codesearch.sh` - manual run, `CLUED_EVAL=1`
 
 ## Work Log
+
+### 2026-10-19T19:20:07.499Z - Built mind-palace/eval/codesearch: tasks.yaml (101 tasks: 42 on clued and clued-cloud — 29 clued, 12 clued-cloud... across named/concept/impact/edit, 5 edits with check commands; 59 on the corpus, 3 per corpus language, 5 for Lisp across Clojure, Common Lisp and Emacs Lisp), corpus.yaml (21 public repositories pinned to full SHAs resolved with git ls-remote on 2026-10-19), harness.go (loader with strict YAML, Validate, arms grep/graph/context with --allowedTools/--disallowedTools, ClaudeCLI over claude -p --output-format json, CluedCLI reading session usage and session activities, WaitMeasure, Sources.Checkout as shared clones at HEAD or the pinned commit with origin kept, Execute: runs interleaved by arm, JSONL per run), score.go (file and symbol recall with min_recall, edit scoring by changed files plus check, Summarize: per-task medians then medians per family, language and overall, Markdown with token change vs grep). harness_test.go: 17 tests (loader, validator, scorer, report, parsers, CLI args, Execute against a temp git repo with fake agent and capture, ground truth of clued on every run, of clued-cloud with CLUED_EVAL_CLOUD_DIR (passes against /home/user/clued-cloud), of the corpus with CLUED_EVAL_VERIFY=1 (passes: every pinned commit fetched, every truth file and symbol found), TestEvalLive gated by CLUED_EVAL=1). scripts/eval-codesearch.sh runs the evaluation (exit 3 without credentials, checked) or --verify-only (checked). No live claude -p run here: no Claude credentials in this container; the run itself is story 0126-j2n. Only the six listed files changed; no new dependency.
+
+### 2026-10-19T19:20:21.665Z - Correction to the entry above: the 42 own tasks are 29 on clued and 13 on clued-cloud.
