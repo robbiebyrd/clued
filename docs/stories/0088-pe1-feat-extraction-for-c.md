@@ -3,11 +3,13 @@ id: 0088-pe1
 title: Extraction for C++
 purpose: 'Adds C++ to the indexer: files .cc, .cpp, .cxx, .hpp, .hh, .h.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-19T18:08:31.497Z"
-updated: "2026-10-19T18:29:44.016Z"
+updated: "2026-10-19T20:56:36.385Z"
+started: "2026-10-19T20:45:27.039Z"
+completed: "2026-10-19T20:56:36.385Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for C++
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/cpp'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/cpp'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/cpp'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/cpp'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/cpp.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:56:30.182Z - Added codeparse/grammars/cpp.go (gotreesitter grammars/cpp), queries/cpp/{tags.scm,profile.yaml} (family cfamily, separators ::, packageBy none: namespaces are definitions that qualify by position; includes as include/include_system, using directives, using declarations, namespace aliases) and four goldens in testdata/cpp (geometry.hpp: every definition kind incl. namespaces, classes, structs, unions, enums and enumerators, typedef/using aliases, templates, methods, fields, constants, variables, macros; geometry.cpp: imports, out-of-line A::f, calls, type and extends refs; quirks.h: #ifdef branches, extern C, nested/inline namespaces, specializations, member templates, deep A::B::~B; broken.cc: syntax error). TestGolden/cpp: 4 inputs pass; go test -race ./codeparse/... ok; gofmt/vet/build clean. Engine gap, not worked around (extract.go is shared): a method defined out of line inside a namespace block (namespace geometry { double Circle::area() ... }) gets the namespace as parent and QualName geometry::area, its @receiver ignored, because resolveDefs applies a receiver only to a definition with no container; fix: qualify as qual(container)+sep+receiver+sep+name when the receiver's type is not found. Only the innermost scope is the receiver (outer::inner::Packet::Header::~Header gives Header::~Header). gotreesitter quirk kept in quirks.h: Grid<outer::inner::Packet> (qualified template argument) parses as a comparison and yields no type refs. Template parameters (T) appear as type refs.
