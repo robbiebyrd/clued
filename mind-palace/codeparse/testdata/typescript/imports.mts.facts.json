@@ -1,0 +1,263 @@
+{
+  "lang": "typescript",
+  "symbols": [
+    {
+      "id": "lazy",
+      "kind": "const",
+      "name": "lazy",
+      "qualName": "lazy",
+      "signature": "lazy = await import(\"./lazy.js\")",
+      "start": {
+        "line": 14,
+        "column": 6,
+        "offset": 515
+      },
+      "end": {
+        "line": 14,
+        "column": 38,
+        "offset": 547
+      }
+    },
+    {
+      "id": "load",
+      "kind": "function",
+      "name": "load",
+      "qualName": "load",
+      "signature": "async function load(file: string): Promise\u003cEntry[]\u003e",
+      "start": {
+        "line": 16,
+        "column": 7,
+        "offset": 557
+      },
+      "end": {
+        "line": 21,
+        "column": 1,
+        "offset": 815
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "node:fs",
+      "alias": "fs",
+      "names": [
+        "readFile",
+        "writeFile as write"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 52
+      }
+    },
+    {
+      "spec": "node:path",
+      "alias": "path",
+      "kind": "import",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 112
+      }
+    },
+    {
+      "spec": "./definitions.js",
+      "names": [
+        "Entry",
+        "Options"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 147
+      }
+    },
+    {
+      "spec": "./store.js",
+      "names": [
+        "type Store",
+        "default as createStore"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 203
+      }
+    },
+    {
+      "spec": "../lib/default.js",
+      "alias": "Default",
+      "kind": "import",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 268
+      }
+    },
+    {
+      "spec": "./polyfills.js",
+      "kind": "import",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 309
+      }
+    },
+    {
+      "spec": "./types.js",
+      "kind": "export",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 335
+      }
+    },
+    {
+      "spec": "./util.js",
+      "alias": "util",
+      "kind": "export",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 363
+      }
+    },
+    {
+      "spec": "./definitions.js",
+      "names": [
+        "format",
+        "parse as parseEntry"
+      ],
+      "kind": "export",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 398
+      }
+    },
+    {
+      "spec": "./definitions.js",
+      "names": [
+        "Kind"
+      ],
+      "kind": "export",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 462
+      }
+    },
+    {
+      "spec": "./lazy.js",
+      "kind": "dynamic",
+      "start": {
+        "line": 14,
+        "column": 19,
+        "offset": 528
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Promise",
+      "kind": "type",
+      "start": {
+        "line": 16,
+        "column": 42,
+        "offset": 592
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 16,
+        "column": 50,
+        "offset": 600
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "readFile",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 20,
+        "offset": 631
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "join",
+      "qualifier": "path",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 34,
+        "offset": 645
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "write",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 2,
+        "offset": 733
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "decode",
+      "qualifier": "plugin",
+      "kind": "call",
+      "start": {
+        "line": 20,
+        "column": 16,
+        "offset": 776
+      },
+      "enclosing": "load"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 14,
+        "column": 39,
+        "offset": 548
+      },
+      "text": "// Every import form an ES module (.mts) can write.\nimport fs, { readFile, writeFile as write } from \"node:fs\";\nimport * as path from \"node:path\";\nimport type { Entry, Options } from \"./definitions.js\";\nimport { type Store, default as createStore } from \"./store.js\";\nimport Default from \"../lib/default.js\";\nimport \"./polyfills.js\";\n\nexport * from \"./types.js\";\nexport * as util from \"./util.js\";\nexport { format, parse as parseEntry } from \"./definitions.js\";\nexport type { Kind } from \"./definitions.js\";\n\nconst lazy = await import(\"./lazy.js\");",
+      "hash": "4ab1b145153213eb18bae23d5269d8ae88b0173b428659b2c616b43dc0f02361"
+    },
+    {
+      "id": "load#1",
+      "kind": "symbol",
+      "symbolId": "load",
+      "start": {
+        "line": 16,
+        "column": 7,
+        "offset": 557
+      },
+      "end": {
+        "line": 21,
+        "column": 1,
+        "offset": 815
+      },
+      "text": "async function load(file: string): Promise\u003cEntry[]\u003e {\n  const raw = await readFile(path.join(Default.dir, file), \"utf8\");\n  const plugin = await import(\"./plugins/\" + file);\n  write(file + \".bak\", raw);\n  return plugin.decode(raw, fs.constants.R_OK, lazy);\n}",
+      "hash": "8458f682f2a61a4e718c4d1c854df49022f05e23317e5e24355ff417cdb40f2f"
+    }
+  ]
+}

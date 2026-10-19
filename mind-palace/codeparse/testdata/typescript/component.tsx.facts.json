@@ -1,0 +1,480 @@
+{
+  "lang": "typescript",
+  "dialect": "tsx",
+  "symbols": [
+    {
+      "id": "ButtonProps",
+      "kind": "interface",
+      "name": "ButtonProps",
+      "qualName": "ButtonProps",
+      "signature": "interface ButtonProps",
+      "start": {
+        "line": 7,
+        "column": 7,
+        "offset": 234
+      },
+      "end": {
+        "line": 11,
+        "column": 1,
+        "offset": 319
+      },
+      "exported": true
+    },
+    {
+      "id": "ButtonProps.label",
+      "kind": "field",
+      "name": "label",
+      "qualName": "ButtonProps.label",
+      "signature": "label: string",
+      "start": {
+        "line": 8,
+        "column": 2,
+        "offset": 260
+      },
+      "end": {
+        "line": 8,
+        "column": 15,
+        "offset": 273
+      },
+      "parent": "ButtonProps",
+      "exported": true
+    },
+    {
+      "id": "ButtonProps.onClick",
+      "kind": "method",
+      "name": "onClick",
+      "qualName": "ButtonProps.onClick",
+      "signature": "onClick(): void",
+      "start": {
+        "line": 9,
+        "column": 2,
+        "offset": 277
+      },
+      "end": {
+        "line": 9,
+        "column": 17,
+        "offset": 292
+      },
+      "parent": "ButtonProps",
+      "exported": true
+    },
+    {
+      "id": "ButtonProps.children",
+      "kind": "field",
+      "name": "children",
+      "qualName": "ButtonProps.children",
+      "signature": "children?: ReactNode",
+      "start": {
+        "line": 10,
+        "column": 2,
+        "offset": 296
+      },
+      "end": {
+        "line": 10,
+        "column": 22,
+        "offset": 316
+      },
+      "parent": "ButtonProps",
+      "exported": true
+    },
+    {
+      "id": "Button",
+      "kind": "function",
+      "name": "Button",
+      "qualName": "Button",
+      "signature": "function Button({ label, onClick, children }: ButtonProps): JSX.Element",
+      "doc": "A button with an icon and a click counter.",
+      "start": {
+        "line": 14,
+        "column": 7,
+        "offset": 378
+      },
+      "end": {
+        "line": 30,
+        "column": 1,
+        "offset": 762
+      },
+      "exported": true
+    },
+    {
+      "id": "Card",
+      "kind": "function",
+      "name": "Card",
+      "qualName": "Card",
+      "signature": "Card: React.FC\u003c{ title: string }\u003e = ({ title }) =\u003e (",
+      "start": {
+        "line": 32,
+        "column": 13,
+        "offset": 777
+      },
+      "end": {
+        "line": 36,
+        "column": 1,
+        "offset": 903
+      },
+      "exported": true
+    },
+    {
+      "id": "identity",
+      "kind": "function",
+      "name": "identity",
+      "qualName": "identity",
+      "signature": "identity = \u003cT,\u003e(value: T): T =\u003e value",
+      "start": {
+        "line": 38,
+        "column": 6,
+        "offset": 912
+      },
+      "end": {
+        "line": 38,
+        "column": 43,
+        "offset": 949
+      }
+    },
+    {
+      "id": "Panel",
+      "kind": "class",
+      "name": "Panel",
+      "qualName": "Panel",
+      "signature": "class Panel extends React.Component\u003cButtonProps\u003e",
+      "start": {
+        "line": 40,
+        "column": 15,
+        "offset": 967
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 1075
+      },
+      "exported": true
+    },
+    {
+      "id": "Panel.render",
+      "kind": "method",
+      "name": "render",
+      "qualName": "Panel.render",
+      "signature": "render()",
+      "start": {
+        "line": 41,
+        "column": 2,
+        "offset": 1020
+      },
+      "end": {
+        "line": 43,
+        "column": 3,
+        "offset": 1073
+      },
+      "parent": "Panel",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "react",
+      "alias": "React",
+      "names": [
+        "useState",
+        "type ReactNode"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 110
+      }
+    },
+    {
+      "spec": "./ui",
+      "alias": "UI",
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 167
+      }
+    },
+    {
+      "spec": "./icon",
+      "names": [
+        "Icon"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 195
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "ReactNode",
+      "kind": "type",
+      "start": {
+        "line": 10,
+        "column": 13,
+        "offset": 307
+      },
+      "enclosing": "ButtonProps.children"
+    },
+    {
+      "name": "ButtonProps",
+      "kind": "type",
+      "start": {
+        "line": 14,
+        "column": 53,
+        "offset": 424
+      },
+      "enclosing": "Button"
+    },
+    {
+      "name": "Element",
+      "qualifier": "JSX",
+      "kind": "type",
+      "start": {
+        "line": 14,
+        "column": 71,
+        "offset": 442
+      },
+      "enclosing": "Button"
+    },
+    {
+      "name": "useState",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 28,
+        "offset": 480
+      },
+      "enclosing": "Button"
+    },
+    {
+      "name": "Icon",
+      "kind": "call",
+      "start": {
+        "line": 18,
+        "column": 7,
+        "offset": 548
+      },
+      "enclosing": "Button"
+    },
+    {
+      "name": "Label",
+      "qualifier": "UI",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 10,
+        "offset": 578
+      },
+      "enclosing": "Button"
+    },
+    {
+      "name": "setCount",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 10,
+        "offset": 649
+      },
+      "enclosing": "Button"
+    },
+    {
+      "name": "onClick",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 10,
+        "offset": 680
+      },
+      "enclosing": "Button"
+    },
+    {
+      "name": "FC",
+      "qualifier": "React",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 25,
+        "offset": 789
+      },
+      "enclosing": "Card"
+    },
+    {
+      "name": "Heading",
+      "qualifier": "UI",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 8,
+        "offset": 850
+      },
+      "enclosing": "Card"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 18,
+        "offset": 924
+      },
+      "enclosing": "identity"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 29,
+        "offset": 935
+      },
+      "enclosing": "identity"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 33,
+        "offset": 939
+      },
+      "enclosing": "identity"
+    },
+    {
+      "name": "Component",
+      "qualifier": "React",
+      "kind": "extends",
+      "start": {
+        "line": 40,
+        "column": 41,
+        "offset": 993
+      },
+      "enclosing": "Panel"
+    },
+    {
+      "name": "ButtonProps",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 51,
+        "offset": 1003
+      },
+      "enclosing": "Panel"
+    },
+    {
+      "name": "Button",
+      "kind": "call",
+      "start": {
+        "line": 42,
+        "column": 12,
+        "offset": 1043
+      },
+      "enclosing": "Panel.render"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 5,
+        "column": 30,
+        "offset": 225
+      },
+      "text": "// The tsx dialect: components, hooks, generics in arrow functions and JSX\n// references to other components.\nimport React, { useState, type ReactNode } from \"react\";\nimport * as UI from \"./ui\";\nimport { Icon } from \"./icon\";",
+      "hash": "a37ff6c7b734b0123ebca931bb42bf240755bb3dac82bb6c13c22ec23a9bfc27"
+    },
+    {
+      "id": "ButtonProps#1",
+      "kind": "symbol",
+      "symbolId": "ButtonProps",
+      "start": {
+        "line": 7,
+        "column": 7,
+        "offset": 234
+      },
+      "end": {
+        "line": 11,
+        "column": 1,
+        "offset": 319
+      },
+      "text": "interface ButtonProps {\n  label: string;\n  onClick(): void;\n  children?: ReactNode;\n}",
+      "hash": "99884ac285e16268c19d819243b8030bc32736be01f4bbfc63715a7a2268e5d1"
+    },
+    {
+      "id": "Button#1",
+      "kind": "symbol",
+      "symbolId": "Button",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 321
+      },
+      "end": {
+        "line": 30,
+        "column": 1,
+        "offset": 762
+      },
+      "text": "/** A button with an icon and a click counter. */\nexport function Button({ label, onClick, children }: ButtonProps): JSX.Element {\n  const [count, setCount] = useState\u003cnumber\u003e(0);\n  return (\n    \u003cdiv className=\"button\"\u003e\n      \u003cIcon name=\"star\" /\u003e\n      \u003cUI.Label text={label} /\u003e\n      \u003cbutton\n        onClick={() =\u003e {\n          setCount(count + 1);\n          onClick();\n        }}\n      \u003e\n        {children}\n      \u003c/button\u003e\n    \u003c/div\u003e\n  );\n}",
+      "hash": "ddf0d2026744f3365315a213ef56dec5c8e637dcc3b3da3c2e24b007ca74f6f9"
+    },
+    {
+      "id": "Card#1",
+      "kind": "symbol",
+      "symbolId": "Card",
+      "start": {
+        "line": 32,
+        "column": 13,
+        "offset": 777
+      },
+      "end": {
+        "line": 36,
+        "column": 1,
+        "offset": 903
+      },
+      "text": "Card: React.FC\u003c{ title: string }\u003e = ({ title }) =\u003e (\n  \u003csection\u003e\n    \u003cUI.Heading level={2}\u003e{title}\u003c/UI.Heading\u003e\n  \u003c/section\u003e\n)",
+      "hash": "437c6a752904ae1699ac3c8e27e10116494815cb34d0a72d28470e03ff84569e"
+    },
+    {
+      "id": "identity#1",
+      "kind": "symbol",
+      "symbolId": "identity",
+      "start": {
+        "line": 38,
+        "column": 6,
+        "offset": 912
+      },
+      "end": {
+        "line": 38,
+        "column": 43,
+        "offset": 949
+      },
+      "text": "identity = \u003cT,\u003e(value: T): T =\u003e value",
+      "hash": "37b5f2b0cf471aaba4d229c4f346ec470f4adbafa06de5ca006545a63d7b5b64"
+    },
+    {
+      "id": "Panel#1",
+      "kind": "symbol",
+      "symbolId": "Panel",
+      "start": {
+        "line": 40,
+        "column": 15,
+        "offset": 967
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 1075
+      },
+      "text": "class Panel extends React.Component\u003cButtonProps\u003e {\n  render() {\n    return \u003cButton {...this.props} /\u003e;\n  }\n}",
+      "hash": "4cffd54e341e7ac96939c604709d994fc2cd705cd6b3a5e2c9de4c360535e5e1"
+    }
+  ]
+}

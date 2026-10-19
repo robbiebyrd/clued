@@ -1,0 +1,1770 @@
+{
+  "lang": "typescript",
+  "symbols": [
+    {
+      "id": "PAGE_SIZE",
+      "kind": "const",
+      "name": "PAGE_SIZE",
+      "qualName": "PAGE_SIZE",
+      "signature": "PAGE_SIZE = 50",
+      "doc": "The default page size.",
+      "start": {
+        "line": 6,
+        "column": 13,
+        "offset": 214
+      },
+      "end": {
+        "line": 6,
+        "column": 27,
+        "offset": 228
+      },
+      "exported": true
+    },
+    {
+      "id": "current",
+      "kind": "var",
+      "name": "current",
+      "qualName": "current",
+      "signature": "current: Store | undefined",
+      "start": {
+        "line": 8,
+        "column": 11,
+        "offset": 242
+      },
+      "end": {
+        "line": 8,
+        "column": 37,
+        "offset": 268
+      },
+      "exported": true
+    },
+    {
+      "id": "legacyCounter",
+      "kind": "var",
+      "name": "legacyCounter",
+      "qualName": "legacyCounter",
+      "signature": "legacyCounter = 0",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 275
+      },
+      "end": {
+        "line": 10,
+        "column": 21,
+        "offset": 292
+      }
+    },
+    {
+      "id": "internalCache",
+      "kind": "const",
+      "name": "internalCache",
+      "qualName": "internalCache",
+      "signature": "internalCache = new Map\u003cstring, Entry\u003e()",
+      "start": {
+        "line": 12,
+        "column": 6,
+        "offset": 301
+      },
+      "end": {
+        "line": 12,
+        "column": 46,
+        "offset": 341
+      }
+    },
+    {
+      "id": "format",
+      "kind": "function",
+      "name": "format",
+      "qualName": "format",
+      "signature": "function format(entry: Entry, width = 80): string",
+      "doc": "Formats an entry for display.\n@param entry the entry to format",
+      "start": {
+        "line": 18,
+        "column": 7,
+        "offset": 428
+      },
+      "end": {
+        "line": 20,
+        "column": 1,
+        "offset": 515
+      },
+      "exported": true
+    },
+    {
+      "id": "pad",
+      "kind": "function",
+      "name": "pad",
+      "qualName": "pad",
+      "signature": "function pad(s: string, width: number): string",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 517
+      },
+      "end": {
+        "line": 24,
+        "column": 1,
+        "offset": 593
+      }
+    },
+    {
+      "id": "ids",
+      "kind": "function",
+      "name": "ids",
+      "qualName": "ids",
+      "signature": "function* ids(start: number): Generator\u003cnumber\u003e",
+      "start": {
+        "line": 26,
+        "column": 7,
+        "offset": 602
+      },
+      "end": {
+        "line": 29,
+        "column": 1,
+        "offset": 702
+      },
+      "exported": true
+    },
+    {
+      "id": "parse",
+      "kind": "function",
+      "name": "parse",
+      "qualName": "parse",
+      "signature": "function parse(input: string): Entry;",
+      "doc": "Overloads: two signatures and the implementation.",
+      "start": {
+        "line": 32,
+        "column": 7,
+        "offset": 764
+      },
+      "end": {
+        "line": 32,
+        "column": 44,
+        "offset": 801
+      },
+      "exported": true
+    },
+    {
+      "id": "parse~2",
+      "kind": "function",
+      "name": "parse",
+      "qualName": "parse",
+      "signature": "function parse(input: Buffer): Entry;",
+      "start": {
+        "line": 33,
+        "column": 7,
+        "offset": 809
+      },
+      "end": {
+        "line": 33,
+        "column": 44,
+        "offset": 846
+      },
+      "exported": true
+    },
+    {
+      "id": "parse~3",
+      "kind": "function",
+      "name": "parse",
+      "qualName": "parse",
+      "signature": "function parse(input: string | Buffer): Entry",
+      "start": {
+        "line": 34,
+        "column": 7,
+        "offset": 854
+      },
+      "end": {
+        "line": 36,
+        "column": 1,
+        "offset": 942
+      },
+      "exported": true
+    },
+    {
+      "id": "toKey",
+      "kind": "function",
+      "name": "toKey",
+      "qualName": "toKey",
+      "signature": "toKey = (entry: Entry): string =\u003e `${entry.id}`",
+      "start": {
+        "line": 38,
+        "column": 13,
+        "offset": 957
+      },
+      "end": {
+        "line": 38,
+        "column": 60,
+        "offset": 1004
+      },
+      "exported": true
+    },
+    {
+      "id": "compare",
+      "kind": "function",
+      "name": "compare",
+      "qualName": "compare",
+      "signature": "compare = function byTitle(a: Entry, b: Entry): number",
+      "start": {
+        "line": 40,
+        "column": 6,
+        "offset": 1013
+      },
+      "end": {
+        "line": 42,
+        "column": 1,
+        "offset": 1112
+      }
+    },
+    {
+      "id": "Entry",
+      "kind": "interface",
+      "name": "Entry",
+      "qualName": "Entry",
+      "signature": "interface Entry",
+      "doc": "An entry of the store.",
+      "start": {
+        "line": 45,
+        "column": 7,
+        "offset": 1152
+      },
+      "end": {
+        "line": 50,
+        "column": 1,
+        "offset": 1259
+      },
+      "exported": true
+    },
+    {
+      "id": "Entry.id",
+      "kind": "field",
+      "name": "id",
+      "qualName": "Entry.id",
+      "signature": "id: number",
+      "start": {
+        "line": 46,
+        "column": 2,
+        "offset": 1172
+      },
+      "end": {
+        "line": 46,
+        "column": 12,
+        "offset": 1182
+      },
+      "parent": "Entry",
+      "exported": true
+    },
+    {
+      "id": "Entry.title",
+      "kind": "field",
+      "name": "title",
+      "qualName": "Entry.title",
+      "signature": "title: string",
+      "start": {
+        "line": 47,
+        "column": 2,
+        "offset": 1186
+      },
+      "end": {
+        "line": 47,
+        "column": 15,
+        "offset": 1199
+      },
+      "parent": "Entry",
+      "exported": true
+    },
+    {
+      "id": "Entry.tags",
+      "kind": "field",
+      "name": "tags",
+      "qualName": "Entry.tags",
+      "signature": "tags?: string[]",
+      "start": {
+        "line": 48,
+        "column": 2,
+        "offset": 1203
+      },
+      "end": {
+        "line": 48,
+        "column": 17,
+        "offset": 1218
+      },
+      "parent": "Entry",
+      "exported": true
+    },
+    {
+      "id": "Entry.describe",
+      "kind": "method",
+      "name": "describe",
+      "qualName": "Entry.describe",
+      "signature": "describe(verbose: boolean): string",
+      "start": {
+        "line": 49,
+        "column": 2,
+        "offset": 1222
+      },
+      "end": {
+        "line": 49,
+        "column": 36,
+        "offset": 1256
+      },
+      "parent": "Entry",
+      "exported": true
+    },
+    {
+      "id": "EntryID",
+      "kind": "type",
+      "name": "EntryID",
+      "qualName": "EntryID",
+      "signature": "type EntryID = Entry[\"id\"];",
+      "start": {
+        "line": 52,
+        "column": 7,
+        "offset": 1268
+      },
+      "end": {
+        "line": 52,
+        "column": 34,
+        "offset": 1295
+      },
+      "exported": true
+    },
+    {
+      "id": "Options",
+      "kind": "type",
+      "name": "Options",
+      "qualName": "Options",
+      "signature": "type Options =",
+      "start": {
+        "line": 54,
+        "column": 7,
+        "offset": 1304
+      },
+      "end": {
+        "line": 57,
+        "column": 2,
+        "offset": 1373
+      },
+      "exported": true
+    },
+    {
+      "id": "Options.limit",
+      "kind": "field",
+      "name": "limit",
+      "qualName": "Options.limit",
+      "signature": "limit: number",
+      "start": {
+        "line": 55,
+        "column": 2,
+        "offset": 1323
+      },
+      "end": {
+        "line": 55,
+        "column": 15,
+        "offset": 1336
+      },
+      "parent": "Options",
+      "exported": true
+    },
+    {
+      "id": "Options.filter",
+      "kind": "method",
+      "name": "filter",
+      "qualName": "Options.filter",
+      "signature": "filter(entry: Entry): boolean",
+      "start": {
+        "line": 56,
+        "column": 2,
+        "offset": 1340
+      },
+      "end": {
+        "line": 56,
+        "column": 31,
+        "offset": 1369
+      },
+      "parent": "Options",
+      "exported": true
+    },
+    {
+      "id": "Callback",
+      "kind": "type",
+      "name": "Callback",
+      "qualName": "Callback",
+      "signature": "type Callback\u003cT\u003e = (err: Error | null, value?: T) =\u003e void;",
+      "start": {
+        "line": 59,
+        "column": 0,
+        "offset": 1375
+      },
+      "end": {
+        "line": 59,
+        "column": 58,
+        "offset": 1433
+      }
+    },
+    {
+      "id": "Kind",
+      "kind": "enum",
+      "name": "Kind",
+      "qualName": "Kind",
+      "signature": "enum Kind",
+      "doc": "How an entry is stored.",
+      "start": {
+        "line": 62,
+        "column": 7,
+        "offset": 1473
+      },
+      "end": {
+        "line": 66,
+        "column": 1,
+        "offset": 1524
+      },
+      "exported": true
+    },
+    {
+      "id": "Kind.Note",
+      "kind": "const",
+      "name": "Note",
+      "qualName": "Kind.Note",
+      "signature": "Note",
+      "start": {
+        "line": 63,
+        "column": 2,
+        "offset": 1487
+      },
+      "end": {
+        "line": 63,
+        "column": 6,
+        "offset": 1491
+      },
+      "parent": "Kind",
+      "exported": true
+    },
+    {
+      "id": "Kind.Task",
+      "kind": "const",
+      "name": "Task",
+      "qualName": "Kind.Task",
+      "signature": "Task = \"task\"",
+      "start": {
+        "line": 64,
+        "column": 2,
+        "offset": 1495
+      },
+      "end": {
+        "line": 64,
+        "column": 15,
+        "offset": 1508
+      },
+      "parent": "Kind",
+      "exported": true
+    },
+    {
+      "id": "Kind.Event",
+      "kind": "const",
+      "name": "Event",
+      "qualName": "Kind.Event",
+      "signature": "Event = 3",
+      "start": {
+        "line": 65,
+        "column": 2,
+        "offset": 1512
+      },
+      "end": {
+        "line": 65,
+        "column": 11,
+        "offset": 1521
+      },
+      "parent": "Kind",
+      "exported": true
+    },
+    {
+      "id": "Flag",
+      "kind": "enum",
+      "name": "Flag",
+      "qualName": "Flag",
+      "signature": "const enum Flag",
+      "start": {
+        "line": 68,
+        "column": 0,
+        "offset": 1526
+      },
+      "end": {
+        "line": 71,
+        "column": 1,
+        "offset": 1576
+      }
+    },
+    {
+      "id": "Flag.None",
+      "kind": "const",
+      "name": "None",
+      "qualName": "Flag.None",
+      "signature": "None = 0",
+      "start": {
+        "line": 69,
+        "column": 2,
+        "offset": 1546
+      },
+      "end": {
+        "line": 69,
+        "column": 10,
+        "offset": 1554
+      },
+      "parent": "Flag",
+      "exported": true
+    },
+    {
+      "id": "Flag.Pinned",
+      "kind": "const",
+      "name": "Pinned",
+      "qualName": "Flag.Pinned",
+      "signature": "Pinned = 1 \u003c\u003c 0",
+      "start": {
+        "line": 70,
+        "column": 2,
+        "offset": 1558
+      },
+      "end": {
+        "line": 70,
+        "column": 17,
+        "offset": 1573
+      },
+      "parent": "Flag",
+      "exported": true
+    },
+    {
+      "id": "Store",
+      "kind": "class",
+      "name": "Store",
+      "qualName": "Store",
+      "signature": "class Store implements Iterable\u003cEntry\u003e",
+      "doc": "A store of entries, kept in memory.",
+      "start": {
+        "line": 74,
+        "column": 7,
+        "offset": 1628
+      },
+      "end": {
+        "line": 111,
+        "column": 1,
+        "offset": 2392
+      },
+      "exported": true
+    },
+    {
+      "id": "Store.instances",
+      "kind": "field",
+      "name": "instances",
+      "qualName": "Store.instances",
+      "signature": "static instances = 0",
+      "start": {
+        "line": 75,
+        "column": 2,
+        "offset": 1671
+      },
+      "end": {
+        "line": 75,
+        "column": 22,
+        "offset": 1691
+      },
+      "parent": "Store",
+      "exported": true
+    },
+    {
+      "id": "Store.name",
+      "kind": "field",
+      "name": "name",
+      "qualName": "Store.name",
+      "signature": "readonly name: string",
+      "start": {
+        "line": 76,
+        "column": 2,
+        "offset": 1695
+      },
+      "end": {
+        "line": 76,
+        "column": 23,
+        "offset": 1716
+      },
+      "parent": "Store",
+      "exported": true
+    },
+    {
+      "id": "Store.entries",
+      "kind": "field",
+      "name": "entries",
+      "qualName": "Store.entries",
+      "signature": "protected entries: Entry[] = []",
+      "start": {
+        "line": 77,
+        "column": 2,
+        "offset": 1720
+      },
+      "end": {
+        "line": 77,
+        "column": 33,
+        "offset": 1751
+      },
+      "parent": "Store"
+    },
+    {
+      "id": "Store.dirty",
+      "kind": "field",
+      "name": "dirty",
+      "qualName": "Store.dirty",
+      "signature": "private dirty = false",
+      "start": {
+        "line": 78,
+        "column": 2,
+        "offset": 1755
+      },
+      "end": {
+        "line": 78,
+        "column": 23,
+        "offset": 1776
+      },
+      "parent": "Store"
+    },
+    {
+      "id": "Store.#secret",
+      "kind": "field",
+      "name": "#secret",
+      "qualName": "Store.#secret",
+      "signature": "#secret = \"s3cr3t\"",
+      "start": {
+        "line": 79,
+        "column": 2,
+        "offset": 1780
+      },
+      "end": {
+        "line": 79,
+        "column": 20,
+        "offset": 1798
+      },
+      "parent": "Store"
+    },
+    {
+      "id": "Store.constructor",
+      "kind": "method",
+      "name": "constructor",
+      "qualName": "Store.constructor",
+      "signature": "constructor(name: string)",
+      "start": {
+        "line": 81,
+        "column": 2,
+        "offset": 1803
+      },
+      "end": {
+        "line": 84,
+        "column": 3,
+        "offset": 1879
+      },
+      "parent": "Store",
+      "exported": true
+    },
+    {
+      "id": "Store.add",
+      "kind": "method",
+      "name": "add",
+      "qualName": "Store.add",
+      "signature": "add(entry: Entry): void",
+      "doc": "Adds an entry and marks the store dirty.",
+      "start": {
+        "line": 87,
+        "column": 2,
+        "offset": 1933
+      },
+      "end": {
+        "line": 90,
+        "column": 3,
+        "offset": 2010
+      },
+      "parent": "Store",
+      "exported": true
+    },
+    {
+      "id": "Store.size",
+      "kind": "method",
+      "name": "size",
+      "qualName": "Store.size",
+      "signature": "get size(): number",
+      "start": {
+        "line": 92,
+        "column": 2,
+        "offset": 2014
+      },
+      "end": {
+        "line": 94,
+        "column": 3,
+        "offset": 2070
+      },
+      "parent": "Store",
+      "exported": true
+    },
+    {
+      "id": "Store.touch",
+      "kind": "method",
+      "name": "touch",
+      "qualName": "Store.touch",
+      "signature": "private touch(): void",
+      "start": {
+        "line": 96,
+        "column": 2,
+        "offset": 2074
+      },
+      "end": {
+        "line": 98,
+        "column": 3,
+        "offset": 2124
+      },
+      "parent": "Store"
+    },
+    {
+      "id": "Store.#rotate",
+      "kind": "method",
+      "name": "#rotate",
+      "qualName": "Store.#rotate",
+      "signature": "#rotate(): void",
+      "start": {
+        "line": 100,
+        "column": 2,
+        "offset": 2128
+      },
+      "end": {
+        "line": 102,
+        "column": 3,
+        "offset": 2211
+      },
+      "parent": "Store"
+    },
+    {
+      "id": "Exporter",
+      "kind": "class",
+      "name": "Exporter",
+      "qualName": "Exporter",
+      "signature": "abstract class Exporter\u003cT\u003e",
+      "start": {
+        "line": 113,
+        "column": 7,
+        "offset": 2401
+      },
+      "end": {
+        "line": 123,
+        "column": 1,
+        "offset": 2646
+      },
+      "exported": true
+    },
+    {
+      "id": "Exporter.write",
+      "kind": "method",
+      "name": "write",
+      "qualName": "Exporter.write",
+      "signature": "abstract write(item: T): Promise\u003cvoid\u003e",
+      "start": {
+        "line": 114,
+        "column": 2,
+        "offset": 2432
+      },
+      "end": {
+        "line": 114,
+        "column": 40,
+        "offset": 2470
+      },
+      "parent": "Exporter",
+      "exported": true
+    },
+    {
+      "id": "Exporter.flush",
+      "kind": "method",
+      "name": "flush",
+      "qualName": "Exporter.flush",
+      "signature": "protected abstract flush(): void",
+      "start": {
+        "line": 115,
+        "column": 2,
+        "offset": 2474
+      },
+      "end": {
+        "line": 115,
+        "column": 34,
+        "offset": 2506
+      },
+      "parent": "Exporter"
+    },
+    {
+      "id": "Exporter.writeAll",
+      "kind": "method",
+      "name": "writeAll",
+      "qualName": "Exporter.writeAll",
+      "signature": "async writeAll(items: T[]): Promise\u003cvoid\u003e",
+      "start": {
+        "line": 117,
+        "column": 2,
+        "offset": 2511
+      },
+      "end": {
+        "line": 122,
+        "column": 3,
+        "offset": 2644
+      },
+      "parent": "Exporter",
+      "exported": true
+    },
+    {
+      "id": "Storage.Disk",
+      "kind": "namespace",
+      "name": "Storage.Disk",
+      "qualName": "Storage.Disk",
+      "signature": "namespace Storage.Disk",
+      "start": {
+        "line": 125,
+        "column": 7,
+        "offset": 2655
+      },
+      "end": {
+        "line": 134,
+        "column": 1,
+        "offset": 2860
+      },
+      "exported": true
+    },
+    {
+      "id": "Storage.Disk.ROOT",
+      "kind": "const",
+      "name": "ROOT",
+      "qualName": "Storage.Disk.ROOT",
+      "signature": "ROOT = \"/var/lib/store\"",
+      "start": {
+        "line": 126,
+        "column": 15,
+        "offset": 2695
+      },
+      "end": {
+        "line": 126,
+        "column": 38,
+        "offset": 2718
+      },
+      "parent": "Storage.Disk",
+      "exported": true
+    },
+    {
+      "id": "Storage.Disk.path",
+      "kind": "function",
+      "name": "path",
+      "qualName": "Storage.Disk.path",
+      "signature": "function path(id: number): string",
+      "start": {
+        "line": 127,
+        "column": 9,
+        "offset": 2729
+      },
+      "end": {
+        "line": 129,
+        "column": 3,
+        "offset": 2796
+      },
+      "parent": "Storage.Disk",
+      "exported": true
+    },
+    {
+      "id": "Storage.Disk.opened",
+      "kind": "var",
+      "name": "opened",
+      "qualName": "Storage.Disk.opened",
+      "signature": "opened = 0",
+      "start": {
+        "line": 130,
+        "column": 6,
+        "offset": 2803
+      },
+      "end": {
+        "line": 130,
+        "column": 16,
+        "offset": 2813
+      },
+      "parent": "Storage.Disk"
+    },
+    {
+      "id": "Storage.Disk.open",
+      "kind": "function",
+      "name": "open",
+      "qualName": "Storage.Disk.open",
+      "signature": "function open(): void",
+      "start": {
+        "line": 131,
+        "column": 2,
+        "offset": 2817
+      },
+      "end": {
+        "line": 133,
+        "column": 3,
+        "offset": 2858
+      },
+      "parent": "Storage.Disk"
+    },
+    {
+      "id": "Internal",
+      "kind": "namespace",
+      "name": "Internal",
+      "qualName": "Internal",
+      "signature": "namespace Internal",
+      "start": {
+        "line": 136,
+        "column": 0,
+        "offset": 2862
+      },
+      "end": {
+        "line": 138,
+        "column": 1,
+        "offset": 2907
+      }
+    },
+    {
+      "id": "Internal.Lock",
+      "kind": "class",
+      "name": "Lock",
+      "qualName": "Internal.Lock",
+      "signature": "class Lock",
+      "start": {
+        "line": 137,
+        "column": 9,
+        "offset": 2892
+      },
+      "end": {
+        "line": 137,
+        "column": 22,
+        "offset": 2905
+      },
+      "parent": "Internal",
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "Store",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 20,
+        "offset": 251
+      },
+      "enclosing": "current"
+    },
+    {
+      "name": "Map",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 26,
+        "offset": 321
+      },
+      "enclosing": "internalCache"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 38,
+        "offset": 333
+      },
+      "enclosing": "internalCache"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 30,
+        "offset": 451
+      },
+      "enclosing": "format"
+    },
+    {
+      "name": "pad",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 9,
+        "offset": 489
+      },
+      "enclosing": "format"
+    },
+    {
+      "name": "padEnd",
+      "qualifier": "s",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 11,
+        "offset": 577
+      },
+      "enclosing": "pad"
+    },
+    {
+      "name": "Generator",
+      "kind": "type",
+      "start": {
+        "line": 26,
+        "column": 37,
+        "offset": 632
+      },
+      "enclosing": "ids"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 38,
+        "offset": 795
+      },
+      "enclosing": "parse"
+    },
+    {
+      "name": "Buffer",
+      "kind": "type",
+      "start": {
+        "line": 33,
+        "column": 29,
+        "offset": 831
+      },
+      "enclosing": "parse~2"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 33,
+        "column": 38,
+        "offset": 840
+      },
+      "enclosing": "parse~2"
+    },
+    {
+      "name": "Buffer",
+      "kind": "type",
+      "start": {
+        "line": 34,
+        "column": 38,
+        "offset": 885
+      },
+      "enclosing": "parse~3"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 34,
+        "column": 47,
+        "offset": 894
+      },
+      "enclosing": "parse~3"
+    },
+    {
+      "name": "parse",
+      "qualifier": "JSON",
+      "kind": "call",
+      "start": {
+        "line": 35,
+        "column": 14,
+        "offset": 916
+      },
+      "enclosing": "parse~3"
+    },
+    {
+      "name": "toString",
+      "qualifier": "input",
+      "kind": "call",
+      "start": {
+        "line": 35,
+        "column": 26,
+        "offset": 928
+      },
+      "enclosing": "parse~3"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 29,
+        "offset": 973
+      },
+      "enclosing": "toKey"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 36,
+        "offset": 1043
+      },
+      "enclosing": "compare"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 46,
+        "offset": 1053
+      },
+      "enclosing": "compare"
+    },
+    {
+      "name": "localeCompare",
+      "qualifier": "a.title",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 17,
+        "offset": 1087
+      },
+      "enclosing": "compare"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 52,
+        "column": 22,
+        "offset": 1283
+      },
+      "enclosing": "EntryID"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 16,
+        "offset": 1354
+      },
+      "enclosing": "Options.filter"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 14,
+        "offset": 1389
+      },
+      "enclosing": "Callback"
+    },
+    {
+      "name": "Error",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 25,
+        "offset": 1400
+      },
+      "enclosing": "Callback"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 47,
+        "offset": 1422
+      },
+      "enclosing": "Callback"
+    },
+    {
+      "name": "Iterable",
+      "kind": "implements",
+      "start": {
+        "line": 74,
+        "column": 30,
+        "offset": 1651
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "Iterable",
+      "kind": "type",
+      "start": {
+        "line": 74,
+        "column": 30,
+        "offset": 1651
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 74,
+        "column": 39,
+        "offset": 1660
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 77,
+        "column": 21,
+        "offset": 1739
+      },
+      "enclosing": "Store.entries"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 87,
+        "column": 13,
+        "offset": 1944
+      },
+      "enclosing": "Store.add"
+    },
+    {
+      "name": "push",
+      "qualifier": "this.entries",
+      "kind": "call",
+      "start": {
+        "line": 88,
+        "column": 17,
+        "offset": 1976
+      },
+      "enclosing": "Store.add"
+    },
+    {
+      "name": "touch",
+      "qualifier": "this",
+      "kind": "call",
+      "start": {
+        "line": 89,
+        "column": 9,
+        "offset": 1998
+      },
+      "enclosing": "Store.add"
+    },
+    {
+      "name": "split",
+      "qualifier": "this.#secret",
+      "kind": "call",
+      "start": {
+        "line": 101,
+        "column": 32,
+        "offset": 2178
+      },
+      "enclosing": "Store.#rotate"
+    },
+    {
+      "name": "reverse",
+      "qualifier": "this.#secret.split(\"\")",
+      "kind": "call",
+      "start": {
+        "line": 101,
+        "column": 42,
+        "offset": 2188
+      },
+      "enclosing": "Store.#rotate"
+    },
+    {
+      "name": "join",
+      "qualifier": "this.#secret.split(\"\").reverse()",
+      "kind": "call",
+      "start": {
+        "line": 101,
+        "column": 52,
+        "offset": 2198
+      },
+      "enclosing": "Store.#rotate"
+    },
+    {
+      "name": "AsyncGenerator",
+      "kind": "type",
+      "start": {
+        "line": 104,
+        "column": 35,
+        "offset": 2248
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 104,
+        "column": 50,
+        "offset": 2263
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "Iterator",
+      "kind": "type",
+      "start": {
+        "line": 108,
+        "column": 23,
+        "offset": 2325
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 108,
+        "column": 32,
+        "offset": 2334
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 113,
+        "column": 31,
+        "offset": 2425
+      },
+      "enclosing": "Exporter"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 114,
+        "column": 23,
+        "offset": 2453
+      },
+      "enclosing": "Exporter.write"
+    },
+    {
+      "name": "Promise",
+      "kind": "type",
+      "start": {
+        "line": 114,
+        "column": 27,
+        "offset": 2457
+      },
+      "enclosing": "Exporter.write"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 117,
+        "column": 24,
+        "offset": 2533
+      },
+      "enclosing": "Exporter.writeAll"
+    },
+    {
+      "name": "Promise",
+      "kind": "type",
+      "start": {
+        "line": 117,
+        "column": 30,
+        "offset": 2539
+      },
+      "enclosing": "Exporter.writeAll"
+    },
+    {
+      "name": "write",
+      "qualifier": "this",
+      "kind": "call",
+      "start": {
+        "line": 119,
+        "column": 17,
+        "offset": 2604
+      },
+      "enclosing": "Exporter.writeAll"
+    },
+    {
+      "name": "flush",
+      "qualifier": "this",
+      "kind": "call",
+      "start": {
+        "line": 121,
+        "column": 9,
+        "offset": 2632
+      },
+      "enclosing": "Exporter.writeAll"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 12,
+        "column": 47,
+        "offset": 342
+      },
+      "text": "// Definitions of every kind TypeScript has: functions, classes and their\n// members, interfaces, type aliases, enums, namespaces, modules and\n// module-level variables.\n\n/** The default page size. */\nexport const PAGE_SIZE = 50;\n\nexport let current: Store | undefined;\n\nvar legacyCounter = 0;\n\nconst internalCache = new Map\u003cstring, Entry\u003e();",
+      "hash": "a5eae11099d6d685e9c77ca87d338ff3e4484566803e360ca6a82ba8c74b73ad"
+    },
+    {
+      "id": "format#1",
+      "kind": "symbol",
+      "symbolId": "format",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 344
+      },
+      "end": {
+        "line": 20,
+        "column": 1,
+        "offset": 515
+      },
+      "text": "/**\n * Formats an entry for display.\n * @param entry the entry to format\n */\nexport function format(entry: Entry, width = 80): string {\n  return pad(entry.title, width);\n}",
+      "hash": "369f1ba343aa2babbec86f5102fb426065d1f5deee9dd300d79ed971231b3aa7"
+    },
+    {
+      "id": "pad#1",
+      "kind": "symbol",
+      "symbolId": "pad",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 517
+      },
+      "end": {
+        "line": 24,
+        "column": 1,
+        "offset": 593
+      },
+      "text": "function pad(s: string, width: number): string {\n  return s.padEnd(width);\n}",
+      "hash": "bf5c194f1c16a0cd4cdc37266aa63f0de1709a0c5f4de58f26dea7d9f549b509"
+    },
+    {
+      "id": "ids#1",
+      "kind": "symbol",
+      "symbolId": "ids",
+      "start": {
+        "line": 26,
+        "column": 7,
+        "offset": 602
+      },
+      "end": {
+        "line": 29,
+        "column": 1,
+        "offset": 702
+      },
+      "text": "function* ids(start: number): Generator\u003cnumber\u003e {\n  let next = start;\n  while (true) yield next++;\n}",
+      "hash": "79953f673bc7886fa2eb25dcd41d1822e9f0c7d5b68044bf2c8aca63f99e1097"
+    },
+    {
+      "id": "parse#1",
+      "kind": "symbol",
+      "symbolId": "parse",
+      "start": {
+        "line": 31,
+        "column": 0,
+        "offset": 704
+      },
+      "end": {
+        "line": 32,
+        "column": 44,
+        "offset": 801
+      },
+      "text": "// Overloads: two signatures and the implementation.\nexport function parse(input: string): Entry;",
+      "hash": "ec392502ff30e393928568c7aff81f8180c4cb14fa1eb7f53a6dc218dcceca2a"
+    },
+    {
+      "id": "parse~2#1",
+      "kind": "symbol",
+      "symbolId": "parse~2",
+      "start": {
+        "line": 33,
+        "column": 7,
+        "offset": 809
+      },
+      "end": {
+        "line": 33,
+        "column": 44,
+        "offset": 846
+      },
+      "text": "function parse(input: Buffer): Entry;",
+      "hash": "4c2b4d4510b250e6ed63eb2a18ab7d57248166aeb99f29783605235939f984db"
+    },
+    {
+      "id": "parse~3#1",
+      "kind": "symbol",
+      "symbolId": "parse~3",
+      "start": {
+        "line": 34,
+        "column": 7,
+        "offset": 854
+      },
+      "end": {
+        "line": 36,
+        "column": 1,
+        "offset": 942
+      },
+      "text": "function parse(input: string | Buffer): Entry {\n  return JSON.parse(input.toString());\n}",
+      "hash": "aca56f1e8c5498a146d13fcf467c30e8ebb881b8b9928bf0c8fbf7ae7914009f"
+    },
+    {
+      "id": "toKey#1",
+      "kind": "symbol",
+      "symbolId": "toKey",
+      "start": {
+        "line": 38,
+        "column": 13,
+        "offset": 957
+      },
+      "end": {
+        "line": 38,
+        "column": 60,
+        "offset": 1004
+      },
+      "text": "toKey = (entry: Entry): string =\u003e `${entry.id}`",
+      "hash": "fa9cca59ebba016ddf82cbaeacaec60f43e7c26dee3897d0e7213b52cf60c29e"
+    },
+    {
+      "id": "compare#1",
+      "kind": "symbol",
+      "symbolId": "compare",
+      "start": {
+        "line": 40,
+        "column": 6,
+        "offset": 1013
+      },
+      "end": {
+        "line": 42,
+        "column": 1,
+        "offset": 1112
+      },
+      "text": "compare = function byTitle(a: Entry, b: Entry): number {\n  return a.title.localeCompare(b.title);\n}",
+      "hash": "297ad4373e6766f4bc1770e20730d4ad3e0f20718a5d40acacdce1ed1c9b0bde"
+    },
+    {
+      "id": "Entry#1",
+      "kind": "symbol",
+      "symbolId": "Entry",
+      "start": {
+        "line": 44,
+        "column": 0,
+        "offset": 1115
+      },
+      "end": {
+        "line": 50,
+        "column": 1,
+        "offset": 1259
+      },
+      "text": "/** An entry of the store. */\nexport interface Entry {\n  id: number;\n  title: string;\n  tags?: string[];\n  describe(verbose: boolean): string;\n}",
+      "hash": "6063bcf3a4f881cd4e68e141acf2bb618c0bc627f270f5d597b6c43f79aa6a69"
+    },
+    {
+      "id": "EntryID#1",
+      "kind": "symbol",
+      "symbolId": "EntryID",
+      "start": {
+        "line": 52,
+        "column": 7,
+        "offset": 1268
+      },
+      "end": {
+        "line": 52,
+        "column": 34,
+        "offset": 1295
+      },
+      "text": "type EntryID = Entry[\"id\"];",
+      "hash": "cf866642c82dae247656b7df4090ba95b99bfb78c9ceddaa3f02fee05dfb6feb"
+    },
+    {
+      "id": "Options#1",
+      "kind": "symbol",
+      "symbolId": "Options",
+      "start": {
+        "line": 54,
+        "column": 7,
+        "offset": 1304
+      },
+      "end": {
+        "line": 57,
+        "column": 2,
+        "offset": 1373
+      },
+      "text": "type Options = {\n  limit: number;\n  filter(entry: Entry): boolean;\n};",
+      "hash": "c6f0401ed1af20276ca366c90b6c0c32b9be8034855d00be5229e717878cf445"
+    },
+    {
+      "id": "Callback#1",
+      "kind": "symbol",
+      "symbolId": "Callback",
+      "start": {
+        "line": 59,
+        "column": 0,
+        "offset": 1375
+      },
+      "end": {
+        "line": 59,
+        "column": 58,
+        "offset": 1433
+      },
+      "text": "type Callback\u003cT\u003e = (err: Error | null, value?: T) =\u003e void;",
+      "hash": "5a384f9bef72fac725e9c4cdfbefcbb53ae2135336c8dfa021a8e06b9470b20c"
+    },
+    {
+      "id": "Kind#1",
+      "kind": "symbol",
+      "symbolId": "Kind",
+      "start": {
+        "line": 61,
+        "column": 0,
+        "offset": 1435
+      },
+      "end": {
+        "line": 66,
+        "column": 1,
+        "offset": 1524
+      },
+      "text": "/** How an entry is stored. */\nexport enum Kind {\n  Note,\n  Task = \"task\",\n  Event = 3,\n}",
+      "hash": "ae72209ded2f929d6e084c6dcfdc5ef1e8309c842602ed688444df8747fa789d"
+    },
+    {
+      "id": "Flag#1",
+      "kind": "symbol",
+      "symbolId": "Flag",
+      "start": {
+        "line": 68,
+        "column": 0,
+        "offset": 1526
+      },
+      "end": {
+        "line": 71,
+        "column": 1,
+        "offset": 1576
+      },
+      "text": "const enum Flag {\n  None = 0,\n  Pinned = 1 \u003c\u003c 0,\n}",
+      "hash": "84469dbf17537c1a2fc217e94b75d3b8818ed8566a341a94b33f1d228a1fde1a"
+    },
+    {
+      "id": "Store#1",
+      "kind": "symbol",
+      "symbolId": "Store",
+      "start": {
+        "line": 73,
+        "column": 0,
+        "offset": 1578
+      },
+      "end": {
+        "line": 111,
+        "column": 1,
+        "offset": 2392
+      },
+      "text": "/** A store of entries, kept in memory. */\nexport class Store implements Iterable\u003cEntry\u003e {\n  static instances = 0;\n  readonly name: string;\n  protected entries: Entry[] = [];\n  private dirty = false;\n  #secret = \"s3cr3t\";\n\n  constructor(name: string) {\n    this.name = name;\n    Store.instances++;\n  }\n\n  /** Adds an entry and marks the store dirty. */\n  add(entry: Entry): void {\n    this.entries.push(entry);\n    this.touch();\n  }\n\n  get size(): number {\n    return this.entries.length;\n  }\n\n  private touch(): void {\n    this.dirty = true;\n  }\n\n  #rotate(): void {\n    this.#secret = this.#secret.split(\"\").reverse().join(\"\");\n  }\n\n  async *[Symbol.asyncIterator](): AsyncGenerator\u003cEntry\u003e {\n    yield* this.entries;\n  }\n\n  [Symbol.iterator](): Iterator\u003cEntry\u003e {\n    return this.entries[Symbol.iterator]();\n  }\n}",
+      "hash": "4e107a4f09090c75035441066ba6cfe4d423209bf222f3e0923f872692a547e1"
+    },
+    {
+      "id": "Exporter#1",
+      "kind": "symbol",
+      "symbolId": "Exporter",
+      "start": {
+        "line": 113,
+        "column": 7,
+        "offset": 2401
+      },
+      "end": {
+        "line": 123,
+        "column": 1,
+        "offset": 2646
+      },
+      "text": "abstract class Exporter\u003cT\u003e {\n  abstract write(item: T): Promise\u003cvoid\u003e;\n  protected abstract flush(): void;\n\n  async writeAll(items: T[]): Promise\u003cvoid\u003e {\n    for (const item of items) {\n      await this.write(item);\n    }\n    this.flush();\n  }\n}",
+      "hash": "0df06b5efa220edc9cd6a55f9f1b07d94850b9bb347c181d20950ace5477bf17"
+    },
+    {
+      "id": "L125#1",
+      "kind": "window",
+      "start": {
+        "line": 125,
+        "column": 0,
+        "offset": 2648
+      },
+      "end": {
+        "line": 126,
+        "column": 39,
+        "offset": 2719
+      },
+      "text": "export namespace Storage.Disk {\n  export const ROOT = \"/var/lib/store\";",
+      "hash": "26d56442d31a37efe3959a8317fea9747ae05f3d87a9eba7e609e675f4a7a1cb"
+    },
+    {
+      "id": "Storage.Disk.path#1",
+      "kind": "symbol",
+      "symbolId": "Storage.Disk.path",
+      "start": {
+        "line": 127,
+        "column": 9,
+        "offset": 2729
+      },
+      "end": {
+        "line": 129,
+        "column": 3,
+        "offset": 2796
+      },
+      "text": "function path(id: number): string {\n    return `${ROOT}/${id}`;\n  }",
+      "hash": "13218b3da5b4ceab8fe6fe3d17795bca08016b63d42be8b1958e01663543e128"
+    },
+    {
+      "id": "Storage.Disk.open#1",
+      "kind": "symbol",
+      "symbolId": "Storage.Disk.open",
+      "start": {
+        "line": 131,
+        "column": 0,
+        "offset": 2815
+      },
+      "end": {
+        "line": 133,
+        "column": 3,
+        "offset": 2858
+      },
+      "text": "  function open(): void {\n    opened++;\n  }",
+      "hash": "3f746d6c355867da685307d6445d827815b9c6df8e4953455500ff1e1f925c6e"
+    },
+    {
+      "id": "L134#1",
+      "kind": "window",
+      "start": {
+        "line": 134,
+        "column": 0,
+        "offset": 2859
+      },
+      "end": {
+        "line": 136,
+        "column": 20,
+        "offset": 2882
+      },
+      "text": "}\n\nnamespace Internal {",
+      "hash": "5e4f1d72f298296ff87b42c80504410c9b9122cfa1ea15e4674d48499ffcd62b"
+    },
+    {
+      "id": "Internal.Lock#1",
+      "kind": "symbol",
+      "symbolId": "Internal.Lock",
+      "start": {
+        "line": 137,
+        "column": 9,
+        "offset": 2892
+      },
+      "end": {
+        "line": 137,
+        "column": 22,
+        "offset": 2905
+      },
+      "text": "class Lock {}",
+      "hash": "88d402b5fd472d86c969c118ea63b44e62429020f873b68321bb303279de7cfe"
+    }
+  ]
+}

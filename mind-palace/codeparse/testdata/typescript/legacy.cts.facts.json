@@ -1,0 +1,234 @@
+{
+  "lang": "typescript",
+  "symbols": [
+    {
+      "id": "express",
+      "kind": "const",
+      "name": "express",
+      "qualName": "express",
+      "signature": "express = require(\"express\")",
+      "start": {
+        "line": 3,
+        "column": 6,
+        "offset": 123
+      },
+      "end": {
+        "line": 3,
+        "column": 34,
+        "offset": 151
+      }
+    },
+    {
+      "id": "router",
+      "kind": "const",
+      "name": "router",
+      "qualName": "router",
+      "signature": "router = Router()",
+      "start": {
+        "line": 7,
+        "column": 6,
+        "offset": 242
+      },
+      "end": {
+        "line": 7,
+        "column": 23,
+        "offset": 259
+      }
+    },
+    {
+      "id": "handler",
+      "kind": "function",
+      "name": "handler",
+      "qualName": "handler",
+      "signature": "function handler(req: Request, res: Response): void",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 262
+      },
+      "end": {
+        "line": 12,
+        "column": 1,
+        "offset": 373
+      }
+    }
+  ],
+  "imports": [
+    {
+      "spec": "node:assert",
+      "alias": "assert",
+      "kind": "require",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 77
+      }
+    },
+    {
+      "spec": "express",
+      "alias": "express",
+      "kind": "require",
+      "start": {
+        "line": 3,
+        "column": 16,
+        "offset": 133
+      }
+    },
+    {
+      "spec": "express",
+      "names": [
+        "Router",
+        "json: parseJson"
+      ],
+      "kind": "require",
+      "start": {
+        "line": 4,
+        "column": 36,
+        "offset": 189
+      }
+    },
+    {
+      "spec": "dotenv/config",
+      "kind": "require",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 209
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Router",
+      "kind": "call",
+      "start": {
+        "line": 7,
+        "column": 15,
+        "offset": 251
+      },
+      "enclosing": "router"
+    },
+    {
+      "name": "Request",
+      "kind": "type",
+      "start": {
+        "line": 9,
+        "column": 22,
+        "offset": 284
+      },
+      "enclosing": "handler"
+    },
+    {
+      "name": "Response",
+      "kind": "type",
+      "start": {
+        "line": 9,
+        "column": 36,
+        "offset": 298
+      },
+      "enclosing": "handler"
+    },
+    {
+      "name": "ok",
+      "qualifier": "assert",
+      "kind": "call",
+      "start": {
+        "line": 10,
+        "column": 9,
+        "offset": 325
+      },
+      "enclosing": "handler"
+    },
+    {
+      "name": "send",
+      "qualifier": "res",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 6,
+        "offset": 345
+      },
+      "enclosing": "handler"
+    },
+    {
+      "name": "parseJson",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 11,
+        "offset": 350
+      },
+      "enclosing": "handler"
+    },
+    {
+      "name": "post",
+      "qualifier": "router",
+      "kind": "call",
+      "start": {
+        "line": 14,
+        "column": 7,
+        "offset": 382
+      }
+    },
+    {
+      "name": "express",
+      "kind": "call",
+      "start": {
+        "line": 16,
+        "column": 32,
+        "offset": 440
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 7,
+        "column": 24,
+        "offset": 260
+      },
+      "text": "// CommonJS in TypeScript (.cts): import-equals, require and module.exports.\nimport assert = require(\"node:assert\");\nconst express = require(\"express\");\nconst { Router, json: parseJson } = require(\"express\");\nrequire(\"dotenv/config\");\n\nconst router = Router();",
+      "hash": "6a2c18dc8abff6c26b4a4e0097b4547f949dbb1e6460725a6e0474eef10aeccd"
+    },
+    {
+      "id": "handler#1",
+      "kind": "symbol",
+      "symbolId": "handler",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 262
+      },
+      "end": {
+        "line": 12,
+        "column": 1,
+        "offset": 373
+      },
+      "text": "function handler(req: Request, res: Response): void {\n  assert.ok(req.body);\n  res.send(parseJson(req.body));\n}",
+      "hash": "57ab9c6363cf10470a1959f8429b50c732cdb40e8c90bc4b0fba1a9b002439b8"
+    },
+    {
+      "id": "L14#1",
+      "kind": "window",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 375
+      },
+      "end": {
+        "line": 16,
+        "column": 44,
+        "offset": 452
+      },
+      "text": "router.post(\"/items\", handler);\n\nmodule.exports = { router, app: express() };",
+      "hash": "242be3cae2ad9fa482aba570e4a815b7669ef7703388f0826563becf5450e970"
+    }
+  ]
+}

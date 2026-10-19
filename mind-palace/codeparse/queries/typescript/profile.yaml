@@ -1,0 +1,25 @@
+# TypeScript: every file is its own module (ES modules, CommonJS require,
+# `import x = require()`), declarations are exported by `export`. The jsts
+# family resolver reads the options below: relative specifiers resolve
+# against the importing file, trying the extensions in order and then an
+# index file; bare specifiers go through tsconfig.json's compilerOptions
+# paths and baseUrl when present (the nearest tsconfig.json above the file,
+# following extends), then node_modules. .tsx files are the tsx dialect:
+# its own grammar and tsx.scm (this language's query plus JSX elements).
+name: TypeScript
+family: jsts
+extensions: [.ts, .tsx, .mts, .cts, .d.ts]
+query: tags.scm
+dialects:
+  tsx:
+    grammar: tsx
+    query: tsx.scm
+scope:
+  separators: ["."]
+  packageBy: file
+  exported: declared
+  options:
+    extensions: .ts .tsx .d.ts .mts .cts .js .jsx .mjs .cjs
+    indexFiles: index
+    tsconfig: tsconfig.json
+    tsconfigKeys: compilerOptions.paths compilerOptions.baseUrl
