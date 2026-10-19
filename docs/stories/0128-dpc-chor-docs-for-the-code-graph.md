@@ -3,12 +3,13 @@ id: 0128-dpc
 title: Docs for the code graph
 purpose: Documents the first read path for collected code.
 type: chor
-status: in_progress
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:12:15.055Z"
-updated: "2026-10-19T20:55:51.902Z"
+updated: "2026-10-19T21:16:07.185Z"
 started: "2026-10-19T20:55:51.902Z"
+completed: "2026-10-19T21:16:07.185Z"
 tags:
   - plan-0012-cgi
   - wave-10
@@ -40,13 +41,13 @@ links:
     - ["0012-cgi", "included", ["6.3"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Docs for the code graph
@@ -79,9 +80,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test ./plugin/
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./plugin/
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test ./plugin/
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./plugin/
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -93,3 +94,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/README.md` - package map
 
 ## Work Log
+
+### 2026-10-19T21:16:00.319Z - Wrote docs/code-graph.md (layers/views, code_* tools, privacy, 21 languages with landed state: parsed go, c, csharp, java, javascript, lua, ocaml; resolved go only; known limits from each query file; rebuild/status/check; FalkorDB in the stack; eval; limits). PROTOCOL.md: 6.1.7 code tools, 7.14 graph routes (bodies, results, statuses, errors), unavailable kind, server run --graph, server graph rebuild|status, server init FalkorDB files and --falkordb-image. docs/server.md (--graph flag, The code graph section, four-container stack, falkordb.password/env, graph.env), README.md (Code graph pointer), .claude/CLAUDE.md and mind-palace/README.md layout rows for codeparse, codegraph, codeindex, eval. gofmt/vet/build clean; go test -race ./plugin/ ok (90 pass, 1 skip); go test ./plugin/ ok. Only listed files changed.
