@@ -1,0 +1,1078 @@
+{
+  "lang": "cpp",
+  "symbols": [
+    {
+      "id": "geometry",
+      "kind": "namespace",
+      "name": "geometry",
+      "qualName": "geometry",
+      "signature": "namespace geometry",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 223
+      },
+      "end": {
+        "line": 61,
+        "column": 1,
+        "offset": 1348
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry::shapeCount",
+      "kind": "var",
+      "name": "shapeCount",
+      "qualName": "geometry::shapeCount",
+      "signature": "int shapeCount = 0;",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 245
+      },
+      "end": {
+        "line": 16,
+        "column": 19,
+        "offset": 264
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::clamp",
+      "kind": "function",
+      "name": "clamp",
+      "qualName": "geometry::clamp",
+      "signature": "double clamp(double v, double lo, double hi)",
+      "doc": "clamp keeps v within [lo, hi].",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 313
+      },
+      "end": {
+        "line": 23,
+        "column": 1,
+        "offset": 401
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::Shape",
+      "kind": "method",
+      "name": "Shape",
+      "qualName": "geometry::Shape::Shape",
+      "signature": "Shape::Shape(std::string name) : name_(std::move(name))",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 420
+      },
+      "end": {
+        "line": 30,
+        "column": 1,
+        "offset": 526
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::operator==",
+      "kind": "method",
+      "name": "operator==",
+      "qualName": "geometry::Shape::operator==",
+      "signature": "bool Shape::operator==(const Shape\u0026 other) const",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 528
+      },
+      "end": {
+        "line": 34,
+        "column": 1,
+        "offset": 611
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::count",
+      "kind": "method",
+      "name": "count",
+      "qualName": "geometry::Shape::count",
+      "signature": "int Shape::count()",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 613
+      },
+      "end": {
+        "line": 36,
+        "column": 41,
+        "offset": 654
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Circle::Circle",
+      "kind": "method",
+      "name": "Circle",
+      "qualName": "geometry::Circle::Circle",
+      "signature": "Circle::Circle(Point centre, Length radius) : Shape(\"circle\"), centre_(centre), radius_(clamp(radius, 0.0, 1e9))",
+      "start": {
+        "line": 38,
+        "column": 0,
+        "offset": 656
+      },
+      "end": {
+        "line": 39,
+        "column": 75,
+        "offset": 775
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Circle::area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "geometry::Circle::area",
+      "signature": "double Circle::area() const",
+      "doc": "area is pi r squared.",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 802
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 874
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Bounds::contains",
+      "kind": "method",
+      "name": "contains",
+      "qualName": "geometry::Bounds::contains",
+      "signature": "bool Bounds::contains(const Point\u0026 p) const",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 876
+      },
+      "end": {
+        "line": 48,
+        "column": 1,
+        "offset": 994
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Registry::add",
+      "kind": "method",
+      "name": "add",
+      "qualName": "geometry::Registry::add",
+      "signature": "std::size_t Registry\u003cT\u003e::add(std::unique_ptr\u003cT\u003e shape)",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 1018
+      },
+      "end": {
+        "line": 54,
+        "column": 1,
+        "offset": 1142
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::totalArea",
+      "kind": "function",
+      "name": "totalArea",
+      "qualName": "geometry::totalArea",
+      "signature": "double totalArea(const std::vector\u003cShape*\u003e\u0026 shapes)",
+      "start": {
+        "line": 56,
+        "column": 0,
+        "offset": 1144
+      },
+      "end": {
+        "line": 59,
+        "column": 1,
+        "offset": 1345
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::describe",
+      "kind": "method",
+      "name": "describe",
+      "qualName": "geometry::describe",
+      "signature": "void geometry::describe(const geometry::Shape\u0026 s)",
+      "doc": "geometry::describe prints a shape.",
+      "start": {
+        "line": 64,
+        "column": 0,
+        "offset": 1411
+      },
+      "end": {
+        "line": 66,
+        "column": 1,
+        "offset": 1513
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "main",
+      "kind": "function",
+      "name": "main",
+      "qualName": "main",
+      "signature": "int main(int argc, char** argv)",
+      "start": {
+        "line": 68,
+        "column": 0,
+        "offset": 1515
+      },
+      "end": {
+        "line": 78,
+        "column": 1,
+        "offset": 1855
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "geometry.hpp",
+      "kind": "include",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 40
+      }
+    },
+    {
+      "spec": "algorithm",
+      "kind": "include_system",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 65
+      }
+    },
+    {
+      "spec": "cmath",
+      "kind": "include_system",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 86
+      }
+    },
+    {
+      "spec": "numeric",
+      "kind": "include_system",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 103
+      }
+    },
+    {
+      "spec": "util/log.h",
+      "kind": "include",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 123
+      }
+    },
+    {
+      "spec": "std",
+      "kind": "using_namespace",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 146
+      }
+    },
+    {
+      "spec": "std::unique_ptr",
+      "names": [
+        "unique_ptr"
+      ],
+      "kind": "using",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 167
+      }
+    },
+    {
+      "spec": "std::filesystem",
+      "alias": "fs",
+      "kind": "namespace_alias",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 190
+      }
+    },
+    {
+      "spec": "geometry::Circle",
+      "names": [
+        "Circle"
+      ],
+      "kind": "using",
+      "start": {
+        "line": 69,
+        "column": 2,
+        "offset": 1551
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "max",
+      "qualifier": "std",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 14,
+        "offset": 374
+      },
+      "enclosing": "geometry::clamp"
+    },
+    {
+      "name": "min",
+      "qualifier": "std",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 27,
+        "offset": 387
+      },
+      "enclosing": "geometry::clamp"
+    },
+    {
+      "name": "string",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 18,
+        "offset": 438
+      },
+      "enclosing": "geometry::Shape::Shape"
+    },
+    {
+      "name": "move",
+      "qualifier": "std",
+      "kind": "call",
+      "start": {
+        "line": 27,
+        "column": 44,
+        "offset": 464
+      },
+      "enclosing": "geometry::Shape::Shape"
+    },
+    {
+      "name": "log",
+      "qualifier": "util",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 8,
+        "offset": 502
+      },
+      "enclosing": "geometry::Shape::Shape"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 29,
+        "offset": 557
+      },
+      "enclosing": "geometry::Shape::operator=="
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 15,
+        "offset": 671
+      },
+      "enclosing": "geometry::Circle::Circle"
+    },
+    {
+      "name": "Length",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 29,
+        "offset": 685
+      },
+      "enclosing": "geometry::Circle::Circle"
+    },
+    {
+      "name": "clamp",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 48,
+        "offset": 748
+      },
+      "enclosing": "geometry::Circle::Circle"
+    },
+    {
+      "name": "GEOMETRY_SQUARE",
+      "kind": "call",
+      "start": {
+        "line": 43,
+        "column": 15,
+        "offset": 847
+      },
+      "enclosing": "geometry::Circle::area"
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 46,
+        "column": 28,
+        "offset": 904
+      },
+      "enclosing": "geometry::Bounds::contains"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 50,
+        "column": 19,
+        "offset": 1015
+      },
+      "enclosing": "geometry"
+    },
+    {
+      "name": "size_t",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 5,
+        "offset": 1023
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "Registry",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 12,
+        "offset": 1030
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 21,
+        "offset": 1039
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "unique_ptr",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 34,
+        "offset": 1052
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 45,
+        "offset": 1063
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "push_back",
+      "qualifier": "items_",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 9,
+        "offset": 1084
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "move",
+      "qualifier": "std",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 24,
+        "offset": 1099
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "size",
+      "qualifier": "items_",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 16,
+        "offset": 1129
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "vector",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 28,
+        "offset": 1172
+      },
+      "enclosing": "geometry::totalArea"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 35,
+        "offset": 1179
+      },
+      "enclosing": "geometry::totalArea"
+    },
+    {
+      "name": "accumulate",
+      "qualifier": "std",
+      "kind": "call",
+      "start": {
+        "line": 57,
+        "column": 14,
+        "offset": 1212
+      },
+      "enclosing": "geometry::totalArea"
+    },
+    {
+      "name": "begin",
+      "qualifier": "shapes",
+      "kind": "call",
+      "start": {
+        "line": 57,
+        "column": 32,
+        "offset": 1230
+      },
+      "enclosing": "geometry::totalArea"
+    },
+    {
+      "name": "end",
+      "qualifier": "shapes",
+      "kind": "call",
+      "start": {
+        "line": 57,
+        "column": 48,
+        "offset": 1246
+      },
+      "enclosing": "geometry::totalArea"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 58,
+        "column": 46,
+        "offset": 1304
+      },
+      "enclosing": "geometry::totalArea"
+    },
+    {
+      "name": "area",
+      "qualifier": "s",
+      "kind": "call",
+      "start": {
+        "line": 58,
+        "column": 74,
+        "offset": 1332
+      },
+      "enclosing": "geometry::totalArea"
+    },
+    {
+      "name": "Shape",
+      "qualifier": "geometry",
+      "kind": "type",
+      "start": {
+        "line": 64,
+        "column": 40,
+        "offset": 1451
+      },
+      "enclosing": "geometry::describe"
+    },
+    {
+      "name": "log",
+      "qualifier": "util",
+      "kind": "call",
+      "start": {
+        "line": 65,
+        "column": 8,
+        "offset": 1471
+      },
+      "enclosing": "geometry::describe"
+    },
+    {
+      "name": "name",
+      "qualifier": "s",
+      "kind": "call",
+      "start": {
+        "line": 65,
+        "column": 14,
+        "offset": 1477
+      },
+      "enclosing": "geometry::describe"
+    },
+    {
+      "name": "to_string",
+      "qualifier": "std",
+      "kind": "call",
+      "start": {
+        "line": 65,
+        "column": 27,
+        "offset": 1490
+      },
+      "enclosing": "geometry::describe"
+    },
+    {
+      "name": "area",
+      "qualifier": "s",
+      "kind": "call",
+      "start": {
+        "line": 65,
+        "column": 39,
+        "offset": 1502
+      },
+      "enclosing": "geometry::describe"
+    },
+    {
+      "name": "Registry",
+      "kind": "type",
+      "start": {
+        "line": 70,
+        "column": 2,
+        "offset": 1577
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 70,
+        "column": 11,
+        "offset": 1586
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "make_unique",
+      "qualifier": "std",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 16,
+        "offset": 1619
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 71,
+        "column": 28,
+        "offset": 1631
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 71,
+        "column": 36,
+        "offset": 1639
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "add",
+      "qualifier": "circles",
+      "kind": "call",
+      "start": {
+        "line": 72,
+        "column": 10,
+        "offset": 1668
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "move",
+      "qualifier": "std",
+      "kind": "call",
+      "start": {
+        "line": 72,
+        "column": 19,
+        "offset": 1677
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 73,
+        "column": 2,
+        "offset": 1689
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "largest",
+      "kind": "call",
+      "start": {
+        "line": 73,
+        "column": 20,
+        "offset": 1707
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 73,
+        "column": 28,
+        "offset": 1715
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "at",
+      "qualifier": "circles",
+      "kind": "call",
+      "start": {
+        "line": 73,
+        "column": 45,
+        "offset": 1732
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "describe",
+      "qualifier": "geometry",
+      "kind": "call",
+      "start": {
+        "line": 74,
+        "column": 12,
+        "offset": 1753
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "Shape",
+      "qualifier": "geometry",
+      "kind": "type",
+      "start": {
+        "line": 75,
+        "column": 12,
+        "offset": 1785
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 75,
+        "column": 29,
+        "offset": 1802
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 75,
+        "column": 36,
+        "offset": 1809
+      },
+      "enclosing": "main"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 18,
+        "column": 11,
+        "offset": 277
+      },
+      "text": "// geometry.cpp: the shapes' behaviour.\n#include \"geometry.hpp\"\n\n#include \u003calgorithm\u003e\n#include \u003ccmath\u003e\n#include \u003cnumeric\u003e\n\n#include \"util/log.h\"\n\nusing namespace std;\nusing std::unique_ptr;\nnamespace fs = std::filesystem;\n\nnamespace geometry {\n\nint shapeCount = 0;\n\nnamespace {",
+      "hash": "0fd59bb265aac28a17f034a3945baccfcbb5350d202cc09f851c4a7196b45e9a"
+    },
+    {
+      "id": "geometry::clamp#1",
+      "kind": "symbol",
+      "symbolId": "geometry::clamp",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 279
+      },
+      "end": {
+        "line": 23,
+        "column": 1,
+        "offset": 401
+      },
+      "text": "// clamp keeps v within [lo, hi].\ndouble clamp(double v, double lo, double hi) {\n  return std::max(lo, std::min(v, hi));\n}",
+      "hash": "d392cf38c88aba9fb4c53ff9e690ec2dcdef3fafa7daf4bef4fc45cf25557b92"
+    },
+    {
+      "id": "geometry::Shape::Shape#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Shape::Shape",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 420
+      },
+      "end": {
+        "line": 30,
+        "column": 1,
+        "offset": 526
+      },
+      "text": "Shape::Shape(std::string name) : name_(std::move(name)) {\n  ++shapeCount;\n  util::log(\"created\", name_);\n}",
+      "hash": "1b5ec9caa565aed469da334daaa2e04bdda14e24bedeaf4dcdcef943ba5dcaaf"
+    },
+    {
+      "id": "geometry::Shape::operator==#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Shape::operator==",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 528
+      },
+      "end": {
+        "line": 34,
+        "column": 1,
+        "offset": 611
+      },
+      "text": "bool Shape::operator==(const Shape\u0026 other) const {\n  return name_ == other.name_;\n}",
+      "hash": "98cddce0b76b8db1b26c195f1e2e447615ff7fb40df3fadaca9a139eed664d4e"
+    },
+    {
+      "id": "geometry::Shape::count#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Shape::count",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 613
+      },
+      "end": {
+        "line": 36,
+        "column": 41,
+        "offset": 654
+      },
+      "text": "int Shape::count() { return shapeCount; }",
+      "hash": "1c13d66e3f3fdc13a0160e82940b59cdcfca8b94cc82d35948a5a01dad897e53"
+    },
+    {
+      "id": "geometry::Circle::Circle#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Circle::Circle",
+      "start": {
+        "line": 38,
+        "column": 0,
+        "offset": 656
+      },
+      "end": {
+        "line": 39,
+        "column": 75,
+        "offset": 775
+      },
+      "text": "Circle::Circle(Point centre, Length radius)\n    : Shape(\"circle\"), centre_(centre), radius_(clamp(radius, 0.0, 1e9)) {}",
+      "hash": "7062a01bd6781272b5c5b0e0739c84c44a2ad41c8f8e2a20369b2fd8a67b65ab"
+    },
+    {
+      "id": "geometry::Circle::area#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Circle::area",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 777
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 874
+      },
+      "text": "// area is pi r squared.\ndouble Circle::area() const {\n  return kPi * GEOMETRY_SQUARE(radius_);\n}",
+      "hash": "6666fcfa7296d0f356b4e7189d81b1cc9e05a2d333b3e5290f2a7f4a6224c39a"
+    },
+    {
+      "id": "geometry::Bounds::contains#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Bounds::contains",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 876
+      },
+      "end": {
+        "line": 48,
+        "column": 1,
+        "offset": 994
+      },
+      "text": "bool Bounds::contains(const Point\u0026 p) const {\n  return p.x \u003e= min.x \u0026\u0026 p.x \u003c= max.x \u0026\u0026 p.y \u003e= min.y \u0026\u0026 p.y \u003c= max.y;\n}",
+      "hash": "2a9f12640fda978aa5294806e369460e71084306b7a1873e537ed6cd062ab218"
+    },
+    {
+      "id": "L50#1",
+      "kind": "window",
+      "start": {
+        "line": 50,
+        "column": 0,
+        "offset": 996
+      },
+      "end": {
+        "line": 50,
+        "column": 21,
+        "offset": 1017
+      },
+      "text": "template \u003ctypename T\u003e",
+      "hash": "f791cb0bdff9eff47b2f19d7c3e2c7efbb76dba5f87048e94db8dbc629409d71"
+    },
+    {
+      "id": "geometry::Registry::add#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Registry::add",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 1018
+      },
+      "end": {
+        "line": 54,
+        "column": 1,
+        "offset": 1142
+      },
+      "text": "std::size_t Registry\u003cT\u003e::add(std::unique_ptr\u003cT\u003e shape) {\n  items_.push_back(std::move(shape));\n  return items_.size() - 1;\n}",
+      "hash": "80b810f4100db511e682890076b6eb67b77fa8ddd7498bb2cf4d7a6d9ef8bdbd"
+    },
+    {
+      "id": "geometry::totalArea#1",
+      "kind": "symbol",
+      "symbolId": "geometry::totalArea",
+      "start": {
+        "line": 56,
+        "column": 0,
+        "offset": 1144
+      },
+      "end": {
+        "line": 59,
+        "column": 1,
+        "offset": 1345
+      },
+      "text": "double totalArea(const std::vector\u003cShape*\u003e\u0026 shapes) {\n  return std::accumulate(shapes.begin(), shapes.end(), 0.0,\n                         [](double sum, const Shape* s) { return sum + s-\u003earea(); });\n}",
+      "hash": "d3ff1a026df4f5a3a6ad4c34c50efdb96da94462da03a747f30225a0eee313eb"
+    },
+    {
+      "id": "L61#1",
+      "kind": "window",
+      "start": {
+        "line": 61,
+        "column": 0,
+        "offset": 1347
+      },
+      "end": {
+        "line": 61,
+        "column": 24,
+        "offset": 1371
+      },
+      "text": "}  // namespace geometry",
+      "hash": "99d3f0ceda003e9179e0a8b82103629ce44792ea1ae8c468bc13ce07a616ae4b"
+    },
+    {
+      "id": "geometry::describe#1",
+      "kind": "symbol",
+      "symbolId": "geometry::describe",
+      "start": {
+        "line": 63,
+        "column": 0,
+        "offset": 1373
+      },
+      "end": {
+        "line": 66,
+        "column": 1,
+        "offset": 1513
+      },
+      "text": "// geometry::describe prints a shape.\nvoid geometry::describe(const geometry::Shape\u0026 s) {\n  util::log(s.name(), std::to_string(s.area()));\n}",
+      "hash": "35f230c0139179c5d603b3f7d53285542b5ca010d95c7f2454214e5bdf453310"
+    },
+    {
+      "id": "main#1",
+      "kind": "symbol",
+      "symbolId": "main",
+      "start": {
+        "line": 68,
+        "column": 0,
+        "offset": 1515
+      },
+      "end": {
+        "line": 78,
+        "column": 1,
+        "offset": 1855
+      },
+      "text": "int main(int argc, char** argv) {\n  using geometry::Circle;\n  Registry\u003cCircle\u003e circles;\n  auto c = std::make_unique\u003cCircle\u003e(Point{0, 0}, 2.0);\n  circles.add(std::move(c));\n  Circle* biggest = largest\u003cCircle\u003e({circles.at(0)});\n  geometry::describe(*biggest);\n  geometry::Shape* raw = new Circle(Point{1, 1}, 1.0);\n  delete raw;\n  return 0;\n}",
+      "hash": "82f915cfa69e564384e77b37075352f073a66736864ad0ecc2048552d05cb164"
+    }
+  ]
+}

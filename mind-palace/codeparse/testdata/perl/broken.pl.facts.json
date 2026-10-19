@@ -1,0 +1,127 @@
+{
+  "lang": "perl",
+  "package": "Broken",
+  "symbols": [
+    {
+      "id": "Broken::ok_before",
+      "kind": "function",
+      "name": "ok_before",
+      "qualName": "Broken::ok_before",
+      "signature": "sub ok_before",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 29
+      },
+      "end": {
+        "line": 4,
+        "column": 26,
+        "offset": 55
+      },
+      "exported": true
+    },
+    {
+      "id": "Broken::missing_brace",
+      "kind": "function",
+      "name": "missing_brace",
+      "qualName": "Broken::missing_brace",
+      "signature": "sub missing_brace",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 57
+      },
+      "end": {
+        "line": 12,
+        "column": 2,
+        "offset": 156
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "strict",
+      "kind": "pragma",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 16
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "ok_after",
+      "kind": "call",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 123
+      },
+      "enclosing": "Broken::missing_brace"
+    },
+    {
+      "name": "helper",
+      "kind": "call",
+      "start": {
+        "line": 10,
+        "column": 22,
+        "offset": 141
+      },
+      "enclosing": "Broken::missing_brace"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 2,
+        "column": 11,
+        "offset": 27
+      },
+      "text": "package Broken;\nuse strict;",
+      "hash": "727b79b24d88195a5279ce2dc3fcf8b5d56034a319bc75d41b754dd4d38c3aad"
+    },
+    {
+      "id": "Broken::ok_before#1",
+      "kind": "symbol",
+      "symbolId": "Broken::ok_before",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 29
+      },
+      "end": {
+        "line": 4,
+        "column": 26,
+        "offset": 55
+      },
+      "text": "sub ok_before { return 1 }",
+      "hash": "2e8748d19ac5a4a3f83e71531bd365bfaee71b4d77c78ceaa09f366c52fc2c71"
+    },
+    {
+      "id": "Broken::missing_brace#1",
+      "kind": "symbol",
+      "symbolId": "Broken::missing_brace",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 57
+      },
+      "end": {
+        "line": 12,
+        "column": 2,
+        "offset": 156
+      },
+      "text": "sub missing_brace {\n    my ($x = @_;\n    if ($x { return 2 }\n\nsub ok_after { return helper(3) }\n\n1;",
+      "hash": "303ea188e20fcd829fd6c38218cac4ea9c0817711c5e75f8d9cc04deaf74a738"
+    }
+  ]
+}

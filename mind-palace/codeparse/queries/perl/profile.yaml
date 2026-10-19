@@ -1,0 +1,15 @@
+# Perl: a file's package is its first `package NAME;` statement; a block
+# package (`package NAME { ... }`) and a 5.38 `class` are symbols holding
+# their subs. `use` and `require` are imports; `Package::sub` calls carry
+# the package as their qualifier, `Class->method` the class. Moose's `has`
+# defines an attribute.
+name: Perl
+family: perl
+extensions: [.pl, .pm, .t]
+query: tags.scm
+definingForms:
+  - { form: has, kind: field }
+scope:
+  separators: ["::"]
+  packageBy: declaration
+  exported: noUnderscore

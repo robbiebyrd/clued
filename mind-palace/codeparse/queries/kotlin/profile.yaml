@@ -1,0 +1,18 @@
+# Kotlin: packages by their `package` header (a file without one is in the
+# root package), imports of classes, members and whole packages (`.*`),
+# with aliases; an extension function or property names its receiver type
+# (@receiver), which qualifies its name and makes it a member of that type
+# when the file defines it. Only `private` hides a declaration (the query
+# marks the rest @exported). The JVM family resolver (Java and Kotlin)
+# reads the options: defaultImports are the packages every Kotlin file
+# imports implicitly, searched after the file's own imports.
+name: Kotlin
+family: jvm
+extensions: [.kt, .kts]
+query: tags.scm
+scope:
+  separators: ["."]
+  packageBy: declaration
+  exported: declared
+  options:
+    defaultImports: kotlin.*,kotlin.annotation.*,kotlin.collections.*,kotlin.comparisons.*,kotlin.io.*,kotlin.ranges.*,kotlin.sequences.*,kotlin.text.*,kotlin.jvm.*,java.lang.*

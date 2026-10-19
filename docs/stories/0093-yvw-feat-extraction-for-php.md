@@ -3,11 +3,13 @@ id: 0093-yvw
 title: Extraction for PHP
 purpose: 'Adds PHP to the indexer: files .php.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:57.368Z"
-updated: "2026-10-19T18:30:16.044Z"
+updated: "2026-10-19T20:59:28.635Z"
+started: "2026-10-19T20:46:56.729Z"
+completed: "2026-10-19T20:59:28.635Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for PHP
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/php'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/php'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/php'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/php'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/php.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:59:23.437Z - PHP extraction: grammars/php.go registers gotreesitter grammars/php; queries/php/profile.yaml (family php, .php, separators \\ and ::, packageBy declaration, exported declared, caseInsensitive, definingForms define→const) and tags.scm (namespace as @package, braced namespaces as namespace definitions; classes, interfaces, traits, enums + cases, functions, methods, class/global constants, define(), properties incl. promoted; exported by visibility; use/use function/use const incl. groups and aliases, require/include[_once] with kinds; calls (function, qualified, relative, member, nullsafe, scoped), types (named types, new, instanceof, attributes), extends/implements/trait use, class-constant access). Six goldens in testdata/php (definitions, imports, references, nested braced namespaces + anonymous class + nested function, template with inline HTML, broken), reviewed by hand. TestGolden/php: 6 inputs pass; go test -race ./codeparse/... passes (TestGolden/go/large.go flaked once on the 2 s parse timeout under load avg ~50, passes on rerun; not touched). gotreesitter quirks worked around: repeated prefix: field and anchors next to anonymous nodes do not match. Limits noted in tags.scm: anonymous-class members not indexed, nested functions and promoted properties nest positionally, a leading backslash before a multi-segment qualifier is dropped. No file outside the story's three paths changed.

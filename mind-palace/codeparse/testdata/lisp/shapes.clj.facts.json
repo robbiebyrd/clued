@@ -1,0 +1,1119 @@
+{
+  "lang": "lisp",
+  "dialect": "clojure",
+  "package": "geometry.shapes",
+  "symbols": [
+    {
+      "id": "geometry.shapes:*scale*",
+      "kind": "var",
+      "name": "*scale*",
+      "qualName": "geometry.shapes:*scale*",
+      "signature": "(def ^:dynamic *scale*",
+      "doc": "The scale every shape is drawn at.",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 318
+      },
+      "end": {
+        "line": 14,
+        "column": 6,
+        "offset": 386
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:registry",
+      "kind": "var",
+      "name": "registry",
+      "qualName": "geometry.shapes:registry",
+      "signature": "(defonce registry (atom {}))",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 388
+      },
+      "end": {
+        "line": 16,
+        "column": 28,
+        "offset": 416
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Shape",
+      "kind": "protocol",
+      "name": "Shape",
+      "qualName": "geometry.shapes:Shape",
+      "signature": "(defprotocol Shape",
+      "doc": "Something with an area.",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 418
+      },
+      "end": {
+        "line": 21,
+        "column": 21,
+        "offset": 528
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Shape:area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "geometry.shapes:Shape:area",
+      "signature": "(area [this] \"The area of this shape.\")",
+      "doc": "The area of this shape.",
+      "start": {
+        "line": 20,
+        "column": 2,
+        "offset": 467
+      },
+      "end": {
+        "line": 20,
+        "column": 41,
+        "offset": 506
+      },
+      "parent": "geometry.shapes:Shape",
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Shape:perimeter",
+      "kind": "method",
+      "name": "perimeter",
+      "qualName": "geometry.shapes:Shape:perimeter",
+      "signature": "(perimeter [this])",
+      "start": {
+        "line": 21,
+        "column": 2,
+        "offset": 509
+      },
+      "end": {
+        "line": 21,
+        "column": 20,
+        "offset": 527
+      },
+      "parent": "geometry.shapes:Shape",
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Circle",
+      "kind": "class",
+      "name": "Circle",
+      "qualName": "geometry.shapes:Circle",
+      "signature": "(defrecord Circle [radius]",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 530
+      },
+      "end": {
+        "line": 26,
+        "column": 39,
+        "offset": 643
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Circle:radius",
+      "kind": "field",
+      "name": "radius",
+      "qualName": "geometry.shapes:Circle:radius",
+      "signature": "radius",
+      "start": {
+        "line": 23,
+        "column": 19,
+        "offset": 549
+      },
+      "end": {
+        "line": 23,
+        "column": 25,
+        "offset": 555
+      },
+      "parent": "geometry.shapes:Circle",
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Circle:area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "geometry.shapes:Circle:area",
+      "signature": "(area [_] (* Math/PI radius radius))",
+      "start": {
+        "line": 25,
+        "column": 2,
+        "offset": 567
+      },
+      "end": {
+        "line": 25,
+        "column": 38,
+        "offset": 603
+      },
+      "parent": "geometry.shapes:Circle",
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Circle:perimeter",
+      "kind": "method",
+      "name": "perimeter",
+      "qualName": "geometry.shapes:Circle:perimeter",
+      "signature": "(perimeter [_] (* 2 Math/PI radius))",
+      "start": {
+        "line": 26,
+        "column": 2,
+        "offset": 606
+      },
+      "end": {
+        "line": 26,
+        "column": 38,
+        "offset": 642
+      },
+      "parent": "geometry.shapes:Circle",
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Square",
+      "kind": "class",
+      "name": "Square",
+      "qualName": "geometry.shapes:Square",
+      "signature": "(deftype Square [side]",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 645
+      },
+      "end": {
+        "line": 33,
+        "column": 38,
+        "offset": 779
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Square:side",
+      "kind": "field",
+      "name": "side",
+      "qualName": "geometry.shapes:Square:side",
+      "signature": "side",
+      "start": {
+        "line": 28,
+        "column": 17,
+        "offset": 662
+      },
+      "end": {
+        "line": 28,
+        "column": 21,
+        "offset": 666
+      },
+      "parent": "geometry.shapes:Square",
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Square:area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "geometry.shapes:Square:area",
+      "signature": "(area [_] (* side side))",
+      "start": {
+        "line": 30,
+        "column": 2,
+        "offset": 678
+      },
+      "end": {
+        "line": 30,
+        "column": 26,
+        "offset": 702
+      },
+      "parent": "geometry.shapes:Square",
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Square:perimeter",
+      "kind": "method",
+      "name": "perimeter",
+      "qualName": "geometry.shapes:Square:perimeter",
+      "signature": "(perimeter [_] (* 4 side))",
+      "start": {
+        "line": 31,
+        "column": 2,
+        "offset": 705
+      },
+      "end": {
+        "line": 31,
+        "column": 28,
+        "offset": 731
+      },
+      "parent": "geometry.shapes:Square",
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:Square:toString",
+      "kind": "method",
+      "name": "toString",
+      "qualName": "geometry.shapes:Square:toString",
+      "signature": "(toString [_] (str \"Square \" side))",
+      "start": {
+        "line": 33,
+        "column": 2,
+        "offset": 743
+      },
+      "end": {
+        "line": 33,
+        "column": 37,
+        "offset": 778
+      },
+      "parent": "geometry.shapes:Square",
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:describe",
+      "kind": "function",
+      "name": "describe",
+      "qualName": "geometry.shapes:describe",
+      "signature": "(defmulti describe :kind)",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 910
+      },
+      "end": {
+        "line": 40,
+        "column": 25,
+        "offset": 935
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:describe~2",
+      "kind": "method",
+      "name": "describe",
+      "qualName": "geometry.shapes:describe",
+      "signature": "(defmethod describe :circle [{:keys [radius]}]",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 937
+      },
+      "end": {
+        "line": 43,
+        "column": 40,
+        "offset": 1024
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:describe~3",
+      "kind": "method",
+      "name": "describe",
+      "qualName": "geometry.shapes:describe",
+      "signature": "(defmethod describe :default [shape]",
+      "start": {
+        "line": 45,
+        "column": 0,
+        "offset": 1026
+      },
+      "end": {
+        "line": 46,
+        "column": 32,
+        "offset": 1095
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:register!",
+      "kind": "function",
+      "name": "register!",
+      "qualName": "geometry.shapes:register!",
+      "signature": "(defn register!",
+      "doc": "Registers a shape under a fresh id.",
+      "start": {
+        "line": 49,
+        "column": 0,
+        "offset": 1136
+      },
+      "end": {
+        "line": 53,
+        "column": 8,
+        "offset": 1242
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:total-area",
+      "kind": "function",
+      "name": "total-area",
+      "qualName": "geometry.shapes:total-area",
+      "signature": "(defn total-area",
+      "doc": "Sums the areas of shapes, scaled.",
+      "start": {
+        "line": 55,
+        "column": 0,
+        "offset": 1244
+      },
+      "end": {
+        "line": 62,
+        "column": 21,
+        "offset": 1440
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:file-name",
+      "kind": "function",
+      "name": "file-name",
+      "qualName": "geometry.shapes:file-name",
+      "signature": "(defn- file-name ^String [^File f]",
+      "start": {
+        "line": 64,
+        "column": 0,
+        "offset": 1442
+      },
+      "end": {
+        "line": 65,
+        "column": 32,
+        "offset": 1509
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:with-scale",
+      "kind": "macro",
+      "name": "with-scale",
+      "qualName": "geometry.shapes:with-scale",
+      "signature": "(defmacro with-scale",
+      "doc": "Runs body with *scale* bound.",
+      "start": {
+        "line": 67,
+        "column": 0,
+        "offset": 1511
+      },
+      "end": {
+        "line": 72,
+        "column": 13,
+        "offset": 1637
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:shape-proxy",
+      "kind": "function",
+      "name": "shape-proxy",
+      "qualName": "geometry.shapes:shape-proxy",
+      "signature": "(defn shape-proxy []",
+      "start": {
+        "line": 74,
+        "column": 0,
+        "offset": 1639
+      },
+      "end": {
+        "line": 76,
+        "column": 17,
+        "offset": 1731
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:sized",
+      "kind": "function",
+      "name": "sized",
+      "qualName": "geometry.shapes:sized",
+      "signature": "(defn sized [n]",
+      "start": {
+        "line": 78,
+        "column": 0,
+        "offset": 1733
+      },
+      "end": {
+        "line": 81,
+        "column": 23,
+        "offset": 1827
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.shapes:stamp",
+      "kind": "var",
+      "name": "stamp",
+      "qualName": "geometry.shapes:stamp",
+      "signature": "(def stamp (new Date))",
+      "start": {
+        "line": 83,
+        "column": 0,
+        "offset": 1829
+      },
+      "end": {
+        "line": 83,
+        "column": 22,
+        "offset": 1851
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "clojure.string",
+      "alias": "str",
+      "kind": "require",
+      "start": {
+        "line": 3,
+        "column": 12,
+        "offset": 72
+      }
+    },
+    {
+      "spec": "clojure.set",
+      "names": [
+        "union",
+        "difference"
+      ],
+      "kind": "require",
+      "start": {
+        "line": 4,
+        "column": 12,
+        "offset": 109
+      }
+    },
+    {
+      "spec": "geometry.util",
+      "alias": "u",
+      "names": [
+        "clamp"
+      ],
+      "kind": "require",
+      "start": {
+        "line": 5,
+        "column": 12,
+        "offset": 161
+      }
+    },
+    {
+      "spec": "clojure.walk",
+      "kind": "require",
+      "start": {
+        "line": 6,
+        "column": 12,
+        "offset": 210
+      }
+    },
+    {
+      "spec": "java.util",
+      "names": [
+        "UUID",
+        "Date"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 7,
+        "column": 11,
+        "offset": 235
+      }
+    },
+    {
+      "spec": "java.io.File",
+      "kind": "import",
+      "start": {
+        "line": 8,
+        "column": 11,
+        "offset": 268
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "atom",
+      "kind": "call",
+      "start": {
+        "line": 16,
+        "column": 19,
+        "offset": 407
+      },
+      "enclosing": "geometry.shapes:registry"
+    },
+    {
+      "name": "Shape",
+      "kind": "implements",
+      "start": {
+        "line": 24,
+        "column": 2,
+        "offset": 559
+      },
+      "enclosing": "geometry.shapes:Circle"
+    },
+    {
+      "name": "*",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 13,
+        "offset": 578
+      },
+      "enclosing": "geometry.shapes:Circle:area"
+    },
+    {
+      "name": "*",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 18,
+        "offset": 622
+      },
+      "enclosing": "geometry.shapes:Circle:perimeter"
+    },
+    {
+      "name": "Shape",
+      "kind": "implements",
+      "start": {
+        "line": 29,
+        "column": 2,
+        "offset": 670
+      },
+      "enclosing": "geometry.shapes:Square"
+    },
+    {
+      "name": "*",
+      "kind": "call",
+      "start": {
+        "line": 30,
+        "column": 13,
+        "offset": 689
+      },
+      "enclosing": "geometry.shapes:Square:area"
+    },
+    {
+      "name": "*",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 18,
+        "offset": 721
+      },
+      "enclosing": "geometry.shapes:Square:perimeter"
+    },
+    {
+      "name": "Object",
+      "kind": "implements",
+      "start": {
+        "line": 32,
+        "column": 2,
+        "offset": 734
+      },
+      "enclosing": "geometry.shapes:Square"
+    },
+    {
+      "name": "str",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 17,
+        "offset": 758
+      },
+      "enclosing": "geometry.shapes:Square:toString"
+    },
+    {
+      "name": "Shape",
+      "kind": "implements",
+      "start": {
+        "line": 35,
+        "column": 17,
+        "offset": 798
+      }
+    },
+    {
+      "name": "java.awt.Rectangle",
+      "kind": "type",
+      "start": {
+        "line": 36,
+        "column": 2,
+        "offset": 806
+      }
+    },
+    {
+      "name": "*",
+      "kind": "call",
+      "start": {
+        "line": 37,
+        "column": 13,
+        "offset": 838
+      }
+    },
+    {
+      "name": "perimeter-of",
+      "qualifier": "u",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 20,
+        "offset": 891
+      }
+    },
+    {
+      "name": "format",
+      "kind": "call",
+      "start": {
+        "line": 43,
+        "column": 3,
+        "offset": 987
+      },
+      "enclosing": "geometry.shapes:describe~2"
+    },
+    {
+      "name": "str",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 3,
+        "offset": 1066
+      },
+      "enclosing": "geometry.shapes:describe~3"
+    },
+    {
+      "name": "pr-str",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 17,
+        "offset": 1080
+      },
+      "enclosing": "geometry.shapes:describe~3"
+    },
+    {
+      "name": "str",
+      "kind": "call",
+      "start": {
+        "line": 51,
+        "column": 12,
+        "offset": 1174
+      },
+      "enclosing": "geometry.shapes:register!"
+    },
+    {
+      "name": "randomUUID",
+      "qualifier": "UUID",
+      "kind": "call",
+      "start": {
+        "line": 51,
+        "column": 22,
+        "offset": 1184
+      },
+      "enclosing": "geometry.shapes:register!"
+    },
+    {
+      "name": "swap!",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 5,
+        "offset": 1203
+      },
+      "enclosing": "geometry.shapes:register!"
+    },
+    {
+      "name": "total-area",
+      "kind": "call",
+      "start": {
+        "line": 57,
+        "column": 13,
+        "offset": 1312
+      },
+      "enclosing": "geometry.shapes:total-area"
+    },
+    {
+      "name": "map",
+      "kind": "call",
+      "start": {
+        "line": 60,
+        "column": 9,
+        "offset": 1382
+      },
+      "enclosing": "geometry.shapes:total-area"
+    },
+    {
+      "name": "map",
+      "kind": "call",
+      "start": {
+        "line": 61,
+        "column": 9,
+        "offset": 1401
+      },
+      "enclosing": "geometry.shapes:total-area"
+    },
+    {
+      "name": "*",
+      "kind": "call",
+      "start": {
+        "line": 61,
+        "column": 15,
+        "offset": 1407
+      },
+      "enclosing": "geometry.shapes:total-area"
+    },
+    {
+      "name": "reduce",
+      "kind": "call",
+      "start": {
+        "line": 62,
+        "column": 9,
+        "offset": 1428
+      },
+      "enclosing": "geometry.shapes:total-area"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 64,
+        "column": 18,
+        "offset": 1460
+      },
+      "enclosing": "geometry.shapes:file-name"
+    },
+    {
+      "name": "File",
+      "kind": "type",
+      "start": {
+        "line": 64,
+        "column": 27,
+        "offset": 1469
+      },
+      "enclosing": "geometry.shapes:file-name"
+    },
+    {
+      "name": "lower-case",
+      "qualifier": "str",
+      "kind": "call",
+      "start": {
+        "line": 65,
+        "column": 7,
+        "offset": 1484
+      },
+      "enclosing": "geometry.shapes:file-name"
+    },
+    {
+      "name": "log-scale",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 6,
+        "offset": 1610
+      },
+      "enclosing": "geometry.shapes:with-scale"
+    },
+    {
+      "name": "java.util.AbstractList",
+      "kind": "extends",
+      "start": {
+        "line": 75,
+        "column": 10,
+        "offset": 1670
+      },
+      "enclosing": "geometry.shapes:shape-proxy"
+    },
+    {
+      "name": "clojure.lang.IFn",
+      "kind": "extends",
+      "start": {
+        "line": 75,
+        "column": 33,
+        "offset": 1693
+      },
+      "enclosing": "geometry.shapes:shape-proxy"
+    },
+    {
+      "name": "Shape",
+      "kind": "implements",
+      "start": {
+        "line": 79,
+        "column": 9,
+        "offset": 1758
+      },
+      "enclosing": "geometry.shapes:sized"
+    },
+    {
+      "name": "clamp",
+      "kind": "call",
+      "start": {
+        "line": 80,
+        "column": 15,
+        "offset": 1779
+      },
+      "enclosing": "geometry.shapes:sized"
+    },
+    {
+      "name": "square",
+      "qualifier": "u",
+      "kind": "call",
+      "start": {
+        "line": 80,
+        "column": 28,
+        "offset": 1792
+      },
+      "enclosing": "geometry.shapes:sized"
+    },
+    {
+      "name": "Date",
+      "kind": "type",
+      "start": {
+        "line": 83,
+        "column": 16,
+        "offset": 1845
+      },
+      "enclosing": "geometry.shapes:stamp"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 16,
+        "column": 28,
+        "offset": 416
+      },
+      "text": "(ns geometry.shapes\n  \"Shapes, their areas and a registry.\"\n  (:require [clojure.string :as str]\n            [clojure.set :refer [union difference]]\n            [geometry.util :as u :refer [clamp]]\n            clojure.walk)\n  (:import (java.util UUID Date)\n           java.io.File))\n\n(set! *warn-on-reflection* true)\n\n(def ^:dynamic *scale*\n  \"The scale every shape is drawn at.\"\n  1.0)\n\n(defonce registry (atom {}))",
+      "hash": "af6fe033130902d35bad1a7c6e1d17bcb6d29133008748859a1d0e134fcbc6f3"
+    },
+    {
+      "id": "geometry.shapes:Shape#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:Shape",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 418
+      },
+      "end": {
+        "line": 21,
+        "column": 21,
+        "offset": 528
+      },
+      "text": "(defprotocol Shape\n  \"Something with an area.\"\n  (area [this] \"The area of this shape.\")\n  (perimeter [this]))",
+      "hash": "4b9c30790dc5612cf8f1f167e4e8cb355475140103a6fd969c039b9a491608cb"
+    },
+    {
+      "id": "geometry.shapes:Circle#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:Circle",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 530
+      },
+      "end": {
+        "line": 26,
+        "column": 39,
+        "offset": 643
+      },
+      "text": "(defrecord Circle [radius]\n  Shape\n  (area [_] (* Math/PI radius radius))\n  (perimeter [_] (* 2 Math/PI radius)))",
+      "hash": "8bb598d0781a8a8d51569a9394740741ab9abc55e4f25b789cc22968fbf0bb55"
+    },
+    {
+      "id": "geometry.shapes:Square#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:Square",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 645
+      },
+      "end": {
+        "line": 33,
+        "column": 38,
+        "offset": 779
+      },
+      "text": "(deftype Square [side]\n  Shape\n  (area [_] (* side side))\n  (perimeter [_] (* 4 side))\n  Object\n  (toString [_] (str \"Square \" side)))",
+      "hash": "447fdeaeb10931f955a3df659894c96dbaf31febb8c4cd81ed09e81531dc9bba"
+    },
+    {
+      "id": "L35#1",
+      "kind": "window",
+      "start": {
+        "line": 35,
+        "column": 0,
+        "offset": 781
+      },
+      "end": {
+        "line": 38,
+        "column": 37,
+        "offset": 908
+      },
+      "text": "(extend-protocol Shape\n  java.awt.Rectangle\n  (area [r] (* (.getWidth r) (.getHeight r)))\n  (perimeter [r] (u/perimeter-of r)))",
+      "hash": "ed3741da18dd77dd70294de85814cebcc47e100404ac3c4670d33c8924f5fdaa"
+    },
+    {
+      "id": "geometry.shapes:describe#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:describe",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 910
+      },
+      "end": {
+        "line": 40,
+        "column": 25,
+        "offset": 935
+      },
+      "text": "(defmulti describe :kind)",
+      "hash": "75a6aa22321b2f6059c6f2f935fbfe22e641d2854422d3cbeeccd2911e42c208"
+    },
+    {
+      "id": "geometry.shapes:describe~2#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:describe~2",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 937
+      },
+      "end": {
+        "line": 43,
+        "column": 40,
+        "offset": 1024
+      },
+      "text": "(defmethod describe :circle [{:keys [radius]}]\n  (format \"circle of radius %s\" radius))",
+      "hash": "14a807b8a40fa87cfd2cecbe9bbc965b426bb30c4ea57291b38c7de9f40d0768"
+    },
+    {
+      "id": "geometry.shapes:describe~3#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:describe~3",
+      "start": {
+        "line": 45,
+        "column": 0,
+        "offset": 1026
+      },
+      "end": {
+        "line": 46,
+        "column": 32,
+        "offset": 1095
+      },
+      "text": "(defmethod describe :default [shape]\n  (str \"shape \" (pr-str shape)))",
+      "hash": "cc5ba3945a928216d51c4201911d6bccd8adbd23fad069674595e039fdbaf97c"
+    },
+    {
+      "id": "geometry.shapes:register!#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:register!",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 1097
+      },
+      "end": {
+        "line": 53,
+        "column": 8,
+        "offset": 1242
+      },
+      "text": ";; Registers a shape under a fresh id.\n(defn register!\n  [shape]\n  (let [id (str (UUID/randomUUID))]\n    (swap! registry assoc id shape)\n    id))",
+      "hash": "c2a871073e2a40dc731ca4be765250d60e479f437b9f2d548bcfc124dd049e5e"
+    },
+    {
+      "id": "geometry.shapes:total-area#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:total-area",
+      "start": {
+        "line": 55,
+        "column": 0,
+        "offset": 1244
+      },
+      "end": {
+        "line": 62,
+        "column": 21,
+        "offset": 1440
+      },
+      "text": "(defn total-area\n  \"Sums the areas of shapes, scaled.\"\n  ([shapes] (total-area shapes *scale*))\n  ([shapes scale]\n   (-\u003e\u003e shapes\n        (map area)\n        (map #(* % scale))\n        (reduce +))))",
+      "hash": "7d472ec8b1534bf0e79c94e6d5adda751476089587b748615dacf7192e24327e"
+    },
+    {
+      "id": "geometry.shapes:file-name#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:file-name",
+      "start": {
+        "line": 64,
+        "column": 0,
+        "offset": 1442
+      },
+      "end": {
+        "line": 65,
+        "column": 32,
+        "offset": 1509
+      },
+      "text": "(defn- file-name ^String [^File f]\n  (str/lower-case (.getName f)))",
+      "hash": "7e8189c7400f0202dbea788ce79edffb5f646ca16c4a5c2d2edcdf4c9e4b998d"
+    },
+    {
+      "id": "geometry.shapes:with-scale#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:with-scale",
+      "start": {
+        "line": 67,
+        "column": 0,
+        "offset": 1511
+      },
+      "end": {
+        "line": 72,
+        "column": 13,
+        "offset": 1637
+      },
+      "text": "(defmacro with-scale\n  \"Runs body with *scale* bound.\"\n  [s \u0026 body]\n  `(binding [*scale* ~s]\n     (log-scale ~s)\n     ~@body))",
+      "hash": "e8fff041c9d78b8fa57f9d8c7a8e1ad6402cda0395b3cb46d05d2ef26d7c6a23"
+    },
+    {
+      "id": "geometry.shapes:shape-proxy#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:shape-proxy",
+      "start": {
+        "line": 74,
+        "column": 0,
+        "offset": 1639
+      },
+      "end": {
+        "line": 76,
+        "column": 17,
+        "offset": 1731
+      },
+      "text": "(defn shape-proxy []\n  (proxy [java.util.AbstractList clojure.lang.IFn] []\n    (size [] 0)))",
+      "hash": "33bb9fd19a86b84d271d063930381aa669f1ddc136bb9a5d26548063efbccf71"
+    },
+    {
+      "id": "geometry.shapes:sized#1",
+      "kind": "symbol",
+      "symbolId": "geometry.shapes:sized",
+      "start": {
+        "line": 78,
+        "column": 0,
+        "offset": 1733
+      },
+      "end": {
+        "line": 81,
+        "column": 23,
+        "offset": 1827
+      },
+      "text": "(defn sized [n]\n  (reify Shape\n    (area [_] (clamp 0 n (u/square n)))\n    (perimeter [_] 0)))",
+      "hash": "cd8dd730aceed04fd8c0c5fcab3b694d9c07bd9d39134ae6c56b158c95bfc0d6"
+    },
+    {
+      "id": "L83#1",
+      "kind": "window",
+      "start": {
+        "line": 83,
+        "column": 0,
+        "offset": 1829
+      },
+      "end": {
+        "line": 83,
+        "column": 22,
+        "offset": 1851
+      },
+      "text": "(def stamp (new Date))",
+      "hash": "fbc49074ec6b9d8d94856b049f82aa9ae22f48fa596bb336077f8d5fe1bb5e6f"
+    }
+  ]
+}

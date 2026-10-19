@@ -1,0 +1,631 @@
+{
+  "lang": "typescript",
+  "symbols": [
+    {
+      "id": "configure",
+      "kind": "function",
+      "name": "configure",
+      "qualName": "configure",
+      "signature": "function configure(options: Config): void;",
+      "start": {
+        "line": 6,
+        "column": 15,
+        "offset": 136
+      },
+      "end": {
+        "line": 6,
+        "column": 57,
+        "offset": 178
+      },
+      "exported": true
+    },
+    {
+      "id": "Client",
+      "kind": "class",
+      "name": "Client",
+      "qualName": "Client",
+      "signature": "class Client",
+      "start": {
+        "line": 8,
+        "column": 15,
+        "offset": 195
+      },
+      "end": {
+        "line": 13,
+        "column": 1,
+        "offset": 313
+      },
+      "exported": true
+    },
+    {
+      "id": "Client.constructor",
+      "kind": "method",
+      "name": "constructor",
+      "qualName": "Client.constructor",
+      "signature": "constructor(url: string)",
+      "start": {
+        "line": 9,
+        "column": 2,
+        "offset": 212
+      },
+      "end": {
+        "line": 9,
+        "column": 26,
+        "offset": 236
+      },
+      "parent": "Client",
+      "exported": true
+    },
+    {
+      "id": "Client.token",
+      "kind": "field",
+      "name": "token",
+      "qualName": "Client.token",
+      "signature": "private token",
+      "start": {
+        "line": 10,
+        "column": 2,
+        "offset": 240
+      },
+      "end": {
+        "line": 10,
+        "column": 15,
+        "offset": 253
+      },
+      "parent": "Client"
+    },
+    {
+      "id": "Client.request",
+      "kind": "method",
+      "name": "request",
+      "qualName": "Client.request",
+      "signature": "request\u003cT\u003e(path: string): Promise\u003cT\u003e",
+      "start": {
+        "line": 11,
+        "column": 2,
+        "offset": 257
+      },
+      "end": {
+        "line": 11,
+        "column": 38,
+        "offset": 293
+      },
+      "parent": "Client",
+      "exported": true
+    },
+    {
+      "id": "Client.close",
+      "kind": "method",
+      "name": "close",
+      "qualName": "Client.close",
+      "signature": "close(): void",
+      "start": {
+        "line": 12,
+        "column": 2,
+        "offset": 297
+      },
+      "end": {
+        "line": 12,
+        "column": 15,
+        "offset": 310
+      },
+      "parent": "Client",
+      "exported": true
+    },
+    {
+      "id": "VERSION",
+      "kind": "const",
+      "name": "VERSION",
+      "qualName": "VERSION",
+      "signature": "VERSION: string",
+      "start": {
+        "line": 15,
+        "column": 21,
+        "offset": 336
+      },
+      "end": {
+        "line": 15,
+        "column": 36,
+        "offset": 351
+      },
+      "exported": true
+    },
+    {
+      "id": "debug",
+      "kind": "var",
+      "name": "debug",
+      "qualName": "debug",
+      "signature": "debug: boolean",
+      "start": {
+        "line": 17,
+        "column": 12,
+        "offset": 366
+      },
+      "end": {
+        "line": 17,
+        "column": 26,
+        "offset": 380
+      }
+    },
+    {
+      "id": "Config",
+      "kind": "interface",
+      "name": "Config",
+      "qualName": "Config",
+      "signature": "interface Config",
+      "start": {
+        "line": 19,
+        "column": 7,
+        "offset": 390
+      },
+      "end": {
+        "line": 22,
+        "column": 1,
+        "offset": 445
+      },
+      "exported": true
+    },
+    {
+      "id": "Config.url",
+      "kind": "field",
+      "name": "url",
+      "qualName": "Config.url",
+      "signature": "url: string",
+      "start": {
+        "line": 20,
+        "column": 2,
+        "offset": 411
+      },
+      "end": {
+        "line": 20,
+        "column": 13,
+        "offset": 422
+      },
+      "parent": "Config",
+      "exported": true
+    },
+    {
+      "id": "Config.retries",
+      "kind": "field",
+      "name": "retries",
+      "qualName": "Config.retries",
+      "signature": "retries?: number",
+      "start": {
+        "line": 21,
+        "column": 2,
+        "offset": 426
+      },
+      "end": {
+        "line": 21,
+        "column": 18,
+        "offset": 442
+      },
+      "parent": "Config",
+      "exported": true
+    },
+    {
+      "id": "Telemetry",
+      "kind": "namespace",
+      "name": "Telemetry",
+      "qualName": "Telemetry",
+      "signature": "namespace Telemetry",
+      "start": {
+        "line": 24,
+        "column": 8,
+        "offset": 455
+      },
+      "end": {
+        "line": 30,
+        "column": 1,
+        "offset": 585
+      }
+    },
+    {
+      "id": "Telemetry.track",
+      "kind": "function",
+      "name": "track",
+      "qualName": "Telemetry.track",
+      "signature": "function track(event: string): void;",
+      "start": {
+        "line": 25,
+        "column": 2,
+        "offset": 479
+      },
+      "end": {
+        "line": 25,
+        "column": 38,
+        "offset": 515
+      },
+      "parent": "Telemetry"
+    },
+    {
+      "id": "Telemetry.enabled",
+      "kind": "const",
+      "name": "enabled",
+      "qualName": "Telemetry.enabled",
+      "signature": "enabled: boolean",
+      "start": {
+        "line": 26,
+        "column": 8,
+        "offset": 524
+      },
+      "end": {
+        "line": 26,
+        "column": 24,
+        "offset": 540
+      },
+      "parent": "Telemetry"
+    },
+    {
+      "id": "Telemetry.Event",
+      "kind": "interface",
+      "name": "Event",
+      "qualName": "Telemetry.Event",
+      "signature": "interface Event",
+      "start": {
+        "line": 27,
+        "column": 2,
+        "offset": 544
+      },
+      "end": {
+        "line": 29,
+        "column": 3,
+        "offset": 583
+      },
+      "parent": "Telemetry"
+    },
+    {
+      "id": "Telemetry.Event.name",
+      "kind": "field",
+      "name": "name",
+      "qualName": "Telemetry.Event.name",
+      "signature": "name: string",
+      "start": {
+        "line": 28,
+        "column": 4,
+        "offset": 566
+      },
+      "end": {
+        "line": 28,
+        "column": 16,
+        "offset": 578
+      },
+      "parent": "Telemetry.Event",
+      "exported": true
+    },
+    {
+      "id": "virtual:config",
+      "kind": "module",
+      "name": "virtual:config",
+      "qualName": "virtual:config",
+      "signature": "module \"virtual:config\"",
+      "start": {
+        "line": 32,
+        "column": 8,
+        "offset": 595
+      },
+      "end": {
+        "line": 35,
+        "column": 1,
+        "offset": 678
+      }
+    },
+    {
+      "id": "virtual:config.config",
+      "kind": "const",
+      "name": "config",
+      "qualName": "virtual:config.config",
+      "signature": "config: Config",
+      "start": {
+        "line": 33,
+        "column": 15,
+        "offset": 636
+      },
+      "end": {
+        "line": 33,
+        "column": 29,
+        "offset": 650
+      },
+      "parent": "virtual:config",
+      "exported": true
+    },
+    {
+      "id": "Window",
+      "kind": "interface",
+      "name": "Window",
+      "qualName": "Window",
+      "signature": "interface Window",
+      "start": {
+        "line": 38,
+        "column": 2,
+        "offset": 699
+      },
+      "end": {
+        "line": 40,
+        "column": 3,
+        "offset": 743
+      }
+    },
+    {
+      "id": "Window.__client",
+      "kind": "field",
+      "name": "__client",
+      "qualName": "Window.__client",
+      "signature": "__client: Client",
+      "start": {
+        "line": 39,
+        "column": 4,
+        "offset": 722
+      },
+      "end": {
+        "line": 39,
+        "column": 20,
+        "offset": 738
+      },
+      "parent": "Window",
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "Config",
+      "kind": "type",
+      "start": {
+        "line": 6,
+        "column": 43,
+        "offset": 164
+      },
+      "enclosing": "configure"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 10,
+        "offset": 265
+      },
+      "enclosing": "Client.request"
+    },
+    {
+      "name": "Promise",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 28,
+        "offset": 283
+      },
+      "enclosing": "Client.request"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 36,
+        "offset": 291
+      },
+      "enclosing": "Client.request"
+    },
+    {
+      "name": "Config",
+      "kind": "type",
+      "start": {
+        "line": 33,
+        "column": 23,
+        "offset": 644
+      },
+      "enclosing": "virtual:config.config"
+    },
+    {
+      "name": "Client",
+      "kind": "type",
+      "start": {
+        "line": 39,
+        "column": 14,
+        "offset": 732
+      },
+      "enclosing": "Window.__client"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 4,
+        "column": 30,
+        "offset": 119
+      },
+      "text": "// A declaration file: ambient declarations, declare module and global\n// augmentation.\n\n/// \u003creference types=\"node\" /\u003e",
+      "hash": "e96945f0007287807e9e5d98871b77dda328afd230736b67eb06b5d71bce022b"
+    },
+    {
+      "id": "configure#1",
+      "kind": "symbol",
+      "symbolId": "configure",
+      "start": {
+        "line": 6,
+        "column": 15,
+        "offset": 136
+      },
+      "end": {
+        "line": 6,
+        "column": 57,
+        "offset": 178
+      },
+      "text": "function configure(options: Config): void;",
+      "hash": "8b345b245c773f7abb3c1a22595bed5487be7049838dd02eebf50d5ded332bda"
+    },
+    {
+      "id": "Client#1",
+      "kind": "symbol",
+      "symbolId": "Client",
+      "start": {
+        "line": 8,
+        "column": 15,
+        "offset": 195
+      },
+      "end": {
+        "line": 13,
+        "column": 1,
+        "offset": 313
+      },
+      "text": "class Client {\n  constructor(url: string);\n  private token;\n  request\u003cT\u003e(path: string): Promise\u003cT\u003e;\n  close(): void;\n}",
+      "hash": "5dc557ff0d6919441ab633bbd627ab348eebe1a50b7a42bdde5f70c9711e0e00"
+    },
+    {
+      "id": "L15#1",
+      "kind": "window",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 315
+      },
+      "end": {
+        "line": 17,
+        "column": 27,
+        "offset": 381
+      },
+      "text": "export declare const VERSION: string;\n\ndeclare let debug: boolean;",
+      "hash": "36d347dae42a8c44b0f8e9c7191a4e546c5cd452efa1209592453f96ce9e583f"
+    },
+    {
+      "id": "Config#1",
+      "kind": "symbol",
+      "symbolId": "Config",
+      "start": {
+        "line": 19,
+        "column": 7,
+        "offset": 390
+      },
+      "end": {
+        "line": 22,
+        "column": 1,
+        "offset": 445
+      },
+      "text": "interface Config {\n  url: string;\n  retries?: number;\n}",
+      "hash": "4eaafa4ca627214278863a26e821dd1fa9dcaf22658d7faf5a7b030caf3ca265"
+    },
+    {
+      "id": "L24#1",
+      "kind": "window",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 447
+      },
+      "end": {
+        "line": 24,
+        "column": 29,
+        "offset": 476
+      },
+      "text": "declare namespace Telemetry {",
+      "hash": "d46cc31f01b8e62291c1aa99bb025e931b5a6c472f37ae47218b3d4ca15f4f34"
+    },
+    {
+      "id": "Telemetry.track#1",
+      "kind": "symbol",
+      "symbolId": "Telemetry.track",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 477
+      },
+      "end": {
+        "line": 25,
+        "column": 38,
+        "offset": 515
+      },
+      "text": "  function track(event: string): void;",
+      "hash": "f0271132430b6b6d8fbb34f1e0ac08199aa27e2adaaaed6c3fe3ccbb98ae59f9"
+    },
+    {
+      "id": "L26#1",
+      "kind": "window",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 516
+      },
+      "end": {
+        "line": 26,
+        "column": 25,
+        "offset": 541
+      },
+      "text": "  const enabled: boolean;",
+      "hash": "e8a937819e6f01ec74a497037fc94ceb504566f5c7624e9c48c3002e80e0db32"
+    },
+    {
+      "id": "Telemetry.Event#1",
+      "kind": "symbol",
+      "symbolId": "Telemetry.Event",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 542
+      },
+      "end": {
+        "line": 29,
+        "column": 3,
+        "offset": 583
+      },
+      "text": "  interface Event {\n    name: string;\n  }",
+      "hash": "803525382259903ec3d91e20c026462a0b6f4d92eb10a1253d3ca69818051b33"
+    },
+    {
+      "id": "L30#1",
+      "kind": "window",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 584
+      },
+      "end": {
+        "line": 37,
+        "column": 16,
+        "offset": 696
+      },
+      "text": "}\n\ndeclare module \"virtual:config\" {\n  export const config: Config;\n  export default config;\n}\n\ndeclare global {",
+      "hash": "3cbf552c5afbec57852eeba92a9b6d974be8cd77729adea8a2a66ffd1ecc11df"
+    },
+    {
+      "id": "Window#1",
+      "kind": "symbol",
+      "symbolId": "Window",
+      "start": {
+        "line": 38,
+        "column": 0,
+        "offset": 697
+      },
+      "end": {
+        "line": 40,
+        "column": 3,
+        "offset": 743
+      },
+      "text": "  interface Window {\n    __client: Client;\n  }",
+      "hash": "04e4979b03df9ee0daf6accb790c1e4737f5edda6b538abadb3fc00bd895720f"
+    },
+    {
+      "id": "L41#1",
+      "kind": "window",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 744
+      },
+      "end": {
+        "line": 43,
+        "column": 30,
+        "offset": 777
+      },
+      "text": "}\n\nexport as namespace ClientLib;",
+      "hash": "1e02a3b2a5521310cd155439a7b1bc619bf2eb8c7399fb0b6d3fc8b6700957ae"
+    }
+  ]
+}

@@ -1,0 +1,865 @@
+{
+  "lang": "rust",
+  "symbols": [
+    {
+      "id": "Draw",
+      "kind": "trait",
+      "name": "Draw",
+      "qualName": "Draw",
+      "signature": "pub trait Draw: fmt::Debug + Shape",
+      "doc": "Draws shapes onto a canvas.",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 84
+      },
+      "end": {
+        "line": 8,
+        "column": 1,
+        "offset": 163
+      },
+      "exported": true
+    },
+    {
+      "id": "Draw::draw",
+      "kind": "method",
+      "name": "draw",
+      "qualName": "Draw::draw",
+      "signature": "fn draw(\u0026self, canvas: \u0026mut Canvas);",
+      "start": {
+        "line": 7,
+        "column": 4,
+        "offset": 125
+      },
+      "end": {
+        "line": 7,
+        "column": 40,
+        "offset": 161
+      },
+      "parent": "Draw",
+      "exported": true
+    },
+    {
+      "id": "Canvas",
+      "kind": "struct",
+      "name": "Canvas",
+      "qualName": "Canvas",
+      "signature": "pub struct Canvas",
+      "doc": "A canvas of pixels.",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 189
+      },
+      "end": {
+        "line": 14,
+        "column": 1,
+        "offset": 260
+      },
+      "exported": true
+    },
+    {
+      "id": "Canvas::pixels",
+      "kind": "field",
+      "name": "pixels",
+      "qualName": "Canvas::pixels",
+      "signature": "pixels: Vec\u003cPixel\u003e",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 213
+      },
+      "end": {
+        "line": 12,
+        "column": 22,
+        "offset": 231
+      },
+      "parent": "Canvas"
+    },
+    {
+      "id": "Canvas::size",
+      "kind": "field",
+      "name": "size",
+      "qualName": "Canvas::size",
+      "signature": "size: geometry::Size",
+      "start": {
+        "line": 13,
+        "column": 4,
+        "offset": 237
+      },
+      "end": {
+        "line": 13,
+        "column": 24,
+        "offset": 257
+      },
+      "parent": "Canvas"
+    },
+    {
+      "id": "Circle",
+      "kind": "impl",
+      "name": "Circle",
+      "qualName": "Circle",
+      "signature": "impl Draw for Circle",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 262
+      },
+      "end": {
+        "line": 26,
+        "column": 1,
+        "offset": 603
+      }
+    },
+    {
+      "id": "Circle::draw",
+      "kind": "method",
+      "name": "draw",
+      "qualName": "Circle::draw",
+      "signature": "fn draw(\u0026self, canvas: \u0026mut Canvas)",
+      "start": {
+        "line": 17,
+        "column": 4,
+        "offset": 289
+      },
+      "end": {
+        "line": 25,
+        "column": 5,
+        "offset": 601
+      },
+      "parent": "Circle",
+      "exported": true
+    },
+    {
+      "id": "Canvas~2",
+      "kind": "impl",
+      "name": "Canvas",
+      "qualName": "Canvas",
+      "signature": "impl\u003cT: Shape\u003e From\u003cT\u003e for Canvas",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 605
+      },
+      "end": {
+        "line": 34,
+        "column": 1,
+        "offset": 783
+      }
+    },
+    {
+      "id": "Canvas::from",
+      "kind": "method",
+      "name": "from",
+      "qualName": "Canvas::from",
+      "signature": "fn from(shape: T) -\u003e Self",
+      "start": {
+        "line": 29,
+        "column": 4,
+        "offset": 645
+      },
+      "end": {
+        "line": 33,
+        "column": 5,
+        "offset": 781
+      },
+      "parent": "Canvas~2",
+      "exported": true
+    },
+    {
+      "id": "Canvas~3",
+      "kind": "impl",
+      "name": "Canvas",
+      "qualName": "Canvas",
+      "signature": "impl fmt::Display for Canvas",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 785
+      },
+      "end": {
+        "line": 41,
+        "column": 1,
+        "offset": 977
+      }
+    },
+    {
+      "id": "Canvas::fmt",
+      "kind": "method",
+      "name": "fmt",
+      "qualName": "Canvas::fmt",
+      "signature": "fn fmt(\u0026self, f: \u0026mut fmt::Formatter\u003c'_\u003e) -\u003e fmt::Result",
+      "start": {
+        "line": 37,
+        "column": 4,
+        "offset": 820
+      },
+      "end": {
+        "line": 40,
+        "column": 5,
+        "offset": 975
+      },
+      "parent": "Canvas~3",
+      "exported": true
+    },
+    {
+      "id": "render",
+      "kind": "function",
+      "name": "render",
+      "qualName": "render",
+      "signature": "pub fn render\u003cS: Shape + ?Sized\u003e(shape: \u0026S, canvas: \u0026mut Canvas) -\u003e Option\u003cPixel\u003e",
+      "doc": "Renders any shape.",
+      "start": {
+        "line": 44,
+        "column": 0,
+        "offset": 1002
+      },
+      "end": {
+        "line": 48,
+        "column": 1,
+        "offset": 1177
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "std",
+      "names": [
+        "fmt"
+      ],
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    },
+    {
+      "spec": "crate::shapes",
+      "names": [
+        "Circle",
+        "Shape"
+      ],
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 15
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Debug",
+      "qualifier": "fmt",
+      "kind": "extends",
+      "start": {
+        "line": 6,
+        "column": 21,
+        "offset": 105
+      },
+      "enclosing": "Draw"
+    },
+    {
+      "name": "Debug",
+      "qualifier": "fmt",
+      "kind": "type",
+      "start": {
+        "line": 6,
+        "column": 21,
+        "offset": 105
+      },
+      "enclosing": "Draw"
+    },
+    {
+      "name": "Shape",
+      "kind": "extends",
+      "start": {
+        "line": 6,
+        "column": 29,
+        "offset": 113
+      },
+      "enclosing": "Draw"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 6,
+        "column": 29,
+        "offset": 113
+      },
+      "enclosing": "Draw"
+    },
+    {
+      "name": "Canvas",
+      "kind": "type",
+      "start": {
+        "line": 7,
+        "column": 32,
+        "offset": 153
+      },
+      "enclosing": "Draw::draw"
+    },
+    {
+      "name": "Vec",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 12,
+        "offset": 221
+      },
+      "enclosing": "Canvas::pixels"
+    },
+    {
+      "name": "Pixel",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 16,
+        "offset": 225
+      },
+      "enclosing": "Canvas::pixels"
+    },
+    {
+      "name": "Size",
+      "qualifier": "geometry",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 20,
+        "offset": 253
+      },
+      "enclosing": "Canvas::size"
+    },
+    {
+      "name": "Draw",
+      "kind": "implements",
+      "start": {
+        "line": 16,
+        "column": 5,
+        "offset": 267
+      },
+      "enclosing": "Circle"
+    },
+    {
+      "name": "Draw",
+      "kind": "type",
+      "start": {
+        "line": 16,
+        "column": 5,
+        "offset": 267
+      },
+      "enclosing": "Circle"
+    },
+    {
+      "name": "Canvas",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 32,
+        "offset": 317
+      },
+      "enclosing": "Circle::draw"
+    },
+    {
+      "name": "center",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 18,
+        "column": 26,
+        "offset": 353
+      },
+      "enclosing": "Circle::draw"
+    },
+    {
+      "name": "plot",
+      "qualifier": "canvas",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 15,
+        "offset": 378
+      },
+      "enclosing": "Circle::draw"
+    },
+    {
+      "name": "render",
+      "kind": "call",
+      "start": {
+        "line": 20,
+        "column": 8,
+        "offset": 412
+      },
+      "enclosing": "Circle::draw"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 17,
+        "offset": 421
+      },
+      "enclosing": "Circle::draw"
+    },
+    {
+      "name": "arc",
+      "qualifier": "geometry",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 18,
+        "offset": 462
+      },
+      "enclosing": "Circle::draw"
+    },
+    {
+      "name": "trace",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 8,
+        "offset": 496
+      },
+      "enclosing": "Circle::draw"
+    },
+    {
+      "name": "debug",
+      "qualifier": "log",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 13,
+        "offset": 536
+      },
+      "enclosing": "Circle::draw"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 28,
+        "column": 5,
+        "offset": 610
+      },
+      "enclosing": "Canvas~2"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 28,
+        "column": 8,
+        "offset": 613
+      },
+      "enclosing": "Canvas~2"
+    },
+    {
+      "name": "From",
+      "kind": "implements",
+      "start": {
+        "line": 28,
+        "column": 15,
+        "offset": 620
+      },
+      "enclosing": "Canvas~2"
+    },
+    {
+      "name": "From",
+      "kind": "type",
+      "start": {
+        "line": 28,
+        "column": 15,
+        "offset": 620
+      },
+      "enclosing": "Canvas~2"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 28,
+        "column": 20,
+        "offset": 625
+      },
+      "enclosing": "Canvas~2"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 29,
+        "column": 19,
+        "offset": 660
+      },
+      "enclosing": "Canvas::from"
+    },
+    {
+      "name": "with_size",
+      "qualifier": "Canvas",
+      "kind": "call",
+      "start": {
+        "line": 30,
+        "column": 28,
+        "offset": 701
+      },
+      "enclosing": "Canvas::from"
+    },
+    {
+      "name": "bounds",
+      "qualifier": "shape",
+      "kind": "call",
+      "start": {
+        "line": 30,
+        "column": 44,
+        "offset": 717
+      },
+      "enclosing": "Canvas::from"
+    },
+    {
+      "name": "fill",
+      "qualifier": "c",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 10,
+        "offset": 738
+      },
+      "enclosing": "Canvas::from"
+    },
+    {
+      "name": "color",
+      "qualifier": "shape",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 21,
+        "offset": 749
+      },
+      "enclosing": "Canvas::from"
+    },
+    {
+      "name": "into",
+      "qualifier": "shape.color()",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 29,
+        "offset": 757
+      },
+      "enclosing": "Canvas::from"
+    },
+    {
+      "name": "Display",
+      "qualifier": "fmt",
+      "kind": "implements",
+      "start": {
+        "line": 36,
+        "column": 10,
+        "offset": 795
+      },
+      "enclosing": "Canvas~3"
+    },
+    {
+      "name": "Display",
+      "qualifier": "fmt",
+      "kind": "type",
+      "start": {
+        "line": 36,
+        "column": 10,
+        "offset": 795
+      },
+      "enclosing": "Canvas~3"
+    },
+    {
+      "name": "Formatter",
+      "qualifier": "fmt",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 31,
+        "offset": 847
+      },
+      "enclosing": "Canvas::fmt"
+    },
+    {
+      "name": "Result",
+      "qualifier": "fmt",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 54,
+        "offset": 870
+      },
+      "enclosing": "Canvas::fmt"
+    },
+    {
+      "name": "iter",
+      "qualifier": "self.pixels",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 28,
+        "offset": 907
+      },
+      "enclosing": "Canvas::fmt"
+    },
+    {
+      "name": "filter",
+      "qualifier": "self.pixels.iter()",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 35,
+        "offset": 914
+      },
+      "enclosing": "Canvas::fmt"
+    },
+    {
+      "name": "lit",
+      "qualifier": "p",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 48,
+        "offset": 927
+      },
+      "enclosing": "Canvas::fmt"
+    },
+    {
+      "name": "count",
+      "qualifier": "self.pixels.iter().filter(|p| p.lit())",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 55,
+        "offset": 934
+      },
+      "enclosing": "Canvas::fmt"
+    },
+    {
+      "name": "S",
+      "kind": "type",
+      "start": {
+        "line": 44,
+        "column": 14,
+        "offset": 1016
+      },
+      "enclosing": "render"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 44,
+        "column": 17,
+        "offset": 1019
+      },
+      "enclosing": "render"
+    },
+    {
+      "name": "Sized",
+      "kind": "type",
+      "start": {
+        "line": 44,
+        "column": 26,
+        "offset": 1028
+      },
+      "enclosing": "render"
+    },
+    {
+      "name": "S",
+      "kind": "type",
+      "start": {
+        "line": 44,
+        "column": 41,
+        "offset": 1043
+      },
+      "enclosing": "render"
+    },
+    {
+      "name": "Canvas",
+      "kind": "type",
+      "start": {
+        "line": 44,
+        "column": 57,
+        "offset": 1059
+      },
+      "enclosing": "render"
+    },
+    {
+      "name": "Option",
+      "kind": "type",
+      "start": {
+        "line": 44,
+        "column": 68,
+        "offset": 1070
+      },
+      "enclosing": "render"
+    },
+    {
+      "name": "Pixel",
+      "kind": "type",
+      "start": {
+        "line": 44,
+        "column": 75,
+        "offset": 1077
+      },
+      "enclosing": "render"
+    },
+    {
+      "name": "first",
+      "qualifier": "canvas.pixels",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 30,
+        "offset": 1116
+      },
+      "enclosing": "render"
+    },
+    {
+      "name": "copied",
+      "qualifier": "canvas.pixels.first()",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 38,
+        "offset": 1124
+      },
+      "enclosing": "render"
+    },
+    {
+      "name": "paint",
+      "qualifier": "shape",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 10,
+        "offset": 1144
+      },
+      "enclosing": "render"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 35,
+        "offset": 50
+      },
+      "text": "use std::fmt;\n\nuse crate::shapes::{Circle, Shape};",
+      "hash": "35fc13aec0468d36409eb9df36aaa0db91dbd592d682ce09bd4d3da6fac9f5bf"
+    },
+    {
+      "id": "Draw#1",
+      "kind": "symbol",
+      "symbolId": "Draw",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 52
+      },
+      "end": {
+        "line": 8,
+        "column": 1,
+        "offset": 163
+      },
+      "text": "/// Draws shapes onto a canvas.\npub trait Draw: fmt::Debug + Shape {\n    fn draw(\u0026self, canvas: \u0026mut Canvas);\n}",
+      "hash": "1a4a04edcbb6e2b034663d3685e67e06e9a340d223cf5de22cb83c0e08d8ed2b"
+    },
+    {
+      "id": "Canvas#1",
+      "kind": "symbol",
+      "symbolId": "Canvas",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 165
+      },
+      "end": {
+        "line": 14,
+        "column": 1,
+        "offset": 260
+      },
+      "text": "/// A canvas of pixels.\npub struct Canvas {\n    pixels: Vec\u003cPixel\u003e,\n    size: geometry::Size,\n}",
+      "hash": "7c46b454ef774f051acfffea697d3aeffc26016948db78ff1b1dc169b43a41f5"
+    },
+    {
+      "id": "Circle#1",
+      "kind": "symbol",
+      "symbolId": "Circle",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 262
+      },
+      "end": {
+        "line": 26,
+        "column": 1,
+        "offset": 603
+      },
+      "text": "impl Draw for Circle {\n    fn draw(\u0026self, canvas: \u0026mut Canvas) {\n        let center = self.center();\n        canvas.plot(center, Color::RED);\n        render::\u003cCircle\u003e(self, canvas);\n        geometry::arc(center, self.radius);\n        trace!(\"drew {:?}\", self);\n        log::debug!(\"circle at {:?}\", center);\n        println!(\"done\");\n    }\n}",
+      "hash": "6c25a008d30794be4612bbf51c4d44f9e97f1091a2e34e1ac0557d45ddb2a8b6"
+    },
+    {
+      "id": "Canvas~2#1",
+      "kind": "symbol",
+      "symbolId": "Canvas~2",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 605
+      },
+      "end": {
+        "line": 34,
+        "column": 1,
+        "offset": 783
+      },
+      "text": "impl\u003cT: Shape\u003e From\u003cT\u003e for Canvas {\n    fn from(shape: T) -\u003e Self {\n        let mut c = Canvas::with_size(shape.bounds());\n        c.fill(shape.color().into());\n        c\n    }\n}",
+      "hash": "c2f0b1beccbdecfbedbe582a76dd6426a3be374275a7d31748822dfc4426e3e0"
+    },
+    {
+      "id": "Canvas~3#1",
+      "kind": "symbol",
+      "symbolId": "Canvas~3",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 785
+      },
+      "end": {
+        "line": 41,
+        "column": 1,
+        "offset": 977
+      },
+      "text": "impl fmt::Display for Canvas {\n    fn fmt(\u0026self, f: \u0026mut fmt::Formatter\u003c'_\u003e) -\u003e fmt::Result {\n        let n = self.pixels.iter().filter(|p| p.lit()).count();\n        write!(f, \"{}\", n)\n    }\n}",
+      "hash": "7165e0f50cd95005212b6f98d466a3aa76cfc2b12f5ba33a651740d78bfcf903"
+    },
+    {
+      "id": "render#1",
+      "kind": "symbol",
+      "symbolId": "render",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 979
+      },
+      "end": {
+        "line": 48,
+        "column": 1,
+        "offset": 1177
+      },
+      "text": "/// Renders any shape.\npub fn render\u003cS: Shape + ?Sized\u003e(shape: \u0026S, canvas: \u0026mut Canvas) -\u003e Option\u003cPixel\u003e {\n    let first = canvas.pixels.first().copied();\n    shape.paint(canvas);\n    Some(first?)\n}",
+      "hash": "025c9875245affd40e41bd2d1ffa860f5ba115d6c4bb946f2f0fe1b5368da7df"
+    }
+  ]
+}

@@ -3,11 +3,13 @@ id: 0110-djd
 title: Resolver for C# (csharp)
 purpose: Resolves references for C# (csharp) so calls, references and implementations link to the right definitions.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:28.294Z"
-updated: "2026-10-19T18:32:06.841Z"
+updated: "2026-10-19T21:04:25.012Z"
+started: "2026-10-19T20:54:56.590Z"
+completed: "2026-10-19T21:04:25.012Z"
 tags:
   - plan-0012-cgi
   - wave-7
@@ -33,15 +35,15 @@ links:
     - ["0012-cgi", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Resolver for C# (csharp)
@@ -78,10 +80,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'csharp'
-- [ ] [MANUAL] Only this family's two files changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'csharp'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'csharp'
+- [x] [MANUAL] Only this family's two files changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'csharp'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -89,3 +91,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/resolvers/csharp_test.go` - resolution tests over the language goldens
 
 ## Work Log
+
+### 2026-10-19T21:04:16.209Z - Added codeindex/resolvers/csharp.go (family csharp, registered from init; exported helper CSharpName) and csharp_test.go (package resolvers_test; 4 tests: rules/registration, package+scope over the Usings/Form1.Designer/Shapes goldens, Visible over Form1.Designer/Orders, and an end-to-end codeindex run with the real C# extractor over Usings/Form1.Designer/Shapes/Orders plus small sources). Rules: package = outermost namespace ("" global); scope opens enclosing namespaces and the global one; using/global using/using global:: open a namespace (a nested namespace maps to its outermost, which the extractor keys); aliases bind a qualifier to the namespace or to the namespace holding the aliased type; specs outside the project are kept so they stay unresolved; using static adds nothing (members reach via NameFallback). Visible: top-level types always (internal too) unless 'file'; members/nested types when public/protected/internal, private ones only from a file that declares the type (so partial parts share privates); a later part of a partial type in the same file is hidden so references reach the first part. Verified: gofmt clean, go vet ./..., go build ./..., go test -race ./codeindex/... ok (resolvers 4/4 csharp tests pass). Core gaps (not edited, reported): the engine cannot treat partial parts in different files as one definition (references to such a type, and calls to another part's members, get confidence name), using static members and inherited members only reach via the name fallback, references by a type alias's name (IntList) cannot resolve, and the scope step matches a same-named property for a type reference (Customer? Customer).

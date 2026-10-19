@@ -1,0 +1,17 @@
+# PHP: a file's namespace comes from its `namespace` declaration (or the
+# braced namespaces it defines); `use` imports classes, functions and
+# constants by fully qualified name, `require`/`include` pull in files by
+# path. Names are qualified with `\`; `::` reaches class members. Classes,
+# functions and methods compare without case in PHP (constants and
+# variables do not), hence caseInsensitive for the php family resolver.
+name: PHP
+family: php
+extensions: [.php]
+query: tags.scm
+definingForms:
+  - { form: define, kind: const }
+scope:
+  separators: ["\\", "::"]
+  packageBy: declaration
+  exported: declared
+  caseInsensitive: true

@@ -1,0 +1,362 @@
+{
+  "lang": "perl",
+  "symbols": [
+    {
+      "id": "main",
+      "kind": "function",
+      "name": "main",
+      "qualName": "main",
+      "signature": "sub main",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 269
+      },
+      "end": {
+        "line": 26,
+        "column": 1,
+        "offset": 631
+      },
+      "exported": true
+    },
+    {
+      "id": "load_shapes",
+      "kind": "function",
+      "name": "load_shapes",
+      "qualName": "load_shapes",
+      "signature": "sub load_shapes",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 633
+      },
+      "end": {
+        "line": 28,
+        "column": 69,
+        "offset": 702
+      },
+      "exported": true
+    },
+    {
+      "id": "report",
+      "kind": "function",
+      "name": "report",
+      "qualName": "report",
+      "signature": "sub report",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 704
+      },
+      "end": {
+        "line": 30,
+        "column": 41,
+        "offset": 745
+      },
+      "exported": true
+    },
+    {
+      "id": "log_line",
+      "kind": "function",
+      "name": "log_line",
+      "qualName": "log_line",
+      "signature": "sub log_line",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 747
+      },
+      "end": {
+        "line": 32,
+        "column": 62,
+        "offset": 809
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "strict",
+      "kind": "pragma",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 80
+      }
+    },
+    {
+      "spec": "warnings",
+      "kind": "pragma",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 92
+      }
+    },
+    {
+      "spec": "lib",
+      "kind": "pragma",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 106
+      }
+    },
+    {
+      "spec": "Getopt::Long",
+      "names": [
+        "GetOptions"
+      ],
+      "kind": "use",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 121
+      }
+    },
+    {
+      "spec": "My::Shape::Circle",
+      "kind": "use",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 154
+      }
+    },
+    {
+      "spec": "Text::Wrap",
+      "names": [
+        "wrap",
+        "fill"
+      ],
+      "kind": "use",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 177
+      }
+    },
+    {
+      "spec": "My::Report",
+      "kind": "require",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 208
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "GetOptions",
+      "kind": "call",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 238
+      }
+    },
+    {
+      "name": "load_shapes",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 17,
+        "offset": 297
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "report",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 8,
+        "offset": 355
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "log_line",
+      "kind": "call",
+      "start": {
+        "line": 18,
+        "column": 8,
+        "offset": 379
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "emit",
+      "qualifier": "My::Report",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 8,
+        "offset": 415
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "area",
+      "qualifier": "$shape",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 33,
+        "offset": 440
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "flush",
+      "qualifier": "My::Report",
+      "kind": "call",
+      "start": {
+        "line": 20,
+        "column": 8,
+        "offset": 467
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "new",
+      "qualifier": "My::Shape::Circle",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 31,
+        "offset": 526
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "can",
+      "qualifier": "My::Report",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 30,
+        "offset": 569
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "describe",
+      "qualifier": "$c",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 8,
+        "offset": 593
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "new",
+      "qualifier": "My::Shape::Circle",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 50,
+        "offset": 683
+      },
+      "enclosing": "load_shapes"
+    },
+    {
+      "name": "main",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 5,
+        "offset": 816
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 12,
+        "column": 29,
+        "offset": 267
+      },
+      "text": "#!/usr/bin/env perl\n# Prints a report of every shape: a script with no package.\nuse strict;\nuse warnings;\nuse lib 'lib';\nuse Getopt::Long qw(GetOptions);\nuse My::Shape::Circle;\nuse Text::Wrap 'wrap', \"fill\";\nrequire My::Report;\n\nmy %opt;\nGetOptions(\\%opt, 'verbose');",
+      "hash": "5693740b25e09a1d3763ff8cd44cd977218382005e772c3519e3ee827e434601"
+    },
+    {
+      "id": "main#1",
+      "kind": "symbol",
+      "symbolId": "main",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 269
+      },
+      "end": {
+        "line": 26,
+        "column": 1,
+        "offset": 631
+      },
+      "text": "sub main {\n    my @shapes = load_shapes(@ARGV);\n    for my $shape (@shapes) {\n        report($shape);\n        \u0026log_line(\"shape\", $shape);\n        My::Report::emit($shape-\u003earea, ref $shape);\n        \u0026My::Report::flush();\n    }\n    my $c = My::Shape::Circle-\u003enew(r =\u003e 1);\n    my $printer = My::Report-\u003ecan('printer');\n    $c-\u003edescribe;\n    return scalar @shapes;\n}",
+      "hash": "f2829d6e4fbd9c8a141bcb4e6429d154bc2b815852277a411406058c2e43035a"
+    },
+    {
+      "id": "load_shapes#1",
+      "kind": "symbol",
+      "symbolId": "load_shapes",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 633
+      },
+      "end": {
+        "line": 28,
+        "column": 69,
+        "offset": 702
+      },
+      "text": "sub load_shapes { return map { My::Shape::Circle-\u003enew(r =\u003e $_) } @_ }",
+      "hash": "f9a6a67cc18c1e02f15e527dd1f57e5457fcccdfa08b6632d2617e84d16f8e79"
+    },
+    {
+      "id": "report#1",
+      "kind": "symbol",
+      "symbolId": "report",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 704
+      },
+      "end": {
+        "line": 30,
+        "column": 41,
+        "offset": 745
+      },
+      "text": "sub report { print join(\", \", @_), \"\\n\" }",
+      "hash": "aafecf8fe5ec395d9a0c0ac8ac7af49b69a635f211d3fbf76466ae0f99ec4836"
+    },
+    {
+      "id": "log_line#1",
+      "kind": "symbol",
+      "symbolId": "log_line",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 747
+      },
+      "end": {
+        "line": 32,
+        "column": 62,
+        "offset": 809
+      },
+      "text": "sub log_line { warn sprintf(\"%s: %s\\n\", @_) if $opt{verbose} }",
+      "hash": "953994ba7e7a4da3cbe0d14f325a0e1fea80587874563697350e84dff090c15a"
+    }
+  ]
+}

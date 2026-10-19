@@ -1,0 +1,876 @@
+{
+  "lang": "kotlin",
+  "package": "com.example.nested",
+  "symbols": [
+    {
+      "id": "com.example.nested.Outer",
+      "kind": "class",
+      "name": "Outer",
+      "qualName": "com.example.nested.Outer",
+      "signature": "class Outer",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 127
+      },
+      "end": {
+        "line": 36,
+        "column": 1,
+        "offset": 842
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Outer.Inner",
+      "kind": "class",
+      "name": "Inner",
+      "qualName": "com.example.nested.Outer.Inner",
+      "signature": "inner class Inner",
+      "start": {
+        "line": 8,
+        "column": 4,
+        "offset": 145
+      },
+      "end": {
+        "line": 14,
+        "column": 5,
+        "offset": 270
+      },
+      "parent": "com.example.nested.Outer",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Outer.Inner.inside",
+      "kind": "method",
+      "name": "inside",
+      "qualName": "com.example.nested.Outer.Inner.inside",
+      "signature": "fun inside() = outsideHelper()",
+      "start": {
+        "line": 9,
+        "column": 8,
+        "offset": 173
+      },
+      "end": {
+        "line": 9,
+        "column": 38,
+        "offset": 203
+      },
+      "parent": "com.example.nested.Outer.Inner",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Outer.Inner.Deepest",
+      "kind": "class",
+      "name": "Deepest",
+      "qualName": "com.example.nested.Outer.Inner.Deepest",
+      "signature": "class Deepest",
+      "start": {
+        "line": 11,
+        "column": 8,
+        "offset": 213
+      },
+      "end": {
+        "line": 13,
+        "column": 9,
+        "offset": 264
+      },
+      "parent": "com.example.nested.Outer.Inner",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Outer.Inner.Deepest.level",
+      "kind": "property",
+      "name": "level",
+      "qualName": "com.example.nested.Outer.Inner.Deepest.level",
+      "signature": "val level = 3",
+      "start": {
+        "line": 12,
+        "column": 12,
+        "offset": 241
+      },
+      "end": {
+        "line": 12,
+        "column": 25,
+        "offset": 254
+      },
+      "parent": "com.example.nested.Outer.Inner.Deepest",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Outer.Listener",
+      "kind": "interface",
+      "name": "Listener",
+      "qualName": "com.example.nested.Outer.Listener",
+      "signature": "interface Listener",
+      "doc": "A nested interface and an anonymous companion object: its members\nbelong to Outer.",
+      "start": {
+        "line": 18,
+        "column": 4,
+        "offset": 373
+      },
+      "end": {
+        "line": 20,
+        "column": 5,
+        "offset": 433
+      },
+      "parent": "com.example.nested.Outer",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Outer.Listener.onEvent",
+      "kind": "method",
+      "name": "onEvent",
+      "qualName": "com.example.nested.Outer.Listener.onEvent",
+      "signature": "fun onEvent(name: String)",
+      "start": {
+        "line": 19,
+        "column": 8,
+        "offset": 402
+      },
+      "end": {
+        "line": 19,
+        "column": 33,
+        "offset": 427
+      },
+      "parent": "com.example.nested.Outer.Listener",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Outer.create",
+      "kind": "method",
+      "name": "create",
+      "qualName": "com.example.nested.Outer.create",
+      "signature": "fun create(): Outer = Outer()",
+      "start": {
+        "line": 23,
+        "column": 8,
+        "offset": 466
+      },
+      "end": {
+        "line": 23,
+        "column": 37,
+        "offset": 495
+      },
+      "parent": "com.example.nested.Outer",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Outer.register",
+      "kind": "method",
+      "name": "register",
+      "qualName": "com.example.nested.Outer.register",
+      "signature": "fun register(listener: Listener)",
+      "start": {
+        "line": 26,
+        "column": 4,
+        "offset": 507
+      },
+      "end": {
+        "line": 35,
+        "column": 5,
+        "offset": 840
+      },
+      "parent": "com.example.nested.Outer",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Inner.extension",
+      "kind": "function",
+      "name": "extension",
+      "qualName": "com.example.nested.Inner.extension",
+      "signature": "fun Outer.Inner.extension(): Int = 1",
+      "start": {
+        "line": 38,
+        "column": 0,
+        "offset": 844
+      },
+      "end": {
+        "line": 38,
+        "column": 36,
+        "offset": 880
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.outsideHelper",
+      "kind": "function",
+      "name": "outsideHelper",
+      "qualName": "com.example.nested.outsideHelper",
+      "signature": "fun outsideHelper(): Int = 42",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 882
+      },
+      "end": {
+        "line": 40,
+        "column": 29,
+        "offset": 911
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.oldHelper",
+      "kind": "function",
+      "name": "oldHelper",
+      "qualName": "com.example.nested.oldHelper",
+      "signature": "@Deprecated(\"use outsideHelper\")",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 913
+      },
+      "end": {
+        "line": 43,
+        "column": 33,
+        "offset": 979
+      }
+    },
+    {
+      "id": "com.example.nested.oneLineOld",
+      "kind": "function",
+      "name": "oneLineOld",
+      "qualName": "com.example.nested.oneLineOld",
+      "signature": "private fun oneLineOld() { outsideHelper() }",
+      "start": {
+        "line": 45,
+        "column": 22,
+        "offset": 1003
+      },
+      "end": {
+        "line": 45,
+        "column": 66,
+        "offset": 1047
+      }
+    },
+    {
+      "id": "com.example.nested.oneLineInternal",
+      "kind": "function",
+      "name": "oneLineInternal",
+      "qualName": "com.example.nested.oneLineInternal",
+      "signature": "internal fun oneLineInternal() {}",
+      "start": {
+        "line": 47,
+        "column": 22,
+        "offset": 1071
+      },
+      "end": {
+        "line": 47,
+        "column": 55,
+        "offset": 1104
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Box.orEmpty",
+      "kind": "function",
+      "name": "orEmpty",
+      "qualName": "com.example.nested.Box.orEmpty",
+      "signature": "fun \u003cT\u003e Box\u003cT\u003e?.orEmpty(): Box\u003cT\u003e = this ?: Box(emptyList())",
+      "start": {
+        "line": 49,
+        "column": 0,
+        "offset": 1106
+      },
+      "end": {
+        "line": 49,
+        "column": 60,
+        "offset": 1166
+      },
+      "parent": "com.example.nested.Box",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Box",
+      "kind": "class",
+      "name": "Box",
+      "qualName": "com.example.nested.Box",
+      "signature": "class Box\u003cT\u003e(val items: List\u003cT\u003e)",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 1168
+      },
+      "end": {
+        "line": 51,
+        "column": 32,
+        "offset": 1200
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.Box.items",
+      "kind": "property",
+      "name": "items",
+      "qualName": "com.example.nested.Box.items",
+      "signature": "val items: List\u003cT\u003e",
+      "start": {
+        "line": 51,
+        "column": 13,
+        "offset": 1181
+      },
+      "end": {
+        "line": 51,
+        "column": 31,
+        "offset": 1199
+      },
+      "parent": "com.example.nested.Box",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.annotated",
+      "kind": "function",
+      "name": "annotated",
+      "qualName": "com.example.nested.annotated",
+      "signature": "@Suppress(\"unused\")",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1202
+      },
+      "end": {
+        "line": 55,
+        "column": 57,
+        "offset": 1290
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.platformName",
+      "kind": "function",
+      "name": "platformName",
+      "qualName": "com.example.nested.platformName",
+      "signature": "expect fun platformName(): String",
+      "start": {
+        "line": 57,
+        "column": 0,
+        "offset": 1292
+      },
+      "end": {
+        "line": 57,
+        "column": 33,
+        "offset": 1325
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.PlatformThing",
+      "kind": "class",
+      "name": "PlatformThing",
+      "qualName": "com.example.nested.PlatformThing",
+      "signature": "actual class PlatformThing actual constructor()",
+      "start": {
+        "line": 59,
+        "column": 0,
+        "offset": 1327
+      },
+      "end": {
+        "line": 61,
+        "column": 1,
+        "offset": 1420
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.PlatformThing.describe",
+      "kind": "method",
+      "name": "describe",
+      "qualName": "com.example.nested.PlatformThing.describe",
+      "signature": "actual fun describe(): String = \"jvm\"",
+      "start": {
+        "line": 60,
+        "column": 4,
+        "offset": 1381
+      },
+      "end": {
+        "line": 60,
+        "column": 41,
+        "offset": 1418
+      },
+      "parent": "com.example.nested.PlatformThing",
+      "exported": true
+    },
+    {
+      "id": "com.example.nested.generated",
+      "kind": "property",
+      "name": "generated",
+      "qualName": "com.example.nested.generated",
+      "signature": "val generated: Map\u003cString, List\u003cInt\u003e\u003e = buildMap",
+      "start": {
+        "line": 63,
+        "column": 0,
+        "offset": 1422
+      },
+      "end": {
+        "line": 65,
+        "column": 1,
+        "offset": 1498
+      },
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "outsideHelper",
+      "kind": "call",
+      "start": {
+        "line": 9,
+        "column": 23,
+        "offset": 188
+      },
+      "enclosing": "com.example.nested.Outer.Inner.inside"
+    },
+    {
+      "name": "Outer",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 22,
+        "offset": 480
+      },
+      "enclosing": "com.example.nested.Outer.create"
+    },
+    {
+      "name": "Outer",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 30,
+        "offset": 488
+      },
+      "enclosing": "com.example.nested.Outer.create"
+    },
+    {
+      "name": "Listener",
+      "kind": "type",
+      "start": {
+        "line": 26,
+        "column": 27,
+        "offset": 530
+      },
+      "enclosing": "com.example.nested.Outer.register"
+    },
+    {
+      "name": "Listener",
+      "kind": "implements",
+      "start": {
+        "line": 31,
+        "column": 33,
+        "offset": 706
+      },
+      "enclosing": "com.example.nested.Outer.register"
+    },
+    {
+      "name": "onEvent",
+      "qualifier": "anonymous",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 18,
+        "offset": 808
+      },
+      "enclosing": "com.example.nested.Outer.register"
+    },
+    {
+      "name": "Inner",
+      "qualifier": "Outer",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 10,
+        "offset": 854
+      },
+      "enclosing": "com.example.nested.Inner.extension"
+    },
+    {
+      "name": "Deprecated",
+      "kind": "type",
+      "start": {
+        "line": 42,
+        "column": 1,
+        "offset": 914
+      },
+      "enclosing": "com.example.nested.oldHelper"
+    },
+    {
+      "name": "Deprecated",
+      "kind": "type",
+      "start": {
+        "line": 45,
+        "column": 1,
+        "offset": 982
+      }
+    },
+    {
+      "name": "outsideHelper",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 49,
+        "offset": 1030
+      },
+      "enclosing": "com.example.nested.oneLineOld"
+    },
+    {
+      "name": "Deprecated",
+      "kind": "type",
+      "start": {
+        "line": 47,
+        "column": 1,
+        "offset": 1050
+      }
+    },
+    {
+      "name": "Box",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 8,
+        "offset": 1114
+      },
+      "enclosing": "com.example.nested.Box.orEmpty"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 12,
+        "offset": 1118
+      },
+      "enclosing": "com.example.nested.Box.orEmpty"
+    },
+    {
+      "name": "Box",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 27,
+        "offset": 1133
+      },
+      "enclosing": "com.example.nested.Box.orEmpty"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 31,
+        "offset": 1137
+      },
+      "enclosing": "com.example.nested.Box.orEmpty"
+    },
+    {
+      "name": "Box",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 44,
+        "offset": 1150
+      },
+      "enclosing": "com.example.nested.Box.orEmpty"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 24,
+        "offset": 1192
+      },
+      "enclosing": "com.example.nested.Box.items"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 29,
+        "offset": 1197
+      },
+      "enclosing": "com.example.nested.Box.items"
+    },
+    {
+      "name": "Suppress",
+      "kind": "type",
+      "start": {
+        "line": 53,
+        "column": 1,
+        "offset": 1203
+      },
+      "enclosing": "com.example.nested.annotated"
+    },
+    {
+      "name": "JvmStatic",
+      "kind": "type",
+      "start": {
+        "line": 54,
+        "column": 1,
+        "offset": 1223
+      },
+      "enclosing": "com.example.nested.annotated"
+    },
+    {
+      "name": "sum",
+      "qualifier": "values",
+      "kind": "call",
+      "start": {
+        "line": 55,
+        "column": 52,
+        "offset": 1285
+      },
+      "enclosing": "com.example.nested.annotated"
+    },
+    {
+      "name": "Map",
+      "kind": "type",
+      "start": {
+        "line": 63,
+        "column": 15,
+        "offset": 1437
+      },
+      "enclosing": "com.example.nested.generated"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 63,
+        "column": 27,
+        "offset": 1449
+      },
+      "enclosing": "com.example.nested.generated"
+    },
+    {
+      "name": "put",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 4,
+        "offset": 1477
+      },
+      "enclosing": "com.example.nested.generated"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 5,
+        "column": 70,
+        "offset": 125
+      },
+      "text": "@file:JvmName(\"NestedKt\")\n\npackage com.example.nested\n\n// No imports: everything here is in this file or the default imports.",
+      "hash": "0f17ef26b66bc1778843f0a81ceb2d5619df0ddcc190e0208a7c37090d9309fd"
+    },
+    {
+      "id": "com.example.nested.Outer#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.Outer",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 127
+      },
+      "end": {
+        "line": 36,
+        "column": 1,
+        "offset": 842
+      },
+      "text": "class Outer {\n    inner class Inner {\n        fun inside() = outsideHelper()\n\n        class Deepest {\n            val level = 3\n        }\n    }\n\n    // A nested interface and an anonymous companion object: its members\n    // belong to Outer.\n    interface Listener {\n        fun onEvent(name: String)\n    }\n\n    companion object {\n        fun create(): Outer = Outer()\n    }\n\n    fun register(listener: Listener) {\n        // Local declarations are not symbols.\n        val local = 1\n        fun localHelper() = local + 1\n        class LocalType\n        val anonymous = object : Listener {\n            override fun onEvent(name: String) = println(name)\n        }\n        anonymous.onEvent(\"x$localHelper()\")\n    }\n}",
+      "hash": "32124fc6e04e627b6826613bc74f9b984541ece8d923ba70535d8a602ab50442"
+    },
+    {
+      "id": "com.example.nested.Inner.extension#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.Inner.extension",
+      "start": {
+        "line": 38,
+        "column": 0,
+        "offset": 844
+      },
+      "end": {
+        "line": 38,
+        "column": 36,
+        "offset": 880
+      },
+      "text": "fun Outer.Inner.extension(): Int = 1",
+      "hash": "14e9efe881d4fa6e55fb4fa79512c16ad1ceb7023d29d65ae0b6283ee938aa81"
+    },
+    {
+      "id": "com.example.nested.outsideHelper#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.outsideHelper",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 882
+      },
+      "end": {
+        "line": 40,
+        "column": 29,
+        "offset": 911
+      },
+      "text": "fun outsideHelper(): Int = 42",
+      "hash": "b4bb505c12bb89d9fd704da34240af95b1bf29d40497b3fef777f77001f50421"
+    },
+    {
+      "id": "com.example.nested.oldHelper#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.oldHelper",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 913
+      },
+      "end": {
+        "line": 43,
+        "column": 33,
+        "offset": 979
+      },
+      "text": "@Deprecated(\"use outsideHelper\")\nprivate fun oldHelper(): Int = 41",
+      "hash": "e0019471f0c1ad8de066d122c47c9555a49334baae8a74e16bdc2b043bda61ff"
+    },
+    {
+      "id": "com.example.nested.oneLineOld#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.oneLineOld",
+      "start": {
+        "line": 45,
+        "column": 22,
+        "offset": 1003
+      },
+      "end": {
+        "line": 45,
+        "column": 66,
+        "offset": 1047
+      },
+      "text": "private fun oneLineOld() { outsideHelper() }",
+      "hash": "1b59e9bdecc9ccb5028a574b5ee542b58f314758c682b65700bb9d63fb24be03"
+    },
+    {
+      "id": "com.example.nested.oneLineInternal#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.oneLineInternal",
+      "start": {
+        "line": 47,
+        "column": 22,
+        "offset": 1071
+      },
+      "end": {
+        "line": 47,
+        "column": 55,
+        "offset": 1104
+      },
+      "text": "internal fun oneLineInternal() {}",
+      "hash": "e10251fd49993597cf67147cec6a953745298051dab190201ea67d4560497d6e"
+    },
+    {
+      "id": "com.example.nested.Box.orEmpty#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.Box.orEmpty",
+      "start": {
+        "line": 49,
+        "column": 0,
+        "offset": 1106
+      },
+      "end": {
+        "line": 49,
+        "column": 60,
+        "offset": 1166
+      },
+      "text": "fun \u003cT\u003e Box\u003cT\u003e?.orEmpty(): Box\u003cT\u003e = this ?: Box(emptyList())",
+      "hash": "976363ae92894f80e0f74ee79266a5178407b4719ea8ebaa071f64e9959a04e4"
+    },
+    {
+      "id": "com.example.nested.Box#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.Box",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 1168
+      },
+      "end": {
+        "line": 51,
+        "column": 32,
+        "offset": 1200
+      },
+      "text": "class Box\u003cT\u003e(val items: List\u003cT\u003e)",
+      "hash": "37b02e96b86f9e3549c22e7aa20cd7456312eb221c6abf5cbae6387ac788a879"
+    },
+    {
+      "id": "com.example.nested.annotated#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.annotated",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1202
+      },
+      "end": {
+        "line": 55,
+        "column": 57,
+        "offset": 1290
+      },
+      "text": "@Suppress(\"unused\")\n@JvmStatic\ninternal fun annotated(vararg values: Int) = values.sum()",
+      "hash": "fe72a1b2bb67cba1249b02eb49292842867a5de7650f8f7684f145e6b96d4142"
+    },
+    {
+      "id": "com.example.nested.platformName#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.platformName",
+      "start": {
+        "line": 57,
+        "column": 0,
+        "offset": 1292
+      },
+      "end": {
+        "line": 57,
+        "column": 33,
+        "offset": 1325
+      },
+      "text": "expect fun platformName(): String",
+      "hash": "aa19f79b18ebeb71d93ecd5b6c28924123c63c68f7930f3f3652ddc764d56868"
+    },
+    {
+      "id": "com.example.nested.PlatformThing#1",
+      "kind": "symbol",
+      "symbolId": "com.example.nested.PlatformThing",
+      "start": {
+        "line": 59,
+        "column": 0,
+        "offset": 1327
+      },
+      "end": {
+        "line": 61,
+        "column": 1,
+        "offset": 1420
+      },
+      "text": "actual class PlatformThing actual constructor() {\n    actual fun describe(): String = \"jvm\"\n}",
+      "hash": "38df2744be3bd4ae342467b8a4d04562c4b70e7867055d6cda7c6b57780ee90b"
+    },
+    {
+      "id": "L63#1",
+      "kind": "window",
+      "start": {
+        "line": 63,
+        "column": 0,
+        "offset": 1422
+      },
+      "end": {
+        "line": 65,
+        "column": 1,
+        "offset": 1498
+      },
+      "text": "val generated: Map\u003cString, List\u003cInt\u003e\u003e = buildMap {\n    put(\"a\", listOf(1))\n}",
+      "hash": "98b61a0c71ad3b873e507ac4f31eef8adc725834d85bb93cd5da960767ba900a"
+    }
+  ]
+}
