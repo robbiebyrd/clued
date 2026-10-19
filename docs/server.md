@@ -523,7 +523,9 @@ The server runs the indexer in the process: it replays each project's change
 log in batches under a lease and a cursor, kept in the session MongoDB's
 `code_index_cursors` with `--code-store mongo` (in memory otherwise), is
 woken by every commit, polls every 2 seconds, parses each new file version
-once (tree-sitter, pure Go, in memory cache) and checks every project
+once (tree-sitter, pure Go; the facts are cached in the session MongoDB's
+`code_parses` for 30 days with `--code-store mongo`, in memory otherwise)
+and checks every project
 against its trees once an hour, repairing drift. The graph is a cache:
 FalkorDB needs no persistence and no backup, since everything in it can be
 written again from MongoDB.
