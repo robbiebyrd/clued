@@ -1,0 +1,856 @@
+{
+  "lang": "kotlin",
+  "package": "com.example.shop.service",
+  "symbols": [
+    {
+      "id": "com.example.shop.service.Repository",
+      "kind": "interface",
+      "name": "Repository",
+      "qualName": "com.example.shop.service.Repository",
+      "signature": "interface Repository\u003cT\u003e : Closeable, java.lang.AutoCloseable",
+      "doc": "Stores customers.",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 243
+      },
+      "end": {
+        "line": 13,
+        "column": 1,
+        "offset": 365
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.Repository.find",
+      "kind": "method",
+      "name": "find",
+      "qualName": "com.example.shop.service.Repository.find",
+      "signature": "suspend fun find(id: Long): T?",
+      "start": {
+        "line": 11,
+        "column": 4,
+        "offset": 310
+      },
+      "end": {
+        "line": 11,
+        "column": 34,
+        "offset": 340
+      },
+      "parent": "com.example.shop.service.Repository",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.Repository.all",
+      "kind": "method",
+      "name": "all",
+      "qualName": "com.example.shop.service.Repository.all",
+      "signature": "fun all(): Flow\u003cT\u003e",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 345
+      },
+      "end": {
+        "line": 12,
+        "column": 22,
+        "offset": 363
+      },
+      "parent": "com.example.shop.service.Repository",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.BaseService",
+      "kind": "class",
+      "name": "BaseService",
+      "qualName": "com.example.shop.service.BaseService",
+      "signature": "abstract class BaseService(protected val name: String)",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 367
+      },
+      "end": {
+        "line": 17,
+        "column": 1,
+        "offset": 450
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.BaseService.name",
+      "kind": "property",
+      "name": "name",
+      "qualName": "com.example.shop.service.BaseService.name",
+      "signature": "protected val name: String",
+      "start": {
+        "line": 15,
+        "column": 27,
+        "offset": 394
+      },
+      "end": {
+        "line": 15,
+        "column": 53,
+        "offset": 420
+      },
+      "parent": "com.example.shop.service.BaseService",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.BaseService.start",
+      "kind": "method",
+      "name": "start",
+      "qualName": "com.example.shop.service.BaseService.start",
+      "signature": "abstract fun start()",
+      "start": {
+        "line": 16,
+        "column": 4,
+        "offset": 428
+      },
+      "end": {
+        "line": 16,
+        "column": 24,
+        "offset": 448
+      },
+      "parent": "com.example.shop.service.BaseService",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.CustomerService",
+      "kind": "class",
+      "name": "CustomerService",
+      "qualName": "com.example.shop.service.CustomerService",
+      "signature": "class CustomerService(",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 452
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 1219
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.CustomerService.repo",
+      "kind": "property",
+      "name": "repo",
+      "qualName": "com.example.shop.service.CustomerService.repo",
+      "signature": "private val repo: Repository\u003cCustomer\u003e",
+      "start": {
+        "line": 20,
+        "column": 4,
+        "offset": 479
+      },
+      "end": {
+        "line": 20,
+        "column": 42,
+        "offset": 517
+      },
+      "parent": "com.example.shop.service.CustomerService"
+    },
+    {
+      "id": "com.example.shop.service.CustomerService.clock",
+      "kind": "property",
+      "name": "clock",
+      "qualName": "com.example.shop.service.CustomerService.clock",
+      "signature": "private val clock: java.time.Clock",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 523
+      },
+      "end": {
+        "line": 21,
+        "column": 38,
+        "offset": 557
+      },
+      "parent": "com.example.shop.service.CustomerService"
+    },
+    {
+      "id": "com.example.shop.service.CustomerService.start",
+      "kind": "method",
+      "name": "start",
+      "qualName": "com.example.shop.service.CustomerService.start",
+      "signature": "override fun start()",
+      "start": {
+        "line": 24,
+        "column": 4,
+        "offset": 640
+      },
+      "end": {
+        "line": 28,
+        "column": 5,
+        "offset": 764
+      },
+      "parent": "com.example.shop.service.CustomerService",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.CustomerService.rename",
+      "kind": "method",
+      "name": "rename",
+      "qualName": "com.example.shop.service.CustomerService.rename",
+      "signature": "suspend fun rename(id: Long, name: String): Customer?",
+      "start": {
+        "line": 30,
+        "column": 4,
+        "offset": 770
+      },
+      "end": {
+        "line": 35,
+        "column": 5,
+        "offset": 1028
+      },
+      "parent": "com.example.shop.service.CustomerService",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.CustomerService.validate",
+      "kind": "method",
+      "name": "validate",
+      "qualName": "com.example.shop.service.CustomerService.validate",
+      "signature": "private fun validate(c: Customer): Customer? =",
+      "start": {
+        "line": 37,
+        "column": 4,
+        "offset": 1034
+      },
+      "end": {
+        "line": 38,
+        "column": 59,
+        "offset": 1140
+      },
+      "parent": "com.example.shop.service.CustomerService"
+    },
+    {
+      "id": "com.example.shop.service.CustomerService.close",
+      "kind": "method",
+      "name": "close",
+      "qualName": "com.example.shop.service.CustomerService.close",
+      "signature": "override fun close()",
+      "start": {
+        "line": 40,
+        "column": 4,
+        "offset": 1146
+      },
+      "end": {
+        "line": 43,
+        "column": 5,
+        "offset": 1217
+      },
+      "parent": "com.example.shop.service.CustomerService",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.Registry",
+      "kind": "object",
+      "name": "Registry",
+      "qualName": "com.example.shop.service.Registry",
+      "signature": "object Registry : BaseService(\"registry\"), PricedItem",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 1221
+      },
+      "end": {
+        "line": 50,
+        "column": 1,
+        "offset": 1423
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.Registry.price",
+      "kind": "property",
+      "name": "price",
+      "qualName": "com.example.shop.service.Registry.price",
+      "signature": "override val price: Long = 0",
+      "start": {
+        "line": 47,
+        "column": 4,
+        "offset": 1281
+      },
+      "end": {
+        "line": 47,
+        "column": 32,
+        "offset": 1309
+      },
+      "parent": "com.example.shop.service.Registry",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.Registry.discounted",
+      "kind": "method",
+      "name": "discounted",
+      "qualName": "com.example.shop.service.Registry.discounted",
+      "signature": "override fun discounted(percent: Int): Long = price * (100 - percent) / 100",
+      "start": {
+        "line": 48,
+        "column": 4,
+        "offset": 1314
+      },
+      "end": {
+        "line": 48,
+        "column": 79,
+        "offset": 1389
+      },
+      "parent": "com.example.shop.service.Registry",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.Registry.start",
+      "kind": "method",
+      "name": "start",
+      "qualName": "com.example.shop.service.Registry.start",
+      "signature": "override fun start() = Unit",
+      "start": {
+        "line": 49,
+        "column": 4,
+        "offset": 1394
+      },
+      "end": {
+        "line": 49,
+        "column": 31,
+        "offset": 1421
+      },
+      "parent": "com.example.shop.service.Registry",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.log",
+      "kind": "function",
+      "name": "log",
+      "qualName": "com.example.shop.service.log",
+      "signature": "fun log(message: String)",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1425
+      },
+      "end": {
+        "line": 54,
+        "column": 1,
+        "offset": 1474
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.service.services",
+      "kind": "function",
+      "name": "services",
+      "qualName": "com.example.shop.service.services",
+      "signature": "fun services(): List\u003cBaseService\u003e = listOf(Registry, CustomerService(TODO(), java.time.Clock.systemUTC()))",
+      "start": {
+        "line": 56,
+        "column": 0,
+        "offset": 1476
+      },
+      "end": {
+        "line": 56,
+        "column": 106,
+        "offset": 1582
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "com.example.shop.model.Customer",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 34
+      }
+    },
+    {
+      "spec": "com.example.shop.model.Priced",
+      "alias": "PricedItem",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 73
+      }
+    },
+    {
+      "spec": "com.example.shop.model",
+      "kind": "wildcard",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 124
+      }
+    },
+    {
+      "spec": "kotlinx.coroutines.flow.Flow",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 156
+      }
+    },
+    {
+      "spec": "java.io.Closeable",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 192
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Closeable",
+      "kind": "extends",
+      "start": {
+        "line": 10,
+        "column": 26,
+        "offset": 269
+      },
+      "enclosing": "com.example.shop.service.Repository"
+    },
+    {
+      "name": "AutoCloseable",
+      "qualifier": "lang",
+      "kind": "extends",
+      "start": {
+        "line": 10,
+        "column": 47,
+        "offset": 290
+      },
+      "enclosing": "com.example.shop.service.Repository"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 32,
+        "offset": 338
+      },
+      "enclosing": "com.example.shop.service.Repository.find"
+    },
+    {
+      "name": "Flow",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 15,
+        "offset": 356
+      },
+      "enclosing": "com.example.shop.service.Repository.all"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 20,
+        "offset": 361
+      },
+      "enclosing": "com.example.shop.service.Repository.all"
+    },
+    {
+      "name": "Repository",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 22,
+        "offset": 497
+      },
+      "enclosing": "com.example.shop.service.CustomerService.repo"
+    },
+    {
+      "name": "Customer",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 33,
+        "offset": 508
+      },
+      "enclosing": "com.example.shop.service.CustomerService.repo"
+    },
+    {
+      "name": "Clock",
+      "qualifier": "time",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 33,
+        "offset": 552
+      },
+      "enclosing": "com.example.shop.service.CustomerService.clock"
+    },
+    {
+      "name": "BaseService",
+      "kind": "extends",
+      "start": {
+        "line": 22,
+        "column": 4,
+        "offset": 563
+      },
+      "enclosing": "com.example.shop.service.CustomerService"
+    },
+    {
+      "name": "Repository",
+      "kind": "implements",
+      "start": {
+        "line": 22,
+        "column": 30,
+        "offset": 589
+      },
+      "enclosing": "com.example.shop.service.CustomerService"
+    },
+    {
+      "name": "Customer",
+      "kind": "type",
+      "start": {
+        "line": 22,
+        "column": 41,
+        "offset": 600
+      },
+      "enclosing": "com.example.shop.service.CustomerService"
+    },
+    {
+      "name": "AutoCloseable",
+      "kind": "implements",
+      "start": {
+        "line": 22,
+        "column": 60,
+        "offset": 619
+      },
+      "enclosing": "com.example.shop.service.CustomerService"
+    },
+    {
+      "name": "instant",
+      "qualifier": "clock",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 24,
+        "offset": 687
+      },
+      "enclosing": "com.example.shop.service.CustomerService.start"
+    },
+    {
+      "name": "log",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 8,
+        "offset": 705
+      },
+      "enclosing": "com.example.shop.service.CustomerService.start"
+    },
+    {
+      "name": "price",
+      "qualifier": "Catalog",
+      "kind": "call",
+      "start": {
+        "line": 27,
+        "column": 16,
+        "offset": 744
+      },
+      "enclosing": "com.example.shop.service.CustomerService.start"
+    },
+    {
+      "name": "Customer",
+      "kind": "type",
+      "start": {
+        "line": 30,
+        "column": 48,
+        "offset": 814
+      },
+      "enclosing": "com.example.shop.service.CustomerService.rename"
+    },
+    {
+      "name": "find",
+      "qualifier": "repo",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 28,
+        "offset": 854
+      },
+      "enclosing": "com.example.shop.service.CustomerService.rename"
+    },
+    {
+      "name": "Customer",
+      "kind": "type",
+      "start": {
+        "line": 33,
+        "column": 18,
+        "offset": 925
+      },
+      "enclosing": "com.example.shop.service.CustomerService.rename"
+    },
+    {
+      "name": "copy",
+      "qualifier": "customer",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 38,
+        "offset": 945
+      },
+      "enclosing": "com.example.shop.service.CustomerService.rename"
+    },
+    {
+      "name": "validate",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 15,
+        "offset": 978
+      },
+      "enclosing": "com.example.shop.service.CustomerService.rename"
+    },
+    {
+      "name": "let",
+      "qualifier": "validate(copy)",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 31,
+        "offset": 994
+      },
+      "enclosing": "com.example.shop.service.CustomerService.rename"
+    },
+    {
+      "name": "of",
+      "qualifier": "Customer",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 46,
+        "offset": 1009
+      },
+      "enclosing": "com.example.shop.service.CustomerService.rename"
+    },
+    {
+      "name": "Customer",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 28,
+        "offset": 1058
+      },
+      "enclosing": "com.example.shop.service.CustomerService.validate"
+    },
+    {
+      "name": "Customer",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 39,
+        "offset": 1069
+      },
+      "enclosing": "com.example.shop.service.CustomerService.validate"
+    },
+    {
+      "name": "close",
+      "qualifier": "super",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 14,
+        "offset": 1183
+      },
+      "enclosing": "com.example.shop.service.CustomerService.close"
+    },
+    {
+      "name": "close",
+      "qualifier": "repo",
+      "kind": "call",
+      "start": {
+        "line": 42,
+        "column": 13,
+        "offset": 1204
+      },
+      "enclosing": "com.example.shop.service.CustomerService.close"
+    },
+    {
+      "name": "BaseService",
+      "kind": "extends",
+      "start": {
+        "line": 46,
+        "column": 18,
+        "offset": 1239
+      },
+      "enclosing": "com.example.shop.service.Registry"
+    },
+    {
+      "name": "PricedItem",
+      "kind": "implements",
+      "start": {
+        "line": 46,
+        "column": 43,
+        "offset": 1264
+      },
+      "enclosing": "com.example.shop.service.Registry"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 16,
+        "offset": 1492
+      },
+      "enclosing": "com.example.shop.service.services"
+    },
+    {
+      "name": "BaseService",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 21,
+        "offset": 1497
+      },
+      "enclosing": "com.example.shop.service.services"
+    },
+    {
+      "name": "CustomerService",
+      "kind": "call",
+      "start": {
+        "line": 56,
+        "column": 53,
+        "offset": 1529
+      },
+      "enclosing": "com.example.shop.service.services"
+    },
+    {
+      "name": "systemUTC",
+      "qualifier": "java.time.Clock",
+      "kind": "call",
+      "start": {
+        "line": 56,
+        "column": 93,
+        "offset": 1569
+      },
+      "enclosing": "com.example.shop.service.services"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 7,
+        "column": 24,
+        "offset": 216
+      },
+      "text": "package com.example.shop.service\n\nimport com.example.shop.model.Customer\nimport com.example.shop.model.Priced as PricedItem\nimport com.example.shop.model.*\nimport kotlinx.coroutines.flow.Flow\nimport java.io.Closeable",
+      "hash": "6025cb16176c720dfbc30e54b73abd10026923c2edfafbf24595aea41d25a7ac"
+    },
+    {
+      "id": "com.example.shop.service.Repository#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.service.Repository",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 218
+      },
+      "end": {
+        "line": 13,
+        "column": 1,
+        "offset": 365
+      },
+      "text": "/** Stores customers. */\ninterface Repository\u003cT\u003e : Closeable, java.lang.AutoCloseable {\n    suspend fun find(id: Long): T?\n    fun all(): Flow\u003cT\u003e\n}",
+      "hash": "4ce369456871e610156d488baf6a31bdcd3923d35925088d4bf06725c13fb247"
+    },
+    {
+      "id": "com.example.shop.service.BaseService#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.service.BaseService",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 367
+      },
+      "end": {
+        "line": 17,
+        "column": 1,
+        "offset": 450
+      },
+      "text": "abstract class BaseService(protected val name: String) {\n    abstract fun start()\n}",
+      "hash": "aec8784f7568659fda7e9d47fbcf15d248d6f359d7a90d22cb40d89e4281aaf5"
+    },
+    {
+      "id": "com.example.shop.service.CustomerService#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.service.CustomerService",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 452
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 1219
+      },
+      "text": "class CustomerService(\n    private val repo: Repository\u003cCustomer\u003e,\n    private val clock: java.time.Clock,\n) : BaseService(\"customers\"), Repository\u003cCustomer\u003e by repo, AutoCloseable {\n\n    override fun start() {\n        val now = clock.instant()\n        log(\"started at $now\")\n        Catalog.price(\"sku-1\")\n    }\n\n    suspend fun rename(id: Long, name: String): Customer? {\n        val customer = repo.find(id) ?: return null\n        customer.name = name\n        val copy: Customer = customer.copy(name = name)\n        return validate(copy)?.let { Customer.of(it.name) }\n    }\n\n    private fun validate(c: Customer): Customer? =\n        if (c.name.length \u003c= Customer.MAX_NAME) c else null\n\n    override fun close() {\n        super.close()\n        repo.close()\n    }\n}",
+      "hash": "641dcb323009534111cdfd96c3087b5a4c5db579ade1fe42178955a876f9d711"
+    },
+    {
+      "id": "com.example.shop.service.Registry#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.service.Registry",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 1221
+      },
+      "end": {
+        "line": 50,
+        "column": 1,
+        "offset": 1423
+      },
+      "text": "object Registry : BaseService(\"registry\"), PricedItem {\n    override val price: Long = 0\n    override fun discounted(percent: Int): Long = price * (100 - percent) / 100\n    override fun start() = Unit\n}",
+      "hash": "31aa73b0a7acb8e5e8ab416888a116e7a9295352704aa4c76fbcc6147bff6b8b"
+    },
+    {
+      "id": "com.example.shop.service.log#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.service.log",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1425
+      },
+      "end": {
+        "line": 54,
+        "column": 1,
+        "offset": 1474
+      },
+      "text": "fun log(message: String) {\n    println(message)\n}",
+      "hash": "d1892f5c063a1c00cf30901b1cb205933dd3a2a3c619ee2650596572c07e6ce6"
+    },
+    {
+      "id": "com.example.shop.service.services#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.service.services",
+      "start": {
+        "line": 56,
+        "column": 0,
+        "offset": 1476
+      },
+      "end": {
+        "line": 56,
+        "column": 106,
+        "offset": 1582
+      },
+      "text": "fun services(): List\u003cBaseService\u003e = listOf(Registry, CustomerService(TODO(), java.time.Clock.systemUTC()))",
+      "hash": "9e8112264b8746718704cb5cddb518a523b5db4adb58f51115312c83e90dbe58"
+    }
+  ]
+}
