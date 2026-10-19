@@ -45,10 +45,13 @@ type graphCmdOptions struct {
 // graphEnv is what the `server graph` commands index with: the code stores,
 // the graphs and the cursors a running server's indexer shares.
 type graphEnv struct {
-	Code    func(ctx context.Context, project string) (code.Store, error)
-	Graphs  codegraph.Opener
-	Cursors codeindex.Cursors
-	Close   func(ctx context.Context) error
+	// Projects lists the projects Run and RunChecks visit (`server run`);
+	// nil for the commands, which name their projects.
+	Projects func(ctx context.Context) ([]string, error)
+	Code     func(ctx context.Context, project string) (code.Store, error)
+	Graphs   codegraph.Opener
+	Cursors  codeindex.Cursors
+	Close    func(ctx context.Context) error
 }
 
 // openGraphEnv opens the graph environment of o; tests replace it.
@@ -86,11 +89,12 @@ var openGraphEnv = func(ctx context.Context, o graphCmdOptions) (*graphEnv, erro
 // server's: the FileApplier writes the files.
 func graphIndexer(env *graphEnv, logger *slog.Logger) (*codeindex.Service, error) {
 	return codeindex.New(codeindex.Options{
-		Code:    env.Code,
-		Graphs:  env.Graphs,
-		Cursors: env.Cursors,
-		Apply:   codeindex.FileApplier{},
-		Logger:  logger,
+		Projects: env.Projects,
+		Code:     env.Code,
+		Graphs:   env.Graphs,
+		Cursors:  env.Cursors,
+		Apply:    codeindex.FileApplier{},
+		Logger:   logger,
 	})
 }
 
