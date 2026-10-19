@@ -71,11 +71,30 @@ type Tools struct {
 	// with the call's account; its error is the tool's error (an account
 	// without the entitlement, a rate limit).
 	AllowSemantic func(ctx context.Context, accountID string) error
+	// CodeGraph, when set, opens the graph client of the code tools
+	// (code_search, code_symbol, code_neighbors, code_outline,
+	// code_context; see code_tools.go). Nil opens code/remotecode over the
+	// config's clued server for the project of the working directory, so
+	// the stdio servers offer the code tools in remote mode only; the
+	// remote subset never offers them.
+	CodeGraph func(ctx context.Context) (CodeGraph, error)
+	// CodeView, when set, names the session and branch a code tool call
+	// reads; nil reads CLAUDE_SESSION_ID (else the newest session captured
+	// in the working directory) and the working directory's branch.
+	CodeView func(ctx context.Context) CodeView
+	// CodeProbeTimeout bounds the probe AddTools makes before listing the
+	// code tools (DefaultCodeProbeTimeout when zero).
+	CodeProbeTimeout time.Duration
+	// CodeRecheck is how often a project that is not indexed yet is asked
+	// again, the code tools being added once it is (DefaultCodeRecheck
+	// when zero, never when negative).
+	CodeRecheck time.Duration
 
 	cfg       session.Config
 	accountID string
 	remote    bool
 	conn      *storeConn
+	code      *codeConn
 }
 
 // storeConn is the lazily connected store, shared by a Tools and its subsets.
@@ -89,7 +108,7 @@ type storeConn struct {
 // New returns the tools. connect is called on the first tool call that needs
 // the store, and again on later calls for as long as it fails.
 func New(cfg session.Config, connect func(ctx context.Context) (session.Store, error), accountID string) *Tools {
-	return &Tools{cfg: cfg, accountID: accountID, conn: &storeConn{connect: connect}}
+	return &Tools{cfg: cfg, accountID: accountID, conn: &storeConn{connect: connect}, code: &codeConn{}}
 }
 
 // Subset returns the tools for one deployment: remote leaves out
@@ -143,20 +162,28 @@ func (t *Tools) account(ctx context.Context) string {
 	return t.accountID
 }
 
-// AddTools registers the tools on s, each named prefix + its name.
+// AddTools registers the tools on s, each named prefix + its name. The code
+// tools are listed only when the project is indexed and allowed (a probe of
+// the server's graph routes; see code_tools.go), possibly later.
 func (t *Tools) AddTools(s *mcp.Server, prefix string) {
 	for _, spec := range t.specs() {
 		if t.remote && localTools[spec.name] || spec.name == "search_semantic" && t.Embedder == nil {
 			continue
 		}
-		spec = budgetSchema(spec)
-		s.AddTool(&mcp.Tool{
-			Name:        prefix + spec.name,
-			Description: spec.description,
-			InputSchema: json.RawMessage(spec.schema),
-			Annotations: annotations(spec),
-		}, spec.handler)
+		register(s, prefix, spec)
 	}
+	t.addCodeTools(s, prefix)
+}
+
+// register adds one tool to s, with its budget arguments.
+func register(s *mcp.Server, prefix string, spec toolSpec) {
+	spec = budgetSchema(spec)
+	s.AddTool(&mcp.Tool{
+		Name:        prefix + spec.name,
+		Description: spec.description,
+		InputSchema: json.RawMessage(spec.schema),
+		Annotations: annotations(spec),
+	}, spec.handler)
 }
 
 type toolSpec struct {
