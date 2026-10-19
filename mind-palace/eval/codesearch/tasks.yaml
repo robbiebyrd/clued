@@ -1,0 +1,907 @@
+# Tasks of the code search evaluation (plan 0012-cgi, 5.1).
+#
+# Each task is a prompt with its ground truth: the repository-relative files
+# and the symbols a correct answer names (min_recall, default 1, is the share
+# of each list it must name). Families: named (a symbol by name), concept (a
+# behaviour described in words), impact (what a change reaches) and edit (a
+# small change over two or three files, checked by `check`, a bash command
+# run at the checkout's root).
+#
+# repo is clued (this repository at HEAD), clued-cloud, or a corpus.yaml id
+# (pinned commit). The clued ground truth is checked against this checkout by
+# harness_test.go on every `go test`; clued-cloud's when CLUED_EVAL_CLOUD_DIR
+# names a checkout; the corpus's when CLUED_EVAL_VERIFY=1 (it fetches the
+# pinned commits).
+tasks:
+  # --- clued: named lookups ---------------------------------------------------
+  - id: clued-named-allocateid
+    repo: clued
+    lang: go
+    family: named
+    prompt: Where is `allocateID` defined, and which function calls it?
+    truth:
+      files: [mind-palace/service/documents.go]
+      symbols: [allocateID, Create]
+  - id: clued-named-hashtoken
+    repo: clued
+    lang: go
+    family: named
+    prompt: Where is `HashToken` defined in the clued server's authentication, and which functions use it?
+    truth:
+      files: [mind-palace/server/auth/auth.go]
+      symbols: [HashToken, match, appendToken]
+  - id: clued-named-checkurl
+    repo: clued
+    lang: go
+    family: named
+    prompt: Where is `checkURL` in the remote client defined, who calls it, and what helper does it use for the host?
+    truth:
+      files: [mind-palace/remote/client.go]
+      symbols: [checkURL, New, isLoopback]
+  - id: clued-named-projects-slug
+    repo: clued
+    lang: go
+    family: named
+    prompt: Where is the project slug function `projects.Slug` defined, and which functions outside its package call it?
+    truth:
+      files: [mind-palace/server/projects/projects.go, mind-palace/clientcfg/clientcfg.go, mind-palace/session/model.go]
+      symbols: [Slug, ResolveProject, ProjectSlugOf]
+  - id: clued-named-limits-due
+    repo: clued
+    lang: go
+    family: named
+    prompt: Where is `limits.Due` defined and where is it called?
+    truth:
+      files: [mind-palace/session/limits/limits.go, mind-palace/cli/hook_status.go]
+      symbols: [Due, hookStatusCmd]
+  - id: clued-named-matchstop
+    repo: clued
+    lang: go
+    family: named
+    prompt: Where is `MatchStop` defined, and which functions lead to it from the stop-guard hook's JSON input?
+    truth:
+      files: [mind-palace/hookguard/stop.go]
+      symbols: [MatchStop, CheckStop, CheckStopJSON]
+  - id: clued-named-exportsession
+    repo: clued
+    lang: go
+    family: named
+    prompt: Where is the OpenTelemetry `ExportSession` method defined, and from where is it called?
+    truth:
+      files: [mind-palace/session/otel/export.go, mind-palace/session/daemon/daemon.go, mind-palace/cli/session.go, mind-palace/cli/hook_relay.go]
+      symbols: [ExportSession, exportTrace, sessionOTelExportCmd, relay]
+      min_recall: 0.75
+  - id: clued-named-daemon-ok
+    repo: clued
+    lang: shell
+    family: named
+    prompt: Which hook script defines the shell function `daemon_ok`, and what does it check?
+    truth:
+      files: [hooks/session-start]
+      symbols: [daemon_ok, health]
+
+  # --- clued: concept lookups -------------------------------------------------
+  - id: clued-concept-sequence-numbers
+    repo: clued
+    lang: go
+    family: concept
+    prompt: Where are plan and story sequence numbers allocated when a new document is created?
+    truth:
+      files: [mind-palace/service/documents.go, mind-palace/model/model.go]
+      symbols: [allocateID, SequenceOf]
+  - id: clued-concept-plain-http
+    repo: clued
+    lang: go
+    family: concept
+    prompt: Where does the client refuse a plain http:// server URL unless the host is local?
+    truth:
+      files: [mind-palace/remote/client.go]
+      symbols: [checkURL, isLoopback]
+  - id: clued-concept-token-compare
+    repo: clued
+    lang: go
+    family: concept
+    prompt: Where does the clued server compare a presented bearer token with the stored ones in constant time?
+    truth:
+      files: [mind-palace/server/auth/auth.go]
+      symbols: [matchHash, HashToken, Lookup]
+  - id: clued-concept-criteria-gate
+    repo: clued
+    lang: go
+    family: concept
+    prompt: Where is a story refused completion while one of its acceptance criteria is still open, and what turns that rule on for a document kind?
+    truth:
+      files: [mind-palace/service/fields.go, mind-palace/kind/kind.go]
+      symbols: [criteriaGate, applyStatus, CriteriaGate]
+  - id: clued-concept-relay-budget
+    repo: clued
+    lang: go
+    family: concept
+    prompt: What bounds how long one `hook relay` run may take in remote mode, and where is that limit applied?
+    truth:
+      files: [mind-palace/cli/hook_relay.go]
+      symbols: [relayBudget, relay]
+  - id: clued-concept-redaction
+    repo: clued
+    lang: go
+    family: concept
+    prompt: Where are secrets redacted from captured sessions before they reach the store, and where is that wrapper put around the session store?
+    truth:
+      files: [mind-palace/session/redact/store.go, mind-palace/session/redact/redact.go, mind-palace/cli/session.go]
+      symbols: [Wrap, FromConfig, capturing]
+      min_recall: 0.66
+  - id: clued-concept-device-codes
+    repo: clued
+    lang: go
+    family: concept
+    prompt: How does the clued server's device login normalize the user code a person types, and where is a pending request approved?
+    truth:
+      files: [mind-palace/server/device/device.go, mind-palace/server/device_routes.go]
+      symbols: [Normalize, Format, Approve]
+  - id: clued-concept-write-guard
+    repo: clued
+    lang: go
+    family: concept
+    prompt: Where is the rule that denies hand edits of files under docs/plans and docs/stories, and where does the hook command call it?
+    truth:
+      files: [mind-palace/hookguard/write.go, mind-palace/cli/hook.go]
+      symbols: [CheckWrite, locate, hookWriteGuardCmd]
+      min_recall: 0.66
+  - id: clued-concept-status-samples
+    repo: clued
+    lang: go
+    family: concept
+    prompt: How does clued decide whether a status-line sample of context fill and usage limits is worth storing?
+    truth:
+      files: [mind-palace/session/limits/limits.go]
+      symbols: [Due, MinInterval, Heartbeat, ContextStep]
+      min_recall: 0.75
+  - id: clued-concept-shim-resolve
+    repo: clued
+    lang: shell
+    family: concept
+    prompt: How does the plugin's shim choose which mind-palace binary to run, and where does it download and verify a release?
+    truth:
+      files: [scripts/clued]
+      symbols: [resolve, release_binary, download_release, sha256_of]
+      min_recall: 0.75
+  - id: clued-concept-release-version
+    repo: clued
+    lang: shell
+    family: concept
+    prompt: Which script decides the version a push to main releases, and where does it compute the next patch version?
+    truth:
+      files: [scripts/release-plan.sh]
+      symbols: [bump, emit]
+  - id: clued-concept-device-docs
+    repo: clued
+    lang: markdown
+    family: concept
+    prompt: Which documents describe linking a new machine with `session login` and `server device approve`, and the routes behind it?
+    truth:
+      files: [docs/server.md, PROTOCOL.md]
+  - id: clued-concept-memory-engines
+    repo: clued
+    lang: markdown
+    family: concept
+    prompt: Which document explains the memory engines (extract, claude, hosted) and what each costs, and where is the hosted engine implemented?
+    truth:
+      files: [docs/memory.md, mind-palace/session/memory/hosted.go]
+
+  # --- clued: impact ----------------------------------------------------------
+  - id: clued-impact-relaybudget
+    repo: clued
+    lang: go
+    family: impact
+    prompt: What is affected if `relayBudget` changes?
+    truth:
+      files: [mind-palace/cli/hook_relay.go, mind-palace/session/ingest/ingest.go]
+      symbols: [relayBudget, relay, Timeout]
+      min_recall: 0.66
+  - id: clued-impact-session-store
+    repo: clued
+    lang: go
+    family: impact
+    prompt: If a method is added to the `session.Store` interface, which types must implement it and which suite must cover it?
+    truth:
+      files: [mind-palace/session/store.go, mind-palace/session/memsession/memsession.go, mind-palace/session/mongosession/mongosession.go, mind-palace/session/remotesession/remotesession.go, mind-palace/server/sessionapi/sessionapi.go, mind-palace/session/sessiontest/sessiontest.go]
+      symbols: [Store]
+      min_recall: 0.66
+  - id: clued-impact-criteria-gate-flag
+    repo: clued
+    lang: go
+    family: impact
+    prompt: What would change in behaviour if the `CriteriaGate` flag of the story kind were turned off?
+    truth:
+      files: [mind-palace/kind/kind.go, mind-palace/service/fields.go, mind-palace/service/criteria.go, mind-palace/service/documents.go, mind-palace/ops/documents.go]
+      symbols: [CriteriaGate, criteriaGate]
+      min_recall: 0.6
+  - id: clued-impact-query-budget
+    repo: clued
+    lang: go
+    family: impact
+    prompt: Which session MCP tools are affected if `query.Budget` changes how it picks a token budget?
+    truth:
+      files: [mind-palace/session/query/budget.go, mind-palace/session/sessionmcp/budget.go, mind-palace/session/sessionmcp/sessionmcp.go]
+      symbols: [Budget, listTool, readTranscript, usage, sessionContext, primeHandler]
+      min_recall: 0.66
+  - id: clued-impact-checkwrite
+    repo: clued
+    lang: go
+    family: impact
+    prompt: What calls `hookguard.CheckWrite`, directly or through another function?
+    truth:
+      files: [mind-palace/hookguard/write.go, mind-palace/cli/hook.go]
+      symbols: [CheckWrite, CheckWriteJSON, hookWriteGuardCmd]
+      min_recall: 0.66
+
+  # --- clued: edits -----------------------------------------------------------
+  - id: clued-edit-stop-rule
+    repo: clued
+    lang: go
+    family: edit
+    prompt: Make the stop guard also catch a reply that says "out of scope for now", with a correction telling the agent to do the work, and add a test for it.
+    truth:
+      files: [mind-palace/hookguard/stop.go, mind-palace/hookguard/stop_test.go]
+    check: cd mind-palace && go test ./hookguard/
+  - id: clued-edit-localhost-subdomain
+    repo: clued
+    lang: go
+    family: edit
+    prompt: Let the remote client treat host names ending in ".localhost" (like "clued.localhost") as loopback for the plain-http rule, and add a test.
+    truth:
+      files: [mind-palace/remote/client.go, mind-palace/remote/client_test.go]
+    check: cd mind-palace && go test ./remote/
+  - id: clued-edit-limits-model
+    repo: clued
+    lang: go
+    family: edit
+    prompt: Make the status-line sampler store a sample whenever the model changes, even inside the minimum interval; the sample must carry the model. Add a test.
+    truth:
+      files: [mind-palace/session/limits/limits.go, mind-palace/session/limits/limits_test.go]
+    check: cd mind-palace && go test ./session/limits/ ./cli/
+
+  # --- clued-cloud ------------------------------------------------------------
+  - id: cloud-named-safenext
+    repo: clued-cloud
+    lang: go
+    family: named
+    prompt: Where is `safeNext` defined and which handlers use it?
+    truth:
+      files: [web/web.go, web/guest.go, web/sso.go, web/saml.go, web/auth.go, web/render.go]
+      symbols: [safeNext]
+      min_recall: 0.66
+  - id: cloud-named-namespace
+    repo: clued-cloud
+    lang: go
+    family: named
+    prompt: Where is `Namespace` defined in the cloud composition, and where are a user's and a workspace's project stores opened with their keys?
+    truth:
+      files: [cloud/cloud.go, cloud/routes.go]
+      symbols: [Namespace, WorkspaceNamespace, OpenProject, OpenWorkspaceProject]
+      min_recall: 0.75
+  - id: cloud-named-applybillingevent
+    repo: clued-cloud
+    lang: go
+    family: named
+    prompt: Where is `ApplyBillingEvent` defined and who calls it?
+    truth:
+      files: [account/billing.go, cloud/billing.go]
+      symbols: [ApplyBillingEvent]
+  - id: cloud-named-sharedwith
+    repo: clued-cloud
+    lang: go
+    family: named
+    prompt: Where is `SharedWith` defined and which readers of shared data call it?
+    truth:
+      files: [account/teams.go, shared/shared.go, web/teams.go]
+      symbols: [SharedWith, Share]
+  - id: cloud-concept-csp
+    repo: clued-cloud
+    lang: go
+    family: concept
+    prompt: Where does every web page get its Content-Security-Policy header and script nonce?
+    truth:
+      files: [web/render.go]
+      symbols: [contentSecurityPolicy, newNonce, render]
+  - id: cloud-concept-sealed-keys
+    repo: clued-cloud
+    lang: go
+    family: concept
+    prompt: Where are users' own Anthropic API keys encrypted at rest, and what associated data binds them to their owner?
+    truth:
+      files: [account/sealer.go, account/llm.go]
+      symbols: [Seal, Open, llmKeyAAD]
+      min_recall: 0.66
+  - id: cloud-concept-rate-limit-keys
+    repo: clued-cloud
+    lang: go
+    family: concept
+    prompt: How are rate-limit keys built so that no address is stored in clear, and where is the log-in limit checked?
+    truth:
+      files: [account/service.go]
+      symbols: [limitKey, allow, HashToken]
+      min_recall: 0.66
+  - id: cloud-concept-device-link
+    repo: clued-cloud
+    lang: go
+    family: concept
+    prompt: Walk the device link from a new client's request to the token it receives; which functions start, approve and poll it?
+    truth:
+      files: [account/service.go, api/api.go, web/account.go]
+      symbols: [BeginDeviceLink, ApproveDeviceLink, PollDeviceLink, DeviceHandler]
+      min_recall: 0.75
+  - id: cloud-concept-billing-runbook
+    repo: clued-cloud
+    lang: markdown
+    family: concept
+    prompt: Where are the billing go-live checklist and the switch-on and rollback steps written down?
+    truth:
+      files: [docs/billing-runbook.md]
+  - id: cloud-impact-limitkey
+    repo: clued-cloud
+    lang: go
+    family: impact
+    prompt: Which rate limits are affected if `limitKey` changes how it builds keys?
+    truth:
+      files: [account/service.go, account/llm.go, account/totp.go, account/sso.go, account/workspace.go]
+      symbols: [limitKey]
+      min_recall: 0.8
+  - id: cloud-impact-sessionscan
+    repo: clued-cloud
+    lang: go
+    family: impact
+    prompt: What depends on `sessionscan.Each`; which features change if its paging changes?
+    truth:
+      files: [sessionscan/sessionscan.go, export/export.go, analytics/analytics.go]
+      symbols: [Each]
+  - id: cloud-edit-audit-device-approved
+    repo: clued-cloud
+    lang: go
+    family: edit
+    prompt: Record a security audit event when a user approves a device link, like the one recorded when a link is denied, and give it a sentence on the account's security log.
+    truth:
+      files: [account/audit.go, account/service.go, web/security.go]
+    check: go test ./account/ ./web/
+  - id: cloud-edit-metric-device-links
+    repo: clued-cloud
+    lang: go
+    family: edit
+    prompt: Add a Prometheus counter `device_links_approved` with help text, counted each time a device link is approved.
+    truth:
+      files: [metrics/metrics.go, account/service.go]
+    check: go test ./metrics/ ./account/
+
+  # --- corpus: Python (requests) ----------------------------------------------
+  - id: py-named-merge-setting
+    repo: requests
+    lang: python
+    family: named
+    prompt: Where is `merge_setting` defined and which functions or methods call it?
+    truth:
+      files: [src/requests/sessions.py]
+      symbols: [merge_setting, merge_hooks, prepare_request, merge_environment_settings]
+      min_recall: 0.75
+  - id: py-concept-strip-auth
+    repo: requests
+    lang: python
+    family: concept
+    prompt: Where does requests decide to drop the Authorization header when it follows a redirect?
+    truth:
+      files: [src/requests/sessions.py]
+      symbols: [should_strip_auth, rebuild_auth]
+  - id: py-impact-get-adapter
+    repo: requests
+    lang: python
+    family: impact
+    prompt: What is affected if `Session.get_adapter` changes its signature?
+    truth:
+      files: [src/requests/sessions.py, tests/test_requests.py]
+      symbols: [get_adapter, send]
+
+  # --- corpus: C (cJSON) ------------------------------------------------------
+  - id: c-named-parse
+    repo: cjson
+    lang: c
+    family: named
+    prompt: Where is `cJSON_Parse` defined, and through which functions does it reach the value parser?
+    truth:
+      files: [cJSON.c]
+      symbols: [cJSON_Parse, cJSON_ParseWithOpts, cJSON_ParseWithLengthOpts, parse_value]
+  - id: c-concept-hooks
+    repo: cjson
+    lang: c
+    family: concept
+    prompt: How can a program replace cJSON's memory allocator, and where is the replacement kept?
+    truth:
+      files: [cJSON.c, cJSON.h]
+      symbols: [cJSON_InitHooks, cJSON_Hooks, global_hooks]
+  - id: c-impact-parse-value
+    repo: cjson
+    lang: c
+    family: impact
+    prompt: Which functions call `parse_value`, and so are affected if its contract changes?
+    truth:
+      files: [cJSON.c]
+      symbols: [parse_value, parse_array, parse_object, cJSON_ParseWithLengthOpts]
+
+  # --- corpus: C++ (leveldb) --------------------------------------------------
+  - id: cpp-named-dbimpl-write
+    repo: leveldb
+    lang: cpp
+    family: named
+    prompt: Where is `DBImpl::Write` defined, and which helpers does it call to group writers and make room in the memtable?
+    truth:
+      files: [db/db_impl.cc]
+      symbols: [DBImpl::Write, BuildBatchGroup, MakeRoomForWrite]
+  - id: cpp-concept-memtable-switch
+    repo: leveldb
+    lang: cpp
+    family: concept
+    prompt: Where does leveldb switch to a new memtable and log file when the write buffer is full, and schedule a compaction?
+    truth:
+      files: [db/db_impl.cc]
+      symbols: [MakeRoomForWrite, MaybeScheduleCompaction]
+  - id: cpp-impact-putvarint32
+    repo: leveldb
+    lang: cpp
+    family: impact
+    prompt: Which files would need checking if the encoding written by `PutVarint32` changed?
+    truth:
+      files: [util/coding.cc, util/coding.h, db/memtable.cc, db/version_edit.cc, table/block_builder.cc]
+      symbols: [PutVarint32]
+      min_recall: 0.8
+
+  # --- corpus: C# (Newtonsoft.Json) -------------------------------------------
+  - id: cs-named-serializeobject
+    repo: newtonsoft-json
+    lang: csharp
+    family: named
+    prompt: Where is `JsonConvert.SerializeObject(object, Type, JsonSerializerSettings)` implemented, and what does it delegate to?
+    truth:
+      files: [Src/Newtonsoft.Json/JsonConvert.cs, Src/Newtonsoft.Json/JsonSerializer.cs]
+      symbols: [SerializeObject, SerializeObjectInternal, CreateDefault]
+  - id: cs-concept-default-settings
+    repo: newtonsoft-json
+    lang: csharp
+    family: concept
+    prompt: Where are the global default serializer settings (`JsonConvert.DefaultSettings`) applied when a serializer is created?
+    truth:
+      files: [Src/Newtonsoft.Json/JsonConvert.cs, Src/Newtonsoft.Json/JsonSerializer.cs]
+      symbols: [DefaultSettings, CreateDefault]
+  - id: cs-impact-createcontract
+    repo: newtonsoft-json
+    lang: csharp
+    family: impact
+    prompt: What is affected when a custom contract resolver overrides `DefaultContractResolver.CreateContract`?
+    truth:
+      files: [Src/Newtonsoft.Json/Serialization/DefaultContractResolver.cs]
+      symbols: [CreateContract, ResolveContract, CreateObjectContract]
+
+  # --- corpus: Objective-C (AFNetworking) -------------------------------------
+  - id: objc-named-datatask
+    repo: afnetworking
+    lang: objc
+    family: named
+    prompt: Where is `dataTaskWithHTTPMethod:URLString:parameters:headers:uploadProgress:downloadProgress:success:failure:` defined, and which public methods call it?
+    truth:
+      files: [AFNetworking/AFHTTPSessionManager.m]
+      symbols: [dataTaskWithHTTPMethod, GET, POST, PUT, PATCH, DELETE, HEAD]
+      min_recall: 0.7
+  - id: objc-concept-server-trust
+    repo: afnetworking
+    lang: objc
+    family: concept
+    prompt: Where does AFNetworking evaluate server trust for certificate pinning?
+    truth:
+      files: [AFNetworking/AFSecurityPolicy.m]
+      symbols: [evaluateServerTrust, AFServerTrustIsValid]
+  - id: objc-impact-requestwithmethod
+    repo: afnetworking
+    lang: objc
+    family: impact
+    prompt: What is affected if the request serializer's `requestWithMethod:URLString:parameters:error:` changes?
+    truth:
+      files: [AFNetworking/AFURLRequestSerialization.m, AFNetworking/AFHTTPSessionManager.m]
+      symbols: [requestWithMethod, dataTaskWithHTTPMethod, multipartFormRequestWithMethod]
+      min_recall: 0.66
+
+  # --- corpus: Swift (Alamofire) ----------------------------------------------
+  - id: swift-named-retryresult
+    repo: alamofire
+    lang: swift
+    family: named
+    prompt: Where is `Session.retryResult(for:dueTo:completion:)` implemented, and where is it called from?
+    truth:
+      files: [Source/Core/Session.swift, Source/Core/Request.swift, Source/Core/DataRequest.swift, Source/Core/DownloadRequest.swift]
+      symbols: [retryResult]
+      min_recall: 0.75
+  - id: swift-concept-retry-policy
+    repo: alamofire
+    lang: swift
+    family: concept
+    prompt: How does Alamofire decide whether to retry a failed request, and how long to wait before the retry?
+    truth:
+      files: [Source/Features/RetryPolicy.swift]
+      symbols: [RetryPolicy, shouldRetry, exponentialBackoffBase, retryableHTTPStatusCodes]
+      min_recall: 0.75
+  - id: swift-impact-server-trust
+    repo: alamofire
+    lang: swift
+    family: impact
+    prompt: Which types are affected if the `ServerTrustEvaluating` protocol's `evaluate(_:forHost:)` requirement changes?
+    truth:
+      files: [Source/Features/ServerTrustEvaluation.swift]
+      symbols: [ServerTrustEvaluating, DefaultTrustEvaluator, RevocationTrustEvaluator, PinnedCertificatesTrustEvaluator, PublicKeysTrustEvaluator, CompositeTrustEvaluator, DisabledTrustEvaluator]
+      min_recall: 0.7
+
+  # --- corpus: Java (gson) ----------------------------------------------------
+  - id: java-named-getadapter
+    repo: gson
+    lang: java
+    family: named
+    prompt: Where is `Gson.getAdapter(TypeToken)` defined, and how does it cope with a type that refers to itself?
+    truth:
+      files: [gson/src/main/java/com/google/gson/Gson.java]
+      symbols: [getAdapter, typeTokenCache, threadLocalAdapterResults, FutureTypeAdapter]
+      min_recall: 0.75
+  - id: java-concept-reflection
+    repo: gson
+    lang: java
+    family: concept
+    prompt: Where does Gson turn a class's fields into JSON properties by reflection?
+    truth:
+      files: [gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java]
+      symbols: [ReflectiveTypeAdapterFactory, getBoundFields, createBoundField]
+  - id: java-impact-delegate-adapter
+    repo: gson
+    lang: java
+    family: impact
+    prompt: Who calls `Gson.getDelegateAdapter`, and so is affected if it changes?
+    truth:
+      files: [gson/src/main/java/com/google/gson/Gson.java, gson/src/main/java/com/google/gson/internal/bind/TreeTypeAdapter.java, gson/src/main/java/com/google/gson/internal/Excluder.java]
+      symbols: [getDelegateAdapter]
+
+  # --- corpus: JavaScript (express) -------------------------------------------
+  - id: js-named-res-json
+    repo: express
+    lang: javascript
+    family: named
+    prompt: Where is `res.json` defined, and what does it delegate to?
+    truth:
+      files: [lib/response.js]
+      symbols: [json, stringify, send]
+  - id: js-concept-etag
+    repo: express
+    lang: javascript
+    family: concept
+    prompt: How does Express decide whether to set an ETag on a response, and where is the ETag function configured?
+    truth:
+      files: [lib/response.js, lib/application.js, lib/utils.js]
+      symbols: [compileETag, createETagGenerator, send]
+      min_recall: 0.66
+  - id: js-impact-res-send
+    repo: express
+    lang: javascript
+    family: impact
+    prompt: Which response methods are affected if `res.send` stops converting objects to JSON?
+    truth:
+      files: [lib/response.js]
+      symbols: [send, json, jsonp, sendStatus]
+      min_recall: 0.75
+
+  # --- corpus: TypeScript (zustand) -------------------------------------------
+  - id: ts-named-createstore
+    repo: zustand
+    lang: typescript
+    family: named
+    prompt: Where is `createStore` implemented, and which entry points call it?
+    truth:
+      files: [src/vanilla.ts, src/react.ts, src/traditional.ts]
+      symbols: [createStore, createStoreImpl, createImpl]
+      min_recall: 0.66
+  - id: ts-concept-persist
+    repo: zustand
+    lang: typescript
+    family: concept
+    prompt: How does zustand save a store's state to localStorage and rehydrate it?
+    truth:
+      files: [src/middleware/persist.ts]
+      symbols: [persistImpl, createJSONStorage, rehydrate]
+      min_recall: 0.66
+  - id: ts-impact-subscribe
+    repo: zustand
+    lang: typescript
+    family: impact
+    prompt: What is affected if the listener signature of `StoreApi.subscribe` changes?
+    truth:
+      files: [src/vanilla.ts, src/react.ts, src/middleware/subscribeWithSelector.ts]
+      symbols: [subscribe, useStore, subscribeWithSelectorImpl]
+      min_recall: 0.66
+
+  # --- corpus: SQL (pagila) ---------------------------------------------------
+  - id: sql-named-inventory-in-stock
+    repo: pagila
+    lang: sql
+    family: named
+    prompt: Where is the `inventory_in_stock` function defined, and which functions call it?
+    truth:
+      files: [pagila-schema.sql]
+      symbols: [inventory_in_stock, film_in_stock, film_not_in_stock]
+  - id: sql-concept-last-update
+    repo: pagila
+    lang: sql
+    family: concept
+    prompt: How does the schema keep each table's `last_update` column current?
+    truth:
+      files: [pagila-schema.sql]
+      symbols: [last_updated]
+  - id: sql-impact-rental
+    repo: pagila
+    lang: sql
+    family: impact
+    prompt: Which functions and views read the `rental` table and would be affected by a change to it?
+    truth:
+      files: [pagila-schema.sql]
+      symbols: [get_customer_balance, inventory_held_by_customer, inventory_in_stock, rental_by_category, sales_by_film_category, sales_by_store]
+      min_recall: 0.66
+
+  # --- corpus: Rust (serde_json) ----------------------------------------------
+  - id: rust-named-from-str
+    repo: serde-json
+    lang: rust
+    family: named
+    prompt: Where is `serde_json::from_str` defined, and what does it share with `from_slice` and `from_reader`?
+    truth:
+      files: [src/de.rs]
+      symbols: [from_str, from_slice, from_reader, from_trait]
+  - id: rust-concept-recursion-limit
+    repo: serde-json
+    lang: rust
+    family: concept
+    prompt: Where does serde_json stop deeply nested input from overflowing the stack, and how can it be turned off?
+    truth:
+      files: [src/de.rs]
+      symbols: [remaining_depth, disable_recursion_limit]
+  - id: rust-impact-value
+    repo: serde-json
+    lang: rust
+    family: impact
+    prompt: Which modules would need changing if a variant were added to `serde_json::Value`?
+    truth:
+      files: [src/value/mod.rs, src/value/de.rs, src/value/ser.rs, src/value/partial_eq.rs, src/value/index.rs]
+      symbols: [Value]
+      min_recall: 0.6
+
+  # --- corpus: PHP (guzzle) ---------------------------------------------------
+  - id: php-named-sendasync
+    repo: guzzle
+    lang: php
+    family: named
+    prompt: Where is `Client::sendAsync` defined, and which private helpers does it call?
+    truth:
+      files: [src/Client.php]
+      symbols: [sendAsync, prepareDefaults, buildUri, transfer]
+  - id: php-concept-redirects
+    repo: guzzle
+    lang: php
+    family: concept
+    prompt: How does Guzzle follow redirects and cap how many it follows?
+    truth:
+      files: [src/RedirectMiddleware.php]
+      symbols: [checkRedirect, guardMax, modifyRequest]
+  - id: php-impact-handlerstack-create
+    repo: guzzle
+    lang: php
+    family: impact
+    prompt: What is affected if `HandlerStack::create` stops adding the redirect middleware?
+    truth:
+      files: [src/HandlerStack.php, src/Client.php, src/Handler/MockHandler.php]
+      symbols: [create, redirect, allow_redirects]
+      min_recall: 0.66
+
+  # --- corpus: Perl (Mojolicious) ---------------------------------------------
+  - id: perl-named-dequeue
+    repo: mojo
+    lang: perl
+    family: named
+    prompt: Where is `_dequeue` defined in Mojo::UserAgent, and which subs call it?
+    truth:
+      files: [lib/Mojo/UserAgent.pm]
+      symbols: [_dequeue, _connection, _remove]
+  - id: perl-concept-redirects
+    repo: mojo
+    lang: perl
+    family: concept
+    prompt: How does Mojo::UserAgent follow redirects and enforce `max_redirects`?
+    truth:
+      files: [lib/Mojo/UserAgent.pm, lib/Mojo/UserAgent/Transactor.pm]
+      symbols: [_redirect, max_redirects, redirect]
+  - id: perl-impact-encode-value
+    repo: mojo
+    lang: perl
+    family: impact
+    prompt: What is affected if `Mojo::JSON::_encode_value` changes?
+    truth:
+      files: [lib/Mojo/JSON.pm]
+      symbols: [_encode_value, encode_json, to_json]
+
+  # --- corpus: OCaml (yojson) -------------------------------------------------
+  - id: ocaml-named-member
+    repo: yojson
+    lang: ocaml
+    family: named
+    prompt: Where is `Yojson.Safe.Util.member` defined, and what does it do with a value that is not an object?
+    truth:
+      files: [lib/util.ml]
+      symbols: [member, assoc, typerr]
+  - id: ocaml-concept-safe-to-basic
+    repo: yojson
+    lang: ocaml
+    family: concept
+    prompt: Where does yojson convert a `Safe.t` value into a `Basic.t`?
+    truth:
+      files: [lib/safe_to_basic.ml]
+      symbols: [to_basic]
+  - id: ocaml-impact-typerr
+    repo: yojson
+    lang: ocaml
+    family: impact
+    prompt: Which functions raise their type errors through `typerr`, and so change if it changes?
+    truth:
+      files: [lib/util.ml]
+      symbols: [typerr, member, index, to_bool, to_int, to_list, to_string]
+      min_recall: 0.6
+
+  # --- corpus: Dart and Flutter (bloc) ----------------------------------------
+  - id: dart-named-on
+    repo: bloc
+    lang: dart
+    family: named
+    prompt: Where is `Bloc.on<E>` defined, and where does an event handler's emit lead to `onTransition`?
+    truth:
+      files: [packages/bloc/lib/src/bloc.dart, packages/bloc/lib/src/emitter.dart]
+      symbols: [onTransition, _Emitter, emit]
+      min_recall: 0.66
+  - id: dart-concept-blocbuilder
+    repo: bloc
+    lang: dart
+    family: concept
+    prompt: In flutter_bloc, how does `BlocBuilder` decide whether to rebuild on a state change?
+    truth:
+      files: [packages/flutter_bloc/lib/src/bloc_builder.dart]
+      symbols: [BlocBuilder, BlocBuilderBase, buildWhen]
+  - id: dart-impact-observer-ontransition
+    repo: bloc
+    lang: dart
+    family: impact
+    prompt: What is affected if `BlocObserver.onTransition` changes its signature?
+    truth:
+      files: [packages/bloc/lib/src/bloc_observer.dart, packages/bloc/lib/src/bloc.dart]
+      symbols: [onTransition, BlocObserver, MultiBlocObserver]
+
+  # --- corpus: Ruby (sinatra) -------------------------------------------------
+  - id: ruby-named-route-bang
+    repo: sinatra
+    lang: ruby
+    family: named
+    prompt: Where is `route!` defined in Sinatra::Base, and what calls it?
+    truth:
+      files: [lib/sinatra/base.rb]
+      symbols: [route!, dispatch!, process_route]
+  - id: ruby-concept-get
+    repo: sinatra
+    lang: ruby
+    family: concept
+    prompt: How does Sinatra turn `get '/path' do ... end` into a stored route?
+    truth:
+      files: [lib/sinatra/base.rb]
+      symbols: [get, route, compile!]
+  - id: ruby-impact-process-route
+    repo: sinatra
+    lang: ruby
+    family: impact
+    prompt: Which methods call `process_route`, and so break if its block contract changes?
+    truth:
+      files: [lib/sinatra/base.rb]
+      symbols: [process_route, route!, filter!, error_block!]
+      min_recall: 0.75
+
+  # --- corpus: Kotlin (okhttp) ------------------------------------------------
+  - id: kotlin-named-interceptor-chain
+    repo: okhttp
+    lang: kotlin
+    family: named
+    prompt: Where is `RealCall.getResponseWithInterceptorChain` defined, and which interceptors does it install, in what order?
+    truth:
+      files: [okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealCall.kt]
+      symbols: [getResponseWithInterceptorChain, RetryAndFollowUpInterceptor, BridgeInterceptor, CacheInterceptor, ConnectInterceptor, CallServerInterceptor]
+      min_recall: 0.8
+  - id: kotlin-concept-follow-ups
+    repo: okhttp
+    lang: kotlin
+    family: concept
+    prompt: Where does OkHttp decide to follow a redirect or retry a request, and what caps the number of follow-ups?
+    truth:
+      files: [okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http/RetryAndFollowUpInterceptor.kt]
+      symbols: [followUpRequest, buildRedirectRequest, MAX_FOLLOW_UPS]
+      min_recall: 0.66
+  - id: kotlin-impact-acquire-pooled
+    repo: okhttp
+    lang: kotlin
+    family: impact
+    prompt: Who calls `RealConnectionPool.callAcquirePooledConnection`, and so is affected if it changes?
+    truth:
+      files: [okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealConnectionPool.kt, okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealRoutePlanner.kt]
+      symbols: [callAcquirePooledConnection, planReusePooledConnection]
+
+  # --- corpus: Lua (telescope.nvim) -------------------------------------------
+  - id: lua-named-pickers-new
+    repo: telescope-nvim
+    lang: lua
+    family: named
+    prompt: Where is `pickers.new` defined, and how does it construct a picker?
+    truth:
+      files: [lua/telescope/pickers.lua]
+      symbols: [pickers.new, Picker:new]
+  - id: lua-concept-find-loop
+    repo: telescope-nvim
+    lang: lua
+    family: concept
+    prompt: Where does telescope run the finder and refresh the results each time the prompt text changes?
+    truth:
+      files: [lua/telescope/pickers.lua]
+      symbols: [Picker:find, get_result_processor, _on_lines]
+      min_recall: 0.66
+  - id: lua-impact-fzy-sorter
+    repo: telescope-nvim
+    lang: lua
+    family: impact
+    prompt: What is affected if `sorters.get_fzy_sorter` is removed?
+    truth:
+      files: [lua/telescope/sorters.lua, lua/telescope/config.lua]
+      symbols: [get_fzy_sorter, file_sorter, generic_sorter]
+
+  # --- corpus: Lisp (Clojure: ring; Common Lisp: hunchentoot; Emacs Lisp: dash.el)
+  - id: clj-named-wrap-params
+    repo: ring
+    lang: lisp
+    family: named
+    prompt: Where is Ring's `wrap-params` defined, and which functions does it use to add the query and form parameters?
+    truth:
+      files: [ring-core/src/ring/middleware/params.clj]
+      symbols: [wrap-params, params-request, assoc-query-params, assoc-form-params]
+  - id: clj-concept-session-stores
+    repo: ring
+    lang: lisp
+    family: concept
+    prompt: How does Ring store session data, and which stores implement the storage protocol?
+    truth:
+      files: [ring-core/src/ring/middleware/session.clj, ring-core/src/ring/middleware/session/store.clj, ring-core/src/ring/middleware/session/cookie.clj, ring-core/src/ring/middleware/session/memory.clj]
+      symbols: [wrap-session, SessionStore, CookieStore, MemoryStore]
+      min_recall: 0.75
+  - id: cl-concept-easy-handlers
+    repo: hunchentoot
+    lang: lisp
+    family: concept
+    prompt: How does Hunchentoot route an incoming request to a handler defined with `define-easy-handler`?
+    truth:
+      files: [easy-handlers.lisp, acceptor.lisp]
+      symbols: [define-easy-handler, dispatch-easy-handlers, "*dispatch-table*", acceptor-dispatch-request]
+      min_recall: 0.75
+  - id: cl-impact-handle-request
+    repo: hunchentoot
+    lang: lisp
+    family: impact
+    prompt: Who calls `handle-request`, and what does its default method call in turn?
+    truth:
+      files: [acceptor.lisp, request.lisp]
+      symbols: [handle-request, process-request, acceptor-dispatch-request]
+  - id: elisp-named-reduce
+    repo: dash-el
+    lang: lisp
+    family: named
+    prompt: Where are `-reduce` and its anaphoric macro `--reduce` defined, and how do they relate to `-reduce-from`?
+    truth:
+      files: [dash.el]
+      symbols: [-reduce, --reduce, -reduce-from, --reduce-from]

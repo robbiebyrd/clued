@@ -1,0 +1,117 @@
+# Pinned public repositories of the code search evaluation (plan 0012-cgi,
+# 5.1): one or two well-known repositories per language the code graph
+# parses besides Go, each at the commit its tasks' ground truth was read at
+# (the head of branch on 2026-10-19, resolved with `git ls-remote`). The
+# harness fetches exactly that commit (`git fetch --depth 1 origin <commit>`);
+# move a pin only together with the ground truth of its tasks, and check it
+# with CLUED_EVAL_VERIFY=1 (scripts/eval-codesearch.sh --verify-only).
+repos:
+  - id: requests
+    lang: python
+    url: https://github.com/psf/requests
+    branch: main
+    commit: 611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60
+  - id: cjson
+    lang: c
+    url: https://github.com/DaveGamble/cJSON
+    branch: master
+    commit: 6d9f2443ab071f86e5d9b43025a40929ec41c46c
+  - id: leveldb
+    lang: cpp
+    url: https://github.com/google/leveldb
+    branch: main
+    commit: bb74ef739973a70ca9f0d90788a1da89b788c0ad
+  - id: newtonsoft-json
+    lang: csharp
+    url: https://github.com/JamesNK/Newtonsoft.Json
+    branch: master
+    commit: 52fa3aef1f2cadcd3a3f874251eddc98d3efbbaa
+  - id: afnetworking
+    lang: objc
+    url: https://github.com/AFNetworking/AFNetworking
+    branch: master
+    commit: d9f589cc2c1fe9d55eb5eea00558010afea7a41e
+  - id: alamofire
+    lang: swift
+    url: https://github.com/Alamofire/Alamofire
+    branch: master
+    commit: bda9ed57d72988a3a2ada33d824583541f86eac6
+  - id: gson
+    lang: java
+    url: https://github.com/google/gson
+    branch: main
+    commit: e2292f9c9f2e07a4791827e8eea34aa7d80545d6
+  - id: express
+    lang: javascript
+    url: https://github.com/expressjs/express
+    branch: master
+    commit: 0dee2c52c7c873498f8ed7d8ee4ddd0a04d3ada8
+  - id: zustand
+    lang: typescript
+    url: https://github.com/pmndrs/zustand
+    branch: main
+    commit: d7a5583cffd80af515f7dfb69583c95cbdc9e2ce
+  - id: pagila
+    lang: sql
+    url: https://github.com/devrimgunduz/pagila
+    branch: master
+    commit: ce6e114236bb828e5ec0dc835f65f1bf1b9179f5
+  - id: serde-json
+    lang: rust
+    url: https://github.com/serde-rs/json
+    branch: master
+    commit: 8c535a260ce561eaab4111aafc29038eb9f77ff3
+  - id: guzzle
+    lang: php
+    url: https://github.com/guzzle/guzzle
+    branch: "8.3"
+    commit: b920e5fcaf81d761b8fabe600ca90999beaefdb7
+  - id: mojo
+    lang: perl
+    url: https://github.com/mojolicious/mojo
+    branch: main
+    commit: fc5c3a3a3c14bc5f3c5b63904481e1cda7874c57
+  - id: yojson
+    lang: ocaml
+    url: https://github.com/ocaml-community/yojson
+    branch: master
+    commit: df9e87cdef7c0fcddf7fa7d4e8e6d8a45c95bcab
+  - id: bloc
+    lang: dart
+    dialect: flutter
+    url: https://github.com/felangel/bloc
+    branch: master
+    commit: b9be1e252ee24ffbe9f2fb629edc7624b2cfbf05
+  - id: sinatra
+    lang: ruby
+    url: https://github.com/sinatra/sinatra
+    branch: main
+    commit: cb22afd7902b566b6eaba6c4ea89739494a65d12
+  - id: okhttp
+    lang: kotlin
+    url: https://github.com/square/okhttp
+    branch: main
+    commit: aab431214cd0da8b74f6a288b6a2bb137a8d982e
+  - id: telescope-nvim
+    lang: lua
+    url: https://github.com/nvim-telescope/telescope.nvim
+    branch: master
+    commit: 40aedd8a68c78a656a10a8d62d80c54af59420fb
+  - id: ring
+    lang: lisp
+    dialect: clojure
+    url: https://github.com/ring-clojure/ring
+    branch: master
+    commit: 6238fe0e2e4506e28a0ce6ade9ae514f7b02cbee
+  - id: hunchentoot
+    lang: lisp
+    dialect: common-lisp
+    url: https://github.com/edicl/hunchentoot
+    branch: master
+    commit: 65a3a3cca7e6e91fb068efc2ef8069b5c78ee91f
+  - id: dash-el
+    lang: lisp
+    dialect: emacs-lisp
+    url: https://github.com/magnars/dash.el
+    branch: master
+    commit: d746dd9edcb67a108818beb0cdc78dc1cb466832
