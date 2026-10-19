@@ -6,7 +6,7 @@ status: pending
 priority: "3"
 effort: XL
 created: "2026-10-16T19:52:58.427Z"
-updated: "2026-10-19T17:26:10.498Z"
+updated: "2026-10-19T17:50:00.756Z"
 tags:
   - code-graph
   - server
@@ -87,6 +87,7 @@ progress:
 - **The code graph will be partitioned as one base graph per namespaced project plus overlays per (worktree, ref), with file-local facts cached by content (Option B plus the easy part of C; see "Partitioning for the indexer").** — A full graph per branch per user repeats almost the same graph many times and re-indexes everything on a new branch; a base plus overlays costs storage and indexing proportional to the diff. File-local facts depend only on a file's bytes, so caching them by SHA-256 lets every branch and user share one parse. Only cross-file resolution, which depends on the whole tree, is per layer. Collection records what this needs now (owner, committed vs uncommitted, the default branch) so nothing has to be re-collected when the indexer ships.
 - **The server stamps the owning account on worktrees and changes.** — In a workspace several members write into one namespace (`w<workspace>__<slug>`); overlays must belong to someone so their visibility can be decided, and the owner has to come from the token, never from the request body.
 - **Each entry records git's blob id and whether it differs from HEAD.** — The base graph must be built from committed content only, never from someone's in-progress edits; the SHA-256 of redacted content can't tell committed from uncommitted, git's blob id and a dirty flag can.
+- **Session overlays are never shared.** — Unpushed and uncommitted work stays with its owner; other members (workspace or share) see it only once it's pushed and lands in a branch layer. Owner stamping makes this enforceable at every read.
 - **Three layers, not two: base (default branch), branch (a branch at its pushed commit, shared), session overlay (one checkout's unpushed commits and uncommitted edits, private).** — Two people, or one person on two machines, often work on the same branch at once. Each sees the branch as pushed plus their own work on top; an overlay per (worktree, ref) straight on the base would duplicate the shared branch in every overlay and couldn't tell what is shared from what is still one person's. Splitting at the pushed commit gives a natural sharing rule: pushed is shared, unpushed is private.
 - **Each entry also records whether it differs from the upstream commit (`unpushed`), each change records the upstream commit, and the server records which session last wrote each entry.** — These are the facts that place a file in the branch layer or the session overlay, and attribute overlay files to the session that produced them.
 
@@ -130,7 +131,7 @@ This plan only collects, but the layout is chosen now so the collected data fits
 - **A query for a session's view** (session → its worktree and ref) stacks the layers: base, then the branch layer, then the overlay; each layer hides the files the layer above replaces or deletes. Nodes and edges carry a `layer` property (`base`, `branch:<ref>@<commit>` or `wt:<worktree>:<ref>`) and `File.path`, which is what that filter uses. A branch view (no session) is base plus branch layer.
 - **Two checkouts on one branch**: both overlays sit on the same branch layer and never see each other's files, and a file both are editing appears once in each overlay with each owner's content. A view across a user's own machines (the same account's overlays on one branch) is an indexer feature for later; collection already has what it needs (owner per worktree).
 - **Idle overlays**: an overlay whose worktree has no session activity for 14 days and nothing unpushed or dirty is dropped from the graph; the collected data stays in the store, so it can be rebuilt.
-- **Visibility**: the base and branch layers are visible to everyone who can read the project (it's pushed code); a session overlay is visible to its owner only, by default (see Open Questions).
+- **Visibility**: the base and branch layers are visible to everyone who can read the project (it's pushed code); a session overlay is visible to its owner only, always: overlays can't be shared, in a workspace or anywhere else. Unpushed work becomes visible to others only by pushing it.
 
 ### Server model and the `code.Store` port
 
@@ -286,10 +287,6 @@ After the public module lands on main, pin it (`go get github.com/robbiebyrd/clu
 - A branch that tracks a differently named upstream, or none: `upstream` is whatever `@{upstream}` resolves to; with none, everything the branch has beyond the base is in the overlay.
 - Several sessions at once in one checkout: one overlay, each file tagged with the session that last wrote it; a session that only reads leaves no tags.
 - A Claude Code cloud container: a new host, so a new worktree and overlay for every container; it goes idle and drops from the graph once the container is gone.
-
-## Open Questions
-
-- Should members of a workspace be able to opt in to sharing their session overlays (live, unpushed work) with each other? The layering already makes pushed work shared (branch layers) and unpushed work private (overlays); this plan only records owner and session, so either answer works without re-collecting. (owner: Robbie)
 
 ## Considerations
 
