@@ -70,6 +70,13 @@ func Run(t *testing.T, open Factory) {
 		{"worktrees lists every worktree with owner, default branch and sessions", listWorktrees},
 		{"concurrent commits each get their own seq", concurrentCommits},
 		{"stored and returned values are copies", copies},
+		{"remove ref drops one tree and ref and appends a ref tombstone", removeRef},
+		{"remove ref refuses malformed input and an unknown worktree", removeRefValidation},
+		{"append events assigns increasing seqs and round-trips every field", appendEvents},
+		{"append events refuses a malformed event and appends none of the batch", appendEventsValidation},
+		{"events are paged after seq and stored and returned as copies", eventsPaging},
+		{"concurrent appends each get their own seqs", concurrentAppendEvents},
+		{"sha256 for git oid finds clean entries with content in any tree", sha256ForGitOID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) { c.run(t, open(t)) })
@@ -113,6 +120,27 @@ func (s Split) RemoveWorktree(ctx context.Context, id string) error {
 // TouchSession writes to Writes.
 func (s Split) TouchSession(ctx context.Context, worktree, sessionID string, ended bool) error {
 	return s.Writes.TouchSession(ctx, worktree, sessionID, ended)
+}
+
+// RemoveRef writes to Writes.
+func (s Split) RemoveRef(ctx context.Context, worktree, ref string) error {
+	return s.Writes.RemoveRef(ctx, worktree, ref)
+}
+
+// AppendEvents writes to Writes.
+func (s Split) AppendEvents(ctx context.Context, events []code.Event) error {
+	return s.Writes.AppendEvents(ctx, events)
+}
+
+// SHA256ForGitOID asks Reads: the GitHub sync calls it on the server-side
+// store, and no route serves it.
+func (s Split) SHA256ForGitOID(ctx context.Context, gitOIDs []string) (map[string]string, error) {
+	return s.Reads.SHA256ForGitOID(ctx, gitOIDs)
+}
+
+// Events reads from Reads.
+func (s Split) Events(ctx context.Context, afterSeq int64, limit int) ([]code.Event, error) {
+	return s.Reads.Events(ctx, afterSeq, limit)
 }
 
 // Worktrees reads from Reads.
@@ -1098,4 +1126,311 @@ func copies(t *testing.T, s code.Store) {
 	got1 := findWorktree(t, s, wt1)
 	eq(t, "returned refs", sortedRefs(got1.Refs), []string{"main"})
 	eq(t, "returned sessions", got1.Sessions[0].ID, "s1")
+}
+
+func removeRef(t *testing.T, s code.Store) {
+	ctx := t.Context()
+	a, b := newBlob("a"), newBlob("b")
+	putBlobs(t, s, a, b)
+	putWorktree(t, s, worktree(wt3, "main"))
+	putWorktree(t, s, worktree(wt1, "feature/x"))
+	commit(t, s, change(wt3, "main", "", []code.Entry{entry("a.go", a, "")}))
+	commit(t, s, change(wt3, "feature/x", "", []code.Entry{entry("a.go", a, ""), entry("b.go", b, "")}))
+	last := commit(t, s, change(wt1, "feature/x", "s1", []code.Entry{entry("b.go", b, "")}))
+	before := time.Now()
+
+	must(t, s.RemoveRef(ctx, wt3, "feature/x"))
+	eq(t, "removed tree", tree(t, s, wt3, "feature/x"), []code.Entry{})
+	eq(t, "other ref's tree", tree(t, s, wt3, "main"), []code.Entry{entry("a.go", a, "")})
+	eq(t, "other worktree's tree", tree(t, s, wt1, "feature/x"), []code.Entry{entry("b.go", b, "s1")})
+	got := findWorktree(t, s, wt3)
+	eq(t, "refs", sortedRefs(got.Refs), []string{"main"})
+	eq(t, "not removed", got.Removed, false)
+	eq(t, "other worktree's refs", sortedRefs(findWorktree(t, s, wt1).Refs), []string{"feature/x"})
+
+	all := allChanges(t, s)
+	eq(t, "changes", len(all), 4)
+	tomb := all[3]
+	if tomb.Seq <= last {
+		t.Fatalf("ref tombstone seq %d is not after %d", tomb.Seq, last)
+	}
+	notBefore(t, "ref tombstone at", tomb.At, before)
+	eq(t, "ref tombstone", normChange(tomb),
+		code.Change{Seq: tomb.Seq, Owner: Owner, Worktree: wt3, Ref: "feature/x", Full: true})
+
+	// A retry (the ref is gone) appends at most a duplicate tombstone and
+	// changes nothing else.
+	must(t, s.RemoveRef(ctx, wt3, "feature/x"))
+	all = allChanges(t, s)
+	eq(t, "changes after retry", len(all), 5)
+	eq(t, "retried tombstone", normChange(all[4]),
+		code.Change{Seq: all[4].Seq, Owner: Owner, Worktree: wt3, Ref: "feature/x", Full: true})
+	eq(t, "tree after retry", tree(t, s, wt3, "main"), []code.Entry{entry("a.go", a, "")})
+
+	// The branch pushed again comes back.
+	commit(t, s, change(wt3, "feature/x", "", []code.Entry{entry("b.go", b, "")}))
+	eq(t, "refs after a new commit", sortedRefs(findWorktree(t, s, wt3).Refs), []string{"feature/x", "main"})
+	eq(t, "tree after a new commit", tree(t, s, wt3, "feature/x"), []code.Entry{entry("b.go", b, "")})
+}
+
+func removeRefValidation(t *testing.T, s code.Store) {
+	ctx := t.Context()
+	a := newBlob("a")
+	putBlobs(t, s, a)
+	putWorktree(t, s, worktree(wt1, "main"))
+	commit(t, s, change(wt1, "main", "s1", []code.Entry{entry("a.go", a, "")}))
+	before := snap(t, s, [2]string{wt1, "main"})
+
+	isErr(t, "unknown worktree", s.RemoveRef(ctx, wt2, "main"), code.ErrNotFound)
+	isErr(t, "malformed worktree id", s.RemoveRef(ctx, "wt_nothex", "main"), code.ErrInvalid)
+	for _, ref := range []string{"", "bad..ref", "bad ref", "detached@abc", "-x", "a.lock"} {
+		isErr(t, fmt.Sprintf("ref %q", ref), s.RemoveRef(ctx, wt1, ref), code.ErrInvalid)
+	}
+	eq(t, "state after refusals", snap(t, s, [2]string{wt1, "main"}), before)
+	eq(t, "refs after refusals", findWorktree(t, s, wt1).Refs, []string{"main"})
+}
+
+// events returns up to limit events after seq.
+func events(t *testing.T, s code.Store, after int64, limit int) []code.Event {
+	t.Helper()
+	es, err := s.Events(t.Context(), after, limit)
+	must(t, err)
+	return es
+}
+
+func eventSeqs(es []code.Event) []int64 {
+	out := make([]int64, 0, len(es))
+	for _, e := range es {
+		out = append(out, e.Seq)
+	}
+	return out
+}
+
+// normEvent zeroes Seq and At (compared apart) and makes empty Problems nil.
+func normEvent(e code.Event) code.Event {
+	e.Seq = 0
+	e.At = time.Time{}
+	if len(e.Problems) == 0 {
+		e.Problems = nil
+	} else {
+		e.Problems = append([]string(nil), e.Problems...)
+	}
+	return e
+}
+
+// sampleEvents is one event of each recorded shape, every field that applies
+// set.
+func sampleEvents(at time.Time) []code.Event {
+	return []code.Event{
+		{Kind: code.EventPush, Delivery: "d-1", Worktree: wt3, Repo: "org/repo", Ref: "main",
+			Commit: head, Before: upstream, Commits: 3, Forced: true, Actor: "octocat", At: at},
+		{Kind: code.EventBranchCreated, Delivery: "d-2", Worktree: wt3, Repo: "org/repo", Ref: "feature/x",
+			Commit: head, Actor: "octocat", At: at},
+		{Kind: code.EventBranchDeleted, Delivery: "d-3", Worktree: wt3, Repo: "org/repo", Ref: "feature/x",
+			Actor: "octocat", At: at},
+		{Kind: code.EventPRPrefix + "closed", Delivery: "d-4", Worktree: wt3, Repo: "org/repo", Ref: "feature/y",
+			Commit: head, PR: 42, BaseRef: "main", BaseCommit: upstream, Merged: true, MergeCommit: oid("merge"),
+			Actor: "hubot", URL: "https://github.com/org/repo/pull/42", At: at},
+		{Kind: code.EventCI, Delivery: "d-5", Worktree: wt3, Repo: "org/repo", Commit: head, Name: "test",
+			Status: "completed", Conclusion: "failure", URL: "https://github.com/org/repo/actions/runs/7", At: at},
+		{Kind: code.EventRepoPrefix + "renamed", Delivery: "d-6", Repo: "org/renamed", Actor: "octocat", At: at},
+		{Kind: code.EventPlanSync, Delivery: "d-7", Repo: "org/repo", Commit: head, DocKind: "story",
+			DocID: "0001-abc", Path: "docs/stories/0001-abc-title.md", Action: "updated", At: at},
+		{Kind: code.EventPlanSyncConflict, Repo: "org/repo", Commit: head, DocKind: "plan",
+			DocID: "0002-def", Path: "docs/plans/0002-def-title.md", At: at},
+		{Kind: code.EventPlanSyncProblem, Repo: "org/repo", Commit: head, DocKind: "story",
+			Path: "docs/stories/broken.md", Problems: []string{"title: required", "status: unknown \"x\""}, At: at},
+	}
+}
+
+func appendEvents(t *testing.T, s code.Store) {
+	ctx := t.Context()
+	eq(t, "empty log", len(events(t, s, 0, 100)), 0)
+	must(t, s.AppendEvents(ctx, nil))
+	eq(t, "log after an empty append", len(events(t, s, 0, 100)), 0)
+
+	at := time.Date(2026, 10, 19, 12, 30, 45, 123_000_000, time.UTC)
+	in := sampleEvents(at)
+	must(t, s.AppendEvents(ctx, in))
+	got := events(t, s, 0, 100)
+	eq(t, "events", len(got), len(in))
+	increasing(t, "event seqs", eventSeqs(got))
+	if got[0].Seq < 1 {
+		t.Fatalf("first event seq %d, want at least 1", got[0].Seq)
+	}
+	for i := range in {
+		if !got[i].At.Equal(at) {
+			t.Fatalf("event %d at %v, want %v", i, got[i].At, at)
+		}
+		eq(t, fmt.Sprintf("event %d", i), normEvent(got[i]), normEvent(in[i]))
+	}
+
+	// A zero At is the time of the append; seqs carry on after the first
+	// batch, apart from the change log's.
+	putWorktree(t, s, worktree(wt3, "main"))
+	commit(t, s, change(wt3, "main", "", nil))
+	before := time.Now()
+	must(t, s.AppendEvents(ctx, []code.Event{{Kind: code.EventPush, Repo: "org/repo", Ref: "main", Commit: head}}))
+	all := events(t, s, 0, 100)
+	eq(t, "events after a second append", len(all), len(in)+1)
+	increasing(t, "all event seqs", eventSeqs(all))
+	notBefore(t, "filled at", all[len(in)].At, before)
+	eq(t, "change seqs", seqs(allChanges(t, s)), []int64{1})
+}
+
+func appendEventsValidation(t *testing.T, s code.Store) {
+	ctx := t.Context()
+	ok := code.Event{Kind: code.EventPush, Repo: "org/repo", Ref: "main", Commit: head}
+	with := func(edit func(*code.Event)) code.Event {
+		e := ok
+		edit(&e)
+		return e
+	}
+	bad := []struct {
+		name string
+		e    code.Event
+	}{
+		{"empty kind", with(func(e *code.Event) { e.Kind = "" })},
+		{"uppercase kind", with(func(e *code.Event) { e.Kind = "Push" })},
+		{"kind with a dollar", with(func(e *code.Event) { e.Kind = "$push" })},
+		{"too long kind", with(func(e *code.Event) { e.Kind = strings.Repeat("k", code.MaxEventKindBytes+1) })},
+		{"malformed worktree", with(func(e *code.Event) { e.Worktree = "gh_0123" })},
+		{"malformed ref", with(func(e *code.Event) { e.Ref = "bad..ref" })},
+		{"malformed base ref", with(func(e *code.Event) { e.BaseRef = "bad ref" })},
+		{"malformed commit", with(func(e *code.Event) { e.Commit = "HEAD" })},
+		{"malformed before", with(func(e *code.Event) { e.Before = head[:39] })},
+		{"malformed base commit", with(func(e *code.Event) { e.BaseCommit = strings.Repeat("A", 40) })},
+		{"malformed merge commit", with(func(e *code.Event) { e.MergeCommit = "xyz" })},
+		{"malformed path", with(func(e *code.Event) { e.Path = "../escape.md" })},
+		{"negative commits", with(func(e *code.Event) { e.Commits = -1 })},
+		{"negative pull request", with(func(e *code.Event) { e.PR = -1 })},
+	}
+	for _, c := range bad {
+		isErr(t, c.name, s.AppendEvents(ctx, []code.Event{ok, c.e}), code.ErrInvalid)
+	}
+	eq(t, "log after refusals", len(events(t, s, 0, 100)), 0)
+
+	longest := with(func(e *code.Event) { e.Kind = strings.Repeat("k", code.MaxEventKindBytes) })
+	zeros := with(func(e *code.Event) { e.Before = strings.Repeat("0", 40) })
+	must(t, s.AppendEvents(ctx, []code.Event{longest, zeros}))
+	eq(t, "log after valid edges", len(events(t, s, 0, 100)), 2)
+}
+
+func eventsPaging(t *testing.T, s code.Store) {
+	ctx := t.Context()
+	at := time.Date(2026, 10, 19, 8, 0, 0, 0, time.UTC)
+	in := sampleEvents(at)
+	must(t, s.AppendEvents(ctx, in[:4]))
+	must(t, s.AppendEvents(ctx, in[4:]))
+	all := events(t, s, 0, 1_000_000)
+	eq(t, "all", len(all), len(in))
+	ss := eventSeqs(all)
+
+	var paged []int64
+	after := int64(0)
+	for {
+		page := events(t, s, after, 4)
+		if len(page) == 0 {
+			break
+		}
+		if len(page) > 4 {
+			t.Fatalf("page of %d events, limit 4", len(page))
+		}
+		paged = append(paged, eventSeqs(page)...)
+		after = page[len(page)-1].Seq
+	}
+	eq(t, "paged seqs", paged, ss)
+	eq(t, "after the last", len(events(t, s, ss[len(ss)-1], 10)), 0)
+	eq(t, "limit 0", len(events(t, s, 0, 0)), 0)
+	eq(t, "after the third", eventSeqs(events(t, s, ss[2], 2)), ss[3:5])
+
+	// Stored and returned Problems are copies.
+	p := len(in) - 1
+	want := append([]string(nil), in[p].Problems...)
+	in[p].Problems[0] = "mutated"
+	got := events(t, s, ss[p-1], 1)
+	eq(t, "stored problems", got[0].Problems, want)
+	got[0].Problems[0] = "mutated"
+	eq(t, "returned problems", events(t, s, ss[p-1], 1)[0].Problems, want)
+}
+
+func concurrentAppendEvents(t *testing.T, s code.Store) {
+	const writers, each = 6, 4
+	var (
+		wg   sync.WaitGroup
+		mu   sync.Mutex
+		errs []error
+	)
+	for w := range writers {
+		wg.Go(func() {
+			for i := range each {
+				batch := []code.Event{
+					{Kind: code.EventPush, Repo: "org/repo", Delivery: fmt.Sprintf("w%d-%d-a", w, i)},
+					{Kind: code.EventCI, Repo: "org/repo", Delivery: fmt.Sprintf("w%d-%d-b", w, i)},
+				}
+				if err := s.AppendEvents(t.Context(), batch); err != nil {
+					mu.Lock()
+					errs = append(errs, err)
+					mu.Unlock()
+				}
+			}
+		})
+	}
+	wg.Wait()
+	if len(errs) > 0 {
+		t.Fatalf("concurrent appends failed: %v", errs)
+	}
+	all := events(t, s, 0, 1_000_000)
+	eq(t, "events", len(all), writers*each*2)
+	increasing(t, "event seqs", eventSeqs(all))
+	// Each batch is appended in order, its events next to each other.
+	for i := 0; i < len(all); i += 2 {
+		a, b := all[i], all[i+1]
+		if b.Seq != a.Seq+1 || strings.TrimSuffix(a.Delivery, "-a") != strings.TrimSuffix(b.Delivery, "-b") {
+			t.Fatalf("batch split: %s (%d) then %s (%d)", a.Delivery, a.Seq, b.Delivery, b.Seq)
+		}
+	}
+}
+
+func sha256ForGitOID(t *testing.T, s code.Store) {
+	ctx := t.Context()
+	a, b, c, d := newBlob("a"), newBlob("b"), newBlob("c"), newBlob("d")
+	putBlobs(t, s, a, b, c, d)
+	putWorktree(t, s, worktree(wt1, "main"))
+	putWorktree(t, s, worktree(wt3, "main"))
+
+	ea, eb := entry("a.go", a, ""), entry("b.go", b, "")
+	// A dirty entry's GitOID is HEAD's blob, not its content.
+	ec := entry("c.go", c, "")
+	ec.Dirty = true
+	// The same git blob on another worktree and ref.
+	ed := entry("d.go", d, "")
+	commit(t, s, change(wt1, "main", "s1", []code.Entry{ea, ec}))
+	commit(t, s, change(wt3, "feature/x", "", []code.Entry{eb}))
+	commit(t, s, change(wt3, "main", "", []code.Entry{ed, func() code.Entry { e := ea; e.Path = "copy/a.go"; return e }()}))
+
+	unknown := oid("unknown")
+	got, err := s.SHA256ForGitOID(ctx, []string{ea.GitOID, eb.GitOID, ec.GitOID, ed.GitOID, unknown})
+	must(t, err)
+	eq(t, "lookup", got, map[string]string{ea.GitOID: a.SHA256, eb.GitOID: b.SHA256, ed.GitOID: d.SHA256})
+
+	got, err = s.SHA256ForGitOID(ctx, nil)
+	must(t, err)
+	eq(t, "no ids asked", len(got), 0)
+
+	long := strings.Repeat("ab", 32) // a SHA-256 repository's 64-hex id, not held
+	got, err = s.SHA256ForGitOID(ctx, []string{long})
+	must(t, err)
+	eq(t, "64-hex id not held", len(got), 0)
+
+	for _, bad := range []string{"", "HEAD", strings.ToUpper(ea.GitOID), ea.GitOID[:39]} {
+		_, err := s.SHA256ForGitOID(ctx, []string{ea.GitOID, bad})
+		isErr(t, fmt.Sprintf("git oid %q", bad), err, code.ErrInvalid)
+	}
+
+	// A removed ref no longer vouches for its blobs.
+	must(t, s.RemoveRef(ctx, wt3, "feature/x"))
+	got, err = s.SHA256ForGitOID(ctx, []string{eb.GitOID, ea.GitOID})
+	must(t, err)
+	eq(t, "after remove ref", got, map[string]string{ea.GitOID: a.SHA256})
 }

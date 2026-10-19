@@ -54,6 +54,28 @@ type Store interface {
 	// the session with FirstAt on first sight, moves LastAt, and sets Ended
 	// when ended is true. An unknown worktree is ErrNotFound.
 	TouchSession(ctx context.Context, worktree, sessionID string, ended bool) error
+	// RemoveRef drops the (worktree, ref) tree, removes ref from the
+	// worktree's Refs and appends a ref tombstone change (see Change), the
+	// GitHub sync's answer to a deleted branch. A ref the worktree does not
+	// hold still appends the tombstone, so a retried call appends at most a
+	// duplicate. A malformed worktree id or ref is ErrInvalid; an unknown
+	// worktree is ErrNotFound.
+	RemoveRef(ctx context.Context, worktree, ref string) error
+	// AppendEvents appends events to the project's activity log in the
+	// order given, assigning each its Seq and, when zero, its At. Every
+	// event is validated first (Event.Validate) and one invalid event
+	// fails the call with ErrInvalid before any is appended. A retried
+	// call appends the events again: the log is at least once, and readers
+	// dedupe by Delivery and Kind when they need to.
+	AppendEvents(ctx context.Context, events []Event) error
+	// SHA256ForGitOID maps the git blob ids in gitOIDs the project already
+	// holds content for to that content's SHA-256: an entry of any tree
+	// that is clean (Dirty false) with that GitOID and a non-empty SHA256.
+	// Ids with no such entry are absent from the map; when several entries
+	// disagree (different redaction) one of them is returned. A malformed
+	// id is ErrInvalid. The GitHub sync uses it to skip fetching blobs it
+	// holds.
+	SHA256ForGitOID(ctx context.Context, gitOIDs []string) (map[string]string, error)
 
 	// The read side, for code/codetest and the code-graph indexer only:
 	// no HTTP route serves it.
@@ -72,4 +94,7 @@ type Store interface {
 	// Usage returns the number of blobs the project holds and their total
 	// size in bytes.
 	Usage(ctx context.Context) (blobs int64, bytes int64, err error)
+	// Events returns up to limit activity events with Seq greater than
+	// afterSeq, in Seq order.
+	Events(ctx context.Context, afterSeq int64, limit int) ([]Event, error)
 }
