@@ -1,0 +1,962 @@
+{
+  "lang": "c",
+  "symbols": [
+    {
+      "id": "registry_count",
+      "kind": "var",
+      "name": "registry_count",
+      "qualName": "registry_count",
+      "signature": "size_t registry_count = 0;",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 158
+      },
+      "end": {
+        "line": 8,
+        "column": 26,
+        "offset": 184
+      },
+      "exported": true
+    },
+    {
+      "id": "registry_name",
+      "kind": "var",
+      "name": "registry_name",
+      "qualName": "registry_name",
+      "signature": "const char *registry_name = \"default\";",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 185
+      },
+      "end": {
+        "line": 9,
+        "column": 38,
+        "offset": 223
+      },
+      "exported": true
+    },
+    {
+      "id": "free_list",
+      "kind": "var",
+      "name": "free_list",
+      "qualName": "free_list",
+      "signature": "static entry_t *free_list[LIST_MAX], **cursor;",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 224
+      },
+      "end": {
+        "line": 10,
+        "column": 46,
+        "offset": 270
+      }
+    },
+    {
+      "id": "cursor",
+      "kind": "var",
+      "name": "cursor",
+      "qualName": "cursor",
+      "signature": "static entry_t *free_list[LIST_MAX], **cursor;",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 224
+      },
+      "end": {
+        "line": 10,
+        "column": 46,
+        "offset": 270
+      }
+    },
+    {
+      "id": "compare",
+      "kind": "var",
+      "name": "compare",
+      "qualName": "compare",
+      "signature": "static int (*compare)(const entry_t *, const entry_t *) = NULL;",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 271
+      },
+      "end": {
+        "line": 11,
+        "column": 63,
+        "offset": 334
+      }
+    },
+    {
+      "id": "ops",
+      "kind": "struct",
+      "name": "ops",
+      "qualName": "ops",
+      "signature": "struct ops",
+      "doc": "ops is a table of callbacks.",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 371
+      },
+      "end": {
+        "line": 17,
+        "column": 1,
+        "offset": 441
+      },
+      "exported": true
+    },
+    {
+      "id": "ops.open",
+      "kind": "field",
+      "name": "open",
+      "qualName": "ops.open",
+      "signature": "int (*open)(const char *path);",
+      "start": {
+        "line": 15,
+        "column": 1,
+        "offset": 385
+      },
+      "end": {
+        "line": 15,
+        "column": 31,
+        "offset": 415
+      },
+      "parent": "ops",
+      "exported": true
+    },
+    {
+      "id": "ops.close",
+      "kind": "field",
+      "name": "close",
+      "qualName": "ops.close",
+      "signature": "void (*close)(int fd);",
+      "start": {
+        "line": 16,
+        "column": 1,
+        "offset": 417
+      },
+      "end": {
+        "line": 16,
+        "column": 23,
+        "offset": 439
+      },
+      "parent": "ops",
+      "exported": true
+    },
+    {
+      "id": "default_ops",
+      "kind": "var",
+      "name": "default_ops",
+      "qualName": "default_ops",
+      "signature": "static const struct ops default_ops =",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 444
+      },
+      "end": {
+        "line": 22,
+        "column": 2,
+        "offset": 517
+      }
+    },
+    {
+      "id": "entry_free",
+      "kind": "function",
+      "name": "entry_free",
+      "qualName": "entry_free",
+      "signature": "static void entry_free(struct entry *e);",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 519
+      },
+      "end": {
+        "line": 24,
+        "column": 40,
+        "offset": 559
+      }
+    },
+    {
+      "id": "list_init",
+      "kind": "function",
+      "name": "list_init",
+      "qualName": "list_init",
+      "signature": "void list_init(struct list_node *head)",
+      "doc": "list_init makes head an empty list.",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 603
+      },
+      "end": {
+        "line": 31,
+        "column": 1,
+        "offset": 685
+      },
+      "exported": true
+    },
+    {
+      "id": "list_add",
+      "kind": "function",
+      "name": "list_add",
+      "qualName": "list_add",
+      "signature": "void list_add(struct list_node *head, struct list_node *n)",
+      "start": {
+        "line": 33,
+        "column": 0,
+        "offset": 687
+      },
+      "end": {
+        "line": 39,
+        "column": 1,
+        "offset": 829
+      },
+      "exported": true
+    },
+    {
+      "id": "entry_free~2",
+      "kind": "function",
+      "name": "entry_free",
+      "qualName": "entry_free",
+      "signature": "static void entry_free(struct entry *e)",
+      "doc": "entry_free releases e and runs its hook.",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 878
+      },
+      "end": {
+        "line": 47,
+        "column": 1,
+        "offset": 965
+      }
+    },
+    {
+      "id": "registry_find",
+      "kind": "function",
+      "name": "registry_find",
+      "qualName": "registry_find",
+      "signature": "entry_t *registry_find(const registry_t *r, const char *name)",
+      "start": {
+        "line": 49,
+        "column": 0,
+        "offset": 967
+      },
+      "end": {
+        "line": 58,
+        "column": 1,
+        "offset": 1224
+      },
+      "exported": true
+    },
+    {
+      "id": "by_name",
+      "kind": "function",
+      "name": "by_name",
+      "qualName": "by_name",
+      "signature": "static int by_name(const entry_t *a, const entry_t *b)",
+      "start": {
+        "line": 60,
+        "column": 0,
+        "offset": 1226
+      },
+      "end": {
+        "line": 63,
+        "column": 1,
+        "offset": 1318
+      }
+    },
+    {
+      "id": "registry_sort",
+      "kind": "function",
+      "name": "registry_sort",
+      "qualName": "registry_sort",
+      "signature": "int registry_sort(registry_t *r, entry_cmp cmp)",
+      "start": {
+        "line": 65,
+        "column": 0,
+        "offset": 1320
+      },
+      "end": {
+        "line": 76,
+        "column": 1,
+        "offset": 1727
+      },
+      "exported": true
+    },
+    {
+      "id": "registry_sort.pair",
+      "kind": "struct",
+      "name": "pair",
+      "qualName": "registry_sort.pair",
+      "signature": "struct pair",
+      "start": {
+        "line": 67,
+        "column": 1,
+        "offset": 1371
+      },
+      "end": {
+        "line": 67,
+        "column": 29,
+        "offset": 1399
+      },
+      "parent": "registry_sort",
+      "exported": true
+    },
+    {
+      "id": "registry_sort.pair.a",
+      "kind": "field",
+      "name": "a",
+      "qualName": "registry_sort.pair.a",
+      "signature": "size_t a, b;",
+      "start": {
+        "line": 67,
+        "column": 15,
+        "offset": 1385
+      },
+      "end": {
+        "line": 67,
+        "column": 27,
+        "offset": 1397
+      },
+      "parent": "registry_sort.pair",
+      "exported": true
+    },
+    {
+      "id": "registry_sort.pair.b",
+      "kind": "field",
+      "name": "b",
+      "qualName": "registry_sort.pair.b",
+      "signature": "size_t a, b;",
+      "start": {
+        "line": 67,
+        "column": 15,
+        "offset": 1385
+      },
+      "end": {
+        "line": 67,
+        "column": 27,
+        "offset": 1397
+      },
+      "parent": "registry_sort.pair",
+      "exported": true
+    },
+    {
+      "id": "registry_first",
+      "kind": "function",
+      "name": "registry_first",
+      "qualName": "registry_first",
+      "signature": "const char **registry_first(registry_t *r)",
+      "doc": "registry_first returns the first entry's name, or NULL.",
+      "start": {
+        "line": 79,
+        "column": 0,
+        "offset": 1791
+      },
+      "end": {
+        "line": 86,
+        "column": 1,
+        "offset": 1938
+      },
+      "exported": true
+    },
+    {
+      "id": "lookup",
+      "kind": "function",
+      "name": "lookup",
+      "qualName": "lookup",
+      "signature": "entry_cmp (*lookup(enum kind k))(void)",
+      "doc": "lookup returns the comparator for kind k.",
+      "start": {
+        "line": 89,
+        "column": 0,
+        "offset": 1988
+      },
+      "end": {
+        "line": 93,
+        "column": 1,
+        "offset": 2051
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "stdio.h",
+      "kind": "include_system",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 58
+      }
+    },
+    {
+      "spec": "stdlib.h",
+      "kind": "include_system",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 77
+      }
+    },
+    {
+      "spec": "string.h",
+      "kind": "include_system",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 97
+      }
+    },
+    {
+      "spec": "list.h",
+      "kind": "include",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 117
+      }
+    },
+    {
+      "spec": "util/log.h",
+      "kind": "include",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 135
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "entry_t",
+      "kind": "type",
+      "start": {
+        "line": 10,
+        "column": 7,
+        "offset": 231
+      },
+      "enclosing": "cursor"
+    },
+    {
+      "name": "LIST_MAX",
+      "kind": "value",
+      "start": {
+        "line": 10,
+        "column": 26,
+        "offset": 250
+      },
+      "enclosing": "cursor"
+    },
+    {
+      "name": "entry_t",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 28,
+        "offset": 299
+      },
+      "enclosing": "compare"
+    },
+    {
+      "name": "entry_t",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 45,
+        "offset": 316
+      },
+      "enclosing": "compare"
+    },
+    {
+      "name": "ops",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 20,
+        "offset": 464
+      },
+      "enclosing": "default_ops"
+    },
+    {
+      "name": "entry",
+      "kind": "type",
+      "start": {
+        "line": 24,
+        "column": 30,
+        "offset": 549
+      },
+      "enclosing": "entry_free"
+    },
+    {
+      "name": "list_node",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 22,
+        "offset": 625
+      },
+      "enclosing": "list_init"
+    },
+    {
+      "name": "list_node",
+      "kind": "type",
+      "start": {
+        "line": 33,
+        "column": 21,
+        "offset": 708
+      },
+      "enclosing": "list_add"
+    },
+    {
+      "name": "list_node",
+      "kind": "type",
+      "start": {
+        "line": 33,
+        "column": 45,
+        "offset": 732
+      },
+      "enclosing": "list_add"
+    },
+    {
+      "name": "entry",
+      "kind": "type",
+      "start": {
+        "line": 42,
+        "column": 30,
+        "offset": 908
+      },
+      "enclosing": "entry_free~2"
+    },
+    {
+      "name": "on_free",
+      "qualifier": "e",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 5,
+        "offset": 942
+      },
+      "enclosing": "entry_free~2"
+    },
+    {
+      "name": "free",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 1,
+        "offset": 955
+      },
+      "enclosing": "entry_free~2"
+    },
+    {
+      "name": "entry_t",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 0,
+        "offset": 967
+      },
+      "enclosing": "registry_find"
+    },
+    {
+      "name": "registry_t",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 29,
+        "offset": 996
+      },
+      "enclosing": "registry_find"
+    },
+    {
+      "name": "entry_t",
+      "kind": "type",
+      "start": {
+        "line": 52,
+        "column": 2,
+        "offset": 1072
+      },
+      "enclosing": "registry_find"
+    },
+    {
+      "name": "strcmp",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 6,
+        "offset": 1104
+      },
+      "enclosing": "registry_find"
+    },
+    {
+      "name": "KIND_STRING",
+      "kind": "value",
+      "start": {
+        "line": 53,
+        "column": 47,
+        "offset": 1145
+      },
+      "enclosing": "registry_find"
+    },
+    {
+      "name": "log_debug",
+      "kind": "call",
+      "start": {
+        "line": 56,
+        "column": 1,
+        "offset": 1175
+      },
+      "enclosing": "registry_find"
+    },
+    {
+      "name": "entry_t",
+      "kind": "type",
+      "start": {
+        "line": 60,
+        "column": 25,
+        "offset": 1251
+      },
+      "enclosing": "by_name"
+    },
+    {
+      "name": "entry_t",
+      "kind": "type",
+      "start": {
+        "line": 60,
+        "column": 43,
+        "offset": 1269
+      },
+      "enclosing": "by_name"
+    },
+    {
+      "name": "strcmp",
+      "kind": "call",
+      "start": {
+        "line": 62,
+        "column": 8,
+        "offset": 1291
+      },
+      "enclosing": "by_name"
+    },
+    {
+      "name": "registry_t",
+      "kind": "type",
+      "start": {
+        "line": 65,
+        "column": 18,
+        "offset": 1338
+      },
+      "enclosing": "registry_sort"
+    },
+    {
+      "name": "entry_cmp",
+      "kind": "type",
+      "start": {
+        "line": 65,
+        "column": 33,
+        "offset": 1353
+      },
+      "enclosing": "registry_sort"
+    },
+    {
+      "name": "qsort",
+      "kind": "call",
+      "start": {
+        "line": 70,
+        "column": 1,
+        "offset": 1443
+      },
+      "enclosing": "registry_sort"
+    },
+    {
+      "name": "entry_t",
+      "kind": "type",
+      "start": {
+        "line": 70,
+        "column": 32,
+        "offset": 1474
+      },
+      "enclosing": "registry_sort"
+    },
+    {
+      "name": "open",
+      "qualifier": "default_ops",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 22,
+        "offset": 1551
+      },
+      "enclosing": "registry_sort"
+    },
+    {
+      "name": "close",
+      "qualifier": "default_ops",
+      "kind": "call",
+      "start": {
+        "line": 72,
+        "column": 13,
+        "offset": 1585
+      },
+      "enclosing": "registry_sort"
+    },
+    {
+      "name": "list_node",
+      "kind": "type",
+      "start": {
+        "line": 73,
+        "column": 8,
+        "offset": 1604
+      },
+      "enclosing": "registry_sort"
+    },
+    {
+      "name": "container_of",
+      "kind": "call",
+      "start": {
+        "line": 73,
+        "column": 26,
+        "offset": 1622
+      },
+      "enclosing": "registry_sort"
+    },
+    {
+      "name": "registry_t",
+      "kind": "type",
+      "start": {
+        "line": 79,
+        "column": 28,
+        "offset": 1819
+      },
+      "enclosing": "registry_first"
+    },
+    {
+      "name": "entry_cmp",
+      "kind": "type",
+      "start": {
+        "line": 89,
+        "column": 0,
+        "offset": 1988
+      },
+      "enclosing": "lookup"
+    },
+    {
+      "name": "kind",
+      "kind": "type",
+      "start": {
+        "line": 89,
+        "column": 24,
+        "offset": 2012
+      },
+      "enclosing": "lookup"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 11,
+        "column": 63,
+        "offset": 334
+      },
+      "text": "// registry.c implements the registry declared in list.h.\n#include \u003cstdio.h\u003e\n#include \u003cstdlib.h\u003e\n#include \u003cstring.h\u003e\n#include \"list.h\"\n#include \"util/log.h\"\n\nsize_t registry_count = 0;\nconst char *registry_name = \"default\";\nstatic entry_t *free_list[LIST_MAX], **cursor;\nstatic int (*compare)(const entry_t *, const entry_t *) = NULL;",
+      "hash": "4f0dc30a0a03fdac7d8687f1095a9dba097a0ae3c36c5121c025b580735ab627"
+    },
+    {
+      "id": "ops#1",
+      "kind": "symbol",
+      "symbolId": "ops",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 336
+      },
+      "end": {
+        "line": 17,
+        "column": 1,
+        "offset": 441
+      },
+      "text": "/* ops is a table of callbacks. */\nstruct ops {\n\tint (*open)(const char *path);\n\tvoid (*close)(int fd);\n}",
+      "hash": "f499d16425fff8a4602c75c59d57efb3e96cda1089aa3e5fa1dc9aa53bec1851"
+    },
+    {
+      "id": "L19#1",
+      "kind": "window",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 444
+      },
+      "end": {
+        "line": 22,
+        "column": 2,
+        "offset": 517
+      },
+      "text": "static const struct ops default_ops = {\n\t.open = NULL,\n\t.close = NULL,\n};",
+      "hash": "52f8ea67132e6ba3137a763ead328379a852f6056605e7528199118d05eb58af"
+    },
+    {
+      "id": "entry_free#1",
+      "kind": "symbol",
+      "symbolId": "entry_free",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 519
+      },
+      "end": {
+        "line": 24,
+        "column": 40,
+        "offset": 559
+      },
+      "text": "static void entry_free(struct entry *e);",
+      "hash": "bed4a902219ddb89a127048acf914553c27518c4caa1bdf5f798f8c0eb86d42a"
+    },
+    {
+      "id": "list_init#1",
+      "kind": "symbol",
+      "symbolId": "list_init",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 561
+      },
+      "end": {
+        "line": 31,
+        "column": 1,
+        "offset": 685
+      },
+      "text": "/* list_init makes head an empty list. */\nvoid list_init(struct list_node *head)\n{\n\thead-\u003enext = head;\n\thead-\u003eprev = head;\n}",
+      "hash": "bcb086364bcad9bff83bb4167353c9c293c059a58578b8d90c1e16d229ca3547"
+    },
+    {
+      "id": "list_add#1",
+      "kind": "symbol",
+      "symbolId": "list_add",
+      "start": {
+        "line": 33,
+        "column": 0,
+        "offset": 687
+      },
+      "end": {
+        "line": 39,
+        "column": 1,
+        "offset": 829
+      },
+      "text": "void list_add(struct list_node *head, struct list_node *n)\n{\n\tn-\u003enext = head-\u003enext;\n\tn-\u003eprev = head;\n\thead-\u003enext-\u003eprev = n;\n\thead-\u003enext = n;\n}",
+      "hash": "b142a43f44c537f9247662e362d25c264beb6ed448c82b84bb32c2bb2a4f0158"
+    },
+    {
+      "id": "entry_free~2#1",
+      "kind": "symbol",
+      "symbolId": "entry_free~2",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 831
+      },
+      "end": {
+        "line": 47,
+        "column": 1,
+        "offset": 965
+      },
+      "text": "/* entry_free releases e and runs its hook. */\nstatic void entry_free(struct entry *e)\n{\n\tif (e-\u003eon_free)\n\t\te-\u003eon_free(e);\n\tfree(e);\n}",
+      "hash": "041af852761ac058bb3b2dbd0c184c1411fe89554926378c1796b426f58bc857"
+    },
+    {
+      "id": "registry_find#1",
+      "kind": "symbol",
+      "symbolId": "registry_find",
+      "start": {
+        "line": 49,
+        "column": 0,
+        "offset": 967
+      },
+      "end": {
+        "line": 58,
+        "column": 1,
+        "offset": 1224
+      },
+      "text": "entry_t *registry_find(const registry_t *r, const char *name)\n{\n\tfor (size_t i = 0; i \u003c r-\u003elen; i++) {\n\t\tentry_t *e = r-\u003eitems[i];\n\t\tif (strcmp(e-\u003ename, name) == 0 \u0026\u0026 e-\u003ekind != KIND_STRING)\n\t\t\treturn e;\n\t}\n\tlog_debug(\"not found: %s\", name);\n\treturn NULL;\n}",
+      "hash": "ccef43ea7e4115846eca07e31139ec96c8c399fb1df299ed22c1813a66034cae"
+    },
+    {
+      "id": "by_name#1",
+      "kind": "symbol",
+      "symbolId": "by_name",
+      "start": {
+        "line": 60,
+        "column": 0,
+        "offset": 1226
+      },
+      "end": {
+        "line": 63,
+        "column": 1,
+        "offset": 1318
+      },
+      "text": "static int by_name(const entry_t *a, const entry_t *b)\n{\n\treturn strcmp(a-\u003ename, b-\u003ename);\n}",
+      "hash": "b247ff4d2026028f356f0408eaa8d9464edaafbe063895de01aff53187d53409"
+    },
+    {
+      "id": "registry_sort#1",
+      "kind": "symbol",
+      "symbolId": "registry_sort",
+      "start": {
+        "line": 65,
+        "column": 0,
+        "offset": 1320
+      },
+      "end": {
+        "line": 76,
+        "column": 1,
+        "offset": 1727
+      },
+      "text": "int registry_sort(registry_t *r, entry_cmp cmp)\n{\n\tstruct pair { size_t a, b; } p = { 0, 0 };\n\tif (!cmp)\n\t\tcmp = by_name;\n\tqsort(r-\u003eitems, r-\u003elen, sizeof(entry_t *), (int (*)(const void *, const void *))cmp);\n\tint fd = default_ops.open(registry_name);\n\tdefault_ops.close(fd);\n\tstruct list_node *node = container_of(\u0026r-\u003eitems[0]-\u003elink, struct entry, link)-\u003elink.next;\n\t(void)node;\n\treturn (int)(p.a + p.b);\n}",
+      "hash": "4d09bd3fda045a5261264a26d40db65dc65251811b668ab2ff2ee021a309fccb"
+    },
+    {
+      "id": "registry_first#1",
+      "kind": "symbol",
+      "symbolId": "registry_first",
+      "start": {
+        "line": 78,
+        "column": 0,
+        "offset": 1729
+      },
+      "end": {
+        "line": 86,
+        "column": 1,
+        "offset": 1938
+      },
+      "text": "/* registry_first returns the first entry's name, or NULL. */\nconst char **registry_first(registry_t *r)\n{\n\tstatic const char *name;\n\tif (r-\u003elen == 0)\n\t\treturn NULL;\n\tname = r-\u003eitems[0]-\u003ename;\n\treturn \u0026name;\n}",
+      "hash": "f615b436852d7f740c3a912c7a454dad8b3567ade37ef8e871816edb87fbb708"
+    },
+    {
+      "id": "lookup#1",
+      "kind": "symbol",
+      "symbolId": "lookup",
+      "start": {
+        "line": 88,
+        "column": 0,
+        "offset": 1940
+      },
+      "end": {
+        "line": 93,
+        "column": 1,
+        "offset": 2051
+      },
+      "text": "/* lookup returns the comparator for kind k. */\nentry_cmp (*lookup(enum kind k))(void)\n{\n\t(void)k;\n\treturn 0;\n}",
+      "hash": "eba0d8d67ef3f6a0df34a09d4c7e0afcb7e7ac132868a416d12710f15bbcad9f"
+    }
+  ]
+}
