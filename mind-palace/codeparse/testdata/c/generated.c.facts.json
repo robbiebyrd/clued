@@ -1,0 +1,853 @@
+{
+  "lang": "c",
+  "symbols": [
+    {
+      "id": "OPCODES",
+      "kind": "macro",
+      "name": "OPCODES",
+      "qualName": "OPCODES",
+      "signature": "#define OPCODES(X) \\",
+      "doc": "X-macro: one line per opcode.",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 133
+      },
+      "end": {
+        "line": 10,
+        "column": 0,
+        "offset": 193
+      },
+      "exported": true
+    },
+    {
+      "id": "AS_ENUM",
+      "kind": "macro",
+      "name": "AS_ENUM",
+      "qualName": "AS_ENUM",
+      "signature": "#define AS_ENUM(name, arity) OP_##name,",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 194
+      },
+      "end": {
+        "line": 12,
+        "column": 0,
+        "offset": 234
+      },
+      "exported": true
+    },
+    {
+      "id": "AS_ARITY",
+      "kind": "macro",
+      "name": "AS_ARITY",
+      "qualName": "AS_ARITY",
+      "signature": "#define AS_ARITY(name, arity) [OP_##name] = arity,",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 234
+      },
+      "end": {
+        "line": 13,
+        "column": 0,
+        "offset": 285
+      },
+      "exported": true
+    },
+    {
+      "id": "opcode",
+      "kind": "enum",
+      "name": "opcode",
+      "qualName": "opcode",
+      "signature": "enum opcode",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 286
+      },
+      "end": {
+        "line": 14,
+        "column": 41,
+        "offset": 327
+      },
+      "exported": true
+    },
+    {
+      "id": "opcode.OP_COUNT",
+      "kind": "const",
+      "name": "OP_COUNT",
+      "qualName": "opcode.OP_COUNT",
+      "signature": "OP_COUNT",
+      "start": {
+        "line": 14,
+        "column": 31,
+        "offset": 317
+      },
+      "end": {
+        "line": 14,
+        "column": 39,
+        "offset": 325
+      },
+      "parent": "opcode",
+      "exported": true
+    },
+    {
+      "id": "arity",
+      "kind": "var",
+      "name": "arity",
+      "qualName": "arity",
+      "signature": "static const unsigned char arity[OP_COUNT] = { OPCODES(AS_ARITY) };",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 330
+      },
+      "end": {
+        "line": 16,
+        "column": 67,
+        "offset": 397
+      }
+    },
+    {
+      "id": "DEFINE_GETTER",
+      "kind": "macro",
+      "name": "DEFINE_GETTER",
+      "qualName": "DEFINE_GETTER",
+      "signature": "#define DEFINE_GETTER(type, field) \\",
+      "doc": "DEFINE_GETTER generates a getter function per field.",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 458
+      },
+      "end": {
+        "line": 21,
+        "column": 0,
+        "offset": 556
+      },
+      "exported": true
+    },
+    {
+      "id": "step",
+      "kind": "function",
+      "name": "step",
+      "qualName": "step",
+      "signature": "int step(struct vm *vm)",
+      "doc": "step runs one instruction with the computed-goto dispatcher.",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 719
+      },
+      "end": {
+        "line": 30,
+        "column": 1,
+        "offset": 788
+      },
+      "exported": true
+    },
+    {
+      "id": "step~2",
+      "kind": "function",
+      "name": "step",
+      "qualName": "step",
+      "signature": "int step(struct vm *vm)",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 811
+      },
+      "end": {
+        "line": 35,
+        "column": 1,
+        "offset": 864
+      },
+      "exported": true
+    },
+    {
+      "id": "step~3",
+      "kind": "function",
+      "name": "step",
+      "qualName": "step",
+      "signature": "int step(struct vm *vm)",
+      "doc": "step runs one instruction.",
+      "start": {
+        "line": 38,
+        "column": 0,
+        "offset": 904
+      },
+      "end": {
+        "line": 46,
+        "column": 1,
+        "offset": 1027
+      },
+      "exported": true
+    },
+    {
+      "id": "trace_level",
+      "kind": "var",
+      "name": "trace_level",
+      "qualName": "trace_level",
+      "signature": "static int trace_level = 1;",
+      "start": {
+        "line": 50,
+        "column": 0,
+        "offset": 1051
+      },
+      "end": {
+        "line": 50,
+        "column": 27,
+        "offset": 1078
+      }
+    },
+    {
+      "id": "trace",
+      "kind": "function",
+      "name": "trace",
+      "qualName": "trace",
+      "signature": "__attribute__((noinline)) static void trace(const char *msg)",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1087
+      },
+      "end": {
+        "line": 65,
+        "column": 1,
+        "offset": 1344
+      }
+    },
+    {
+      "id": "trace.frame",
+      "kind": "struct",
+      "name": "frame",
+      "qualName": "trace.frame",
+      "signature": "struct frame",
+      "start": {
+        "line": 55,
+        "column": 1,
+        "offset": 1151
+      },
+      "end": {
+        "line": 61,
+        "column": 2,
+        "offset": 1223
+      },
+      "parent": "trace",
+      "exported": true
+    },
+    {
+      "id": "trace.frame.depth",
+      "kind": "field",
+      "name": "depth",
+      "qualName": "trace.frame.depth",
+      "signature": "int depth;",
+      "start": {
+        "line": 56,
+        "column": 2,
+        "offset": 1168
+      },
+      "end": {
+        "line": 56,
+        "column": 12,
+        "offset": 1178
+      },
+      "parent": "trace.frame",
+      "exported": true
+    },
+    {
+      "id": "trace.frame.slot",
+      "kind": "field",
+      "name": "slot",
+      "qualName": "trace.frame.slot",
+      "signature": "union",
+      "start": {
+        "line": 57,
+        "column": 2,
+        "offset": 1181
+      },
+      "end": {
+        "line": 60,
+        "column": 9,
+        "offset": 1220
+      },
+      "parent": "trace.frame",
+      "exported": true
+    },
+    {
+      "id": "trace.frame.slot.i",
+      "kind": "field",
+      "name": "i",
+      "qualName": "trace.frame.slot.i",
+      "signature": "int i;",
+      "start": {
+        "line": 58,
+        "column": 3,
+        "offset": 1192
+      },
+      "end": {
+        "line": 58,
+        "column": 9,
+        "offset": 1198
+      },
+      "parent": "trace.frame.slot",
+      "exported": true
+    },
+    {
+      "id": "trace.frame.slot.f",
+      "kind": "field",
+      "name": "f",
+      "qualName": "trace.frame.slot.f",
+      "signature": "float f;",
+      "start": {
+        "line": 59,
+        "column": 3,
+        "offset": 1202
+      },
+      "end": {
+        "line": 59,
+        "column": 11,
+        "offset": 1210
+      },
+      "parent": "trace.frame.slot",
+      "exported": true
+    },
+    {
+      "id": "trace.TRACE_OFF",
+      "kind": "const",
+      "name": "TRACE_OFF",
+      "qualName": "trace.TRACE_OFF",
+      "signature": "TRACE_OFF",
+      "start": {
+        "line": 62,
+        "column": 8,
+        "offset": 1243
+      },
+      "end": {
+        "line": 62,
+        "column": 17,
+        "offset": 1252
+      },
+      "parent": "trace",
+      "exported": true
+    },
+    {
+      "id": "trace.TRACE_ON",
+      "kind": "const",
+      "name": "TRACE_ON",
+      "qualName": "trace.TRACE_ON",
+      "signature": "TRACE_ON",
+      "start": {
+        "line": 62,
+        "column": 19,
+        "offset": 1254
+      },
+      "end": {
+        "line": 62,
+        "column": 27,
+        "offset": 1262
+      },
+      "parent": "trace",
+      "exported": true
+    },
+    {
+      "id": "old_style",
+      "kind": "function",
+      "name": "old_style",
+      "qualName": "old_style",
+      "signature": "int old_style(a, b) int a; char *b;",
+      "doc": "old_style is a K\u0026R definition.",
+      "start": {
+        "line": 68,
+        "column": 0,
+        "offset": 1383
+      },
+      "end": {
+        "line": 73,
+        "column": 1,
+        "offset": 1446
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "ops.h",
+      "kind": "include",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 57
+      }
+    },
+    {
+      "spec": "OPGEN_CONFIG",
+      "kind": "include_macro",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 74
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "OPGEN_CONFIG",
+      "kind": "value",
+      "start": {
+        "line": 3,
+        "column": 9,
+        "offset": 83
+      }
+    },
+    {
+      "name": "OPCODES",
+      "kind": "value",
+      "start": {
+        "line": 14,
+        "column": 14,
+        "offset": 300
+      },
+      "enclosing": "opcode"
+    },
+    {
+      "name": "AS_ENUM",
+      "kind": "value",
+      "start": {
+        "line": 14,
+        "column": 22,
+        "offset": 308
+      },
+      "enclosing": "opcode"
+    },
+    {
+      "name": "OP_COUNT",
+      "kind": "value",
+      "start": {
+        "line": 16,
+        "column": 33,
+        "offset": 363
+      },
+      "enclosing": "arity"
+    },
+    {
+      "name": "OPCODES",
+      "kind": "call",
+      "start": {
+        "line": 16,
+        "column": 47,
+        "offset": 377
+      },
+      "enclosing": "arity"
+    },
+    {
+      "name": "AS_ARITY",
+      "kind": "value",
+      "start": {
+        "line": 16,
+        "column": 55,
+        "offset": 385
+      },
+      "enclosing": "arity"
+    },
+    {
+      "name": "DEFINE_GETTER",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 557
+      }
+    },
+    {
+      "name": "DEFINE_GETTER",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 580
+      }
+    },
+    {
+      "name": "USE_FAST_PATH",
+      "kind": "value",
+      "start": {
+        "line": 25,
+        "column": 12,
+        "offset": 616
+      }
+    },
+    {
+      "name": "USE_FAST_PATH",
+      "kind": "value",
+      "start": {
+        "line": 25,
+        "column": 30,
+        "offset": 634
+      }
+    },
+    {
+      "name": "vm",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 16,
+        "offset": 735
+      },
+      "enclosing": "step"
+    },
+    {
+      "name": "dispatch_fast",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 8,
+        "offset": 753
+      },
+      "enclosing": "step"
+    },
+    {
+      "name": "vm",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 16,
+        "offset": 827
+      },
+      "enclosing": "step~2"
+    },
+    {
+      "name": "dispatch_win",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 8,
+        "offset": 845
+      },
+      "enclosing": "step~2"
+    },
+    {
+      "name": "vm",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 16,
+        "offset": 920
+      },
+      "enclosing": "step~3"
+    },
+    {
+      "name": "OP_NOP",
+      "kind": "value",
+      "start": {
+        "line": 41,
+        "column": 6,
+        "offset": 955
+      },
+      "enclosing": "step~3"
+    },
+    {
+      "name": "dispatch",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 9,
+        "offset": 994
+      },
+      "enclosing": "step~3"
+    },
+    {
+      "name": "NDEBUG",
+      "kind": "value",
+      "start": {
+        "line": 49,
+        "column": 8,
+        "offset": 1044
+      }
+    },
+    {
+      "name": "TRACE_ON",
+      "kind": "value",
+      "start": {
+        "line": 62,
+        "column": 37,
+        "offset": 1272
+      },
+      "enclosing": "trace"
+    },
+    {
+      "name": "TRACE_ON",
+      "kind": "value",
+      "start": {
+        "line": 63,
+        "column": 38,
+        "offset": 1320
+      },
+      "enclosing": "trace"
+    },
+    {
+      "name": "emit",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 2,
+        "offset": 1332
+      },
+      "enclosing": "trace"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 21,
+        "offset": 95
+      },
+      "text": "/* Code generated by opgen from ops.def; DO NOT EDIT. */\n#include \"ops.h\"\n#include OPGEN_CONFIG",
+      "hash": "675c84612f8765b609c629df15a87ccf5dfb612dd801827069a9cb5e3fc2e80f"
+    },
+    {
+      "id": "OPCODES#1",
+      "kind": "symbol",
+      "symbolId": "OPCODES",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 97
+      },
+      "end": {
+        "line": 10,
+        "column": 0,
+        "offset": 193
+      },
+      "text": "/* X-macro: one line per opcode. */\n#define OPCODES(X) \\\n\tX(NOP, 0)  \\\n\tX(ADD, 2)  \\\n\tX(SUB, 2)\n",
+      "hash": "4d7357e344adb1ec07483c9f09d72312ff52dffc4a00ab6d908c5b9abbd54fd4"
+    },
+    {
+      "id": "AS_ENUM#1",
+      "kind": "symbol",
+      "symbolId": "AS_ENUM",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 194
+      },
+      "end": {
+        "line": 12,
+        "column": 0,
+        "offset": 234
+      },
+      "text": "#define AS_ENUM(name, arity) OP_##name,\n",
+      "hash": "733591f3411202d4f8a4797c855d2628b5b4e7dd39adbc96d5294faf0618e6b7"
+    },
+    {
+      "id": "AS_ARITY#1",
+      "kind": "symbol",
+      "symbolId": "AS_ARITY",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 234
+      },
+      "end": {
+        "line": 13,
+        "column": 0,
+        "offset": 285
+      },
+      "text": "#define AS_ARITY(name, arity) [OP_##name] = arity,\n",
+      "hash": "ae2d5d56ea93e5ad4cc2822a9c2053cef53b1be924ed0b62277486e5c57e90b1"
+    },
+    {
+      "id": "opcode#1",
+      "kind": "symbol",
+      "symbolId": "opcode",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 286
+      },
+      "end": {
+        "line": 14,
+        "column": 41,
+        "offset": 327
+      },
+      "text": "enum opcode { OPCODES(AS_ENUM) OP_COUNT }",
+      "hash": "fd45ec9fb32664bae3f4d5b33a738ef8f25133939d306a7884238150a617c258"
+    },
+    {
+      "id": "L16#1",
+      "kind": "window",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 330
+      },
+      "end": {
+        "line": 16,
+        "column": 67,
+        "offset": 397
+      },
+      "text": "static const unsigned char arity[OP_COUNT] = { OPCODES(AS_ARITY) };",
+      "hash": "bbddfb19b065b48075978c0ad01a940c16e6f4dac6806c373f50dc54ea9a6fe1"
+    },
+    {
+      "id": "DEFINE_GETTER#1",
+      "kind": "symbol",
+      "symbolId": "DEFINE_GETTER",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 399
+      },
+      "end": {
+        "line": 21,
+        "column": 0,
+        "offset": 556
+      },
+      "text": "/* DEFINE_GETTER generates a getter function per field. */\n#define DEFINE_GETTER(type, field) \\\n\ttype get_##field(const struct vm *vm) { return vm-\u003efield; }\n",
+      "hash": "aa693d45457342bf4e32a18af5de5592e6c0a95c6820994fc95878af7904b44b"
+    },
+    {
+      "id": "L22#1",
+      "kind": "window",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 557
+      },
+      "end": {
+        "line": 25,
+        "column": 47,
+        "offset": 651
+      },
+      "text": "DEFINE_GETTER(int, pc)\nDEFINE_GETTER(int, sp)\n\n#if defined(USE_FAST_PATH) \u0026\u0026 USE_FAST_PATH \u003e 1",
+      "hash": "0378c6a6d5dcdd9da2d3e7cf273b37068dfccd1c54b54fc28a0dd50d5d8739b7"
+    },
+    {
+      "id": "step#1",
+      "kind": "symbol",
+      "symbolId": "step",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 652
+      },
+      "end": {
+        "line": 30,
+        "column": 1,
+        "offset": 788
+      },
+      "text": "/* step runs one instruction with the computed-goto dispatcher. */\nint step(struct vm *vm)\n{\n\treturn dispatch_fast(vm, arity[vm-\u003eop]);\n}",
+      "hash": "51266b2f81559d4054b9483fec0a6e0f9d257f876776be6f3b9da87a84e61aa2"
+    },
+    {
+      "id": "L31#1",
+      "kind": "window",
+      "start": {
+        "line": 31,
+        "column": 0,
+        "offset": 789
+      },
+      "end": {
+        "line": 31,
+        "column": 21,
+        "offset": 810
+      },
+      "text": "#elif defined(_WIN32)",
+      "hash": "97258a2b3eb046fb243a8382a21a46aed83b4bff4a496ae070a212a26a9e92f4"
+    },
+    {
+      "id": "step~2#1",
+      "kind": "symbol",
+      "symbolId": "step~2",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 811
+      },
+      "end": {
+        "line": 35,
+        "column": 1,
+        "offset": 864
+      },
+      "text": "int step(struct vm *vm)\n{\n\treturn dispatch_win(vm);\n}",
+      "hash": "cd64ece867b6228e0a2bca6703749ef9d6f8694351795db0f1f487539f9ff6ee"
+    },
+    {
+      "id": "step~3#1",
+      "kind": "symbol",
+      "symbolId": "step~3",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 871
+      },
+      "end": {
+        "line": 46,
+        "column": 1,
+        "offset": 1027
+      },
+      "text": "/* step runs one instruction. */\nint step(struct vm *vm)\n{\n\tswitch (vm-\u003eop) {\n\tcase OP_NOP:\n\t\treturn 0;\n\tdefault:\n\t\treturn dispatch(vm, arity[vm-\u003eop]);\n\t}\n}",
+      "hash": "cdc891a63707aebb45c26f370a70d21dd9e13ac4a4b6c0bac9fca3725e688379"
+    },
+    {
+      "id": "L47#1",
+      "kind": "window",
+      "start": {
+        "line": 47,
+        "column": 0,
+        "offset": 1028
+      },
+      "end": {
+        "line": 51,
+        "column": 6,
+        "offset": 1085
+      },
+      "text": "#endif\n\n#ifndef NDEBUG\nstatic int trace_level = 1;\n#endif",
+      "hash": "33b37a79da50b6ac88ae5556569d7a9be0fef47e52cfe01d30512e66c32fc3c0"
+    },
+    {
+      "id": "trace#1",
+      "kind": "symbol",
+      "symbolId": "trace",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1087
+      },
+      "end": {
+        "line": 65,
+        "column": 1,
+        "offset": 1344
+      },
+      "text": "__attribute__((noinline)) static void trace(const char *msg)\n{\n\tstruct frame {\n\t\tint depth;\n\t\tunion {\n\t\t\tint i;\n\t\t\tfloat f;\n\t\t} slot;\n\t} f = { 0 };\n\tenum { TRACE_OFF, TRACE_ON } mode = TRACE_ON;\n\tif (trace_level \u003e f.depth \u0026\u0026 mode == TRACE_ON)\n\t\temit(msg);\n}",
+      "hash": "43306269b3262bd23c3e33f5ad571fa3ef7af908c98e2f50b0f20a93a1714650"
+    },
+    {
+      "id": "old_style#1",
+      "kind": "symbol",
+      "symbolId": "old_style",
+      "start": {
+        "line": 67,
+        "column": 0,
+        "offset": 1346
+      },
+      "end": {
+        "line": 73,
+        "column": 1,
+        "offset": 1446
+      },
+      "text": "/* old_style is a K\u0026R definition. */\nint old_style(a, b)\n\tint a;\n\tchar *b;\n{\n\treturn a + (b != 0);\n}",
+      "hash": "5803e0949691dc8e3eb29a5a631433e23dff1e6d4421db5061398c8f8f05205f"
+    }
+  ]
+}

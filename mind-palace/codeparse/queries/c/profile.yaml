@@ -1,0 +1,27 @@
+# C: one global scope per program (no packages or namespaces); a file sees
+# what it declares and what its #include chain declares. static functions
+# and globals are local to their translation unit (exported: declared, the
+# query marks every other definition @exported). Prototypes and extern
+# declarations are symbols too (a header's API), so a source file that
+# declares and defines f has f and f~2.
+name: C
+family: cfamily
+extensions: [.c, .h]
+query: tags.scm
+scope:
+  separators: ["."]
+  packageBy: none
+  exported: declared
+  options:
+    # Import kinds: include ("x.h": searched next to the including file
+    # first, then the include directories) and include_system (<x.h>: the
+    # include directories only).
+    includeQuoted: include
+    includeSystem: include_system
+    # #include NAME, a header named by a macro: kept, never resolved.
+    includeMacro: include_macro
+    # Header/source pairing by name: foo.h declares what foo.c defines; the
+    # pair is looked up in the same directory first, then by basename.
+    headerExtensions: .h
+    sourceExtensions: .c
+    pairBy: basename
