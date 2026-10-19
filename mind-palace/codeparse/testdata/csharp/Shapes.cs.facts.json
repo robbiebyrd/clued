@@ -1,0 +1,1128 @@
+{
+  "lang": "csharp",
+  "package": "Demo.Geometry",
+  "symbols": [
+    {
+      "id": "Demo.Geometry.IShape",
+      "kind": "interface",
+      "name": "IShape",
+      "qualName": "Demo.Geometry.IShape",
+      "signature": "public interface IShape",
+      "doc": "\u003csummary\u003e\nA shape that knows its area.\n\u003c/summary\u003e",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 219
+      },
+      "end": {
+        "line": 18,
+        "column": 5,
+        "offset": 401
+      },
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.IShape.Area",
+      "kind": "method",
+      "name": "Area",
+      "qualName": "Demo.Geometry.IShape.Area",
+      "signature": "double Area();",
+      "doc": "\u003csummary\u003eThe area in square units.\u003c/summary\u003e",
+      "start": {
+        "line": 13,
+        "column": 8,
+        "offset": 314
+      },
+      "end": {
+        "line": 13,
+        "column": 22,
+        "offset": 328
+      },
+      "parent": "Demo.Geometry.IShape",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.IShape.Name",
+      "kind": "property",
+      "name": "Name",
+      "qualName": "Demo.Geometry.IShape.Name",
+      "signature": "string Name { get; }",
+      "start": {
+        "line": 15,
+        "column": 8,
+        "offset": 338
+      },
+      "end": {
+        "line": 15,
+        "column": 28,
+        "offset": 358
+      },
+      "parent": "Demo.Geometry.IShape",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.IShape.Changed",
+      "kind": "field",
+      "name": "Changed",
+      "qualName": "Demo.Geometry.IShape.Changed",
+      "signature": "event EventHandler Changed;",
+      "start": {
+        "line": 17,
+        "column": 8,
+        "offset": 368
+      },
+      "end": {
+        "line": 17,
+        "column": 35,
+        "offset": 395
+      },
+      "parent": "Demo.Geometry.IShape",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Color",
+      "kind": "enum",
+      "name": "Color",
+      "qualName": "Demo.Geometry.Color",
+      "signature": "public enum Color",
+      "doc": "\u003csummary\u003eThe colours a shape can be drawn in.\u003c/summary\u003e",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 471
+      },
+      "end": {
+        "line": 26,
+        "column": 5,
+        "offset": 546
+      },
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Color.Red",
+      "kind": "const",
+      "name": "Red",
+      "qualName": "Demo.Geometry.Color.Red",
+      "signature": "Red",
+      "start": {
+        "line": 23,
+        "column": 8,
+        "offset": 503
+      },
+      "end": {
+        "line": 23,
+        "column": 11,
+        "offset": 506
+      },
+      "parent": "Demo.Geometry.Color",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Color.Green",
+      "kind": "const",
+      "name": "Green",
+      "qualName": "Demo.Geometry.Color.Green",
+      "signature": "Green = 2",
+      "start": {
+        "line": 24,
+        "column": 8,
+        "offset": 516
+      },
+      "end": {
+        "line": 24,
+        "column": 17,
+        "offset": 525
+      },
+      "parent": "Demo.Geometry.Color",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Color.Blue",
+      "kind": "const",
+      "name": "Blue",
+      "qualName": "Demo.Geometry.Color.Blue",
+      "signature": "Blue",
+      "start": {
+        "line": 25,
+        "column": 8,
+        "offset": 535
+      },
+      "end": {
+        "line": 25,
+        "column": 12,
+        "offset": 539
+      },
+      "parent": "Demo.Geometry.Color",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Point",
+      "kind": "struct",
+      "name": "Point",
+      "qualName": "Demo.Geometry.Point",
+      "signature": "public readonly struct Point",
+      "doc": "\u003csummary\u003eA point on the plane.\u003c/summary\u003e",
+      "start": {
+        "line": 29,
+        "column": 4,
+        "offset": 601
+      },
+      "end": {
+        "line": 39,
+        "column": 5,
+        "offset": 809
+      },
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Point.X",
+      "kind": "field",
+      "name": "X",
+      "qualName": "Demo.Geometry.Point.X",
+      "signature": "public readonly double X;",
+      "start": {
+        "line": 31,
+        "column": 8,
+        "offset": 644
+      },
+      "end": {
+        "line": 31,
+        "column": 33,
+        "offset": 669
+      },
+      "parent": "Demo.Geometry.Point",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Point.Y",
+      "kind": "field",
+      "name": "Y",
+      "qualName": "Demo.Geometry.Point.Y",
+      "signature": "public readonly double Y;",
+      "start": {
+        "line": 32,
+        "column": 8,
+        "offset": 678
+      },
+      "end": {
+        "line": 32,
+        "column": 33,
+        "offset": 703
+      },
+      "parent": "Demo.Geometry.Point",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Point.Point",
+      "kind": "method",
+      "name": "Point",
+      "qualName": "Demo.Geometry.Point.Point",
+      "signature": "public Point(double x, double y)",
+      "start": {
+        "line": 34,
+        "column": 8,
+        "offset": 713
+      },
+      "end": {
+        "line": 38,
+        "column": 9,
+        "offset": 803
+      },
+      "parent": "Demo.Geometry.Point",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Size",
+      "kind": "record",
+      "name": "Size",
+      "qualName": "Demo.Geometry.Size",
+      "signature": "public record Size(double Width, double Height);",
+      "doc": "\u003csummary\u003eA size, positional.\u003c/summary\u003e",
+      "start": {
+        "line": 42,
+        "column": 4,
+        "offset": 862
+      },
+      "end": {
+        "line": 42,
+        "column": 52,
+        "offset": 910
+      },
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Size.Width",
+      "kind": "property",
+      "name": "Width",
+      "qualName": "Demo.Geometry.Size.Width",
+      "signature": "double Width",
+      "doc": "\u003csummary\u003eA size, positional.\u003c/summary\u003e",
+      "start": {
+        "line": 42,
+        "column": 23,
+        "offset": 881
+      },
+      "end": {
+        "line": 42,
+        "column": 35,
+        "offset": 893
+      },
+      "parent": "Demo.Geometry.Size",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Size.Height",
+      "kind": "property",
+      "name": "Height",
+      "qualName": "Demo.Geometry.Size.Height",
+      "signature": "double Height",
+      "doc": "\u003csummary\u003eA size, positional.\u003c/summary\u003e",
+      "start": {
+        "line": 42,
+        "column": 37,
+        "offset": 895
+      },
+      "end": {
+        "line": 42,
+        "column": 50,
+        "offset": 908
+      },
+      "parent": "Demo.Geometry.Size",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Margin",
+      "kind": "record",
+      "name": "Margin",
+      "qualName": "Demo.Geometry.Margin",
+      "signature": "public record struct Margin(int Top, int Bottom);",
+      "start": {
+        "line": 44,
+        "column": 4,
+        "offset": 916
+      },
+      "end": {
+        "line": 44,
+        "column": 53,
+        "offset": 965
+      },
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Margin.Top",
+      "kind": "property",
+      "name": "Top",
+      "qualName": "Demo.Geometry.Margin.Top",
+      "signature": "int Top",
+      "start": {
+        "line": 44,
+        "column": 32,
+        "offset": 944
+      },
+      "end": {
+        "line": 44,
+        "column": 39,
+        "offset": 951
+      },
+      "parent": "Demo.Geometry.Margin",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Margin.Bottom",
+      "kind": "property",
+      "name": "Bottom",
+      "qualName": "Demo.Geometry.Margin.Bottom",
+      "signature": "int Bottom",
+      "start": {
+        "line": 44,
+        "column": 41,
+        "offset": 953
+      },
+      "end": {
+        "line": 44,
+        "column": 51,
+        "offset": 963
+      },
+      "parent": "Demo.Geometry.Margin",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.ShapeHandler",
+      "kind": "type",
+      "name": "ShapeHandler",
+      "qualName": "Demo.Geometry.ShapeHandler",
+      "signature": "internal delegate void ShapeHandler(IShape shape);",
+      "start": {
+        "line": 46,
+        "column": 4,
+        "offset": 971
+      },
+      "end": {
+        "line": 46,
+        "column": 54,
+        "offset": 1021
+      }
+    },
+    {
+      "id": "Demo.Geometry.Circle",
+      "kind": "class",
+      "name": "Circle",
+      "qualName": "Demo.Geometry.Circle",
+      "signature": "[Serializable] public class Circle : IShape",
+      "doc": "\u003csummary\u003eA circle around a centre.\u003c/summary\u003e",
+      "start": {
+        "line": 49,
+        "column": 4,
+        "offset": 1080
+      },
+      "end": {
+        "line": 99,
+        "column": 5,
+        "offset": 2434
+      },
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.Sides",
+      "kind": "const",
+      "name": "Sides",
+      "qualName": "Demo.Geometry.Circle.Sides",
+      "signature": "public const int Sides = 0;",
+      "start": {
+        "line": 52,
+        "column": 8,
+        "offset": 1142
+      },
+      "end": {
+        "line": 52,
+        "column": 35,
+        "offset": 1169
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.kind",
+      "kind": "field",
+      "name": "kind",
+      "qualName": "Demo.Geometry.Circle.kind",
+      "signature": "private static readonly string kind = \"circle\", plural = \"circles\";",
+      "start": {
+        "line": 53,
+        "column": 8,
+        "offset": 1178
+      },
+      "end": {
+        "line": 53,
+        "column": 75,
+        "offset": 1245
+      },
+      "parent": "Demo.Geometry.Circle"
+    },
+    {
+      "id": "Demo.Geometry.Circle.plural",
+      "kind": "field",
+      "name": "plural",
+      "qualName": "Demo.Geometry.Circle.plural",
+      "signature": "private static readonly string kind = \"circle\", plural = \"circles\";",
+      "start": {
+        "line": 53,
+        "column": 8,
+        "offset": 1178
+      },
+      "end": {
+        "line": 53,
+        "column": 75,
+        "offset": 1245
+      },
+      "parent": "Demo.Geometry.Circle"
+    },
+    {
+      "id": "Demo.Geometry.Circle.radius",
+      "kind": "field",
+      "name": "radius",
+      "qualName": "Demo.Geometry.Circle.radius",
+      "signature": "private double radius;",
+      "start": {
+        "line": 54,
+        "column": 8,
+        "offset": 1254
+      },
+      "end": {
+        "line": 54,
+        "column": 30,
+        "offset": 1276
+      },
+      "parent": "Demo.Geometry.Circle"
+    },
+    {
+      "id": "Demo.Geometry.Circle.Changed",
+      "kind": "field",
+      "name": "Changed",
+      "qualName": "Demo.Geometry.Circle.Changed",
+      "signature": "public event EventHandler Changed;",
+      "start": {
+        "line": 56,
+        "column": 8,
+        "offset": 1286
+      },
+      "end": {
+        "line": 56,
+        "column": 42,
+        "offset": 1320
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.Circle",
+      "kind": "method",
+      "name": "Circle",
+      "qualName": "Demo.Geometry.Circle.Circle",
+      "signature": "public Circle(double radius)",
+      "start": {
+        "line": 58,
+        "column": 8,
+        "offset": 1330
+      },
+      "end": {
+        "line": 61,
+        "column": 9,
+        "offset": 1412
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.Circle~2",
+      "kind": "method",
+      "name": "Circle",
+      "qualName": "Demo.Geometry.Circle.Circle",
+      "signature": "~Circle()",
+      "start": {
+        "line": 63,
+        "column": 8,
+        "offset": 1422
+      },
+      "end": {
+        "line": 65,
+        "column": 9,
+        "offset": 1451
+      },
+      "parent": "Demo.Geometry.Circle"
+    },
+    {
+      "id": "Demo.Geometry.Circle.Radius",
+      "kind": "property",
+      "name": "Radius",
+      "qualName": "Demo.Geometry.Circle.Radius",
+      "signature": "public double Radius",
+      "doc": "\u003csummary\u003eThe radius, never negative.\u003c/summary\u003e",
+      "start": {
+        "line": 68,
+        "column": 8,
+        "offset": 1520
+      },
+      "end": {
+        "line": 72,
+        "column": 9,
+        "offset": 1635
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.Name",
+      "kind": "property",
+      "name": "Name",
+      "qualName": "Demo.Geometry.Circle.Name",
+      "signature": "public string Name =\u003e kind;",
+      "start": {
+        "line": 74,
+        "column": 8,
+        "offset": 1645
+      },
+      "end": {
+        "line": 74,
+        "column": 35,
+        "offset": 1672
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.this",
+      "kind": "property",
+      "name": "this",
+      "qualName": "Demo.Geometry.Circle.this",
+      "signature": "public double this[int index] =\u003e index == 0 ? radius : 0;",
+      "start": {
+        "line": 76,
+        "column": 8,
+        "offset": 1682
+      },
+      "end": {
+        "line": 76,
+        "column": 65,
+        "offset": 1739
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.Area",
+      "kind": "method",
+      "name": "Area",
+      "qualName": "Demo.Geometry.Circle.Area",
+      "signature": "public double Area()",
+      "start": {
+        "line": 78,
+        "column": 8,
+        "offset": 1749
+      },
+      "end": {
+        "line": 78,
+        "column": 58,
+        "offset": 1799
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.OnChanged",
+      "kind": "method",
+      "name": "OnChanged",
+      "qualName": "Demo.Geometry.Circle.OnChanged",
+      "signature": "protected virtual void OnChanged()",
+      "start": {
+        "line": 80,
+        "column": 8,
+        "offset": 1809
+      },
+      "end": {
+        "line": 80,
+        "column": 85,
+        "offset": 1886
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.*",
+      "kind": "method",
+      "name": "*",
+      "qualName": "Demo.Geometry.Circle.*",
+      "signature": "public static Circle operator *(Circle c, double k)",
+      "start": {
+        "line": 82,
+        "column": 8,
+        "offset": 1896
+      },
+      "end": {
+        "line": 82,
+        "column": 88,
+        "offset": 1976
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.double",
+      "kind": "method",
+      "name": "double",
+      "qualName": "Demo.Geometry.Circle.double",
+      "signature": "public static implicit operator double(Circle c)",
+      "start": {
+        "line": 84,
+        "column": 8,
+        "offset": 1986
+      },
+      "end": {
+        "line": 84,
+        "column": 69,
+        "offset": 2047
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.Compare",
+      "kind": "method",
+      "name": "Compare",
+      "qualName": "Demo.Geometry.Circle.Compare",
+      "signature": "private int Compare(Circle other)",
+      "start": {
+        "line": 86,
+        "column": 8,
+        "offset": 2057
+      },
+      "end": {
+        "line": 86,
+        "column": 76,
+        "offset": 2125
+      },
+      "parent": "Demo.Geometry.Circle"
+    },
+    {
+      "id": "Demo.Geometry.Circle.Builder",
+      "kind": "class",
+      "name": "Builder",
+      "qualName": "Demo.Geometry.Circle.Builder",
+      "signature": "public sealed class Builder",
+      "doc": "\u003csummary\u003eBuilds circles.\u003c/summary\u003e",
+      "start": {
+        "line": 89,
+        "column": 8,
+        "offset": 2182
+      },
+      "end": {
+        "line": 98,
+        "column": 9,
+        "offset": 2428
+      },
+      "parent": "Demo.Geometry.Circle",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Circle.Builder.radii",
+      "kind": "field",
+      "name": "radii",
+      "qualName": "Demo.Geometry.Circle.Builder.radii",
+      "signature": "private readonly List\u003cdouble\u003e radii = new List\u003cdouble\u003e();",
+      "start": {
+        "line": 91,
+        "column": 12,
+        "offset": 2232
+      },
+      "end": {
+        "line": 91,
+        "column": 69,
+        "offset": 2289
+      },
+      "parent": "Demo.Geometry.Circle.Builder"
+    },
+    {
+      "id": "Demo.Geometry.Circle.Builder.Add",
+      "kind": "method",
+      "name": "Add",
+      "qualName": "Demo.Geometry.Circle.Builder.Add",
+      "signature": "public Builder Add(double r)",
+      "start": {
+        "line": 93,
+        "column": 12,
+        "offset": 2303
+      },
+      "end": {
+        "line": 97,
+        "column": 13,
+        "offset": 2418
+      },
+      "parent": "Demo.Geometry.Circle.Builder",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Shape",
+      "kind": "class",
+      "name": "Shape",
+      "qualName": "Demo.Geometry.Shape",
+      "signature": "public abstract class Shape",
+      "start": {
+        "line": 101,
+        "column": 4,
+        "offset": 2440
+      },
+      "end": {
+        "line": 106,
+        "column": 5,
+        "offset": 2580
+      },
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Shape.Area",
+      "kind": "method",
+      "name": "Area",
+      "qualName": "Demo.Geometry.Shape.Area",
+      "signature": "public abstract double Area();",
+      "start": {
+        "line": 103,
+        "column": 8,
+        "offset": 2482
+      },
+      "end": {
+        "line": 103,
+        "column": 38,
+        "offset": 2512
+      },
+      "parent": "Demo.Geometry.Shape",
+      "exported": true
+    },
+    {
+      "id": "Demo.Geometry.Shape.Label",
+      "kind": "property",
+      "name": "Label",
+      "qualName": "Demo.Geometry.Shape.Label",
+      "signature": "protected internal string Label { get; init; } = \"\";",
+      "start": {
+        "line": 105,
+        "column": 8,
+        "offset": 2522
+      },
+      "end": {
+        "line": 105,
+        "column": 60,
+        "offset": 2574
+      },
+      "parent": "Demo.Geometry.Shape",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "System",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 66
+      }
+    },
+    {
+      "spec": "System.Collections.Generic",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 80
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "EventHandler",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 14,
+        "offset": 374
+      },
+      "enclosing": "Demo.Geometry.IShape.Changed"
+    },
+    {
+      "name": "IShape",
+      "kind": "type",
+      "start": {
+        "line": 46,
+        "column": 40,
+        "offset": 1007
+      },
+      "enclosing": "Demo.Geometry.ShapeHandler"
+    },
+    {
+      "name": "Serializable",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 5,
+        "offset": 1081
+      },
+      "enclosing": "Demo.Geometry.Circle"
+    },
+    {
+      "name": "IShape",
+      "kind": "implements",
+      "start": {
+        "line": 50,
+        "column": 26,
+        "offset": 1121
+      },
+      "enclosing": "Demo.Geometry.Circle"
+    },
+    {
+      "name": "EventHandler",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 21,
+        "offset": 1299
+      },
+      "enclosing": "Demo.Geometry.Circle.Changed"
+    },
+    {
+      "name": "Max",
+      "qualifier": "Math",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 33,
+        "offset": 1611
+      },
+      "enclosing": "Demo.Geometry.Circle.Radius"
+    },
+    {
+      "name": "Invoke",
+      "qualifier": "Changed",
+      "kind": "call",
+      "start": {
+        "line": 80,
+        "column": 55,
+        "offset": 1856
+      },
+      "enclosing": "Demo.Geometry.Circle.OnChanged"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 82,
+        "column": 22,
+        "offset": 1910
+      },
+      "enclosing": "Demo.Geometry.Circle.*"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 82,
+        "column": 40,
+        "offset": 1928
+      },
+      "enclosing": "Demo.Geometry.Circle.*"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 82,
+        "column": 67,
+        "offset": 1955
+      },
+      "enclosing": "Demo.Geometry.Circle.*"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 84,
+        "column": 47,
+        "offset": 2025
+      },
+      "enclosing": "Demo.Geometry.Circle.double"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 86,
+        "column": 28,
+        "offset": 2077
+      },
+      "enclosing": "Demo.Geometry.Circle.Compare"
+    },
+    {
+      "name": "CompareTo",
+      "qualifier": "radius",
+      "kind": "call",
+      "start": {
+        "line": 86,
+        "column": 52,
+        "offset": 2101
+      },
+      "enclosing": "Demo.Geometry.Circle.Compare"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 91,
+        "column": 29,
+        "offset": 2249
+      },
+      "enclosing": "Demo.Geometry.Circle.Builder.radii"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 91,
+        "column": 54,
+        "offset": 2274
+      },
+      "enclosing": "Demo.Geometry.Circle.Builder.radii"
+    },
+    {
+      "name": "Builder",
+      "kind": "type",
+      "start": {
+        "line": 93,
+        "column": 19,
+        "offset": 2310
+      },
+      "enclosing": "Demo.Geometry.Circle.Builder.Add"
+    },
+    {
+      "name": "Add",
+      "qualifier": "radii",
+      "kind": "call",
+      "start": {
+        "line": 95,
+        "column": 22,
+        "offset": 2368
+      },
+      "enclosing": "Demo.Geometry.Circle.Builder.Add"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 6,
+        "column": 1,
+        "offset": 140
+      },
+      "text": "// Shapes: every kind of definition C# has, in a block namespace.\nusing System;\nusing System.Collections.Generic;\n\nnamespace Demo.Geometry\n{",
+      "hash": "9250ecbebce39107b0aef78a72eeaf2c577906005a133f184ee8aaaf78435d0e"
+    },
+    {
+      "id": "Demo.Geometry.IShape#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Geometry.IShape",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 141
+      },
+      "end": {
+        "line": 18,
+        "column": 5,
+        "offset": 401
+      },
+      "text": "    /// \u003csummary\u003e\n    /// A shape that knows its area.\n    /// \u003c/summary\u003e\n    public interface IShape\n    {\n        /// \u003csummary\u003eThe area in square units.\u003c/summary\u003e\n        double Area();\n\n        string Name { get; }\n\n        event EventHandler Changed;\n    }",
+      "hash": "7090d945d62dd7f6e1d46d01d9fd3556ba8ddc72c940c90415a47dfa785e5eac"
+    },
+    {
+      "id": "Demo.Geometry.Color#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Geometry.Color",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 403
+      },
+      "end": {
+        "line": 26,
+        "column": 5,
+        "offset": 546
+      },
+      "text": "    /// \u003csummary\u003eThe colours a shape can be drawn in.\u003c/summary\u003e\n    public enum Color\n    {\n        Red,\n        Green = 2,\n        Blue,\n    }",
+      "hash": "0912ec6ba275bfcae597f0ff85f494dfbd33b52519ea440809cc15125a36fa4e"
+    },
+    {
+      "id": "Demo.Geometry.Point#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Geometry.Point",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 548
+      },
+      "end": {
+        "line": 39,
+        "column": 5,
+        "offset": 809
+      },
+      "text": "    /// \u003csummary\u003eA point on the plane.\u003c/summary\u003e\n    public readonly struct Point\n    {\n        public readonly double X;\n        public readonly double Y;\n\n        public Point(double x, double y)\n        {\n            X = x;\n            Y = y;\n        }\n    }",
+      "hash": "02e7053f45ef8bc446d126a7d7b76024bfdf00c3e3850f5af6b7a5f0a8ba1bfb"
+    },
+    {
+      "id": "Demo.Geometry.Size#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Geometry.Size",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 811
+      },
+      "end": {
+        "line": 42,
+        "column": 52,
+        "offset": 910
+      },
+      "text": "    /// \u003csummary\u003eA size, positional.\u003c/summary\u003e\n    public record Size(double Width, double Height);",
+      "hash": "9984e053b1fdf562d27e32c893d2e8000a061888124049c8aa148d5089febc6b"
+    },
+    {
+      "id": "Demo.Geometry.Margin#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Geometry.Margin",
+      "start": {
+        "line": 44,
+        "column": 0,
+        "offset": 912
+      },
+      "end": {
+        "line": 44,
+        "column": 53,
+        "offset": 965
+      },
+      "text": "    public record struct Margin(int Top, int Bottom);",
+      "hash": "ba2824cd10fec155bf7e61b178292b1c92baa702a4a0461df50b26d42bc377a4"
+    },
+    {
+      "id": "Demo.Geometry.ShapeHandler#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Geometry.ShapeHandler",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 967
+      },
+      "end": {
+        "line": 46,
+        "column": 54,
+        "offset": 1021
+      },
+      "text": "    internal delegate void ShapeHandler(IShape shape);",
+      "hash": "6bf2fdef673beee9e9038ea6c7eea33f86db4f8395666ca6015e4be27e993d95"
+    },
+    {
+      "id": "Demo.Geometry.Circle#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Geometry.Circle",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 1023
+      },
+      "end": {
+        "line": 99,
+        "column": 5,
+        "offset": 2434
+      },
+      "text": "    /// \u003csummary\u003eA circle around a centre.\u003c/summary\u003e\n    [Serializable]\n    public class Circle : IShape\n    {\n        public const int Sides = 0;\n        private static readonly string kind = \"circle\", plural = \"circles\";\n        private double radius;\n\n        public event EventHandler Changed;\n\n        public Circle(double radius)\n        {\n            this.radius = radius;\n        }\n\n        ~Circle()\n        {\n        }\n\n        /// \u003csummary\u003eThe radius, never negative.\u003c/summary\u003e\n        public double Radius\n        {\n            get =\u003e radius;\n            set =\u003e radius = Math.Max(0, value);\n        }\n\n        public string Name =\u003e kind;\n\n        public double this[int index] =\u003e index == 0 ? radius : 0;\n\n        public double Area() =\u003e Math.PI * radius * radius;\n\n        protected virtual void OnChanged() =\u003e Changed?.Invoke(this, EventArgs.Empty);\n\n        public static Circle operator *(Circle c, double k) =\u003e new Circle(c.radius * k);\n\n        public static implicit operator double(Circle c) =\u003e c.radius;\n\n        private int Compare(Circle other) =\u003e radius.CompareTo(other.radius);\n\n        /// \u003csummary\u003eBuilds circles.\u003c/summary\u003e\n        public sealed class Builder\n        {\n            private readonly List\u003cdouble\u003e radii = new List\u003cdouble\u003e();\n\n            public Builder Add(double r)\n            {\n                radii.Add(r);\n                return this;\n            }\n        }\n    }",
+      "hash": "b6ffa09fba8b57c824781cadda19b380d367c20e4666b50faea4e59fb961eb6c"
+    },
+    {
+      "id": "Demo.Geometry.Shape#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Geometry.Shape",
+      "start": {
+        "line": 101,
+        "column": 0,
+        "offset": 2436
+      },
+      "end": {
+        "line": 106,
+        "column": 5,
+        "offset": 2580
+      },
+      "text": "    public abstract class Shape\n    {\n        public abstract double Area();\n\n        protected internal string Label { get; init; } = \"\";\n    }",
+      "hash": "01b053e92bb5b09b2664e0a982d5bb2a8258c04ecef004b865095858798fb92a"
+    }
+  ]
+}
