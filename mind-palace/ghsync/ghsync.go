@@ -9,7 +9,8 @@
 // per-project openers), a Delivery as the webhook endpoint queues it, and the
 // Target an installation is claimed for. jobs.go holds the job queue port and
 // memjobs.go its in-memory implementation; policy.go the branch policy. The
-// sync itself (code.go, events.go, docs.go) builds on these.
+// sync itself (code.go, events.go, docs.go) builds on these, and service.go
+// drives it: Handle, Work and Reconcile.
 //
 // The package holds no transport: the host (clued-cloud) verifies and
 // dedupes deliveries, resolves claims from its account store, runs the
@@ -24,6 +25,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/robbiebyrd/clued/mind-palace/code"
+	"github.com/robbiebyrd/clued/mind-palace/ghapp"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 )
 
@@ -135,16 +138,20 @@ type Claims interface {
 	Claim(ctx context.Context, installation, repository int64) (Claim, error)
 }
 
-// GitHubApp is the GitHub App the workers fetch through: *ghapp.App (stories
-// 0067 and 0068), whose InstallationClient gives the REST client for an
-// installation. It is an alias of any until ghapp is merged; the first story
-// that calls it narrows it to *ghapp.App.
-type GitHubApp = any
+// GitHubApp is the GitHub App the workers fetch through: its
+// InstallationClient gives the REST client for an installation, and its
+// AppClient lists the installations Reconcile visits.
+type GitHubApp = *ghapp.App
 
-// CodeStore is the code store a GitHub-backed worktree is written to:
-// code.Store (story 0053). It is an alias of any until the code package is
-// merged; the first story that writes code narrows it to code.Store.
-type CodeStore = any
+// CodeStore is the code store a GitHub-backed worktree and the activity log
+// are written to.
+type CodeStore = code.Store
+
+// RedactPatterns returns the target's own redactPatterns (the account's
+// pulled patterns), applied on top of the built-in redaction rules to
+// GitHub content before it is stored. A pattern that does not compile is
+// skipped.
+type RedactPatterns func(ctx context.Context, target Target) ([]string, error)
 
 // CodeOpener opens the code store of a target's project (slug as
 // projects.Slug derives it, or the repository's remote.project). The host
@@ -163,12 +170,34 @@ type Options struct {
 	Claims Claims
 	Code   CodeOpener
 	Docs   DocsOpener
+	// Redact returns the target's redactPatterns (nil: the built-in
+	// rules only).
+	Redact RedactPatterns
+	// State keeps each repository's sync state (stored heads, pushes,
+	// open pull requests); nil keeps it in memory (NewMemState), which a
+	// restart loses: the next push then falls back to a full import.
+	State StateStore
+	// MaxFileBytes caps the content stored per file (zero:
+	// codefilter.DefaultMaxFileBytes); a larger file is recorded without
+	// content.
+	MaxFileBytes int64
+	// Lease is how long Work holds a claimed job (zero: DefaultLease).
+	Lease time.Duration
+	// PollInterval is how long Work waits when no job is ready (zero:
+	// DefaultPollInterval).
+	PollInterval time.Duration
 	// Now is the clock (time.Now when nil).
 	Now func() time.Time
 	// Logger receives delivery ids and event names only (slog.Default
 	// when nil).
 	Logger *slog.Logger
 }
+
+// Work defaults.
+const (
+	DefaultLease        = 10 * time.Minute
+	DefaultPollInterval = time.Second
+)
 
 // Service is the GitHub sync: it turns queued deliveries into writes to the
 // claimed target's code, plans, stories and activity log. Construct it with
@@ -180,8 +209,15 @@ type Service struct {
 	Claims Claims
 	Code   CodeOpener
 	Docs   DocsOpener
-	now    func() time.Time
-	log    *slog.Logger
+	// Redact and State are Options' (State never nil).
+	Redact RedactPatterns
+	State  StateStore
+
+	maxFileBytes int64
+	lease        time.Duration
+	poll         time.Duration
+	now          func() time.Time
+	log          *slog.Logger
 }
 
 // New returns a Service over opts, refusing a missing required dependency.
@@ -196,7 +232,21 @@ func New(opts Options) (*Service, error) {
 	case opts.Docs == nil:
 		return nil, errors.New("ghsync: Docs opener is required")
 	}
-	s := &Service{App: opts.App, Jobs: opts.Jobs, Claims: opts.Claims, Code: opts.Code, Docs: opts.Docs, now: opts.Now, log: opts.Logger}
+	s := &Service{
+		App: opts.App, Jobs: opts.Jobs, Claims: opts.Claims, Code: opts.Code, Docs: opts.Docs,
+		Redact: opts.Redact, State: opts.State,
+		maxFileBytes: opts.MaxFileBytes, lease: opts.Lease, poll: opts.PollInterval,
+		now: opts.Now, log: opts.Logger,
+	}
+	if s.State == nil {
+		s.State = NewMemState()
+	}
+	if s.lease <= 0 {
+		s.lease = DefaultLease
+	}
+	if s.poll <= 0 {
+		s.poll = DefaultPollInterval
+	}
 	if s.now == nil {
 		s.now = time.Now
 	}

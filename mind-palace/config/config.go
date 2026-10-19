@@ -103,6 +103,34 @@ type RemoteConfig struct {
 	Project string `yaml:"project" json:"project,omitempty"`
 }
 
+// GitHubConfig is the github: section of a repository's config: the
+// branch policy of the GitHub App sync. Zero fields are unset.
+type GitHubConfig struct {
+	// Branches is active, default or all.
+	Branches string `yaml:"branches,omitempty" json:"branches,omitempty"`
+	// ActiveDays is how recent a push keeps a branch active.
+	ActiveDays int `yaml:"activeDays,omitempty" json:"activeDays,omitempty"`
+	// MaxBranches caps the branches synced under all.
+	MaxBranches int `yaml:"maxBranches,omitempty" json:"maxBranches,omitempty"`
+}
+
+// validate checks the set fields: a known mode, positive counts.
+func (g GitHubConfig) validate() []error {
+	var errs []error
+	switch strings.ToLower(strings.TrimSpace(g.Branches)) {
+	case "", "active", "default", "all":
+	default:
+		errs = append(errs, fmt.Errorf("github.branches must be active, default or all, not %q", g.Branches))
+	}
+	if g.ActiveDays < 0 {
+		errs = append(errs, errors.New("github.activeDays must be positive"))
+	}
+	if g.MaxBranches < 0 {
+		errs = append(errs, errors.New("github.maxBranches must be positive"))
+	}
+	return errs
+}
+
 // KindConfig is the configuration of one entity kind.
 type KindConfig struct {
 	// Dir is the root for file-based storage of this kind.
@@ -125,6 +153,10 @@ type Config struct {
 	// (session/codesync) whatever the machine's config.json says; unset or
 	// true leaves the decision to the machine (see CodeSyncAllowed).
 	CodeSync *bool `yaml:"codeSync" json:"codeSync,omitempty"`
+	// GitHub is the github: section the GitHub App sync reads (plan 0011,
+	// ghsync.ParseRepoConfig): which branches of the repository sync. The
+	// client only accepts and validates it.
+	GitHub GitHubConfig `yaml:"github" json:"github,omitzero"`
 	// Source is the config file the values came from ("" for defaults).
 	Source string `yaml:"-" json:"source,omitempty"`
 }
@@ -258,6 +290,7 @@ type fileConfig struct {
 	Server   *ServerConfig   `yaml:"server" json:"server"`
 	Remote   *RemoteConfig   `yaml:"remote" json:"remote"`
 	CodeSync *bool           `yaml:"codeSync" json:"codeSync"`
+	GitHub   *GitHubConfig   `yaml:"github" json:"github"`
 
 	PlansDir   *string             `yaml:"plansDir" json:"plansDir"`
 	Types      []TypeDef           `yaml:"types" json:"types"`
@@ -410,6 +443,17 @@ func (c *Config) Overlay(data []byte, ext string) error {
 	if fc.CodeSync != nil {
 		c.CodeSync = fc.CodeSync
 	}
+	if g := fc.GitHub; g != nil {
+		if g.Branches != "" {
+			c.GitHub.Branches = g.Branches
+		}
+		if g.ActiveDays != 0 {
+			c.GitHub.ActiveDays = g.ActiveDays
+		}
+		if g.MaxBranches != 0 {
+			c.GitHub.MaxBranches = g.MaxBranches
+		}
+	}
 	return nil
 }
 
@@ -460,6 +504,7 @@ func (c *Config) Validate(opts ...ValidateOption) error {
 	for _, k := range kind.All() {
 		errs = append(errs, c.Kind(k.Name).validate(k.Plural)...)
 	}
+	errs = append(errs, c.GitHub.validate()...)
 	fileEnabled := false
 	for _, s := range c.Storage {
 		if s.Name == "" || s.Kind == "" {

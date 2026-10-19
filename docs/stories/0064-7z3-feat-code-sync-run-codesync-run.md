@@ -3,11 +3,13 @@ id: 0064-7z3
 title: Code sync run (`codesync.Run`)
 purpose: 'The core of collection: turn a hook event into uploaded blobs and a committed change, within a budget.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-19T18:05:52.551Z"
-updated: "2026-10-19T18:27:10.692Z"
+updated: "2026-10-19T19:47:04.488Z"
+started: "2026-10-19T19:35:45.063Z"
+completed: "2026-10-19T19:47:04.488Z"
 tags:
   - plan-0010-awy
   - wave-6
@@ -35,19 +37,19 @@ links:
     - ["0010-awy", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
   "7":
-    status: pending
+    status: complete
 ---
 
 # Code sync run (`codesync.Run`)
@@ -92,9 +94,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/codesync/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/codesync/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./session/codesync/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/codesync/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -103,3 +105,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/session/codesync/codesync_test.go` - tests on temporary git repositories against `memcode` over `httptest`
 
 ## Work Log
+
+### 2026-10-19T19:46:57.532Z - Added session/codesync Run (codesync.go) and enumeration/git facts (enumerate.go). Run(ctx, Request{Cwd, SessionID, Paths, Status, Full, Touch, Budget, MaxBytes, DryRun, Config, StateDir, Host, Store, Log, Now}) (Report, error): skips on CLUED_NO_CAPTURE, CodeSyncEnabled false, not a repo, excludePaths on the root, repo codeSync:false, directory-name slug, no ref, held lock, back-off; full reconcile on ref/project change, Full or 6h (enumerates also when HEAD moved); re-hashes only changed stamps (queued paths always re-read); codefilter.Decide + redaction (when redactAtCapture) before SHA-256; git_oid/dirty/unpushed from ls-tree/status/diff, refreshed on HEAD or upstream moves; capabilities (full runs) lower maxFileBytes/maxBatch; PutWorktree on ref change/full; manifest + missing blobs; commit in maxBatch chunks with full on the first; 3s/8MiB budget with the rest pending; 413 too_large -> refused + sha ''; 409 -> clear synced for missing blobs; 404/403 -> 24h back-off quietly, 413 quota -> back-off plus Log line; worktree unknown on the server -> PutWorktree and retry. Also Remove(ctx, req, root) for WorktreeRemove (DELETE + state removal) and Touch start/end, for story 0065. Tests: 17 new tests (codesync_test.go) on temporary git repos with a bare origin and clones against codeapi over httptest with memcode; go test -race ./session/codesync/... passes (33 top-level tests incl. state tests), gofmt/vet/build clean. Redaction follows redactAtCapture like captured sessions. No file outside the list touched.
