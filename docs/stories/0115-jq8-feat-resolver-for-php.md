@@ -3,11 +3,13 @@ id: 0115-jq8
 title: Resolver for PHP
 purpose: Resolves references for PHP so calls, references and implementations link to the right definitions.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:57.853Z"
-updated: "2026-10-19T18:32:39.186Z"
+updated: "2026-10-19T21:11:33.110Z"
+started: "2026-10-19T21:05:42.901Z"
+completed: "2026-10-19T21:11:33.110Z"
 tags:
   - plan-0012-cgi
   - wave-7
@@ -33,15 +35,15 @@ links:
     - ["0012-cgi", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Resolver for PHP
@@ -78,10 +80,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'php'
-- [ ] [MANUAL] Only this family's two files changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'php'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'php'
+- [x] [MANUAL] Only this family's two files changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'php'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -89,3 +91,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/resolvers/php_test.go` - resolution tests over the language goldens
 
 ## Work Log
+
+### 2026-10-19T21:11:26.591Z - Added codeindex/resolvers/php.go (php family: package = namespace declaration, a lone braced namespace, or the PSR-4 root of composer.json autoload/autoload-dev for a class file without a declaration, lower-cased keys; use/use as/group use bind names and qualifiers (parent namespace and the name itself), use function/const bind names, namespace\ names the own namespace; bare names never reach class members, the global namespace is a fallback for functions/constants only; require/include(_once) of literal, __DIR__ and dirname() paths mark the required file's namespace as imported for member preference; CaseInsensitive, MemberFallback, no NameFallback; exported helpers PHPNamespaceKey, PHPPSR4Namespace, PHPRequirePaths, PHPComposerFile) and php_test.go (6 tests: package keys, PSR-4, require paths, scope over imports.php, visibility, end-to-end resolution through codeindex with codeparse.Parse over the five PHP golden inputs plus supporting files). go test -race ./codeindex/... passes; gofmt/vet/build clean. Only the two listed files changed. Engine limits noted for the coordinator: braced-namespace contents are not top-level so bare/imported names cannot reach them; a qualifier of only '\' (\X) cannot resolve to a global top-level; aliased bare names (use A\B as C; new C) have no candidate; Qualifiers/Names lookups are case-sensitive despite CaseInsensitive.
