@@ -24,22 +24,45 @@ import (
 // engine walks the scopes in order and picks the target:
 //
 //  1. a bare name: the enclosing definitions of the reference in its file
-//     (innermost first), the file's top level, the file's package, the
-//     names imported explicitly, the packages imported unqualified, then,
-//     when the family allows it, any definition of that name;
-//  2. a qualified name whose qualifier's first part is an import: only the
-//     packages it names (a top-level definition, then one whose qualified
-//     name ends with the qualifier, then a member); none when the package
-//     is not in the project;
-//  3. another qualifier (a type, a receiver, an expression): a definition
-//     whose qualified name ends with the qualifier and the name, then, when
-//     the family allows it, a member of that name, nearest first.
+//     (innermost first; an enclosing type's other parts, a C# partial
+//     class or a reopened class, count as one scope), the file's top
+//     level, the file's package, the names imported explicitly (and those
+//     an import renamed, by their original name: Scope.Renamed), the
+//     packages imported unqualified, then, when the family allows it, any
+//     definition of that name;
+//  2. a qualified name whose qualifier, or the longest leading part of it
+//     cut at a separator (a.b.c, then a.b, then a), is bound by an import:
+//     only the packages it names (for the whole qualifier a top-level
+//     definition, then, when the family's ImportMembers allows it, an
+//     exported member of an exported top-level definition: the table or
+//     object a module exports; for a prefix a definition whose qualified
+//     name ends with the rest; then one whose qualified name ends with the
+//     qualifier, then a member); none when the package is not in the
+//     project; a qualifier whose first part an import renamed reaches the
+//     original's qualified name in its package;
+//  3. another qualifier (a type, a receiver, an expression): with
+//     AbsoluteQualifiers (or a leading separator, ::A::f) the definition
+//     whose whole qualified name it is, then a definition whose qualified
+//     name ends with the qualifier and the name, then, when the family
+//     allows it, a member of that name, nearest first (with
+//     ReceiverMembers, a top-level definition written for a receiver, an
+//     extension function, counts as a member).
+//
+// A definition only namespaces enclose (PHP's namespace X { }, a C++
+// namespace) is top-level. A call or a type reference walks the steps
+// first for definitions of a fitting kind (a type for a type, something
+// callable for a call) and only then for any kind, so a property Customer
+// does not hide the class Customer. An extends reference from a class,
+// struct, enum or extension to an interface, protocol or trait is written
+// as IMPLEMENTS.
 //
 // Confidence is exact for a single definition found by a scope or import
 // rule, qualified for one found by its qualified name, and name for a
 // member reached through an unknown qualifier, a name-only fallback, or
 // any step that found several definitions (the best is kept by kind, then
-// exported, then path).
+// exported, then path) unless they are the parts of one type (the same
+// qualified name and package, kinds that merge: partial classes,
+// extensions, reopened modules), which count as one.
 //
 // Each layer's edges cover the references its view resolves differently
 // from the layer below: the files of the layer itself completely, and, for
@@ -92,6 +115,8 @@ type ResolverOptions struct {
 type Resolver struct {
 	opts  ResolverOptions
 	facts *factsCache
+	// lookup returns a family's resolver (resolvers.Lookup; tests replace it).
+	lookup func(family string) (resolvers.Resolver, bool)
 
 	mu      sync.Mutex
 	pending map[string]*pendingWork // by project
@@ -128,7 +153,17 @@ func NewResolver(opts ResolverOptions) *Resolver {
 	if opts.FactsCacheSize <= 0 {
 		opts.FactsCacheSize = DefaultFactsCacheSize
 	}
-	return &Resolver{opts: opts, facts: newFactsCache(opts.FactsCacheSize), pending: map[string]*pendingWork{}}
+	return &Resolver{opts: opts, facts: newFactsCache(opts.FactsCacheSize), lookup: resolvers.Lookup, pending: map[string]*pendingWork{}}
+}
+
+// forLang returns the resolution family of language lang and its resolver.
+func (r *Resolver) forLang(lang string) (string, resolvers.Resolver, bool) {
+	l, ok := codeparse.LookupLanguage(lang)
+	if !ok {
+		return "", nil, false
+	}
+	res, ok := r.lookup(l.Family)
+	return l.Family, res, ok
 }
 
 // Apply implements Applier: Files, then Resolve.
@@ -462,7 +497,10 @@ func mentions(f *resolvers.File, names map[string]bool) bool {
 
 // facts returns a file version's facts, without chunks, through the
 // Resolver's cache and the parse cache; nil for a file without facts (its
-// blob is gone, it was indexed as text, its family has no resolver).
+// blob is gone, it was indexed as text, it did not parse, it holds no
+// definition, reference or import). A file that only imports (a Python
+// __init__.py re-exporting its submodules, a JavaScript index of export …
+// from) has facts: its imports name what its package brings into scope.
 func (run *resolveRun) facts(ctx context.Context, f FileSource) (*codeparse.Facts, error) {
 	key := f.Path + "\x00" + f.SHA256
 	if facts, ok := run.r.facts.get(key); ok {
@@ -480,7 +518,7 @@ func (run *resolveRun) facts(ctx context.Context, f FileSource) (*codeparse.Fact
 		return nil, err
 	}
 	var facts *codeparse.Facts
-	if full.ParseError == "" && len(full.Symbols)+len(full.Refs) > 0 {
+	if full.ParseError == "" && len(full.Symbols)+len(full.Refs)+len(full.Imports) > 0 {
 		lean := full
 		lean.Chunks = nil
 		lean.Symbols = slices.Clone(full.Symbols)
@@ -520,6 +558,7 @@ type viewIndex struct {
 	byName   map[string]map[string][]resolvers.Candidate // family → folded name → definitions
 	refNames map[string][]string                         // lower-cased referenced name → paths
 	scopes   map[string]*fileScope
+	symbols  map[*resolvers.File]map[string]*codeparse.Symbol // by id, built on demand
 }
 
 var _ resolvers.View = (*viewIndex)(nil)
@@ -529,7 +568,7 @@ func (run *resolveRun) buildView(ctx context.Context, layer string) (*viewIndex,
 	v := &viewIndex{run: run, layer: layer, visible: map[string]FileSource{}, from: map[string]string{},
 		files: map[string]*resolvers.File{}, packages: map[string]map[string][]*resolvers.File{},
 		byName: map[string]map[string][]resolvers.Candidate{}, refNames: map[string][]string{},
-		scopes: map[string]*fileScope{}}
+		scopes: map[string]*fileScope{}, symbols: map[*resolvers.File]map[string]*codeparse.Symbol{}}
 	if len(chain) > 1 {
 		v.parent = chain[1]
 	}
@@ -560,7 +599,7 @@ func (run *resolveRun) buildView(ctx context.Context, layer string) (*viewIndex,
 		if lang == "" {
 			lang = src.Lang
 		}
-		if _, _, ok := resolvers.ForLang(lang); !ok {
+		if _, _, ok := run.r.forLang(lang); !ok {
 			continue
 		}
 		facts, err := run.facts(ctx, src)
@@ -573,7 +612,7 @@ func (run *resolveRun) buildView(ctx context.Context, layer string) (*viewIndex,
 		if facts.Lang != "" {
 			lang = facts.Lang
 		}
-		family, _, ok := resolvers.ForLang(lang)
+		family, _, ok := run.r.forLang(lang)
 		if !ok {
 			continue
 		}
@@ -588,7 +627,7 @@ func (run *resolveRun) buildView(ctx context.Context, layer string) (*viewIndex,
 		if f == nil {
 			continue
 		}
-		res, _ := resolvers.Lookup(f.Family)
+		res, _ := run.r.lookup(f.Family)
 		key, err := res.Package(ctx, v, f)
 		if err != nil {
 			return nil, fmt.Errorf("codeindex: package of %s in %s: %w", p, layer, err)
@@ -600,7 +639,7 @@ func (run *resolveRun) buildView(ctx context.Context, layer string) (*viewIndex,
 		if f == nil {
 			continue
 		}
-		res, _ := resolvers.Lookup(f.Family)
+		res, _ := run.r.lookup(f.Family)
 		fold := folder(res.Rules())
 		if v.packages[f.Family] == nil {
 			v.packages[f.Family] = map[string][]*resolvers.File{}
@@ -658,6 +697,22 @@ func (v *viewIndex) Package(family, key string) []*resolvers.File {
 	return v.packages[family][key]
 }
 
+// symbol returns the definition of f whose id is id, nil when f has none.
+func (v *viewIndex) symbol(f *resolvers.File, id string) *codeparse.Symbol {
+	if id == "" || f.Facts == nil {
+		return nil
+	}
+	m, ok := v.symbols[f]
+	if !ok {
+		m = make(map[string]*codeparse.Symbol, len(f.Facts.Symbols))
+		for i := range f.Facts.Symbols {
+			m[f.Facts.Symbols[i].ID] = &f.Facts.Symbols[i]
+		}
+		v.symbols[f] = m
+	}
+	return m[id]
+}
+
 // fileScope is what the engine knows of one referencing file in a view.
 type fileScope struct {
 	scope    resolvers.Scope
@@ -706,27 +761,31 @@ func (t target) node() codegraph.NodeRef {
 
 // resolve links one reference of f in the view.
 func (v *viewIndex) resolve(ctx context.Context, f *resolvers.File, ref codeparse.Ref) (target, bool, error) {
-	res, ok := resolvers.Lookup(f.Family)
+	res, ok := v.run.r.lookup(f.Family)
 	if !ok {
 		return target{}, false, nil
 	}
 	rules := res.Rules()
 	fold := folder(rules)
-	cands := v.byName[f.Family][fold(ref.Name)]
-	if len(cands) == 0 {
-		return target{}, false, nil
+	seps := rules.Separators
+	if len(seps) == 0 {
+		seps = []string{"."}
 	}
 	fs, err := v.scope(ctx, f, res)
 	if err != nil {
 		return target{}, false, err
 	}
-	seps := rules.Separators
-	if len(seps) == 0 {
-		seps = []string{"."}
+	cands := v.byName[f.Family][fold(ref.Name)]
+	var originals []resolvers.Original // what an unqualified, renamed name names
+	if ref.Qualifier == "" {
+		originals = lookupName(fs.scope.Renamed, ref.Name, rules.CaseInsensitive)
 	}
-	pick := func(step resolvers.Step, confidence string, keep func(resolvers.Candidate) bool) (target, bool) {
+	if len(cands) == 0 && len(originals) == 0 {
+		return target{}, false, nil
+	}
+	pickFrom := func(from []resolvers.Candidate, step resolvers.Step, confidence string, keep func(resolvers.Candidate) bool) (target, bool) {
 		var found []resolvers.Candidate
-		for _, c := range cands {
+		for _, c := range from {
 			if keep(c) && res.Visible(f, c, step) {
 				found = append(found, c)
 			}
@@ -736,22 +795,60 @@ func (v *viewIndex) resolve(ctx context.Context, f *resolvers.File, ref codepars
 	sameFile := func(c resolvers.Candidate) bool { return c.File == f }
 	samePackage := func(c resolvers.Candidate) bool { return c.File != f && c.File.Package == f.Package }
 	in := func(pkgs []string) func(resolvers.Candidate) bool {
-		return func(c resolvers.Candidate) bool { return slices.Contains(pkgs, c.File.Package) }
+		return func(c resolvers.Candidate) bool {
+			return slices.ContainsFunc(pkgs, func(p string) bool { return fold(p) == fold(c.File.Package) })
+		}
 	}
 	and := func(a, b func(resolvers.Candidate) bool) func(resolvers.Candidate) bool {
 		return func(c resolvers.Candidate) bool { return a(c) && b(c) }
 	}
-	top := func(c resolvers.Candidate) bool { return c.TopLevel() }
-	member := func(c resolvers.Candidate) bool { return !c.TopLevel() }
+	top := func(c resolvers.Candidate) bool { return v.topLevel(c.File, c.Symbol) }
+	// A member: a definition nested in another (a namespace's too, which
+	// is also top-level), or, when the family says so, a top-level one
+	// written for a receiver (fun String.shout()).
+	member := func(c resolvers.Candidate) bool {
+		return !c.TopLevel() || (rules.ReceiverMembers && hasReceiver(c, seps[0]))
+	}
+	exportedMember := func(c resolvers.Candidate) bool {
+		if v.topLevel(c.File, c.Symbol) || !c.Symbol.Exported {
+			return false
+		}
+		p := v.symbol(c.File, c.Symbol.Parent)
+		return p != nil && v.topLevel(c.File, p) && p.Exported
+	}
 	anywhere := func(resolvers.Candidate) bool { return true }
 	type try struct {
 		step       resolvers.Step
 		confidence string
 		keep       func(resolvers.Candidate) bool
+		from       []resolvers.Candidate // nil: the definitions named like the reference
 	}
+	pick := func(t try, keep func(resolvers.Candidate) bool) (target, bool) {
+		from := t.from
+		if from == nil {
+			from = cands
+		}
+		return pickFrom(from, t.step, t.confidence, keep)
+	}
+	// The steps are walked twice for a call or a type reference: first
+	// for definitions of a fitting kind (a type for a type, something
+	// callable for a call) without the name-only fallbacks, so a property
+	// Customer in the enclosing class does not hide the class Customer of
+	// the package; then for any kind.
+	fits := func(c resolvers.Candidate) bool { return kindFits(ref.Kind, c.Symbol.Kind) }
 	first := func(tries ...try) (target, bool, error) {
+		if kindFiltered(ref.Kind) {
+			for _, t := range tries {
+				if t.step == resolvers.StepName || t.step == resolvers.StepMember {
+					continue
+				}
+				if got, ok := pick(t, and(t.keep, fits)); ok {
+					return got, true, nil
+				}
+			}
+		}
 		for _, t := range tries {
-			if got, ok := pick(t.step, t.confidence, t.keep); ok {
+			if got, ok := pick(t, t.keep); ok {
 				return got, true, nil
 			}
 		}
@@ -759,64 +856,192 @@ func (v *viewIndex) resolve(ctx context.Context, f *resolvers.File, ref codepars
 	}
 
 	if ref.Qualifier == "" {
+		names := lookupName(fs.scope.Names, ref.Name, rules.CaseInsensitive)
 		var tries []try
 		for id := ref.Enclosing; id != ""; id = fs.parent[id] {
-			tries = append(tries, try{resolvers.StepScope, codegraph.ConfidenceExact, func(c resolvers.Candidate) bool {
-				return c.File == f && c.Symbol.Parent == id
+			encl := v.symbol(f, id)
+			tries = append(tries, try{step: resolvers.StepScope, confidence: codegraph.ConfidenceExact, keep: func(c resolvers.Candidate) bool {
+				if c.File == f && c.Symbol.Parent == id {
+					return true
+				}
+				// A member of another part of the enclosing type (a C#
+				// partial class, a reopened Ruby class, a Swift extension).
+				if encl == nil || c.TopLevel() || c.File.Package != f.Package || !mergeable(encl.Kind) {
+					return false
+				}
+				p := v.symbol(c.File, c.Symbol.Parent)
+				return p != nil && p != encl && mergeable(p.Kind) && fold(p.QualName) == fold(encl.QualName)
 			}})
 		}
 		tries = append(tries,
-			try{resolvers.StepFile, codegraph.ConfidenceExact, and(sameFile, top)},
-			try{resolvers.StepPackage, codegraph.ConfidenceExact, and(samePackage, top)},
-			try{resolvers.StepImport, codegraph.ConfidenceExact, and(in(fs.scope.Names[ref.Name]), top)},
-			try{resolvers.StepOpen, codegraph.ConfidenceExact, and(in(fs.scope.Open), top)})
+			try{step: resolvers.StepFile, confidence: codegraph.ConfidenceExact, keep: and(sameFile, top)},
+			try{step: resolvers.StepPackage, confidence: codegraph.ConfidenceExact, keep: and(samePackage, top)},
+			try{step: resolvers.StepImport, confidence: codegraph.ConfidenceExact, keep: and(in(names), top)})
+		for _, o := range originals {
+			tries = append(tries, try{step: resolvers.StepImport, confidence: codegraph.ConfidenceExact,
+				keep: and(in([]string{o.Package}), top), from: orNone(v.byName[f.Family][fold(o.Name)])})
+		}
+		tries = append(tries, try{step: resolvers.StepOpen, confidence: codegraph.ConfidenceExact, keep: and(in(fs.scope.Open), top)})
+		if rules.ImportMembers {
+			// What an import or an open package exports through its
+			// top-level definitions (a mixed-in Ruby module's methods).
+			tries = append(tries,
+				try{step: resolvers.StepImport, confidence: codegraph.ConfidenceQualified, keep: and(in(names), exportedMember)},
+				try{step: resolvers.StepOpen, confidence: codegraph.ConfidenceQualified, keep: and(in(fs.scope.Open), exportedMember)})
+		}
 		if rules.NameFallback {
-			tries = append(tries, try{resolvers.StepName, codegraph.ConfidenceName, anywhere})
+			tries = append(tries, try{step: resolvers.StepName, confidence: codegraph.ConfidenceName, keep: anywhere})
 		}
 		return first(tries...)
 	}
 
-	parts := splitQualifier(ref.Qualifier, seps)
 	qualified := func(qual string) func(resolvers.Candidate) bool {
 		return func(c resolvers.Candidate) bool {
 			return endsWithQualified(fold(c.Symbol.QualName), fold(qual), fold(ref.Name), seps)
 		}
 	}
-	if pkgs, ok := fs.scope.Qualifiers[parts[0]]; ok {
+	// A qualifier written from the root (::Shop::Mailer, \A\B) is matched
+	// without its leading separator, whole qualified names first.
+	qualifier, absolute := trimLeadingSeparator(ref.Qualifier, seps)
+	prefixes := qualifierPrefixes(qualifier, seps)
+	for _, pre := range prefixes {
+		pkgs := lookupName(fs.scope.Qualifiers, pre.prefix, rules.CaseInsensitive)
+		if pkgs == nil {
+			continue
+		}
+		// The longest bound prefix confines the reference to its packages.
 		inPkg := in(pkgs)
 		var tries []try
-		if len(parts) == 1 {
-			tries = append(tries, try{resolvers.StepImport, codegraph.ConfidenceExact, and(inPkg, top)})
+		if pre.rest == "" {
+			tries = append(tries, try{step: resolvers.StepImport, confidence: codegraph.ConfidenceExact, keep: and(inPkg, top)})
+			if rules.ImportMembers {
+				tries = append(tries, try{step: resolvers.StepImport, confidence: codegraph.ConfidenceQualified, keep: and(inPkg, exportedMember)})
+			}
 		} else {
-			tries = append(tries, try{resolvers.StepQualified, codegraph.ConfidenceQualified,
-				and(inPkg, qualified(strings.Join(parts[1:], seps[0])))})
+			tries = append(tries, try{step: resolvers.StepQualified, confidence: codegraph.ConfidenceQualified, keep: and(inPkg, qualified(pre.rest))})
 		}
-		tries = append(tries, try{resolvers.StepQualified, codegraph.ConfidenceQualified, and(inPkg, qualified(ref.Qualifier))})
+		tries = append(tries, try{step: resolvers.StepQualified, confidence: codegraph.ConfidenceQualified, keep: and(inPkg, qualified(qualifier))})
 		if rules.MemberFallback {
-			tries = append(tries, try{resolvers.StepMember, codegraph.ConfidenceName, and(inPkg, member)})
+			tries = append(tries, try{step: resolvers.StepMember, confidence: codegraph.ConfidenceName, keep: and(inPkg, member)})
 		}
 		return first(tries...)
 	}
-	isQual := qualified(ref.Qualifier)
-	imported := func(c resolvers.Candidate) bool { return fs.imported[c.File.Package] }
-	tries := []try{
-		{resolvers.StepQualified, codegraph.ConfidenceQualified, and(isQual, sameFile)},
-		{resolvers.StepQualified, codegraph.ConfidenceQualified, and(isQual, samePackage)},
-		{resolvers.StepQualified, codegraph.ConfidenceQualified, isQual},
+	// A qualifier whose first part an import renamed (import {A as B};
+	// B.f): the original's qualified name in the packages it comes from.
+	head := prefixes[len(prefixes)-1]
+	if os := lookupName(fs.scope.Renamed, head.prefix, rules.CaseInsensitive); len(os) > 0 {
+		var tries []try
+		for _, o := range os {
+			qual := o.Name
+			if head.rest != "" {
+				qual += seps[0] + head.rest
+			}
+			tries = append(tries, try{step: resolvers.StepQualified, confidence: codegraph.ConfidenceQualified,
+				keep: and(in([]string{o.Package}), qualified(qual))})
+		}
+		return first(tries...)
 	}
+	isQual := qualified(qualifier)
+	imported := func(c resolvers.Candidate) bool { return fs.imported[c.File.Package] }
+	var tries []try
+	if absolute || rules.AbsoluteQualifiers {
+		// The definition whose whole qualified name is the qualifier and
+		// the name: exact where qualifiers are written from the root.
+		whole := func(c resolvers.Candidate) bool {
+			return sameQualified(fold(c.Symbol.QualName), fold(qualifier), fold(ref.Name), seps)
+		}
+		confidence := codegraph.ConfidenceQualified
+		if rules.AbsoluteQualifiers {
+			confidence = codegraph.ConfidenceExact
+		}
+		tries = append(tries, try{step: resolvers.StepQualified, confidence: confidence, keep: whole})
+	}
+	tries = append(tries, []try{
+		{step: resolvers.StepQualified, confidence: codegraph.ConfidenceQualified, keep: and(isQual, sameFile)},
+		{step: resolvers.StepQualified, confidence: codegraph.ConfidenceQualified, keep: and(isQual, samePackage)},
+		{step: resolvers.StepQualified, confidence: codegraph.ConfidenceQualified, keep: isQual},
+	}...)
 	if rules.MemberFallback {
 		tries = append(tries,
-			try{resolvers.StepMember, codegraph.ConfidenceName, and(member, sameFile)},
-			try{resolvers.StepMember, codegraph.ConfidenceName, and(member, samePackage)},
-			try{resolvers.StepMember, codegraph.ConfidenceName, and(member, imported)},
-			try{resolvers.StepMember, codegraph.ConfidenceName, member})
+			try{step: resolvers.StepMember, confidence: codegraph.ConfidenceName, keep: and(member, sameFile)},
+			try{step: resolvers.StepMember, confidence: codegraph.ConfidenceName, keep: and(member, samePackage)},
+			try{step: resolvers.StepMember, confidence: codegraph.ConfidenceName, keep: and(member, imported)},
+			try{step: resolvers.StepMember, confidence: codegraph.ConfidenceName, keep: member})
 	}
 	return first(tries...)
 }
 
+// lookupName returns m's entry for key: as written, else, for a
+// case-insensitive family, under any case; nil when there is none.
+func lookupName[T any](m map[string][]T, key string, caseInsensitive bool) []T {
+	if got, ok := m[key]; ok {
+		return orEmpty(got)
+	}
+	if caseInsensitive {
+		for k, got := range m {
+			if strings.EqualFold(k, key) {
+				return orEmpty(got)
+			}
+		}
+	}
+	return nil
+}
+
+// orEmpty is list, non-nil.
+func orEmpty[T any](list []T) []T {
+	if list == nil {
+		return []T{}
+	}
+	return list
+}
+
+// topLevel reports whether sym, a definition of f, is at the top level of
+// its package: it has no enclosing definition, or only namespaces (PHP's
+// namespace X { }, a C++ namespace, a Perl block package) enclose it.
+func (v *viewIndex) topLevel(f *resolvers.File, sym *codeparse.Symbol) bool {
+	for depth := 0; sym.Parent != "" && depth < 64; depth++ {
+		p := v.symbol(f, sym.Parent)
+		if p == nil || !namespaceKind(p.Kind) {
+			return false
+		}
+		sym = p
+	}
+	return sym.Parent == ""
+}
+
+// namespaceKind reports whether definitions of kind only name a scope
+// (they are not a type or a value a member belongs to).
+func namespaceKind(kind string) bool {
+	return kind == codeparse.KindNamespace || kind == codeparse.KindPackage
+}
+
+// orNone is list, or an empty non-nil list (a try's own candidates).
+func orNone(list []resolvers.Candidate) []resolvers.Candidate {
+	if list == nil {
+		return []resolvers.Candidate{}
+	}
+	return list
+}
+
+// hasReceiver reports whether a top-level definition was written for a
+// receiver its file does not define (Kotlin's fun String.shout(), a Go
+// method whose type is in another file): the extractor then qualifies it
+// by the receiver, so its qualified name is more than the file's package
+// and its name.
+func hasReceiver(c resolvers.Candidate, sep string) bool {
+	if !c.TopLevel() {
+		return false
+	}
+	plain := c.Symbol.Name
+	if c.File.Facts != nil && c.File.Facts.Package != "" {
+		plain = c.File.Facts.Package + sep + plain
+	}
+	return c.Symbol.QualName != plain && strings.HasSuffix(c.Symbol.QualName, sep+c.Symbol.Name)
+}
+
 // best keeps the best of several definitions: by kind for the reference's
 // kind, exported first, then by path and id. More than one makes the
-// confidence name.
+// confidence name, unless they are the parts of one type (partParts).
 func best(refKind string, found []resolvers.Candidate, confidence string) (target, bool) {
 	switch len(found) {
 	case 0:
@@ -827,11 +1052,66 @@ func best(refKind string, found []resolvers.Candidate, confidence string) (targe
 	b := slices.MinFunc(found, func(x, y resolvers.Candidate) int {
 		return cmp.Or(
 			cmp.Compare(defRank(refKind, x.Symbol.Kind), defRank(refKind, y.Symbol.Kind)),
+			cmpBool(typeAddition(x.Symbol.Kind), typeAddition(y.Symbol.Kind)),
 			cmpBool(y.Symbol.Exported, x.Symbol.Exported),
 			cmp.Compare(x.File.Path, y.File.Path),
 			cmp.Compare(x.Symbol.ID, y.Symbol.ID))
 	})
+	if typeParts(found) {
+		return target{b, confidence}, true
+	}
 	return target{b, codegraph.ConfidenceName}, true
+}
+
+// typeParts reports whether several definitions are the parts of one type
+// (C# partial classes, reopened Ruby classes and modules, Swift
+// extensions, a C struct declared in one file and defined in another):
+// the same qualified name, in one package, each of a kind that merges.
+func typeParts(found []resolvers.Candidate) bool {
+	for _, c := range found {
+		if !mergeable(c.Symbol.Kind) || c.Symbol.QualName != found[0].Symbol.QualName || c.File.Package != found[0].File.Package {
+			return false
+		}
+	}
+	return true
+}
+
+// mergeable reports whether definitions of kind with one qualified name in
+// one package are parts of one definition.
+func mergeable(kind string) bool {
+	switch kind {
+	case codeparse.KindClass, codeparse.KindStruct, codeparse.KindInterface, codeparse.KindTrait,
+		codeparse.KindProtocol, codeparse.KindType, codeparse.KindEnum, codeparse.KindUnion,
+		codeparse.KindExtension, codeparse.KindImpl, codeparse.KindModule, codeparse.KindNamespace:
+		return true
+	}
+	return false
+}
+
+// typeAddition reports whether kind adds to a type defined elsewhere (an
+// extension, an impl block), which gives way to the type's own definition.
+func typeAddition(kind string) bool {
+	return kind == codeparse.KindExtension || kind == codeparse.KindImpl
+}
+
+// kindFiltered reports whether references of refKind look for a fitting
+// kind first (kindFits).
+func kindFiltered(refKind string) bool {
+	switch refKind {
+	case codeparse.RefCall, codeparse.RefType, codeparse.RefExtends, codeparse.RefImplements:
+		return true
+	}
+	return false
+}
+
+// kindFits reports whether a definition of kind fits a reference of
+// refKind: a type for a type, extends or implements, something callable (a
+// function, a method, a macro, a type's constructor) for a call.
+func kindFits(refKind, kind string) bool {
+	if refKind != codeparse.RefCall && (kind == codeparse.KindImpl || kind == codeparse.KindExtension) {
+		return true // a type's implementation or extension (@implementation A, impl A, extension A)
+	}
+	return defRank(refKind, kind) < 2
 }
 
 func cmpBool(a, b bool) int {
@@ -893,30 +1173,78 @@ func longestFirst(seps []string) []string {
 	return out
 }
 
-// splitQualifier splits a qualifier at any of seps.
-func splitQualifier(q string, seps []string) []string {
-	parts := []string{q}
-	for _, sep := range longestFirst(seps) {
-		var next []string
-		for _, p := range parts {
-			next = append(next, strings.Split(p, sep)...)
+// qualifierPrefix is a leading part of a qualifier, cut at a separator, and
+// what follows that separator ("" for the whole qualifier).
+type qualifierPrefix struct {
+	prefix, rest string
+}
+
+// qualifierPrefixes returns q and its leading parts cut at any of seps,
+// longest first: a.b.c, then a.b (rest c), then a (rest b.c).
+func qualifierPrefixes(q string, seps []string) []qualifierPrefix {
+	out := []qualifierPrefix{{prefix: q}}
+	ordered := longestFirst(seps)
+	var cuts []qualifierPrefix
+	for i := 0; i < len(q); {
+		matched := false
+		for _, sep := range ordered {
+			if sep != "" && strings.HasPrefix(q[i:], sep) {
+				if i > 0 && i+len(sep) < len(q) {
+					cuts = append(cuts, qualifierPrefix{prefix: q[:i], rest: q[i+len(sep):]})
+				}
+				i += len(sep)
+				matched = true
+				break
+			}
 		}
-		parts = next
+		if !matched {
+			i++
+		}
 	}
-	return parts
+	for i := len(cuts) - 1; i >= 0; i-- {
+		out = append(out, cuts[i])
+	}
+	return out
+}
+
+// trimLeadingSeparator strips the separators a qualifier starts with
+// (::Shop, \A\B) and reports whether there were any.
+func trimLeadingSeparator(q string, seps []string) (string, bool) {
+	rest := q
+	for again := true; again; {
+		again = false
+		for _, sep := range longestFirst(seps) {
+			if sep != "" && strings.HasPrefix(rest, sep) {
+				rest, again = rest[len(sep):], true
+				break
+			}
+		}
+	}
+	if rest == "" || rest == q {
+		return q, false
+	}
+	return rest, true
+}
+
+// sameQualified reports whether qualName is exactly qual, a separator and
+// name; any of seps separates.
+func sameQualified(qualName, qual, name string, seps []string) bool {
+	return normSeps(qualName, seps) == normSeps(qual, seps)+"\x00"+name
+}
+
+// normSeps replaces every separator of s by NUL.
+func normSeps(s string, seps []string) string {
+	for _, s2 := range longestFirst(seps) {
+		s = strings.ReplaceAll(s, s2, "\x00")
+	}
+	return s
 }
 
 // endsWithQualified reports whether qualName is qual, a separator and name,
 // alone or after a separator; any of seps separates.
 func endsWithQualified(qualName, qual, name string, seps []string) bool {
 	const sep = "\x00"
-	norm := func(s string) string {
-		for _, s2 := range longestFirst(seps) {
-			s = strings.ReplaceAll(s, s2, sep)
-		}
-		return s
-	}
-	qn, want := norm(qualName), norm(qual)+sep+name
+	qn, want := normSeps(qualName, seps), normSeps(qual, seps)+sep+name
 	return qn == want || strings.HasSuffix(qn, sep+want)
 }
 
@@ -931,6 +1259,27 @@ func edgeType(refKind string) codegraph.EdgeType {
 		return codegraph.EdgeImplements
 	}
 	return codegraph.EdgeReferences
+}
+
+// conforms reports whether an extends reference from definition from to
+// target is a conformance (implements): a class, struct, enum or extension
+// listing an interface, protocol or trait (Swift's class A: P, Kotlin's
+// class A : I, C#'s class A : IFoo); an interface extending an interface
+// stays extends.
+func conforms(from, target *codeparse.Symbol) bool {
+	if from == nil || target == nil {
+		return false
+	}
+	switch target.Kind {
+	case codeparse.KindInterface, codeparse.KindProtocol, codeparse.KindTrait:
+	default:
+		return false
+	}
+	switch from.Kind {
+	case codeparse.KindClass, codeparse.KindStruct, codeparse.KindEnum, codeparse.KindUnion, codeparse.KindExtension:
+		return true
+	}
+	return false
 }
 
 // resolveFile resolves the references of the file visible at p in v and
@@ -975,7 +1324,11 @@ func (run *resolveRun) resolveFile(ctx context.Context, v *viewIndex, p string) 
 				}
 			}
 		}
-		k := edgeKey{edgeType(ref.Kind), codegraph.NodeRef{Layer: f.Layer, ID: SymbolNodeID(p, ref.Enclosing)}, t.node()}
+		typ := edgeType(ref.Kind)
+		if ref.Kind == codeparse.RefExtends && conforms(v.symbol(f, ref.Enclosing), t.c.Symbol) {
+			typ = codegraph.EdgeImplements
+		}
+		k := edgeKey{typ, codegraph.NodeRef{Layer: f.Layer, ID: SymbolNodeID(p, ref.Enclosing)}, t.node()}
 		e := edges[k]
 		if e == nil {
 			e = &codegraph.Edge{Type: k.typ, Layer: v.layer, From: k.from, To: k.to, Confidence: t.confidence, Line: ref.Start.Line}

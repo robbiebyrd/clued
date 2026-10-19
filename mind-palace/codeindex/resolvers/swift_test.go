@@ -459,7 +459,7 @@ func TestResolve_swift(t *testing.T) {
 	wantRows(t, "Point.mirrored", e.rows(codegraph.RelCallees, extras, "Point.mirrored"),
 		edge(node(extras, "Point.mirrored"), node(figure, "Point.zero"), calls, qual))
 	wantRows(t, "Circle.scaled", e.rows(codegraph.RelCallees, figure, "Circle.scaled"),
-		edge(node(figure, "Circle.scaled"), node(figure, "Circle.resize"), calls, name))
+		edge(node(figure, "Circle.scaled"), node(figure, "Circle.resize"), calls, exact))
 
 	// Imports: open, module-qualified, internal definitions hidden.
 	wantRows(t, "render", e.rows(codegraph.RelCallees, extras, "render"),
@@ -490,9 +490,9 @@ func TestResolve_swift(t *testing.T) {
 	wantRows(t, "implementations of Shape", e.rows(codegraph.RelImplementations, shapes, "Shape"),
 		edge(node(shapes, "Circle"), node(shapes, "Shape"), impl, exact),
 		// A class whose first inherited name is a protocol: the extractor
-		// cannot tell it from a superclass and records extends, and the
-		// engine takes the edge type from the reference's kind.
-		edge(node(tests, "ShapeTests"), node(shapes, "Shape"), ext, exact))
+		// cannot tell it from a superclass and records extends; the engine
+		// makes it implements because the target is a protocol.
+		edge(node(tests, "ShapeTests"), node(shapes, "Shape"), impl, exact))
 	wantRows(t, "implementations of ShapeRepository", e.rows(codegraph.RelImplementations, store, "ShapeRepository"),
 		edge(node(store, "ShapeStore"), node(store, "ShapeRepository"), impl, exact))
 	wantRows(t, "implementations of Measurable", e.rows(codegraph.RelImplementations, extras, "Measurable"),

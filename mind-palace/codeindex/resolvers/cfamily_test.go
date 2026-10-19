@@ -386,15 +386,15 @@ func Test_cfamilyCPP(t *testing.T) {
 		"geo/geometry.cpp#geometry::area": "name"}) // s->area(): the member in the file
 	cfamilyWantMap(t, "main", e.callees("geo/geometry.cpp", "main"), map[string]string{
 		"geo/geometry.cpp#geometry::describe": "qualified",
-		"geo/geometry.hpp#geometry::largest":  "name", // namespace geometry is open in the file; other:: is not
+		"geo/geometry.hpp#geometry::largest":  "exact", // namespace geometry is open in the file; other:: is not
 	})
 	cfamilyWantList(t, "Shape", e.referrers("geo/geometry.hpp", "geometry::Shape"), "geo/geometry.cpp#main qualified")
 	cfamilyWantList(t, "Point", e.referrers("geo/geometry/point.hpp", "geometry::Point"),
-		"app/use.cpp#report name", "geo/geometry.hpp#geometry::Bounds::max name")
+		"app/use.cpp#report exact", "geo/geometry.hpp#geometry::Bounds::max exact") // namespace members are its top level
 
 	cfamilyWantMap(t, "report", e.callees("app/use.cpp", "report"), map[string]string{
 		"geo/geometry.cpp#geometry::totalArea": "qualified",
-		"geo/geometry.hpp#geometry::largest":   "name",
+		"geo/geometry.hpp#geometry::largest":   "exact", // using namespace geometry opens its definitions
 		"geo/geometry.cpp#geometry::count":     "name",
 	})
 }
