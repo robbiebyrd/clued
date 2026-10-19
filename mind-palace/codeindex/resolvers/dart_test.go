@@ -402,7 +402,8 @@ func TestRules_dart(t *testing.T) {
 		t.Fatalf("ForLang(dart) = %q, %v", fam, ok)
 	}
 	rules := r.Rules()
-	if !reflect.DeepEqual(rules.Separators, []string{"."}) || rules.CaseInsensitive || !rules.NameFallback || !rules.MemberFallback {
+	if !reflect.DeepEqual(rules.Separators, []string{"."}) || rules.CaseInsensitive || !rules.NameFallback || !rules.MemberFallback ||
+		!rules.ReceiverMembers || rules.ImportMembers || rules.AbsoluteQualifiers {
 		t.Errorf("rules = %+v", rules)
 	}
 	f := &resolvers.File{Path: "lib/a.dart", Package: "lib/a.dart", Facts: &codeparse.Facts{}}

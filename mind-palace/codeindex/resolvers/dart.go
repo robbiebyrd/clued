@@ -43,7 +43,12 @@ func init() { Register(codeparse.FamilyDart, dart{}) }
 
 type dart struct{}
 
-var dartRules = Rules{Separators: []string{"."}, NameFallback: true, MemberFallback: true}
+// dartRules: an import prefix names a library's top level only (p.C.m goes
+// through C), so no ImportMembers; extension members nest in their
+// extension, and ReceiverMembers keeps a top-level definition qualified by
+// a receiver, should the extractor write one, among the members. No
+// import form renames a name (show and hide only filter).
+var dartRules = Rules{Separators: []string{"."}, NameFallback: true, MemberFallback: true, ReceiverMembers: true}
 
 // Rules implements Resolver.
 func (dart) Rules() Rules { return dartRules }
