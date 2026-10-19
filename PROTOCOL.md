@@ -3,8 +3,8 @@
 This document describes every entrypoint of clued and the contract each one
 speaks: the Claude Code hooks, the `scripts/clued` shim, the capture daemon,
 the two MCP servers, the clued server's HTTPS API (session transport, store
-transport, code transport, plan and story service API, WebSocket, MCP over
-HTTP), the remote
+transport, code transport, code graph reads, plan and story service API,
+WebSocket, MCP over HTTP), the remote
 client rules, the `mind-palace` command line and the document model the
 plan and story services share. It is written from the code; a file reference
 such as `server/clued.go` means `mind-palace/server/clued.go`.
@@ -67,7 +67,8 @@ code (`cli/cli.go`):
 The transports of the clued server add lower-case kinds of their own:
 `unauthorized` (401), `forbidden` (403), `invalid` (400), `not_found` (404),
 `too_large` (413), `store` (502) and `partial` (a warning on a 200); the
-code transport (section 7.12) adds `conflict` (409) and `quota` (413). A client
+code transport (section 7.12) adds `conflict` (409) and `quota` (413), and
+the graph routes (section 7.14) `unavailable` (503). A client
 that cannot decode an envelope at all reports kind `http` with the status.
 
 ### 1.3 Local and remote mode
@@ -856,6 +857,10 @@ The clued server's `/mcp` endpoint offers the same tools minus
 `restore_session`, `prime_context` and `export_session`, which need the
 local disk, and `forget_session` and `forget_memory`, which delete.
 
+In remote mode, when the server indexes the project, the stdio server also
+lists the code tools `code_search`, `code_symbol`, `code_neighbors`,
+`code_outline` and `code_context` (section 6.1.7); `/mcp` does not.
+
 #### 6.1.1 The `activity-kind` enrichment
 
 The `activity-kind` enricher labels every transcript line with what the
@@ -1000,6 +1005,60 @@ https://api.voyageai.com/v1/embeddings` with `input`, `model` (default
 bearer token. A 401 or 403 is the fixed `voyage.ErrUnauthorized` and a 429
 `voyage.ErrRateLimited`; another status reports only its code, so no
 error carries the key or the request's text.
+
+#### 6.1.7 The code tools
+
+`session/sessionmcp/code_tools.go` adds five read-only tools over the graph
+read routes of section 7.14 (through `code/remotecode`), for the project of
+the working directory (its `remote.project`, else the slug of its git
+origin). They are offered only in remote mode, never by the server's own
+`/mcp`, and **listed only when the project is indexed**: when the server
+starts it sends one `graph/search` (`{"query": "main", "limit": 1,
+"max_tokens": 200}`, base view, 3 s timeout); `ready` or `indexing` lists
+the tools; a 404 (the server has no graph routes), 401, 403 or 400 never
+does; `empty`, a 503 or a network failure asks again every 2 minutes, at
+most 720 times, and lists them (`notifications/tools/list_changed`) once the
+answer is `ready` or `indexing`. Their budgets are 2,000 tokens
+(`code_context` 6,000), with `max_tokens` and `cursor` as above; `cursor` is
+the route's `next`.
+
+The view is the current session: `CLAUDE_SESSION_ID`, else the newest
+captured session whose project path or cwd is the working directory, sent
+as `{"session_id"}`; without a session, the working directory's branch
+(`{"ref"}`). Every tool also takes `ref`, which sends `{"ref"}` instead.
+When the route answers 404 for the session (`remotecode.ErrUnknownSession`:
+code sync off for the worktree, or a session the server never saw on one),
+the tool asks again with the branch (or the base) and adds to `note`: "the
+code index does not know session <id> (code sync off for this worktree?):
+the results show branch <ref> without its local edits".
+
+Each result starts with `status` (the route's), `note` and `view`:
+
+```json
+{"status": "indexing",
+ "note": "the index is catching up (12 collected changes are not in it yet): the results may miss recent code",
+ "view": {"session": "…", "ref": "main", "localEdits": true, "note": "…"}}
+```
+
+`note` is set for `indexing` (with `at least N` when `progress.more`) and
+`empty` ("no code has been collected for this project yet: search the files
+directly"); `view` is omitted when the route's view names no session, no
+ref and no note. Locations are `at`: `path:line`, or `path:start-end` for a
+span.
+
+| Tool | Parameters | Returns |
+|---|---|---|
+| `code_search` | `query` (required), `kinds`, `langs`, `paths`, `limit` (default 20), `ref`, `max_tokens`, `cursor` | `results`: `{at, kind, name, qualName, signature, doc, match, id}` per hit; `truncated`, `next` |
+| `code_symbol` | `id` or `qualName`, `include` (`body`, `doc`, `children`; default all), `ref`, `max_tokens`, `cursor` | `symbol` (`at`, `kind`, `name`, `qualName`, `signature`, `doc`, `lang`, `exported`, `parent`, `id`), `children` (`{at, kind, name, signature, exported, id}`), `body` (`{at, text}`), `bodyNote`, `truncated`, `next` |
+| `code_neighbors` | `relation` (required: `callers`, `callees`, `references`, `implementations`, `imports`, `importers`), `id`, `path`, `package`, `depth` (1 to 3), `limit`, `ref`, `max_tokens`, `cursor` | `edges`: `{at, relation, from, fromAt, fromId, to, toAt, toId, confidence, alias, depth}`, where `from` and `to` are the ends' qualified names (else names), `fromAt` and `toAt` their `path:start`, and `depth` is omitted for the first hop; `truncated`, `next` |
+| `code_outline` | `path` or `package`, `ref`, `max_tokens`, `cursor` | `files` (`{path, lang, package, parseError}`) and `symbols` (`{at, depth, kind, name, signature, exported, id}` in order, `depth` omitted at the top level); `truncated`, `next` |
+| `code_context` | `task` (required), `ref`, `max_tokens` (sent as `budget`), `cursor` | `hits` (as `code_search`'s results), `neighbors` (as `code_neighbors`' edges), `bodies` (`{at, id, text}`); `truncated`, `next` |
+
+A route error is a tool error: 503 reads "the code index is unavailable
+right now: search and read the files directly (…)", a 404 for the routes
+"the clued server has no code index: search and read the files directly
+(…)", 403 "the clued server does not allow the code index for this project
+(…)"; others carry the route's message.
 
 ### 6.2 `mind-palace`: the plan and story tools
 
@@ -1563,7 +1622,9 @@ Checks run in this order: the token's account (401 `unauthorized`), the slug
 (section 7.2; 400 `invalid`), the token's projects (403 `forbidden`), the
 server's namespace for the account and slug, and opening the store (an
 error answers with its own status, or 400 `invalid`, 403 `forbidden`, 404
-`not_found` "unknown project", else 502 `store`). Then the route validates
+`not_found` "unknown project", else 502 `store`). The graph read routes
+under `…/code/graph/` (section 7.14) are the only routes of the prefix that
+return code. Then the route validates
 its input, asks the embedding server's `BeforeCodeWrite` (every route but
 `capabilities`) and writes.
 
@@ -1695,6 +1756,145 @@ attempts and pause an installation on a GitHub rate limit; what a job
 writes (the GitHub-backed worktree `gh_<repository id>`, the plans and
 stories, the activity log in `<project>_code_events`) is described in
 docs/github-app.md. Nothing is ever sent back to GitHub.
+
+### 7.14 Code graph reads: `/api/v1/projects/{project}/code/graph/`
+
+The typed read routes over a project's code graph (`server/codeapi/graph.go`;
+the graph, its layers and the languages are described in
+[docs/code-graph.md](docs/code-graph.md)). They are served when the server
+has a code store and a graph (`server run --graph`, section 9; an embedding
+server sets `CluedOptions.Graph`); otherwise every route below answers 404
+`not_found` "no route for POST <path>", which a client takes as "this
+server has no code index". All are `POST` with a JSON body, answer in the
+envelope of section 1.1, and take no Cypher: each is a fixed, parameterized
+query over the namespaced project's graph.
+
+| Route | Body | Result |
+|---|---|---|
+| `search` | `{"view", "query", "kinds", "langs", "paths", "limit", "max_tokens", "cursor"}` | `{status, progress?, view, "items": [Hit], "truncated", "next"?}` |
+| `symbol` | `{"view", "id" \| "qualName", "include": ["body", "doc", "children"], "max_tokens", "cursor"}` | `{status, progress?, view, "symbol", "location", "lang", "children": [SymbolLine], "body": {"location", "text"}, "bodyNote", "truncated", "next"?}` |
+| `neighbors` | `{"view", "relation", "id" \| "path" \| "package", "depth", "limit", "max_tokens", "cursor"}` | `{status, progress?, view, "items": [NeighborItem], "truncated", "next"?}` |
+| `outline` | `{"view", "path" \| "package", "max_tokens", "cursor"}` | `{status, progress?, view, "files": [{"path", "lang", "package", "parseError"}], "items": [SymbolLine], "truncated", "next"?}` |
+| `context` | `{"view", "task", "budget", "max_tokens", "cursor"}` | `{status, progress?, view, "hits": [Hit], "neighbors": [NeighborItem], "bodies": [{"id", "location", "text"}], "truncated", "next"?}` |
+
+Checks run as for section 7.12 (account 401, slug 400, the token's
+projects 403, namespace and code store), then the body is read (at most 16
+MiB, one JSON object, no unknown field, nothing after it: 400 `invalid`, 413
+`too_large`), the route validates it, opens the graph under the same
+namespaced key and resolves the view.
+
+**The view.** `"view"` is omitted (the base, `["base"]`), `{"ref"}` (the
+base plus the newest branch layer of that ref), `{"session_id"}` (the
+overlay of the worktree the session works in, over its branch layer and the
+base) or `{"session_id", "ref"}` (that session's overlay on `ref`). The
+session must be recorded on a worktree the caller's account owns that is
+not removed and not GitHub-backed; a session seen on several is taken on the
+one it touched last. Another account's session, or an unknown one, is 404
+`not_found` "session not found", alike. Only overlays whose owner is the
+caller are ever put in a view. Every result carries `"view"`:
+
+```json
+{"layers": ["base", "branch:feature@3f2a…", "wt:wt_0123456789abcdef:feature"],
+ "session": "…", "ref": "feature", "localEdits": true, "note": "…"}
+```
+
+`layers` lowest first. `localEdits` is true when the session's overlay is in
+the view. `note` explains a fallback: "the session's worktree has no indexed
+overlay: the results do not include its local edits" (the session's ref, or
+its worktree's only ref, is read instead, `localEdits` false), "the
+session's branch layer was replaced: showing the newest one of <ref>", "the
+session's branch layer is gone: showing the base".
+
+**Status.** Every result starts with `"status"`: `ready` (the graph holds
+every collected change), `indexing` (the indexer has not reached the end of
+the project's change log; `"progress": {"pending": n, "more": true?}`
+counts the changes past its cursor, at most 1,000; the results are what is
+indexed, none when the project was never indexed) or `empty` (no code
+collected, or nothing to show). When the graph holds no layer, the lists are
+empty and `symbol` has no `symbol`.
+
+**Items.**
+
+- `Hit` (search, context): `{"id", "layer", "kind", "name", "qualName",
+  "signature", "location", "match", "score", "doc"}`. `id` is the graph id
+  (`<path>#<qualified name>`, with `~2`, `~3` for repeats), `location`
+  `path:start-end`, `match` `qualified` (the query is the qualified name),
+  `exact` (the name) or `text` (full text over name, signature and doc
+  comment), `doc` the first line of the doc comment, at most 200
+  characters. `search` lists qualified and exact matches first (scored
+  1000 and up, best first), then full-text matches by the graph's full-text score,
+  each symbol once, up to `limit` (default 20, at most 500). `context`
+  splits the task into at most 12 identifier-like words of three or more
+  characters (stop words dropped, longest first), adds 100 per name match
+  and the full-text score of each word as a prefix, and keeps the best 8.
+- `SymbolLine` (children, outline): `{"id", "kind", "name", "signature",
+  "location", "depth", "exported"}`; `depth` (outline only, omitted at 0)
+  is the nesting.
+- `NeighborItem`: `{"from", "relation", "type", "to", "path", "line",
+  "confidence", "alias", "depth", "location"}`. `from` and `to` are
+  `{"label" (Symbol, File or Package), "layer", "id", "kind", "name",
+  "qualName", "path", "start"}`, always in the edge's own direction (the
+  caller in `from`, whichever end the walk started at); `type` the edge
+  (`CALLS`, `REFERENCES`, `IMPLEMENTS`, `EXTENDS`, `IMPORTS`); `path` and
+  `line` (and `location`, `path:line`) the site; `confidence` `exact`,
+  `qualified` or `name`; `alias` an import's; `depth` 1 for the start's own
+  neighbours.
+- `symbol` of the `symbol` route: `{"layer", "id", "kind", "name",
+  "qualName", "signature", "doc", "path", "start", "end", "exported",
+  "parent"}` with 1-based lines; without `doc` in `include` its `doc` is
+  cut to the first line.
+
+**Routes.**
+
+- `search`: `query` 1 to 1,024 bytes of text (no control characters; 400
+  "query must be 1 to 1024 bytes of text"); `kinds`, `langs` and `paths`
+  at most 32 values each, every value 1 to 1,024 bytes of text; `paths` are
+  prefixes (`a/b` matches `a/b` and `a/b/…`).
+- `symbol`: exactly one of `id` and `qualName` (400 "symbol needs an id or a
+  qualName"), each at most 1,024 bytes; `include` values among `body`,
+  `doc`, `children` (default all three). The body is the symbol's lines
+  read from the blob of the visible file that holds it (redacted as
+  collected); a file without content gives no `body` and `bodyNote` ("the
+  file's content was not collected", "the file's content is not stored",
+  "the symbol's lines are outside the stored file"). An unknown or hidden
+  symbol is 404 "symbol not found".
+- `neighbors`: `relation` `callers` (incoming `CALLS`), `callees`
+  (outgoing `CALLS`), `references` (incoming `REFERENCES`),
+  `implementations` (incoming `IMPLEMENTS` and `EXTENDS`), each from the
+  symbol `id`; `imports` (outgoing `IMPORTS`) from the file `path`;
+  `importers` (incoming `IMPORTS`) to the `package` as the import forms
+  name it. `depth` 0 to 3 (0 is 1; imports and importers are one hop);
+  `limit` default 50, at most 500. A bad relation or depth, a missing start
+  or a bad path is 400; an unknown start 404 "start node not found".
+- `outline`: exactly one of `path` (a clean, relative path) and `package`
+  (at most 1,024 bytes); the files of the view with that path or package,
+  and their symbol trees flattened in order. Unknown is 404 "path or
+  package not found".
+- `context`: `task` 1 to 1,024 bytes of text. `budget` (or `max_tokens`) is
+  the token budget, default 6,000. The first page holds the hits and one hop
+  of `callers` and `callees` of each (5 per hit and relation, an edge
+  between two hits once), each list in at most a third of the budget, then
+  the bodies of the hits, best first, while they fit. `next` continues the
+  bodies; a continuation always returns at least one body (clipped when it
+  alone is over the budget) and no hits or neighbours.
+
+**Token caps.** `max_tokens` (default 2,000; `context` 6,000; at least 200)
+bounds the result, estimated as the JSON's length over four as the session
+tools do (section 6.1). A list that does not fit is cut, `"truncated":
+true`, and `"next"` is a cursor: the same body with `"cursor": next`
+continues after the last item. A `symbol` body continues at the next line
+of the symbol (its `body.location` says which lines it holds); a single line
+over the budget is clipped (`…[N characters clipped]`). A cursor is bound to
+its route (another route's, or a malformed one, is 400 `invalid`).
+
+**Errors.**
+
+| Condition | Status | Kind |
+|---|---|---|
+| Body, view, filter, cursor or start invalid (a `ref` git refuses, a `session_id` not 1 to 128 of `[A-Za-z0-9._-]`) | 400 | `invalid` |
+| Unknown or another account's session; unknown symbol, start node, path or package | 404 | `not_found` |
+| The graph cannot be reached (`codegraph.ErrUnavailable`) | 503 | `unavailable`, "the code graph is unavailable; search the files directly", `Retry-After: 30` |
+| Any other graph or store failure | 503 | `unavailable`, "the code graph failed: …", `Retry-After: 30` |
 
 ## 8. The remote client
 
@@ -1840,11 +2040,13 @@ session the store did not hold, and it prints `{"sessions", "lines",
 Server (`mind-palace server …`):
 
 ```
-run [--addr host:port] [--tls-cert file --tls-key file | --behind-proxy] [--tokens file] [--session-config file] [--store memory] [--code-store mongo|memory|off] [--version v]
+run [--addr host:port] [--tls-cert file --tls-key file | --behind-proxy] [--tokens file] [--session-config file] [--store memory] [--code-store mongo|memory|off] [--graph redis://…|memory|off] [--version v]
+graph rebuild <project>… [--wait 2m] [--graph redis://…] [--code-store mongo] [--session-config file]
+graph status <project>… [--check [--repair]] [--graph redis://…] [--code-store mongo] [--session-config file]
 token create --name <name> [--project <slug>]… [--account <id>] [--environment [--ttl 24h]] [--tokens file]
 token list | token revoke <name> | token grant <name> --project <slug>…
 device list | device approve <code> [--name n] [--project slug]… | device deny <code>   (each takes --server, --token, --ca-file, --insecure; defaults from the clued config)
-init [--dir ~/.clued-server] [--runtime auto|compose|apple] [--proxy nginx|none] [--port 8443] [--host name]… [--name token] [--no-tls] [--force] [--new-ca] [--no-token] [--account id] [--image ref] [--nginx-image ref] [--mongo-image ref]
+init [--dir ~/.clued-server] [--runtime auto|compose|apple] [--proxy nginx|none] [--port 8443] [--host name]… [--name token] [--no-tls] [--force] [--new-ca] [--no-token] [--account id] [--image ref] [--nginx-image ref] [--mongo-image ref] [--falkordb-image ref]
 trust [--dir ~/.clued-server] [--ca file] [--url https://localhost:8443] [--remove] [--dry-run]
 ```
 
@@ -1860,10 +2062,23 @@ or `up.sh`, `down.sh` and `launchd/com.robbiebyrd.clued-server.plist` for
 Apple Containers; plus `stack.json` (the runtime and the commands),
 `nginx/clued.conf`, `mind-palace.config.yaml`, a private CA and certificate
 under `tls/` and the first token in `tokens.json`. The other runtime's
-files are removed. It prints `{"dir", "runtime", "compose_file" (compose
-only), "proxy", "port", "server_url", "ca_file", "hosts", "tls", "ca",
-"ca_fingerprint", "token", "up", "down", "logs", "health", "written",
-"kept", "notes"}`; `up` starts the stack, `down` stops it (the data stays),
+files are removed. The stack runs a FalkorDB container for the code graph
+(`--falkordb-image`, default `falkordb/falkordb:v4.22.1`: no published
+port, no browser, persistence off) and the server with
+`CLUED_SERVER_CODE_STORE=mongo` and `CLUED_SERVER_GRAPH` from `graph.env`,
+started once FalkorDB is healthy. Three files carry FalkorDB's password,
+all mode 0600 and never in the compose file, a command line or the result:
+`falkordb.password` (32 random bytes as hex, generated once and kept on
+reruns; a kept one must be 16 or more letters and digits, `BadRequest`
+otherwise), `falkordb.env` (`REDIS_ARGS=--requirepass <password> --save
+--appendonly no` and `REDISCLI_AUTH=<password>` for the health check) and
+`graph.env` (`CLUED_SERVER_GRAPH=redis://default:<password>@falkordb:6379`;
+`up.sh` renders `run/graph.env` with FalkorDB's address of that start). It
+prints `{"dir", "runtime", "compose_file" (compose only), "proxy", "port",
+"server_url", "ca_file", "hosts", "tls", "ca", "ca_fingerprint", "token",
+"up", "down", "logs", "health", "graph", "written", "kept", "notes"}`;
+`graph` is `generated` or `kept` for FalkorDB's password; `up` starts the
+stack, `down` stops it (the data stays),
 `logs` shows the server's log. `tls` is `generated`, `kept`, `supplied` (`--no-tls`)
 or `none` (`--proxy none`) for the certificates; `ca` is `generated` or `kept` for the CA and `ca_fingerprint`
 its SHA-256 (hex). The CA is name-constrained to `hosts` (critical DNS name
@@ -1898,6 +2113,51 @@ the code transport (section 7.12): `mongo` (the default, and what `server
 init`'s stack sets) keeps it in the session config's MongoDB, `memory` (the
 default with `--store memory`) in the process, and `off` serves no code
 routes (each answers 404). Another value is `BadRequest`, exit 2.
+
+`run --graph` (`CLUED_SERVER_GRAPH`) turns on the code graph: a FalkorDB
+URL, `redis://[user:password@]host:port[/db]` (`rediss://` for TLS), or
+`memory` (in the process, for tests); empty or `off` leaves it off. The
+server then runs the indexer (`codeindex.Service`: each namespaced project's
+change log in batches of 500 under a one-minute lease and a cursor, woken by
+every commit to the code transport and polling every 2 s, parsed with
+`codeparse` and resolved per layer; an hourly consistency check that
+repairs drift) and serves the graph read routes (section 7.14). Cursors and
+leases live in the session MongoDB's `code_index_cursors` under
+`--code-store mongo`, in memory otherwise. The URL is not dialled at start:
+an unreachable FalkorDB makes the indexer back off (up to 5 minutes, the
+cursor not moving) and the routes answer 503. `--graph` with `--code-store
+off`, or a value that is none of these, is `BadRequest`, exit 2 (the error
+never repeats the URL, which may hold the password).
+
+`graph rebuild` and `graph status` work on the graphs of a running server's
+projects, from another process against the same stores: the code stores
+and cursors in the session config's MongoDB (`--session-config`,
+`CLUED_MONGO_URL`, `CLUED_DB_NAME`) and the FalkorDB of `--graph` (default
+`$CLUED_SERVER_GRAPH`; required, `BadRequest` without it).
+`--code-store` (default `$CLUED_SERVER_CODE_STORE`, then `mongo`) must be
+`mongo` (`BadRequest` otherwise). A project is its namespaced key as the
+code store names it (on `server run`, the slug). Each takes the project's
+lease, so it never writes while the server's indexer does. `rebuild` drops
+each graph and writes it again from the project's current trees, then
+moves the cursor to the end of the log; a project leased by another worker
+is retried every second until `--wait` (default 2 minutes) runs out, then
+`Conflict`, exit 9. It prints `{"ok": true, "result": [{"project", "seq",
+"changes", "layers", "files"}]}` (`seq` the new cursor, `changes` the log
+entries read past the old one, `layers` and `files` what the graph now
+holds, tombstones included). `status` prints `{"ok": true, "result":
+[{"project", "seq", "updatedAt", "pending", "pendingMore", "holder",
+"leaseUntil", "trees", "layers": [{"layer": {"id", "kind", "parent",
+"owner", "ref", "commit", "updated"}, "files", "tombstones", "hash"}],
+"check"}]}` (`pending` counts the changes past the cursor, at most 10,000);
+`--check` adds `check`: `{"project", "seq", "behind", "layers": [{"layer",
+"files", "hash", "graphFiles", "graphHash", "node", "ok"}], "consistent",
+"repaired"}`, comparing each layer's file count, file hash and layer node
+with the selection of the current trees (a project whose log is ahead of
+its cursor is `behind` and not compared), and `--repair` writes the
+difference (`--repair` without `--check` is `BadRequest`). A leased
+project is `Conflict`, exit 9; an invalid project key `BadRequest`, exit
+2; an unreachable FalkorDB or MongoDB `ConnectError`, exit 1; another
+failure `StorageError`, exit 10.
 
 `run` reads the machine's plugin config for capture settings but clears its
 `serverUrl`, `serverToken` and `serverCaFile`: the server stores what it
