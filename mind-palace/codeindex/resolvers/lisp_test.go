@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -140,15 +142,15 @@ func lispIndex(t *testing.T, tree map[string]string) codegraph.Graph {
 	if err := store.PutWorktree(ctx, code.Worktree{ID: wt, Owner: "0123456789abcdef", DefaultBranch: "main"}); err != nil {
 		t.Fatal(err)
 	}
-	commit := sha1Hex("commit main")
+	commit := lispSHA1("commit main")
 	ch := code.Change{Worktree: wt, Ref: "main", Head: commit, Upstream: commit, Full: true}
 	for p, c := range tree {
-		sha := sha256Hex(c)
+		sha := lispSHA256(c)
 		if err := store.PutBlob(ctx, code.Blob{SHA256: sha, Size: int64(len(c)), Content: []byte(c)}); err != nil {
 			t.Fatal(err)
 		}
 		ch.Upserts = append(ch.Upserts, code.Entry{Path: p, SHA256: sha, Size: int64(len(c)),
-			GitOID: sha1Hex(c), Mode: "100644", Lang: "lisp"})
+			GitOID: lispSHA1(c), Mode: "100644", Lang: "lisp"})
 	}
 	if _, err := store.Commit(ctx, ch); err != nil {
 		t.Fatal(err)
@@ -163,12 +165,12 @@ func lispIndex(t *testing.T, tree map[string]string) codegraph.Graph {
 	return g
 }
 
-func sha1Hex(s string) string {
+func lispSHA1(s string) string {
 	h := sha1.Sum([]byte(s))
 	return hex.EncodeToString(h[:])
 }
 
-func sha256Hex(s string) string {
+func lispSHA256(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:])
 }
@@ -189,14 +191,14 @@ func lispCallees(t *testing.T, g codegraph.Graph, path, id string) map[string]st
 	return out
 }
 
-func wantLispEdges(t *testing.T, what string, got, want map[string]string) {
+func lispWantEdges(t *testing.T, what string, got, want map[string]string) {
 	t.Helper()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("%s:\n got %v\nwant %v", what, got, want)
 	}
 }
 
-func use(spec string) codeparse.Import { return codeparse.Import{Spec: spec, Kind: "use"} }
+func lispUse(spec string) codeparse.Import { return codeparse.Import{Spec: spec, Kind: "use"} }
 
 func TestResolve_lispCommonLisp(t *testing.T) {
 	main := lispFile("commonlisp", ":my-app").
@@ -215,7 +217,7 @@ func TestResolve_lispCommonLisp(t *testing.T) {
 		call("local", "x:helper")          // the qualifier beats the import
 	tree := map[string]string{
 		"src/package.lisp": lispFile("commonlisp", "").
-			defpackage("#:my-app", use(":cl"), use(":alexandria"),
+			defpackage("#:my-app", lispUse(":cl"), lispUse(":alexandria"),
 				codeparse.Import{Spec: ":util", Kind: "import_from", Names: []string{"#:helper"}}).src(),
 		"src/main.lisp":       main.src(),
 		"src/other.lisp":      lispFile("commonlisp", "#:my-app").fn("shared").src(),
@@ -225,7 +227,7 @@ func TestResolve_lispCommonLisp(t *testing.T) {
 		"clj/only.clj":        lispFile("clojure", "only").fn("only-in-clojure").src(),
 	}
 	g := lispIndex(t, tree)
-	wantLispEdges(t, "main", lispCallees(t, g, "src/main.lisp", ":my-app:main"), map[string]string{
+	lispWantEdges(t, "main", lispCallees(t, g, "src/main.lisp", ":my-app:main"), map[string]string{
 		"src/main.lisp#:my-app:local":             "exact",
 		"src/other.lisp##:my-app:shared":          "exact",
 		"lib/alexandria.lisp#:alexandria:flatten": "exact",
@@ -233,7 +235,7 @@ func TestResolve_lispCommonLisp(t *testing.T) {
 		`lib/util.lisp#"UTIL":internal-fn`:        "exact",
 		`lib/util.lisp#"UTIL":dupe`:               "name",
 	})
-	wantLispEdges(t, "local", lispCallees(t, g, "src/main.lisp", ":my-app:local"), map[string]string{
+	lispWantEdges(t, "local", lispCallees(t, g, "src/main.lisp", ":my-app:local"), map[string]string{
 		"lib/x.lisp#:x:helper": "exact",
 	})
 }
@@ -260,7 +262,7 @@ func TestResolve_lispClojure(t *testing.T) {
 		"cl/other.lisp":     lispFile("commonlisp", ":other").fn("nowhere").src(),
 	}
 	g := lispIndex(t, tree)
-	wantLispEdges(t, "run", lispCallees(t, g, "src/app/core.clj", "app.core:run"), map[string]string{
+	lispWantEdges(t, "run", lispCallees(t, g, "src/app/core.clj", "app.core:run"), map[string]string{
 		"src/app/util.clj#app.util:helper":  "exact",
 		"src/app/str.cljs#app.str:shout":    "exact",
 		"src/app/other.clj#app.other:thing": "exact",
@@ -282,7 +284,7 @@ func TestResolve_lispEmacsLisp(t *testing.T) {
 		"rkt/decoy.rkt":    lispFile("racket", "").fn("my-utils-fmt").src(),
 	}
 	g := lispIndex(t, tree)
-	wantLispEdges(t, "my-mode-start", lispCallees(t, g, "lisp/my-mode.el", "my-mode-start"), map[string]string{
+	lispWantEdges(t, "my-mode-start", lispCallees(t, g, "lisp/my-mode.el", "my-mode-start"), map[string]string{
 		"lisp/my-mode.el#my-mode--helper": "exact",
 		"lisp/my-utils.el#my-utils-fmt":   "exact",
 		"lisp/my-more.el#my-twice":        "name",
@@ -320,12 +322,12 @@ func TestResolve_lispRacketAndScheme(t *testing.T) {
 		"cl/decoy.lisp":        lispFile("commonlisp", ":decoy").fn("first", "fold").src(),
 	}
 	g := lispIndex(t, tree)
-	wantLispEdges(t, "racket main", lispCallees(t, g, "rkt/main.rkt", "main"), map[string]string{
+	lispWantEdges(t, "racket main", lispCallees(t, g, "rkt/main.rkt", "main"), map[string]string{
 		"rkt/util.rkt#util-fn": "exact",
 		"mylib/geom.rkt#area":  "exact",
 		"mylib/text.rkt#shout": "exact",
 	})
-	wantLispEdges(t, "scheme run", lispCallees(t, g, "scm/app.scm", "run"), map[string]string{
+	lispWantEdges(t, "scheme run", lispCallees(t, g, "scm/app.scm", "run"), map[string]string{
 		"impl/shapes-impl.scm#(mylib shapes):square": "exact",
 		"scm/geo.scm#dist":                           "exact",
 	})
@@ -368,6 +370,8 @@ func TestPackageKeys_lisp(t *testing.T) {
 		{"a/b.rkt", lispFile("racket", ""), "scheme:a/b"},
 		{"a/b.ss", lispFile("", ""), "scheme:a/b"},
 		{"a/b.scm", lispFile("scheme", "(foo bar (1 0))"), "scheme:foo/bar"},
+		{"a/q.scm", lispFile("scheme", "").def(codeparse.KindModule, "(data queue)"), "scheme:data/queue"},
+		{"a/s.rkt", lispFile("racket", "").def(codeparse.KindModule, "test"), "scheme:a/s"},
 	} {
 		f := &resolvers.File{Path: c.path, Lang: "lisp", Family: codeparse.FamilyLisp, Facts: &c.f.f}
 		got, err := r.Package(context.Background(), lispView{}, f)
@@ -404,7 +408,7 @@ func TestScope_lisp(t *testing.T) {
 	// A file of several packages' defpackages scopes none of them into
 	// another package; its own top-level imports stay its own.
 	pkgFile := file("pkgs.lisp", "commonlisp:cl-user", lispFile("commonlisp", "").
-		defpackage("a", use(":lib-a")).defpackage("b", use(":lib-b")).imp(use(":top")))
+		defpackage("a", lispUse(":lib-a")).defpackage("b", lispUse(":lib-b")).imp(lispUse(":top")))
 	s, err = r.Scope(context.Background(), lispView{}, pkgFile)
 	if err != nil {
 		t.Fatal(err)
@@ -429,4 +433,85 @@ func TestNames_lisp(t *testing.T) {
 			t.Errorf("SchemeLibraryName(%q) = %q, want %q", in, got, want)
 		}
 	}
+}
+
+// lispGolden is the facts the Lisp extractor wrote for a codeparse golden
+// input (codeparse/testdata/lisp), as a file's content for lispParse.
+func lispGolden(t *testing.T, name string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("..", "..", "codeparse", "testdata", "lisp", name+".facts.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+// TestResolve_lispGoldens resolves the extractor's own facts for the
+// family's golden inputs, beside hand-built files for the packages they
+// import.
+func TestResolve_lispGoldens(t *testing.T) {
+	tree := map[string]string{
+		"cl/geometry.lisp": lispGolden(t, "geometry.lisp"),
+		"cl/legacy.lisp":   lispGolden(t, "legacy.lisp"),
+		"cl/geometry.asd":  lispGolden(t, "geometry.asd"),
+		"cl/alexandria.lisp": lispFile("commonlisp", ":alexandria").
+			fn("ensure-list", "when-let").def(codeparse.KindClass, "mixin").src(),
+		"cl/legacy-internal.lisp": lispFile("commonlisp", ":legacy").fn("internal-check").src(),
+		"clj/shapes.clj":          lispGolden(t, "shapes.clj"),
+		"clj/util.cljc":           lispGolden(t, "util.cljc"),
+		"rkt/shapes.rkt":          lispGolden(t, "shapes.rkt"),
+		"rkt/private/util.rkt":    lispFile("racket", "").fn("log-shape").src(),
+		"scm/queue.scm":           lispGolden(t, "queue.scm"),
+		"scm/modules.ss":          lispGolden(t, "modules.ss"),
+		"scm/user.scm": lispFile("scheme", "").imp(codeparse.Import{Spec: "(data queue)", Kind: "import"}).
+			imp(codeparse.Import{Spec: "(app main)", Kind: "import"}).
+			fn("go").call("go", "make-queue").call("go", "adder").src(),
+		"el/tidy-mode.el": lispGolden(t, "tidy-mode.el"),
+	}
+	g := lispIndex(t, tree)
+	has := func(what string, got map[string]string, want map[string]string) {
+		t.Helper()
+		for k, v := range want {
+			if got[k] != v {
+				t.Errorf("%s: %s = %q, want %q (all: %v)", what, k, got[k], v, got)
+			}
+		}
+	}
+	// Common Lisp: a local nickname (:local-nicknames (:a :alexandria)),
+	// :import-from, the file's own package and a pkg::name qualifier in
+	// another case than the in-package form.
+	has("total-area", lispCallees(t, g, "cl/geometry.lisp", "geometry:total-area"), map[string]string{
+		"cl/alexandria.lisp#:alexandria:ensure-list": "exact",
+	})
+	has("draw-all", lispCallees(t, g, "cl/geometry.lisp", "geometry:draw-all"), map[string]string{
+		"cl/alexandria.lisp#:alexandria:when-let": "exact",
+	})
+	has("helper-at-compile-time", lispCallees(t, g, "cl/legacy.lisp", "LEGACY:helper-at-compile-time"), map[string]string{
+		"cl/legacy-internal.lisp#:legacy:internal-check": "exact",
+	})
+	// Clojure: :refer and an :as alias of another golden's namespace.
+	has("sized", lispCallees(t, g, "clj/shapes.clj", "geometry.shapes:sized"), map[string]string{
+		"clj/util.cljc#geometry.util:clamp":  "exact",
+		"clj/util.cljc#geometry.util:square": "exact",
+	})
+	// Racket: a relative require opens private/util.rkt; the file's own
+	// definitions come first.
+	has("with-shape", lispCallees(t, g, "rkt/shapes.rkt", "with-shape"), map[string]string{
+		"rkt/private/util.rkt#log-shape": "exact",
+	})
+	has("total-area", lispCallees(t, g, "rkt/shapes.rkt", "total-area"), map[string]string{
+		"rkt/shapes.rkt#area": "exact",
+	})
+	// Scheme: libraries declared by define-library and Guile's
+	// define-module, imported by name from another directory. The
+	// extractor nests a define-library's definitions under the library
+	// form, so they are not top level and the import step (top-level
+	// definitions only) passes them by: the name fallback finds them.
+	has("go", lispCallees(t, g, "scm/user.scm", "go"), map[string]string{
+		"scm/queue.scm#(data queue):make-queue": "name",
+		"scm/modules.ss#adder":                  "exact",
+	})
+	has("dequeue", lispCallees(t, g, "scm/queue.scm", "(data queue):dequeue"), map[string]string{
+		"scm/queue.scm#(data queue):queue-empty?": "exact",
+	})
 }

@@ -19,10 +19,11 @@ import (
 //     (cl-user without one; a file whose only package form is the
 //     defpackage of one package, as package.lisp, belongs to that
 //     package). Package names compare without case and without their
-//     #:, : or string spelling. The :use and :import-from clauses of a
-//     package's defpackage hold for every file of the package: :use opens
-//     the used package, :import-from binds its names. pkg:name and
-//     pkg::name reach any package of the project.
+//     #:, : or string spelling. The :use, :import-from and
+//     :local-nicknames clauses of a package's defpackage hold for every
+//     file of the package: :use opens the used package, :import-from binds
+//     its names, a local nickname is a qualifier. pkg:name and pkg::name
+//     reach any package of the project.
 //   - Clojure: a file belongs to its ns (user without one). A :require
 //     binds the namespace's full name and its :as alias as qualifiers and
 //     its :refer names as bare names; :import (Java classes) binds
@@ -31,7 +32,8 @@ import (
 //     scope nothing.
 //   - Scheme and Racket: a file is its own module, keyed by its path
 //     without the extension, unless it declares a library name
-//     (define-library, define-module: (foo bar) is foo/bar). An import or
+//     (define-library, define-module, as the package or a top-level module
+//     definition: (foo bar) is foo/bar). An import or
 //     require names a module by a path relative to the file ("util.rkt"),
 //     a library name ((foo bar)) or a collection path (mylib/util), looked
 //     up from the file's directory towards the root; a whole-module import
@@ -43,7 +45,10 @@ import (
 // alone). A bare name no scope defines falls back to any definition of the
 // dialect group with that name (confidence name); a qualifier that names no
 // package of the project leaves the reference unresolved (no member
-// fallback: a Lisp qualifier is a package, never an expression).
+// fallback: a Lisp qualifier is a package, never an expression). A Scheme or
+// Racket prefix (prefix-in str:, (prefix (lib) p:)) is bound as a
+// qualifier, so a reference reaches it only when the extractor splits the
+// prefix off the name.
 func init() { Register(codeparse.FamilyLisp, lisp{}) }
 
 type lisp struct{}
@@ -159,10 +164,34 @@ func (lisp) Package(_ context.Context, _ View, f *File) (string, error) {
 		if name := SchemeLibraryName(declared); name != "" {
 			return lispKey(g, name), nil
 		}
+		if name := schemeDeclaredLibrary(f); name != "" {
+			return lispKey(g, name), nil
+		}
 		return lispKey(g, strings.TrimSuffix(f.Path, path.Ext(f.Path))), nil
 	default: // Emacs Lisp: one global namespace
 		return lispKey(g, ""), nil
 	}
+}
+
+// schemeDeclaredLibrary is the library a Scheme file declares
+// (define-library, define-module, library: a top-level module whose name is
+// a list), "" when it declares none or several. A Racket module form names
+// a submodule, never the file.
+func schemeDeclaredLibrary(f *File) string {
+	if f.Facts == nil || LispDialect(f) != LispScheme {
+		return ""
+	}
+	name := ""
+	for _, s := range f.Facts.Symbols {
+		if s.Parent != "" || s.Kind != codeparse.KindModule || !strings.HasPrefix(strings.TrimSpace(s.Name), "(") {
+			continue
+		}
+		if name != "" {
+			return ""
+		}
+		name = SchemeLibraryName(s.Name)
+	}
+	return name
 }
 
 // lispPackageDef is a Common Lisp defpackage of a file: the package's name
@@ -241,6 +270,8 @@ func commonLispScope(s *Scope, v View, f *File) {
 						s.AddName(n, pkg)
 					}
 				}
+			case im.Alias != "":
+				s.AddQualifier(im.Alias, pkg) // :local-nicknames
 			case im.Kind == "use":
 				s.AddOpen(pkg)
 			}
@@ -346,7 +377,7 @@ func schemeModule(v View, f *File, im codeparse.Import) (string, bool) {
 		return k, name != "" && len(v.Package(codeparse.FamilyLisp, k)) > 0
 	}
 	spec := strings.TrimSpace(im.Spec)
-	if strings.HasPrefix(spec, `"`) || im.Kind == "include" || (path.Ext(spec) != "" && !strings.HasPrefix(spec, "(")) {
+	if strings.HasPrefix(spec, `"`) || im.Kind == "include" || lispFileExt(spec) {
 		// A file, relative to the importing one.
 		rel := strings.Trim(spec, `"`)
 		if rel == "" || path.IsAbs(rel) {
@@ -381,6 +412,20 @@ func schemeModule(v View, f *File, im codeparse.Import) (string, bool) {
 			return "", false
 		}
 	}
+}
+
+// lispFileExt reports whether spec names a file by a Lisp extension
+// ("util.rkt", "private/util.rkt"), unlike a dotted module name
+// (chicken.string).
+func lispFileExt(spec string) bool {
+	if strings.HasPrefix(spec, "(") {
+		return false
+	}
+	switch path.Ext(spec) {
+	case ".rkt", ".scm", ".ss", ".sls", ".sld", ".sch", ".lisp", ".lsp", ".cl", ".el":
+		return true
+	}
+	return false
 }
 
 // Visible implements Resolver: a definition of the same dialect group, of
