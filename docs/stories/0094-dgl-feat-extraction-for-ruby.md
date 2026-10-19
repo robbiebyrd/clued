@@ -3,11 +3,13 @@ id: 0094-dgl
 title: Extraction for Ruby
 purpose: 'Adds Ruby to the indexer: files .rb, .rake, Gemfile.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:02.491Z"
-updated: "2026-10-19T18:30:22.220Z"
+updated: "2026-10-19T20:54:44.418Z"
+started: "2026-10-19T20:46:53.533Z"
+completed: "2026-10-19T20:54:44.418Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for Ruby
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/ruby'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/ruby'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/ruby'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/ruby'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/ruby.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:54:39.246Z - Ruby extraction: grammars/ruby.go registers gotreesitter's ruby grammar (already in go.mod; no go.mod/go.sum change). queries/ruby/tags.scm captures modules and classes (compact Shop::Billing names via @receiver), Class/Struct/Data.new and Module.new assignments, methods (top-level def as function, def self.x, def Const.x, alias), constants (=, ||=, Scope::X =, multiple assignment), defining forms attr_*/define_method/alias_method and Rake namespace/task (with desc as doc; symbol colons stripped with #strip!), imports require/require_relative/load/autoload and Gemfile gem, references: calls with receivers as qualifier, superclass and include/extend/prepend as extends, constants as type (SCREAMING_CASE as value). profile.yaml: family ruby, .rb/.rake/Gemfile, definingForms, scope separators ::, packageBy none, options for the resolver (loadPath lib, requireRelative file, lexical nesting, mixins). Goldens: order.rb, nesting.rb, tasks.rake, Gemfile, broken.rb (5 inputs, reviewed by hand); go test -race ./codeparse/... passes, gofmt/vet/build clean. Engine notes, not changed (shared files): the default signature of a module/class whose body starts with a comment includes that comment (module Shop # ...); @receiver is ignored when the definition has a lexical container, so class Reports::Monthly inside Billing::Invoice is qualified Billing::Invoice::Monthly. Bare identifiers are not call references (no local-variable tracking).
