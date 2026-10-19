@@ -174,8 +174,10 @@
 
 ; type Alias = ... (Python 3.12)
 (type_alias_statement
-  left: (type [(identifier) @name
-               (generic_type (identifier) @name)])) @definition.type
+  left: (type (identifier) @name)) @definition.type
+
+(type_alias_statement
+  left: (type (generic_type (identifier) @name))) @definition.type
 
 ; ---- references: calls (builtins left out) and decorators
 
@@ -206,20 +208,32 @@
     object: (_) @qualifier
     attribute: (identifier) @name) @reference.call)
 
-; ---- inheritance: the bases of a class (Base, pkg.Base, Generic[T])
+; ---- inheritance: the bases of a class (Base, pkg.Base, Generic[T]),
+; one pattern per form (an alternation of patterns that capture @name can
+; give every match the first alternative's @name in gotreesitter v0.56.0).
+
+((class_definition
+  superclasses: (argument_list
+    (identifier) @name) @reference.extends)
+  (#not-eq? @name "object"))
 
 (class_definition
   superclasses: (argument_list
-    [(identifier) @name
-     (attribute
-       object: (_) @qualifier
-       attribute: (identifier) @name)
-     (subscript
-       value: [(identifier) @name
-               (attribute
-                 object: (_) @qualifier
-                 attribute: (identifier) @name)])]) @reference.extends
-  (#not-eq? @name "object"))
+    (attribute
+      object: (_) @qualifier
+      attribute: (identifier) @name) @reference.extends))
+
+(class_definition
+  superclasses: (argument_list
+    (subscript
+      value: (identifier) @name) @reference.extends))
+
+(class_definition
+  superclasses: (argument_list
+    (subscript
+      value: (attribute
+        object: (_) @qualifier
+        attribute: (identifier) @name)) @reference.extends))
 
 ; ---- types: names in annotations and caught exceptions
 
