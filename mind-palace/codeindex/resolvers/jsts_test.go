@@ -183,11 +183,14 @@ func Test_jstsGoldensJavaScript(t *testing.T) {
 	})
 	wantBound(t, "App.jsx name", s.Names, map[string][]string{
 		"useState":       {"npm:react"},
-		"useEffect":      nil, // `useEffect as useMountEffect`: a renamed import binds nothing
+		"useEffect":      nil, // `useEffect as useMountEffect`: renamed (Scope.Renamed)
 		"useMountEffect": nil,
 		"Button":         {"src/Button.jsx"},
 		"React":          {"npm:react"},
 	})
+	if want := []Original{{Package: "npm:react", Name: "useEffect"}}; !reflect.DeepEqual(s.Renamed["useMountEffect"], want) {
+		t.Errorf("App.jsx renamed useMountEffect = %v, want %v", s.Renamed["useMountEffect"], want)
+	}
 	if len(s.Open) != 0 {
 		t.Errorf("App.jsx open: %v", s.Open)
 	}
@@ -210,11 +213,14 @@ func Test_jstsGoldensJavaScript(t *testing.T) {
 	wantBound(t, "reexports.js name", s.Names, map[string][]string{
 		"round": nil,
 		"a":     {"npm:quoted-lib"},
-		"b":     nil, // `b as c`: a renamed import binds nothing
+		"b":     nil, // `b as c`: renamed (Scope.Renamed)
 		"c":     nil,
 		"d":     {"npm:quoted-lib"}, // `default as d`
 		"Store": {"src/store.cjs"},
 	})
+	if want := []Original{{Package: "npm:quoted-lib", Name: "b"}}; !reflect.DeepEqual(s.Renamed["c"], want) {
+		t.Errorf("reexports.js renamed c = %v, want %v", s.Renamed["c"], want)
+	}
 
 	s = v.scope(store)
 	wantBound(t, "store.cjs qualifier", s.Qualifiers, map[string][]string{

@@ -86,7 +86,8 @@ func jstsProject(t *testing.T, files map[string]string) func(path, id string) []
 }
 
 // TestResolve_jsts_RenamedAndMembers: a renamed import (import {a as b},
-// and one a re-export renamed, export {a as b} from) reaches the original
+// const {a: b} = require(), and one a re-export renamed, export {a as b}
+// from) reaches the original
 // definition, and a member of the class a module exports is qualified
 // through the import's qualifier, whatever the importer calls it
 // (ImportMembers; it was a name match).
@@ -106,9 +107,11 @@ export function main(): void {
 }
 `,
 		"src/old.js": `import api from "./client";
+const { readFile: rf } = require("./fs");
 
 function run() {
   api.create();
+  rf("x");
 }
 `,
 	})
@@ -121,6 +124,7 @@ function run() {
 	}
 	if got, want := callees("src/old.js", "run"), []string{
 		"src/client.ts#Client.create qualified",
+		"src/fs.ts#readFile exact",
 	}; !reflect.DeepEqual(got, want) {
 		t.Errorf("run:\n got %v\nwant %v", got, want)
 	}

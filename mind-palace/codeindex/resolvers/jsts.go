@@ -186,7 +186,10 @@ func (jsts) Visible(f *File, c Candidate, step Step) bool {
 	moduleLevel := sym.Parent == "" && sym.QualName == sym.Name
 	switch step {
 	case StepImport, StepOpen:
-		return moduleLevel
+		// A module-level definition, or an exported member of one (the
+		// engine's ImportMembers: ns.f for a class or object the module
+		// exports).
+		return moduleLevel || (sym.Parent != "" && sym.Exported)
 	case StepName:
 		if jsImportsName(f, sym.Name) {
 			return false
