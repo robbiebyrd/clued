@@ -1,0 +1,27 @@
+# OCaml: every file is its own module, named after the file (foo.ml and
+# foo.mli are module Foo); an .mli is the interface of the .ml beside it
+# and decides what the module exports. Names are reached through `open`,
+# `include`, local opens (`let open M in`, `M.(e)`) and qualified paths
+# (`Module.name`); a dune file's `(library (name ...))` names the library
+# module that wraps a directory's modules (the ocaml family resolver).
+name: OCaml
+family: ocaml
+extensions: [.ml, .mli]
+query: tags.scm
+dialects:
+  # gotreesitter ships no ocaml_interface grammar; the ocaml grammar parses
+  # signature items (val, module type, external), so .mli uses it too.
+  interface:
+    grammar: ocaml
+    query: tags.scm
+kinds:
+  definition.value: var
+scope:
+  separators: ["."]
+  packageBy: file
+  exported: all
+  options:
+    moduleName: capitalizedFileName
+    interfaceExtension: .mli
+    implementationExtension: .ml
+    libraryFile: dune

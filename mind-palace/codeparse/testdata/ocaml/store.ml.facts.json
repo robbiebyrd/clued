@@ -1,0 +1,1197 @@
+{
+  "lang": "ocaml",
+  "symbols": [
+    {
+      "id": "SMap",
+      "kind": "module",
+      "name": "SMap",
+      "qualName": "SMap",
+      "signature": "SMap =",
+      "start": {
+        "line": 7,
+        "column": 7,
+        "offset": 113
+      },
+      "end": {
+        "line": 7,
+        "column": 31,
+        "offset": 137
+      },
+      "exported": true
+    },
+    {
+      "id": "L",
+      "kind": "module",
+      "name": "L",
+      "qualName": "L",
+      "signature": "L =",
+      "start": {
+        "line": 8,
+        "column": 7,
+        "offset": 145
+      },
+      "end": {
+        "line": 8,
+        "column": 15,
+        "offset": 153
+      },
+      "exported": true
+    },
+    {
+      "id": "Json",
+      "kind": "module",
+      "name": "Json",
+      "qualName": "Json",
+      "signature": "Json =",
+      "start": {
+        "line": 9,
+        "column": 7,
+        "offset": 161
+      },
+      "end": {
+        "line": 9,
+        "column": 25,
+        "offset": 179
+      },
+      "exported": true
+    },
+    {
+      "id": "BACKEND",
+      "kind": "interface",
+      "name": "BACKEND",
+      "qualName": "BACKEND",
+      "signature": "module type BACKEND =",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 181
+      },
+      "end": {
+        "line": 15,
+        "column": 3,
+        "offset": 297
+      },
+      "exported": true
+    },
+    {
+      "id": "BACKEND.conn",
+      "kind": "type",
+      "name": "conn",
+      "qualName": "BACKEND.conn",
+      "signature": "conn",
+      "start": {
+        "line": 12,
+        "column": 7,
+        "offset": 214
+      },
+      "end": {
+        "line": 12,
+        "column": 11,
+        "offset": 218
+      },
+      "parent": "BACKEND",
+      "exported": true
+    },
+    {
+      "id": "BACKEND.connect",
+      "kind": "function",
+      "name": "connect",
+      "qualName": "BACKEND.connect",
+      "signature": "val connect : string -\u003e conn",
+      "start": {
+        "line": 13,
+        "column": 2,
+        "offset": 221
+      },
+      "end": {
+        "line": 13,
+        "column": 30,
+        "offset": 249
+      },
+      "parent": "BACKEND",
+      "exported": true
+    },
+    {
+      "id": "BACKEND.get",
+      "kind": "function",
+      "name": "get",
+      "qualName": "BACKEND.get",
+      "signature": "val get : conn -\u003e string -\u003e string option",
+      "start": {
+        "line": 14,
+        "column": 2,
+        "offset": 252
+      },
+      "end": {
+        "line": 14,
+        "column": 43,
+        "offset": 293
+      },
+      "parent": "BACKEND",
+      "exported": true
+    },
+    {
+      "id": "Make",
+      "kind": "functor",
+      "name": "Make",
+      "qualName": "Make",
+      "signature": "Make (B : BACKEND) : S with type key = string =",
+      "doc": "Build a store over any backend.",
+      "start": {
+        "line": 18,
+        "column": 7,
+        "offset": 345
+      },
+      "end": {
+        "line": 31,
+        "column": 3,
+        "offset": 746
+      },
+      "exported": true
+    },
+    {
+      "id": "Make.key",
+      "kind": "type",
+      "name": "key",
+      "qualName": "Make.key",
+      "signature": "key =",
+      "start": {
+        "line": 19,
+        "column": 7,
+        "offset": 407
+      },
+      "end": {
+        "line": 19,
+        "column": 19,
+        "offset": 419
+      },
+      "parent": "Make",
+      "exported": true
+    },
+    {
+      "id": "Make.t",
+      "kind": "struct",
+      "name": "t",
+      "qualName": "Make.t",
+      "signature": "t =",
+      "start": {
+        "line": 20,
+        "column": 7,
+        "offset": 427
+      },
+      "end": {
+        "line": 20,
+        "column": 59,
+        "offset": 479
+      },
+      "parent": "Make",
+      "exported": true
+    },
+    {
+      "id": "Make.t.conn",
+      "kind": "field",
+      "name": "conn",
+      "qualName": "Make.t.conn",
+      "signature": "conn : B.conn",
+      "start": {
+        "line": 20,
+        "column": 13,
+        "offset": 433
+      },
+      "end": {
+        "line": 20,
+        "column": 26,
+        "offset": 446
+      },
+      "parent": "Make.t",
+      "exported": true
+    },
+    {
+      "id": "Make.t.cache",
+      "kind": "field",
+      "name": "cache",
+      "qualName": "Make.t.cache",
+      "signature": "mutable cache : string SMap.t",
+      "start": {
+        "line": 20,
+        "column": 28,
+        "offset": 448
+      },
+      "end": {
+        "line": 20,
+        "column": 57,
+        "offset": 477
+      },
+      "parent": "Make.t",
+      "exported": true
+    },
+    {
+      "id": "Make.create",
+      "kind": "function",
+      "name": "create",
+      "qualName": "Make.create",
+      "signature": "create url =",
+      "start": {
+        "line": 22,
+        "column": 6,
+        "offset": 487
+      },
+      "end": {
+        "line": 22,
+        "column": 63,
+        "offset": 544
+      },
+      "parent": "Make",
+      "exported": true
+    },
+    {
+      "id": "Make.find",
+      "kind": "function",
+      "name": "find",
+      "qualName": "Make.find",
+      "signature": "find t k =",
+      "start": {
+        "line": 24,
+        "column": 6,
+        "offset": 552
+      },
+      "end": {
+        "line": 30,
+        "column": 7,
+        "offset": 742
+      },
+      "parent": "Make",
+      "exported": true
+    },
+    {
+      "id": "Memory",
+      "kind": "module",
+      "name": "Memory",
+      "qualName": "Memory",
+      "signature": "Memory : BACKEND =",
+      "start": {
+        "line": 33,
+        "column": 7,
+        "offset": 755
+      },
+      "end": {
+        "line": 37,
+        "column": 3,
+        "offset": 904
+      },
+      "exported": true
+    },
+    {
+      "id": "Memory.conn",
+      "kind": "type",
+      "name": "conn",
+      "qualName": "Memory.conn",
+      "signature": "conn =",
+      "start": {
+        "line": 34,
+        "column": 7,
+        "offset": 788
+      },
+      "end": {
+        "line": 34,
+        "column": 40,
+        "offset": 821
+      },
+      "parent": "Memory",
+      "exported": true
+    },
+    {
+      "id": "Memory.connect",
+      "kind": "function",
+      "name": "connect",
+      "qualName": "Memory.connect",
+      "signature": "connect _ =",
+      "start": {
+        "line": 35,
+        "column": 6,
+        "offset": 828
+      },
+      "end": {
+        "line": 35,
+        "column": 35,
+        "offset": 857
+      },
+      "parent": "Memory",
+      "exported": true
+    },
+    {
+      "id": "Memory.get",
+      "kind": "function",
+      "name": "get",
+      "qualName": "Memory.get",
+      "signature": "get conn k =",
+      "start": {
+        "line": 36,
+        "column": 6,
+        "offset": 864
+      },
+      "end": {
+        "line": 36,
+        "column": 42,
+        "offset": 900
+      },
+      "parent": "Memory",
+      "exported": true
+    },
+    {
+      "id": "Mem_store",
+      "kind": "module",
+      "name": "Mem_store",
+      "qualName": "Mem_store",
+      "signature": "Mem_store =",
+      "start": {
+        "line": 39,
+        "column": 7,
+        "offset": 913
+      },
+      "end": {
+        "line": 39,
+        "column": 32,
+        "offset": 938
+      },
+      "exported": true
+    },
+    {
+      "id": "to_json",
+      "kind": "function",
+      "name": "to_json",
+      "qualName": "to_json",
+      "signature": "to_json (pairs : (string * string) list) : Json.t =",
+      "start": {
+        "line": 41,
+        "column": 4,
+        "offset": 944
+      },
+      "end": {
+        "line": 42,
+        "column": 53,
+        "offset": 1049
+      },
+      "exported": true
+    },
+    {
+      "id": "keys",
+      "kind": "function",
+      "name": "keys",
+      "qualName": "keys",
+      "signature": "keys m =",
+      "start": {
+        "line": 44,
+        "column": 4,
+        "offset": 1055
+      },
+      "end": {
+        "line": 44,
+        "column": 41,
+        "offset": 1092
+      },
+      "exported": true
+    },
+    {
+      "id": "count_keys",
+      "kind": "function",
+      "name": "count_keys",
+      "qualName": "count_keys",
+      "signature": "count_keys m =",
+      "start": {
+        "line": 46,
+        "column": 4,
+        "offset": 1098
+      },
+      "end": {
+        "line": 48,
+        "column": 17,
+        "offset": 1146
+      },
+      "exported": true
+    },
+    {
+      "id": "dump",
+      "kind": "function",
+      "name": "dump",
+      "qualName": "dump",
+      "signature": "dump m =",
+      "start": {
+        "line": 50,
+        "column": 4,
+        "offset": 1152
+      },
+      "end": {
+        "line": 50,
+        "column": 42,
+        "offset": 1190
+      },
+      "exported": true
+    },
+    {
+      "id": "lookup",
+      "kind": "function",
+      "name": "lookup",
+      "qualName": "lookup",
+      "signature": "lookup store k =",
+      "start": {
+        "line": 52,
+        "column": 4,
+        "offset": 1196
+      },
+      "end": {
+        "line": 53,
+        "column": 76,
+        "offset": 1289
+      },
+      "exported": true
+    },
+    {
+      "id": "first_class",
+      "kind": "var",
+      "name": "first_class",
+      "qualName": "first_class",
+      "signature": "first_class =",
+      "start": {
+        "line": 55,
+        "column": 4,
+        "offset": 1295
+      },
+      "end": {
+        "line": 55,
+        "column": 43,
+        "offset": 1334
+      },
+      "exported": true
+    },
+    {
+      "id": "host",
+      "kind": "function",
+      "name": "host",
+      "qualName": "host",
+      "signature": "host r =",
+      "start": {
+        "line": 57,
+        "column": 4,
+        "offset": 1340
+      },
+      "end": {
+        "line": 57,
+        "column": 26,
+        "offset": 1362
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "Stdlib",
+      "kind": "open",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 63
+      }
+    },
+    {
+      "spec": "Base",
+      "kind": "open",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 75
+      }
+    },
+    {
+      "spec": "Store_intf",
+      "kind": "include",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 86
+      }
+    },
+    {
+      "spec": "L",
+      "kind": "local_open",
+      "start": {
+        "line": 47,
+        "column": 6,
+        "offset": 1119
+      }
+    },
+    {
+      "spec": "String",
+      "kind": "local_open",
+      "start": {
+        "line": 50,
+        "column": 13,
+        "offset": 1161
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Make",
+      "qualifier": "Map",
+      "kind": "call",
+      "start": {
+        "line": 7,
+        "column": 18,
+        "offset": 124
+      },
+      "enclosing": "SMap"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 7,
+        "column": 24,
+        "offset": 130
+      },
+      "enclosing": "SMap"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 11,
+        "offset": 149
+      },
+      "enclosing": "L"
+    },
+    {
+      "name": "Safe",
+      "qualifier": "Yojson",
+      "kind": "type",
+      "start": {
+        "line": 9,
+        "column": 21,
+        "offset": 175
+      },
+      "enclosing": "Json"
+    },
+    {
+      "name": "conn",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 26,
+        "offset": 245
+      },
+      "enclosing": "BACKEND.connect"
+    },
+    {
+      "name": "conn",
+      "kind": "type",
+      "start": {
+        "line": 14,
+        "column": 12,
+        "offset": 262
+      },
+      "enclosing": "BACKEND.get"
+    },
+    {
+      "name": "BACKEND",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 17,
+        "offset": 355
+      },
+      "enclosing": "Make"
+    },
+    {
+      "name": "S",
+      "kind": "implements",
+      "start": {
+        "line": 18,
+        "column": 28,
+        "offset": 366
+      },
+      "enclosing": "Make"
+    },
+    {
+      "name": "key",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 40,
+        "offset": 378
+      },
+      "enclosing": "Make"
+    },
+    {
+      "name": "conn",
+      "qualifier": "B",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 22,
+        "offset": 442
+      },
+      "enclosing": "Make.t.conn"
+    },
+    {
+      "name": "t",
+      "qualifier": "SMap",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 56,
+        "offset": 476
+      },
+      "enclosing": "Make.t.cache"
+    },
+    {
+      "name": "connect",
+      "qualifier": "B",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 30,
+        "offset": 511
+      },
+      "enclosing": "Make.create"
+    },
+    {
+      "name": "find_opt",
+      "qualifier": "SMap",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 15,
+        "offset": 578
+      },
+      "enclosing": "Make.find"
+    },
+    {
+      "name": "cache",
+      "kind": "value",
+      "start": {
+        "line": 25,
+        "column": 28,
+        "offset": 591
+      },
+      "enclosing": "Make.find"
+    },
+    {
+      "name": "get",
+      "qualifier": "B",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 16,
+        "offset": 655
+      },
+      "enclosing": "Make.find"
+    },
+    {
+      "name": "conn",
+      "kind": "value",
+      "start": {
+        "line": 28,
+        "column": 22,
+        "offset": 661
+      },
+      "enclosing": "Make.find"
+    },
+    {
+      "name": "iter",
+      "qualifier": "Option",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 13,
+        "offset": 684
+      },
+      "enclosing": "Make.find"
+    },
+    {
+      "name": "cache",
+      "kind": "value",
+      "start": {
+        "line": 29,
+        "column": 30,
+        "offset": 701
+      },
+      "enclosing": "Make.find"
+    },
+    {
+      "name": "add",
+      "qualifier": "SMap",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 44,
+        "offset": 715
+      },
+      "enclosing": "Make.find"
+    },
+    {
+      "name": "cache",
+      "kind": "value",
+      "start": {
+        "line": 29,
+        "column": 54,
+        "offset": 725
+      },
+      "enclosing": "Make.find"
+    },
+    {
+      "name": "BACKEND",
+      "kind": "implements",
+      "start": {
+        "line": 33,
+        "column": 16,
+        "offset": 764
+      },
+      "enclosing": "Memory"
+    },
+    {
+      "name": "t",
+      "qualifier": "Hashtbl",
+      "kind": "type",
+      "start": {
+        "line": 34,
+        "column": 39,
+        "offset": 820
+      },
+      "enclosing": "Memory.conn"
+    },
+    {
+      "name": "create",
+      "qualifier": "Hashtbl",
+      "kind": "call",
+      "start": {
+        "line": 35,
+        "column": 26,
+        "offset": 848
+      },
+      "enclosing": "Memory.connect"
+    },
+    {
+      "name": "find_opt",
+      "qualifier": "Hashtbl",
+      "kind": "call",
+      "start": {
+        "line": 36,
+        "column": 27,
+        "offset": 885
+      },
+      "enclosing": "Memory.get"
+    },
+    {
+      "name": "Make",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 19,
+        "offset": 925
+      },
+      "enclosing": "Mem_store"
+    },
+    {
+      "name": "Memory",
+      "kind": "type",
+      "start": {
+        "line": 39,
+        "column": 25,
+        "offset": 931
+      },
+      "enclosing": "Mem_store"
+    },
+    {
+      "name": "t",
+      "qualifier": "Json",
+      "kind": "type",
+      "start": {
+        "line": 41,
+        "column": 52,
+        "offset": 992
+      },
+      "enclosing": "to_json"
+    },
+    {
+      "name": "map",
+      "qualifier": "L",
+      "kind": "call",
+      "start": {
+        "line": 42,
+        "column": 12,
+        "offset": 1008
+      },
+      "enclosing": "to_json"
+    },
+    {
+      "name": "bindings",
+      "qualifier": "SMap",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 18,
+        "offset": 1069
+      },
+      "enclosing": "keys"
+    },
+    {
+      "name": "map",
+      "qualifier": "L",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 34,
+        "offset": 1085
+      },
+      "enclosing": "keys"
+    },
+    {
+      "name": "length",
+      "kind": "call",
+      "start": {
+        "line": 48,
+        "column": 2,
+        "offset": 1131
+      },
+      "enclosing": "count_keys"
+    },
+    {
+      "name": "keys",
+      "kind": "call",
+      "start": {
+        "line": 48,
+        "column": 10,
+        "offset": 1139
+      },
+      "enclosing": "count_keys"
+    },
+    {
+      "name": "concat",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 21,
+        "offset": 1169
+      },
+      "enclosing": "dump"
+    },
+    {
+      "name": "keys",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 34,
+        "offset": 1182
+      },
+      "enclosing": "dump"
+    },
+    {
+      "name": "find",
+      "qualifier": "Mem_store",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 16,
+        "offset": 1229
+      },
+      "enclosing": "lookup"
+    },
+    {
+      "name": "Not_found",
+      "kind": "value",
+      "start": {
+        "line": 53,
+        "column": 34,
+        "offset": 1247
+      },
+      "enclosing": "lookup"
+    },
+    {
+      "name": "Missing",
+      "qualifier": "Store_error",
+      "kind": "value",
+      "start": {
+        "line": 53,
+        "column": 66,
+        "offset": 1279
+      },
+      "enclosing": "lookup"
+    },
+    {
+      "name": "BACKEND",
+      "kind": "type",
+      "start": {
+        "line": 55,
+        "column": 35,
+        "offset": 1326
+      },
+      "enclosing": "first_class"
+    },
+    {
+      "name": "host",
+      "qualifier": "Config",
+      "kind": "value",
+      "start": {
+        "line": 57,
+        "column": 22,
+        "offset": 1358
+      },
+      "enclosing": "host"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 9,
+        "column": 25,
+        "offset": 179
+      },
+      "text": "(* A key-value store over a functorised map, with a cache. *)\n\nopen Stdlib\nopen! Base\ninclude Store_intf\n\nmodule SMap = Map.Make (String)\nmodule L = List\nmodule Json = Yojson.Safe",
+      "hash": "39717ced67b7c1eef42d5ef322116296245aa8e5db7172228cfd9a8b0dd7581b"
+    },
+    {
+      "id": "BACKEND#1",
+      "kind": "symbol",
+      "symbolId": "BACKEND",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 181
+      },
+      "end": {
+        "line": 15,
+        "column": 3,
+        "offset": 297
+      },
+      "text": "module type BACKEND = sig\n  type conn\n  val connect : string -\u003e conn\n  val get : conn -\u003e string -\u003e string option\nend",
+      "hash": "bfea6bcd85dfae32a96fc169da5357a64d13825b43e3a60b2ab67a435cc64651"
+    },
+    {
+      "id": "Make#1",
+      "kind": "symbol",
+      "symbolId": "Make",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 299
+      },
+      "end": {
+        "line": 31,
+        "column": 3,
+        "offset": 746
+      },
+      "text": "(** Build a store over any backend. *)\nmodule Make (B : BACKEND) : S with type key = string = struct\n  type key = string\n  type t = { conn : B.conn; mutable cache : string SMap.t }\n\n  let create url = { conn = B.connect url; cache = SMap.empty }\n\n  let find t k =\n    match SMap.find_opt k t.cache with\n    | Some v -\u003e Some v\n    | None -\u003e\n      let v = B.get t.conn k in\n      Option.iter (fun v -\u003e t.cache \u003c- SMap.add k v t.cache) v;\n      v\nend",
+      "hash": "bf9186ebfb1e2ba0f1a3afe26a704408ee0aacf948fca50c06749353dddf008e"
+    },
+    {
+      "id": "L33#1",
+      "kind": "window",
+      "start": {
+        "line": 33,
+        "column": 0,
+        "offset": 748
+      },
+      "end": {
+        "line": 33,
+        "column": 32,
+        "offset": 780
+      },
+      "text": "module Memory : BACKEND = struct",
+      "hash": "c69dd0136a9dd6e08c9e6461655f8723b895ac716bb5e7c31791fca25b7bc58d"
+    },
+    {
+      "id": "Memory.conn#1",
+      "kind": "symbol",
+      "symbolId": "Memory.conn",
+      "start": {
+        "line": 34,
+        "column": 7,
+        "offset": 788
+      },
+      "end": {
+        "line": 34,
+        "column": 40,
+        "offset": 821
+      },
+      "text": "conn = (string, string) Hashtbl.t",
+      "hash": "aa139e693292a50085c04c7e9e59bf611d7c5b1de4e684a5b16f5418fe350792"
+    },
+    {
+      "id": "Memory.connect#1",
+      "kind": "symbol",
+      "symbolId": "Memory.connect",
+      "start": {
+        "line": 35,
+        "column": 6,
+        "offset": 828
+      },
+      "end": {
+        "line": 35,
+        "column": 35,
+        "offset": 857
+      },
+      "text": "connect _ = Hashtbl.create 16",
+      "hash": "981c8480eebfb21864455c33e1dde7787493fbc863e829e67800feae52e186ab"
+    },
+    {
+      "id": "Memory.get#1",
+      "kind": "symbol",
+      "symbolId": "Memory.get",
+      "start": {
+        "line": 36,
+        "column": 6,
+        "offset": 864
+      },
+      "end": {
+        "line": 36,
+        "column": 42,
+        "offset": 900
+      },
+      "text": "get conn k = Hashtbl.find_opt conn k",
+      "hash": "48a8463250f46295f06ec9d32cbc6989d05933ca0bbd3e14ad5b7b6868199db1"
+    },
+    {
+      "id": "L37#1",
+      "kind": "window",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 901
+      },
+      "end": {
+        "line": 39,
+        "column": 32,
+        "offset": 938
+      },
+      "text": "end\n\nmodule Mem_store = Make (Memory)",
+      "hash": "f74d1fd1cc508f8bfa2fd1c7b9b487b33a4edca72988b39a5f688ab7822b9d48"
+    },
+    {
+      "id": "to_json#1",
+      "kind": "symbol",
+      "symbolId": "to_json",
+      "start": {
+        "line": 41,
+        "column": 4,
+        "offset": 944
+      },
+      "end": {
+        "line": 42,
+        "column": 53,
+        "offset": 1049
+      },
+      "text": "to_json (pairs : (string * string) list) : Json.t =\n  `Assoc (L.map (fun (k, v) -\u003e (k, `String v)) pairs)",
+      "hash": "f1e0276147e338735d9f302c08945b18321600502fae013ece23da0a6d309361"
+    },
+    {
+      "id": "keys#1",
+      "kind": "symbol",
+      "symbolId": "keys",
+      "start": {
+        "line": 44,
+        "column": 4,
+        "offset": 1055
+      },
+      "end": {
+        "line": 44,
+        "column": 41,
+        "offset": 1092
+      },
+      "text": "keys m = SMap.bindings m |\u003e L.map fst",
+      "hash": "61d8e00ae0e7fcb5abc289655027a116d0db93c73d2099f38431706abe9b0b0b"
+    },
+    {
+      "id": "count_keys#1",
+      "kind": "symbol",
+      "symbolId": "count_keys",
+      "start": {
+        "line": 46,
+        "column": 4,
+        "offset": 1098
+      },
+      "end": {
+        "line": 48,
+        "column": 17,
+        "offset": 1146
+      },
+      "text": "count_keys m =\n  let open L in\n  length (keys m)",
+      "hash": "34583befa62e5bc9d82dda9e124e0889e72a183a3945b2650a11ec9197f7582f"
+    },
+    {
+      "id": "dump#1",
+      "kind": "symbol",
+      "symbolId": "dump",
+      "start": {
+        "line": 50,
+        "column": 4,
+        "offset": 1152
+      },
+      "end": {
+        "line": 50,
+        "column": 42,
+        "offset": 1190
+      },
+      "text": "dump m = String.(concat \", \" (keys m))",
+      "hash": "e01a1397bd3e17da0bfcbb67972acefb8b336ceb44d302727cdff0ec6efdc9a3"
+    },
+    {
+      "id": "lookup#1",
+      "kind": "symbol",
+      "symbolId": "lookup",
+      "start": {
+        "line": 52,
+        "column": 4,
+        "offset": 1196
+      },
+      "end": {
+        "line": 53,
+        "column": 76,
+        "offset": 1289
+      },
+      "text": "lookup store k =\n  try Mem_store.find store k with Not_found -\u003e raise (Store_error.Missing k)",
+      "hash": "57224db7cad0d48a37c743641880c1444a193aeff1f6f04444f3afb780078ec2"
+    },
+    {
+      "id": "L55#1",
+      "kind": "window",
+      "start": {
+        "line": 55,
+        "column": 0,
+        "offset": 1291
+      },
+      "end": {
+        "line": 55,
+        "column": 43,
+        "offset": 1334
+      },
+      "text": "let first_class = (module Memory : BACKEND)",
+      "hash": "2a5ef7ae05ebc4466f09eb09ea9b803bdd565e38c614c62952c292cec304f8a4"
+    },
+    {
+      "id": "host#1",
+      "kind": "symbol",
+      "symbolId": "host",
+      "start": {
+        "line": 57,
+        "column": 4,
+        "offset": 1340
+      },
+      "end": {
+        "line": 57,
+        "column": 26,
+        "offset": 1362
+      },
+      "text": "host r = r.Config.host",
+      "hash": "0098dd786cfc31f2ff22c96377d3ad0ac2346553f55d15334394cea668ca49f3"
+    }
+  ]
+}
