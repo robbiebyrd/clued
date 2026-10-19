@@ -1,0 +1,123 @@
+{
+  "ref": "refs/heads/main",
+  "before": "1111111111111111111111111111111111111111",
+  "after": "2222222222222222222222222222222222222222",
+  "repository": {
+    "id": 812345678,
+    "node_id": "R_kgDOMG1abc",
+    "name": "clued",
+    "full_name": "robbiebyrd/clued",
+    "private": true,
+    "owner": {
+      "name": "robbiebyrd",
+      "email": "me@example.com",
+      "login": "robbiebyrd",
+      "id": 1234567,
+      "type": "User"
+    },
+    "html_url": "https://github.com/robbiebyrd/clued",
+    "fork": false,
+    "created_at": 1767323045,
+    "updated_at": "2026-10-19T12:00:00Z",
+    "pushed_at": 1792411200,
+    "archived": false,
+    "disabled": false,
+    "visibility": "private",
+    "default_branch": "main",
+    "master_branch": "main"
+  },
+  "pusher": {
+    "name": "robbiebyrd",
+    "email": "me@example.com"
+  },
+  "sender": {
+    "login": "robbiebyrd",
+    "id": 1234567,
+    "node_id": "MDQ6VXNlcjEyMzQ1Njc=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/1234567?v=4",
+    "type": "User",
+    "site_admin": false
+  },
+  "installation": {
+    "id": 55501234,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uNTU1MDEyMzQ="
+  },
+  "created": false,
+  "deleted": false,
+  "forced": false,
+  "base_ref": null,
+  "compare": "https://github.com/robbiebyrd/clued/compare/111111111111...222222222222",
+  "commits": [
+    {
+      "id": "3333333333333333333333333333333333333333",
+      "tree_id": "4444444444444444444444444444444444444444",
+      "distinct": true,
+      "message": "First change",
+      "timestamp": "2026-10-19T12:00:00+02:00",
+      "url": "https://github.com/robbiebyrd/clued/commit/3333333333333333333333333333333333333333",
+      "author": {
+        "name": "Robbie Byrd",
+        "email": "me@example.com",
+        "username": "robbiebyrd"
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "username": "web-flow"
+      },
+      "added": [
+        "docs/new.md"
+      ],
+      "removed": [],
+      "modified": [
+        "README.md"
+      ]
+    },
+    {
+      "id": "2222222222222222222222222222222222222222",
+      "tree_id": "5555555555555555555555555555555555555555",
+      "distinct": true,
+      "message": "Second change",
+      "timestamp": "2026-10-19T12:05:00+02:00",
+      "url": "https://github.com/robbiebyrd/clued/commit/2222222222222222222222222222222222222222",
+      "author": {
+        "name": "Robbie Byrd",
+        "email": "me@example.com",
+        "username": "robbiebyrd"
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "username": "web-flow"
+      },
+      "added": [],
+      "removed": [
+        "old.txt"
+      ],
+      "modified": []
+    }
+  ],
+  "head_commit": {
+    "id": "2222222222222222222222222222222222222222",
+    "tree_id": "5555555555555555555555555555555555555555",
+    "distinct": true,
+    "message": "Second change",
+    "timestamp": "2026-10-19T12:05:00+02:00",
+    "url": "https://github.com/robbiebyrd/clued/commit/2222222222222222222222222222222222222222",
+    "author": {
+      "name": "Robbie Byrd",
+      "email": "me@example.com",
+      "username": "robbiebyrd"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "username": "web-flow"
+    },
+    "added": [],
+    "removed": [
+      "old.txt"
+    ],
+    "modified": []
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "action": "completed",
+  "workflow_run": {
+    "id": 60000001,
+    "name": "mind-palace",
+    "node_id": "WFR_kwLO",
+    "head_branch": "main",
+    "head_sha": "2222222222222222222222222222222222222222",
+    "path": ".github/workflows/mind-palace.yml",
+    "display_title": "Second change",
+    "run_number": 321,
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "workflow_id": 7000001,
+    "check_suite_id": 30000001,
+    "url": "https://api.github.com/repos/robbiebyrd/clued/actions/runs/60000001",
+    "html_url": "https://github.com/robbiebyrd/clued/actions/runs/60000001",
+    "pull_requests": [],
+    "created_at": "2026-10-19T12:00:05Z",
+    "updated_at": "2026-10-19T12:10:00Z",
+    "actor": {
+      "login": "robbiebyrd",
+      "id": 1234567,
+      "node_id": "MDQ6VXNlcjEyMzQ1Njc=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1234567?v=4",
+      "type": "User",
+      "site_admin": false
+    },
+    "run_attempt": 1,
+    "run_started_at": "2026-10-19T12:00:05Z",
+    "head_commit": {
+      "id": "2222222222222222222222222222222222222222",
+      "author": {
+        "name": "Robbie Byrd",
+        "email": "me@example.com"
+      }
+    }
+  },
+  "workflow": {
+    "id": 7000001,
+    "node_id": "W_kwDO",
+    "name": "mind-palace",
+    "path": ".github/workflows/mind-palace.yml",
+    "state": "active"
+  },
+  "repository": {
+    "id": 812345678,
+    "node_id": "R_kgDOMG1abc",
+    "name": "clued",
+    "full_name": "robbiebyrd/clued",
+    "private": true,
+    "owner": {
+      "name": "robbiebyrd",
+      "email": "me@example.com",
+      "login": "robbiebyrd",
+      "id": 1234567,
+      "node_id": "MDQ6VXNlcjEyMzQ1Njc=",
+      "type": "User",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/robbiebyrd/clued",
+    "description": "A test repository",
+    "fork": false,
+    "url": "https://api.github.com/repos/robbiebyrd/clued",
+    "created_at": "2026-01-02T03:04:05Z",
+    "updated_at": "2026-10-19T12:00:00Z",
+    "pushed_at": "2026-10-19T12:00:00Z",
+    "size": 2048,
+    "stargazers_count": 3,
+    "language": "Go",
+    "archived": false,
+    "disabled": false,
+    "visibility": "private",
+    "default_branch": "main"
+  },
+  "sender": {
+    "login": "robbiebyrd",
+    "id": 1234567,
+    "node_id": "MDQ6VXNlcjEyMzQ1Njc=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/1234567?v=4",
+    "type": "User",
+    "site_admin": false
+  },
+  "installation": {
+    "id": 55501234,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uNTU1MDEyMzQ="
+  }
+}
