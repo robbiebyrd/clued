@@ -1,0 +1,1524 @@
+{
+  "lang": "go",
+  "package": "big",
+  "symbols": [
+    {
+      "id": "big.Process",
+      "kind": "function",
+      "name": "Process",
+      "qualName": "big.Process",
+      "signature": "func Process(steps []string, verbose bool) (int, error)",
+      "doc": "Process runs every step in order and reports each result.\nThe body is long enough to be split into parts that repeat the signature.",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 229
+      },
+      "end": {
+        "line": 851,
+        "column": 1,
+        "offset": 18643
+      },
+      "exported": true
+    },
+    {
+      "id": "big.Small",
+      "kind": "function",
+      "name": "Small",
+      "qualName": "big.Small",
+      "signature": "func Small() int",
+      "doc": "Small stays one chunk.",
+      "start": {
+        "line": 854,
+        "column": 0,
+        "offset": 18671
+      },
+      "end": {
+        "line": 854,
+        "column": 38,
+        "offset": 18709
+      },
+      "exported": true
+    },
+    {
+      "id": "big.Process2",
+      "kind": "function",
+      "name": "Process2",
+      "qualName": "big.Process2",
+      "signature": "func Process2() int",
+      "start": {
+        "line": 856,
+        "column": 0,
+        "offset": 18711
+      },
+      "end": {
+        "line": 856,
+        "column": 32,
+        "offset": 18743
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "fmt",
+      "start": {
+        "line": 4,
+        "column": 7,
+        "offset": 84
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 14,
+        "column": 7,
+        "offset": 400
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 7,
+        "offset": 545
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 7,
+        "offset": 690
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 35,
+        "column": 7,
+        "offset": 835
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 42,
+        "column": 7,
+        "offset": 980
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 7,
+        "offset": 1125
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 56,
+        "column": 7,
+        "offset": 1270
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 7,
+        "offset": 1415
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 70,
+        "column": 7,
+        "offset": 1560
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 77,
+        "column": 7,
+        "offset": 1710
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 84,
+        "column": 7,
+        "offset": 1862
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 91,
+        "column": 7,
+        "offset": 2014
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 98,
+        "column": 7,
+        "offset": 2166
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 105,
+        "column": 7,
+        "offset": 2318
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 112,
+        "column": 7,
+        "offset": 2470
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 119,
+        "column": 7,
+        "offset": 2622
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 126,
+        "column": 7,
+        "offset": 2774
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 133,
+        "column": 7,
+        "offset": 2926
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 140,
+        "column": 7,
+        "offset": 3078
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 147,
+        "column": 7,
+        "offset": 3230
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 154,
+        "column": 7,
+        "offset": 3382
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 161,
+        "column": 7,
+        "offset": 3534
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 168,
+        "column": 7,
+        "offset": 3686
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 175,
+        "column": 7,
+        "offset": 3838
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 182,
+        "column": 7,
+        "offset": 3990
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 189,
+        "column": 7,
+        "offset": 4142
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 196,
+        "column": 7,
+        "offset": 4294
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 203,
+        "column": 7,
+        "offset": 4446
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 210,
+        "column": 7,
+        "offset": 4598
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 217,
+        "column": 7,
+        "offset": 4750
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 224,
+        "column": 7,
+        "offset": 4902
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 231,
+        "column": 7,
+        "offset": 5054
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 238,
+        "column": 7,
+        "offset": 5206
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 245,
+        "column": 7,
+        "offset": 5358
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 252,
+        "column": 7,
+        "offset": 5510
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 259,
+        "column": 7,
+        "offset": 5662
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 266,
+        "column": 7,
+        "offset": 5814
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 273,
+        "column": 7,
+        "offset": 5966
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 280,
+        "column": 7,
+        "offset": 6118
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 287,
+        "column": 7,
+        "offset": 6270
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 294,
+        "column": 7,
+        "offset": 6422
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 301,
+        "column": 7,
+        "offset": 6574
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 308,
+        "column": 7,
+        "offset": 6726
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 315,
+        "column": 7,
+        "offset": 6878
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 322,
+        "column": 7,
+        "offset": 7030
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 329,
+        "column": 7,
+        "offset": 7182
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 336,
+        "column": 7,
+        "offset": 7334
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 343,
+        "column": 7,
+        "offset": 7486
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 350,
+        "column": 7,
+        "offset": 7638
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 357,
+        "column": 7,
+        "offset": 7790
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 364,
+        "column": 7,
+        "offset": 7942
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 371,
+        "column": 7,
+        "offset": 8094
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 378,
+        "column": 7,
+        "offset": 8246
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 385,
+        "column": 7,
+        "offset": 8398
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 392,
+        "column": 7,
+        "offset": 8550
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 399,
+        "column": 7,
+        "offset": 8702
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 406,
+        "column": 7,
+        "offset": 8854
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 413,
+        "column": 7,
+        "offset": 9006
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 420,
+        "column": 7,
+        "offset": 9158
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 427,
+        "column": 7,
+        "offset": 9310
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 434,
+        "column": 7,
+        "offset": 9462
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 441,
+        "column": 7,
+        "offset": 9614
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 448,
+        "column": 7,
+        "offset": 9766
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 455,
+        "column": 7,
+        "offset": 9918
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 462,
+        "column": 7,
+        "offset": 10070
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 469,
+        "column": 7,
+        "offset": 10222
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 476,
+        "column": 7,
+        "offset": 10374
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 483,
+        "column": 7,
+        "offset": 10526
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 490,
+        "column": 7,
+        "offset": 10678
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 497,
+        "column": 7,
+        "offset": 10830
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 504,
+        "column": 7,
+        "offset": 10982
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 511,
+        "column": 7,
+        "offset": 11134
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 518,
+        "column": 7,
+        "offset": 11286
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 525,
+        "column": 7,
+        "offset": 11438
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 532,
+        "column": 7,
+        "offset": 11590
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 539,
+        "column": 7,
+        "offset": 11742
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 546,
+        "column": 7,
+        "offset": 11894
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 553,
+        "column": 7,
+        "offset": 12046
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 560,
+        "column": 7,
+        "offset": 12198
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 567,
+        "column": 7,
+        "offset": 12350
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 574,
+        "column": 7,
+        "offset": 12502
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 581,
+        "column": 7,
+        "offset": 12654
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 588,
+        "column": 7,
+        "offset": 12806
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 595,
+        "column": 7,
+        "offset": 12958
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 602,
+        "column": 7,
+        "offset": 13110
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 609,
+        "column": 7,
+        "offset": 13262
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 616,
+        "column": 7,
+        "offset": 13414
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 623,
+        "column": 7,
+        "offset": 13566
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 630,
+        "column": 7,
+        "offset": 13718
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 637,
+        "column": 7,
+        "offset": 13870
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 644,
+        "column": 7,
+        "offset": 14022
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 651,
+        "column": 7,
+        "offset": 14174
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 658,
+        "column": 7,
+        "offset": 14326
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 665,
+        "column": 7,
+        "offset": 14478
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 672,
+        "column": 7,
+        "offset": 14630
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 679,
+        "column": 7,
+        "offset": 14782
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 686,
+        "column": 7,
+        "offset": 14934
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 693,
+        "column": 7,
+        "offset": 15086
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 700,
+        "column": 7,
+        "offset": 15238
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 707,
+        "column": 7,
+        "offset": 15395
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 714,
+        "column": 7,
+        "offset": 15554
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 721,
+        "column": 7,
+        "offset": 15713
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 728,
+        "column": 7,
+        "offset": 15872
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 735,
+        "column": 7,
+        "offset": 16031
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 742,
+        "column": 7,
+        "offset": 16190
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 749,
+        "column": 7,
+        "offset": 16349
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 756,
+        "column": 7,
+        "offset": 16508
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 763,
+        "column": 7,
+        "offset": 16667
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 770,
+        "column": 7,
+        "offset": 16826
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 777,
+        "column": 7,
+        "offset": 16985
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 784,
+        "column": 7,
+        "offset": 17144
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 791,
+        "column": 7,
+        "offset": 17303
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 798,
+        "column": 7,
+        "offset": 17462
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 805,
+        "column": 7,
+        "offset": 17621
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 812,
+        "column": 7,
+        "offset": 17780
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 819,
+        "column": 7,
+        "offset": 17939
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 826,
+        "column": 7,
+        "offset": 18098
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 833,
+        "column": 7,
+        "offset": 18257
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 840,
+        "column": 7,
+        "offset": 18416
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Printf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 847,
+        "column": 7,
+        "offset": 18575
+      },
+      "enclosing": "big.Process"
+    },
+    {
+      "name": "Process2",
+      "kind": "call",
+      "start": {
+        "line": 854,
+        "column": 26,
+        "offset": 18697
+      },
+      "enclosing": "big.Small"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 4,
+        "column": 12,
+        "offset": 89
+      },
+      "text": "// Package big holds one function too large for a single chunk.\npackage big\n\nimport \"fmt\"",
+      "hash": "9066babcd734bcd3a3022dab522b76568d914d6c087cb5192f331902b657bfd3"
+    },
+    {
+      "id": "big.Process#1",
+      "kind": "part",
+      "symbolId": "big.Process",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 91
+      },
+      "end": {
+        "line": 275,
+        "column": 2,
+        "offset": 6011
+      },
+      "text": "// Process runs every step in order and reports each result.\n// The body is long enough to be split into parts that repeat the signature.\nfunc Process(steps []string, verbose bool) (int, error) {\n\ttotal := 0\n\t// step 1\n\tif len(steps) \u003e 1 \u0026\u0026 steps[1] != \"\" {\n\t\ttotal += len(steps[1]) * 1\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 1, steps[1])\n\t\t}\n\t}\n\t// step 2\n\tif len(steps) \u003e 2 \u0026\u0026 steps[2] != \"\" {\n\t\ttotal += len(steps[2]) * 2\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 2, steps[2])\n\t\t}\n\t}\n\t// step 3\n\tif len(steps) \u003e 3 \u0026\u0026 steps[3] != \"\" {\n\t\ttotal += len(steps[3]) * 3\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 3, steps[3])\n\t\t}\n\t}\n\t// step 4\n\tif len(steps) \u003e 4 \u0026\u0026 steps[4] != \"\" {\n\t\ttotal += len(steps[4]) * 4\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 4, steps[4])\n\t\t}\n\t}\n\t// step 5\n\tif len(steps) \u003e 5 \u0026\u0026 steps[5] != \"\" {\n\t\ttotal += len(steps[5]) * 5\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 5, steps[5])\n\t\t}\n\t}\n\t// step 6\n\tif len(steps) \u003e 6 \u0026\u0026 steps[6] != \"\" {\n\t\ttotal += len(steps[6]) * 6\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 6, steps[6])\n\t\t}\n\t}\n\t// step 7\n\tif len(steps) \u003e 7 \u0026\u0026 steps[7] != \"\" {\n\t\ttotal += len(steps[7]) * 7\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 7, steps[7])\n\t\t}\n\t}\n\t// step 8\n\tif len(steps) \u003e 8 \u0026\u0026 steps[8] != \"\" {\n\t\ttotal += len(steps[8]) * 8\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 8, steps[8])\n\t\t}\n\t}\n\t// step 9\n\tif len(steps) \u003e 9 \u0026\u0026 steps[9] != \"\" {\n\t\ttotal += len(steps[9]) * 9\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 9, steps[9])\n\t\t}\n\t}\n\t// step 10\n\tif len(steps) \u003e 10 \u0026\u0026 steps[10] != \"\" {\n\t\ttotal += len(steps[10]) * 10\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 10, steps[10])\n\t\t}\n\t}\n\t// step 11\n\tif len(steps) \u003e 11 \u0026\u0026 steps[11] != \"\" {\n\t\ttotal += len(steps[11]) * 11\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 11, steps[11])\n\t\t}\n\t}\n\t// step 12\n\tif len(steps) \u003e 12 \u0026\u0026 steps[12] != \"\" {\n\t\ttotal += len(steps[12]) * 12\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 12, steps[12])\n\t\t}\n\t}\n\t// step 13\n\tif len(steps) \u003e 13 \u0026\u0026 steps[13] != \"\" {\n\t\ttotal += len(steps[13]) * 13\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 13, steps[13])\n\t\t}\n\t}\n\t// step 14\n\tif len(steps) \u003e 14 \u0026\u0026 steps[14] != \"\" {\n\t\ttotal += len(steps[14]) * 14\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 14, steps[14])\n\t\t}\n\t}\n\t// step 15\n\tif len(steps) \u003e 15 \u0026\u0026 steps[15] != \"\" {\n\t\ttotal += len(steps[15]) * 15\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 15, steps[15])\n\t\t}\n\t}\n\t// step 16\n\tif len(steps) \u003e 16 \u0026\u0026 steps[16] != \"\" {\n\t\ttotal += len(steps[16]) * 16\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 16, steps[16])\n\t\t}\n\t}\n\t// step 17\n\tif len(steps) \u003e 17 \u0026\u0026 steps[17] != \"\" {\n\t\ttotal += len(steps[17]) * 17\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 17, steps[17])\n\t\t}\n\t}\n\t// step 18\n\tif len(steps) \u003e 18 \u0026\u0026 steps[18] != \"\" {\n\t\ttotal += len(steps[18]) * 18\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 18, steps[18])\n\t\t}\n\t}\n\t// step 19\n\tif len(steps) \u003e 19 \u0026\u0026 steps[19] != \"\" {\n\t\ttotal += len(steps[19]) * 19\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 19, steps[19])\n\t\t}\n\t}\n\t// step 20\n\tif len(steps) \u003e 20 \u0026\u0026 steps[20] != \"\" {\n\t\ttotal += len(steps[20]) * 20\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 20, steps[20])\n\t\t}\n\t}\n\t// step 21\n\tif len(steps) \u003e 21 \u0026\u0026 steps[21] != \"\" {\n\t\ttotal += len(steps[21]) * 21\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 21, steps[21])\n\t\t}\n\t}\n\t// step 22\n\tif len(steps) \u003e 22 \u0026\u0026 steps[22] != \"\" {\n\t\ttotal += len(steps[22]) * 22\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 22, steps[22])\n\t\t}\n\t}\n\t// step 23\n\tif len(steps) \u003e 23 \u0026\u0026 steps[23] != \"\" {\n\t\ttotal += len(steps[23]) * 23\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 23, steps[23])\n\t\t}\n\t}\n\t// step 24\n\tif len(steps) \u003e 24 \u0026\u0026 steps[24] != \"\" {\n\t\ttotal += len(steps[24]) * 24\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 24, steps[24])\n\t\t}\n\t}\n\t// step 25\n\tif len(steps) \u003e 25 \u0026\u0026 steps[25] != \"\" {\n\t\ttotal += len(steps[25]) * 25\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 25, steps[25])\n\t\t}\n\t}\n\t// step 26\n\tif len(steps) \u003e 26 \u0026\u0026 steps[26] != \"\" {\n\t\ttotal += len(steps[26]) * 26\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 26, steps[26])\n\t\t}\n\t}\n\t// step 27\n\tif len(steps) \u003e 27 \u0026\u0026 steps[27] != \"\" {\n\t\ttotal += len(steps[27]) * 27\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 27, steps[27])\n\t\t}\n\t}\n\t// step 28\n\tif len(steps) \u003e 28 \u0026\u0026 steps[28] != \"\" {\n\t\ttotal += len(steps[28]) * 28\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 28, steps[28])\n\t\t}\n\t}\n\t// step 29\n\tif len(steps) \u003e 29 \u0026\u0026 steps[29] != \"\" {\n\t\ttotal += len(steps[29]) * 29\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 29, steps[29])\n\t\t}\n\t}\n\t// step 30\n\tif len(steps) \u003e 30 \u0026\u0026 steps[30] != \"\" {\n\t\ttotal += len(steps[30]) * 30\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 30, steps[30])\n\t\t}\n\t}\n\t// step 31\n\tif len(steps) \u003e 31 \u0026\u0026 steps[31] != \"\" {\n\t\ttotal += len(steps[31]) * 31\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 31, steps[31])\n\t\t}\n\t}\n\t// step 32\n\tif len(steps) \u003e 32 \u0026\u0026 steps[32] != \"\" {\n\t\ttotal += len(steps[32]) * 32\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 32, steps[32])\n\t\t}\n\t}\n\t// step 33\n\tif len(steps) \u003e 33 \u0026\u0026 steps[33] != \"\" {\n\t\ttotal += len(steps[33]) * 33\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 33, steps[33])\n\t\t}\n\t}\n\t// step 34\n\tif len(steps) \u003e 34 \u0026\u0026 steps[34] != \"\" {\n\t\ttotal += len(steps[34]) * 34\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 34, steps[34])\n\t\t}\n\t}\n\t// step 35\n\tif len(steps) \u003e 35 \u0026\u0026 steps[35] != \"\" {\n\t\ttotal += len(steps[35]) * 35\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 35, steps[35])\n\t\t}\n\t}\n\t// step 36\n\tif len(steps) \u003e 36 \u0026\u0026 steps[36] != \"\" {\n\t\ttotal += len(steps[36]) * 36\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 36, steps[36])\n\t\t}\n\t}\n\t// step 37\n\tif len(steps) \u003e 37 \u0026\u0026 steps[37] != \"\" {\n\t\ttotal += len(steps[37]) * 37\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 37, steps[37])\n\t\t}\n\t}\n\t// step 38\n\tif len(steps) \u003e 38 \u0026\u0026 steps[38] != \"\" {\n\t\ttotal += len(steps[38]) * 38\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 38, steps[38])\n\t\t}\n\t}",
+      "hash": "2b74986b2b5e11de42eecc988f9f8743c7af86e69457e6186dc5dbfa252b6971"
+    },
+    {
+      "id": "big.Process#2",
+      "kind": "part",
+      "symbolId": "big.Process",
+      "start": {
+        "line": 276,
+        "column": 0,
+        "offset": 6012
+      },
+      "end": {
+        "line": 548,
+        "column": 2,
+        "offset": 11939
+      },
+      "text": "func Process(steps []string, verbose bool) (int, error)\n\t// step 39\n\tif len(steps) \u003e 39 \u0026\u0026 steps[39] != \"\" {\n\t\ttotal += len(steps[39]) * 39\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 39, steps[39])\n\t\t}\n\t}\n\t// step 40\n\tif len(steps) \u003e 40 \u0026\u0026 steps[40] != \"\" {\n\t\ttotal += len(steps[40]) * 40\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 40, steps[40])\n\t\t}\n\t}\n\t// step 41\n\tif len(steps) \u003e 41 \u0026\u0026 steps[41] != \"\" {\n\t\ttotal += len(steps[41]) * 41\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 41, steps[41])\n\t\t}\n\t}\n\t// step 42\n\tif len(steps) \u003e 42 \u0026\u0026 steps[42] != \"\" {\n\t\ttotal += len(steps[42]) * 42\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 42, steps[42])\n\t\t}\n\t}\n\t// step 43\n\tif len(steps) \u003e 43 \u0026\u0026 steps[43] != \"\" {\n\t\ttotal += len(steps[43]) * 43\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 43, steps[43])\n\t\t}\n\t}\n\t// step 44\n\tif len(steps) \u003e 44 \u0026\u0026 steps[44] != \"\" {\n\t\ttotal += len(steps[44]) * 44\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 44, steps[44])\n\t\t}\n\t}\n\t// step 45\n\tif len(steps) \u003e 45 \u0026\u0026 steps[45] != \"\" {\n\t\ttotal += len(steps[45]) * 45\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 45, steps[45])\n\t\t}\n\t}\n\t// step 46\n\tif len(steps) \u003e 46 \u0026\u0026 steps[46] != \"\" {\n\t\ttotal += len(steps[46]) * 46\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 46, steps[46])\n\t\t}\n\t}\n\t// step 47\n\tif len(steps) \u003e 47 \u0026\u0026 steps[47] != \"\" {\n\t\ttotal += len(steps[47]) * 47\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 47, steps[47])\n\t\t}\n\t}\n\t// step 48\n\tif len(steps) \u003e 48 \u0026\u0026 steps[48] != \"\" {\n\t\ttotal += len(steps[48]) * 48\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 48, steps[48])\n\t\t}\n\t}\n\t// step 49\n\tif len(steps) \u003e 49 \u0026\u0026 steps[49] != \"\" {\n\t\ttotal += len(steps[49]) * 49\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 49, steps[49])\n\t\t}\n\t}\n\t// step 50\n\tif len(steps) \u003e 50 \u0026\u0026 steps[50] != \"\" {\n\t\ttotal += len(steps[50]) * 50\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 50, steps[50])\n\t\t}\n\t}\n\t// step 51\n\tif len(steps) \u003e 51 \u0026\u0026 steps[51] != \"\" {\n\t\ttotal += len(steps[51]) * 51\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 51, steps[51])\n\t\t}\n\t}\n\t// step 52\n\tif len(steps) \u003e 52 \u0026\u0026 steps[52] != \"\" {\n\t\ttotal += len(steps[52]) * 52\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 52, steps[52])\n\t\t}\n\t}\n\t// step 53\n\tif len(steps) \u003e 53 \u0026\u0026 steps[53] != \"\" {\n\t\ttotal += len(steps[53]) * 53\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 53, steps[53])\n\t\t}\n\t}\n\t// step 54\n\tif len(steps) \u003e 54 \u0026\u0026 steps[54] != \"\" {\n\t\ttotal += len(steps[54]) * 54\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 54, steps[54])\n\t\t}\n\t}\n\t// step 55\n\tif len(steps) \u003e 55 \u0026\u0026 steps[55] != \"\" {\n\t\ttotal += len(steps[55]) * 55\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 55, steps[55])\n\t\t}\n\t}\n\t// step 56\n\tif len(steps) \u003e 56 \u0026\u0026 steps[56] != \"\" {\n\t\ttotal += len(steps[56]) * 56\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 56, steps[56])\n\t\t}\n\t}\n\t// step 57\n\tif len(steps) \u003e 57 \u0026\u0026 steps[57] != \"\" {\n\t\ttotal += len(steps[57]) * 57\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 57, steps[57])\n\t\t}\n\t}\n\t// step 58\n\tif len(steps) \u003e 58 \u0026\u0026 steps[58] != \"\" {\n\t\ttotal += len(steps[58]) * 58\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 58, steps[58])\n\t\t}\n\t}\n\t// step 59\n\tif len(steps) \u003e 59 \u0026\u0026 steps[59] != \"\" {\n\t\ttotal += len(steps[59]) * 59\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 59, steps[59])\n\t\t}\n\t}\n\t// step 60\n\tif len(steps) \u003e 60 \u0026\u0026 steps[60] != \"\" {\n\t\ttotal += len(steps[60]) * 60\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 60, steps[60])\n\t\t}\n\t}\n\t// step 61\n\tif len(steps) \u003e 61 \u0026\u0026 steps[61] != \"\" {\n\t\ttotal += len(steps[61]) * 61\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 61, steps[61])\n\t\t}\n\t}\n\t// step 62\n\tif len(steps) \u003e 62 \u0026\u0026 steps[62] != \"\" {\n\t\ttotal += len(steps[62]) * 62\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 62, steps[62])\n\t\t}\n\t}\n\t// step 63\n\tif len(steps) \u003e 63 \u0026\u0026 steps[63] != \"\" {\n\t\ttotal += len(steps[63]) * 63\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 63, steps[63])\n\t\t}\n\t}\n\t// step 64\n\tif len(steps) \u003e 64 \u0026\u0026 steps[64] != \"\" {\n\t\ttotal += len(steps[64]) * 64\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 64, steps[64])\n\t\t}\n\t}\n\t// step 65\n\tif len(steps) \u003e 65 \u0026\u0026 steps[65] != \"\" {\n\t\ttotal += len(steps[65]) * 65\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 65, steps[65])\n\t\t}\n\t}\n\t// step 66\n\tif len(steps) \u003e 66 \u0026\u0026 steps[66] != \"\" {\n\t\ttotal += len(steps[66]) * 66\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 66, steps[66])\n\t\t}\n\t}\n\t// step 67\n\tif len(steps) \u003e 67 \u0026\u0026 steps[67] != \"\" {\n\t\ttotal += len(steps[67]) * 67\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 67, steps[67])\n\t\t}\n\t}\n\t// step 68\n\tif len(steps) \u003e 68 \u0026\u0026 steps[68] != \"\" {\n\t\ttotal += len(steps[68]) * 68\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 68, steps[68])\n\t\t}\n\t}\n\t// step 69\n\tif len(steps) \u003e 69 \u0026\u0026 steps[69] != \"\" {\n\t\ttotal += len(steps[69]) * 69\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 69, steps[69])\n\t\t}\n\t}\n\t// step 70\n\tif len(steps) \u003e 70 \u0026\u0026 steps[70] != \"\" {\n\t\ttotal += len(steps[70]) * 70\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 70, steps[70])\n\t\t}\n\t}\n\t// step 71\n\tif len(steps) \u003e 71 \u0026\u0026 steps[71] != \"\" {\n\t\ttotal += len(steps[71]) * 71\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 71, steps[71])\n\t\t}\n\t}\n\t// step 72\n\tif len(steps) \u003e 72 \u0026\u0026 steps[72] != \"\" {\n\t\ttotal += len(steps[72]) * 72\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 72, steps[72])\n\t\t}\n\t}\n\t// step 73\n\tif len(steps) \u003e 73 \u0026\u0026 steps[73] != \"\" {\n\t\ttotal += len(steps[73]) * 73\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 73, steps[73])\n\t\t}\n\t}\n\t// step 74\n\tif len(steps) \u003e 74 \u0026\u0026 steps[74] != \"\" {\n\t\ttotal += len(steps[74]) * 74\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 74, steps[74])\n\t\t}\n\t}\n\t// step 75\n\tif len(steps) \u003e 75 \u0026\u0026 steps[75] != \"\" {\n\t\ttotal += len(steps[75]) * 75\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 75, steps[75])\n\t\t}\n\t}\n\t// step 76\n\tif len(steps) \u003e 76 \u0026\u0026 steps[76] != \"\" {\n\t\ttotal += len(steps[76]) * 76\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 76, steps[76])\n\t\t}\n\t}\n\t// step 77\n\tif len(steps) \u003e 77 \u0026\u0026 steps[77] != \"\" {\n\t\ttotal += len(steps[77]) * 77\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 77, steps[77])\n\t\t}\n\t}",
+      "hash": "3160e41f7ccb1a5c0ae5653bc92ad812065b0501706892dd3dcf58d37df28073"
+    },
+    {
+      "id": "big.Process#3",
+      "kind": "part",
+      "symbolId": "big.Process",
+      "start": {
+        "line": 549,
+        "column": 0,
+        "offset": 11940
+      },
+      "end": {
+        "line": 814,
+        "column": 2,
+        "offset": 17827
+      },
+      "text": "func Process(steps []string, verbose bool) (int, error)\n\t// step 78\n\tif len(steps) \u003e 78 \u0026\u0026 steps[78] != \"\" {\n\t\ttotal += len(steps[78]) * 78\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 78, steps[78])\n\t\t}\n\t}\n\t// step 79\n\tif len(steps) \u003e 79 \u0026\u0026 steps[79] != \"\" {\n\t\ttotal += len(steps[79]) * 79\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 79, steps[79])\n\t\t}\n\t}\n\t// step 80\n\tif len(steps) \u003e 80 \u0026\u0026 steps[80] != \"\" {\n\t\ttotal += len(steps[80]) * 80\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 80, steps[80])\n\t\t}\n\t}\n\t// step 81\n\tif len(steps) \u003e 81 \u0026\u0026 steps[81] != \"\" {\n\t\ttotal += len(steps[81]) * 81\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 81, steps[81])\n\t\t}\n\t}\n\t// step 82\n\tif len(steps) \u003e 82 \u0026\u0026 steps[82] != \"\" {\n\t\ttotal += len(steps[82]) * 82\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 82, steps[82])\n\t\t}\n\t}\n\t// step 83\n\tif len(steps) \u003e 83 \u0026\u0026 steps[83] != \"\" {\n\t\ttotal += len(steps[83]) * 83\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 83, steps[83])\n\t\t}\n\t}\n\t// step 84\n\tif len(steps) \u003e 84 \u0026\u0026 steps[84] != \"\" {\n\t\ttotal += len(steps[84]) * 84\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 84, steps[84])\n\t\t}\n\t}\n\t// step 85\n\tif len(steps) \u003e 85 \u0026\u0026 steps[85] != \"\" {\n\t\ttotal += len(steps[85]) * 85\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 85, steps[85])\n\t\t}\n\t}\n\t// step 86\n\tif len(steps) \u003e 86 \u0026\u0026 steps[86] != \"\" {\n\t\ttotal += len(steps[86]) * 86\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 86, steps[86])\n\t\t}\n\t}\n\t// step 87\n\tif len(steps) \u003e 87 \u0026\u0026 steps[87] != \"\" {\n\t\ttotal += len(steps[87]) * 87\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 87, steps[87])\n\t\t}\n\t}\n\t// step 88\n\tif len(steps) \u003e 88 \u0026\u0026 steps[88] != \"\" {\n\t\ttotal += len(steps[88]) * 88\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 88, steps[88])\n\t\t}\n\t}\n\t// step 89\n\tif len(steps) \u003e 89 \u0026\u0026 steps[89] != \"\" {\n\t\ttotal += len(steps[89]) * 89\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 89, steps[89])\n\t\t}\n\t}\n\t// step 90\n\tif len(steps) \u003e 90 \u0026\u0026 steps[90] != \"\" {\n\t\ttotal += len(steps[90]) * 90\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 90, steps[90])\n\t\t}\n\t}\n\t// step 91\n\tif len(steps) \u003e 91 \u0026\u0026 steps[91] != \"\" {\n\t\ttotal += len(steps[91]) * 91\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 91, steps[91])\n\t\t}\n\t}\n\t// step 92\n\tif len(steps) \u003e 92 \u0026\u0026 steps[92] != \"\" {\n\t\ttotal += len(steps[92]) * 92\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 92, steps[92])\n\t\t}\n\t}\n\t// step 93\n\tif len(steps) \u003e 93 \u0026\u0026 steps[93] != \"\" {\n\t\ttotal += len(steps[93]) * 93\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 93, steps[93])\n\t\t}\n\t}\n\t// step 94\n\tif len(steps) \u003e 94 \u0026\u0026 steps[94] != \"\" {\n\t\ttotal += len(steps[94]) * 94\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 94, steps[94])\n\t\t}\n\t}\n\t// step 95\n\tif len(steps) \u003e 95 \u0026\u0026 steps[95] != \"\" {\n\t\ttotal += len(steps[95]) * 95\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 95, steps[95])\n\t\t}\n\t}\n\t// step 96\n\tif len(steps) \u003e 96 \u0026\u0026 steps[96] != \"\" {\n\t\ttotal += len(steps[96]) * 96\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 96, steps[96])\n\t\t}\n\t}\n\t// step 97\n\tif len(steps) \u003e 97 \u0026\u0026 steps[97] != \"\" {\n\t\ttotal += len(steps[97]) * 97\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 97, steps[97])\n\t\t}\n\t}\n\t// step 98\n\tif len(steps) \u003e 98 \u0026\u0026 steps[98] != \"\" {\n\t\ttotal += len(steps[98]) * 98\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 98, steps[98])\n\t\t}\n\t}\n\t// step 99\n\tif len(steps) \u003e 99 \u0026\u0026 steps[99] != \"\" {\n\t\ttotal += len(steps[99]) * 99\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 99, steps[99])\n\t\t}\n\t}\n\t// step 100\n\tif len(steps) \u003e 100 \u0026\u0026 steps[100] != \"\" {\n\t\ttotal += len(steps[100]) * 100\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 100, steps[100])\n\t\t}\n\t}\n\t// step 101\n\tif len(steps) \u003e 101 \u0026\u0026 steps[101] != \"\" {\n\t\ttotal += len(steps[101]) * 101\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 101, steps[101])\n\t\t}\n\t}\n\t// step 102\n\tif len(steps) \u003e 102 \u0026\u0026 steps[102] != \"\" {\n\t\ttotal += len(steps[102]) * 102\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 102, steps[102])\n\t\t}\n\t}\n\t// step 103\n\tif len(steps) \u003e 103 \u0026\u0026 steps[103] != \"\" {\n\t\ttotal += len(steps[103]) * 103\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 103, steps[103])\n\t\t}\n\t}\n\t// step 104\n\tif len(steps) \u003e 104 \u0026\u0026 steps[104] != \"\" {\n\t\ttotal += len(steps[104]) * 104\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 104, steps[104])\n\t\t}\n\t}\n\t// step 105\n\tif len(steps) \u003e 105 \u0026\u0026 steps[105] != \"\" {\n\t\ttotal += len(steps[105]) * 105\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 105, steps[105])\n\t\t}\n\t}\n\t// step 106\n\tif len(steps) \u003e 106 \u0026\u0026 steps[106] != \"\" {\n\t\ttotal += len(steps[106]) * 106\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 106, steps[106])\n\t\t}\n\t}\n\t// step 107\n\tif len(steps) \u003e 107 \u0026\u0026 steps[107] != \"\" {\n\t\ttotal += len(steps[107]) * 107\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 107, steps[107])\n\t\t}\n\t}\n\t// step 108\n\tif len(steps) \u003e 108 \u0026\u0026 steps[108] != \"\" {\n\t\ttotal += len(steps[108]) * 108\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 108, steps[108])\n\t\t}\n\t}\n\t// step 109\n\tif len(steps) \u003e 109 \u0026\u0026 steps[109] != \"\" {\n\t\ttotal += len(steps[109]) * 109\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 109, steps[109])\n\t\t}\n\t}\n\t// step 110\n\tif len(steps) \u003e 110 \u0026\u0026 steps[110] != \"\" {\n\t\ttotal += len(steps[110]) * 110\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 110, steps[110])\n\t\t}\n\t}\n\t// step 111\n\tif len(steps) \u003e 111 \u0026\u0026 steps[111] != \"\" {\n\t\ttotal += len(steps[111]) * 111\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 111, steps[111])\n\t\t}\n\t}\n\t// step 112\n\tif len(steps) \u003e 112 \u0026\u0026 steps[112] != \"\" {\n\t\ttotal += len(steps[112]) * 112\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 112, steps[112])\n\t\t}\n\t}\n\t// step 113\n\tif len(steps) \u003e 113 \u0026\u0026 steps[113] != \"\" {\n\t\ttotal += len(steps[113]) * 113\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 113, steps[113])\n\t\t}\n\t}\n\t// step 114\n\tif len(steps) \u003e 114 \u0026\u0026 steps[114] != \"\" {\n\t\ttotal += len(steps[114]) * 114\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 114, steps[114])\n\t\t}\n\t}\n\t// step 115\n\tif len(steps) \u003e 115 \u0026\u0026 steps[115] != \"\" {\n\t\ttotal += len(steps[115]) * 115\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 115, steps[115])\n\t\t}\n\t}",
+      "hash": "b2861844b7be418277674409c9f4e9903457002f6add174035d0887e553fdec7"
+    },
+    {
+      "id": "big.Process#4",
+      "kind": "part",
+      "symbolId": "big.Process",
+      "start": {
+        "line": 815,
+        "column": 0,
+        "offset": 17828
+      },
+      "end": {
+        "line": 851,
+        "column": 1,
+        "offset": 18643
+      },
+      "text": "func Process(steps []string, verbose bool) (int, error)\n\t// step 116\n\tif len(steps) \u003e 116 \u0026\u0026 steps[116] != \"\" {\n\t\ttotal += len(steps[116]) * 116\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 116, steps[116])\n\t\t}\n\t}\n\t// step 117\n\tif len(steps) \u003e 117 \u0026\u0026 steps[117] != \"\" {\n\t\ttotal += len(steps[117]) * 117\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 117, steps[117])\n\t\t}\n\t}\n\t// step 118\n\tif len(steps) \u003e 118 \u0026\u0026 steps[118] != \"\" {\n\t\ttotal += len(steps[118]) * 118\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 118, steps[118])\n\t\t}\n\t}\n\t// step 119\n\tif len(steps) \u003e 119 \u0026\u0026 steps[119] != \"\" {\n\t\ttotal += len(steps[119]) * 119\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 119, steps[119])\n\t\t}\n\t}\n\t// step 120\n\tif len(steps) \u003e 120 \u0026\u0026 steps[120] != \"\" {\n\t\ttotal += len(steps[120]) * 120\n\t\tif verbose {\n\t\t\tfmt.Printf(\"step %d: %s\\n\", 120, steps[120])\n\t\t}\n\t}\n\treturn total, nil\n}",
+      "hash": "b6d2785711cf6a15c7d83e83ad7df6bf14cf4536388271e40fa31ce692e4de41"
+    },
+    {
+      "id": "big.Small#1",
+      "kind": "symbol",
+      "symbolId": "big.Small",
+      "start": {
+        "line": 853,
+        "column": 0,
+        "offset": 18645
+      },
+      "end": {
+        "line": 854,
+        "column": 38,
+        "offset": 18709
+      },
+      "text": "// Small stays one chunk.\nfunc Small() int { return Process2() }",
+      "hash": "15c808edc99b06257c7234c30b2f664b6d46d382cab5f5d78468cafa29adfb95"
+    },
+    {
+      "id": "big.Process2#1",
+      "kind": "symbol",
+      "symbolId": "big.Process2",
+      "start": {
+        "line": 856,
+        "column": 0,
+        "offset": 18711
+      },
+      "end": {
+        "line": 856,
+        "column": 32,
+        "offset": 18743
+      },
+      "text": "func Process2() int { return 2 }",
+      "hash": "eb586def42ca13e84c0f15d3bb290c511318a90e310b5b3147647b73ebde3a1e"
+    }
+  ]
+}
