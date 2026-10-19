@@ -3,11 +3,13 @@ id: 0067-2xl
 title: GitHub App auth and webhook verification (`ghapp`)
 purpose: Everything the GitHub App does starts with an app JWT, an installation token and a verified webhook.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:06:09.413Z"
-updated: "2026-10-19T18:27:29.547Z"
+updated: "2026-10-19T19:03:53.887Z"
+started: "2026-10-19T18:57:46.172Z"
+completed: "2026-10-19T19:03:53.887Z"
 tags:
   - plan-0011-gha
   - wave-1
@@ -31,15 +33,15 @@ links:
     - ["0011-gha", "included", ["1.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # GitHub App auth and webhook verification (`ghapp`)
@@ -76,9 +78,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./ghapp/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./ghapp/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./ghapp/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./ghapp/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -88,3 +90,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/ghapp/auth_test.go` - tests
 
 ## Work Log
+
+### 2026-10-19T19:03:49.272Z - New package mind-palace/ghapp (standard library only). jwt.go: App{ID, Key, BaseURL, HTTPClient, Now}, ParsePrivateKey (PKCS#1/PKCS#8 PEM), App.JWT and SignJWT (RS256, iat now-60s, exp now+9min, so exp-iat = 10 min). tokens.go: App.InstallationToken(ctx, id) buying POST /app/installations/{id}/access_tokens with the app JWT, cached per installation (per-entry mutex: concurrent callers share one request) until TokenRefreshMargin (5 min) before expiry; App.Invalidate; Token whose String/GoString/LogValue redact the secret (Value() for the header); TokenError (404 unwraps to ErrInstallationNotFound); SetHeaders (Bearer, vnd.github+json, X-GitHub-Api-Version 2022-11-28) for 0068's client. webhook.go: Verify(secret, body []byte, header string) with HMAC-SHA256 and hmac.Equal (ErrNoSecret, ErrMissingSignature, ErrMalformedSig, ErrBadSignature), Sign for fakes, header-name constants and MaxWebhookBody (25 MiB). auth_test.go: 8 tests (JWT claims and signature, key parsing, cache/refresh timing with a fake clock, concurrency, error mapping, token redaction in fmt and slog, GitHub's documented HMAC test vector plus missing header, wrong secret, altered body and malformed headers) against an httptest fake, never api.github.com. gofmt, go vet ./..., go build ./..., go test -race ./ghapp/... pass. App.InstallationClient is left to 0068 (client.go). Only the four listed files changed.
