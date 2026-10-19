@@ -847,14 +847,15 @@ func TestConformanceOverHTTP(t *testing.T) {
 	codetest.Run(t, func(t *testing.T) code.Store {
 		st := newStores()
 		ts := newServer(t, st, codeapi.Options{})
-		return codetest.Split{Writes: &httpWriter{t: t, base: ts.URL + codePath("")}, Reads: st.get(project)}
+		server := st.get(project)
+		return codetest.Split{Writes: &httpWriter{Store: server, t: t, base: ts.URL + codePath("")}, Reads: server}
 	})
 }
 
 // httpWriter is the write side of code.Store over the transport, just
 // enough for the conformance suite (code/remotecode is the real client).
 type httpWriter struct {
-	code.Store // the read side is never called through it
+	code.Store // the server-side store: reads, and the writes with no route (RemoveRef, AppendEvents)
 	t          *testing.T
 	base       string
 }
