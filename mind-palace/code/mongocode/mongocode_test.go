@@ -202,3 +202,70 @@ func TestDollarValuesAreLiterals(t *testing.T) {
 		t.Fatalf("sessions %#v", w.Sessions)
 	}
 }
+
+// Paths and refs reach the database only as digests: a delete and a full
+// reconcile remove exactly the entries they name, in batches, whatever
+// characters the paths hold.
+func TestDeletesByDigestInBatches(t *testing.T) {
+	db := testDB(t)
+	ctx := t.Context()
+	s, err := Open(ctx, db, "digest_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := deleteBatch
+	deleteBatch = 3
+	t.Cleanup(func() { deleteBatch = old })
+
+	const wt = "wt_0123456789abcdef"
+	if err := s.PutWorktree(ctx, code.Worktree{ID: wt, Owner: "acct", Refs: []string{"main"}}); err != nil {
+		t.Fatal(err)
+	}
+	entry := func(p string) code.Entry {
+		return code.Entry{Path: p, Size: 1, Mode: "100644", Dirty: true, Unpushed: true}
+	}
+	var all []code.Entry
+	for i := range 10 {
+		all = append(all, entry(fmt.Sprintf("$d/%d.go", i)))
+	}
+	all = append(all, entry(".*"), entry("{\"$ne\":1}"))
+	for _, ref := range []string{"main", "other"} {
+		if _, err := s.Commit(ctx, code.Change{Owner: "acct", Worktree: wt, Ref: ref, Full: true, Upserts: all}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	paths := func(ref string) []string {
+		t.Helper()
+		tree, err := s.Tree(ctx, wt, ref)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, e := range tree {
+			out = append(out, e.Path)
+		}
+		return out
+	}
+
+	// Deletes: five paths across two batches, plus one the tree lacks.
+	if _, err := s.Commit(ctx, code.Change{Owner: "acct", Worktree: wt, Ref: "main",
+		Deletes: []string{"$d/0.go", "$d/1.go", "$d/2.go", ".*", "{\"$ne\":1}", "absent.go"}}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := paths("main"), []string{"$d/3.go", "$d/4.go", "$d/5.go", "$d/6.go", "$d/7.go", "$d/8.go", "$d/9.go"}; !slices.Equal(got, want) {
+		t.Fatalf("after deletes: %v, want %v", got, want)
+	}
+
+	// A full reconcile keeping two paths prunes the other five in batches.
+	if _, err := s.Commit(ctx, code.Change{Owner: "acct", Worktree: wt, Ref: "main", Full: true,
+		Upserts: []code.Entry{entry("$d/4.go"), entry("new.go")}}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := paths("main"), []string{"$d/4.go", "new.go"}; !slices.Equal(got, want) {
+		t.Fatalf("after full: %v, want %v", got, want)
+	}
+	// The other ref's tree is untouched.
+	if got := paths("other"); len(got) != len(all) {
+		t.Fatalf("other ref: %v", got)
+	}
+}

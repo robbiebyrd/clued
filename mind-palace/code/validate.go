@@ -118,3 +118,53 @@ func lowerHex(s string) bool {
 	}
 	return true
 }
+
+// The alphabets ids are rebuilt from (see rebuild).
+const (
+	hexAlphabet        = "0123456789abcdef"
+	worktreeIDAlphabet = "0123456789abcdefghtw_"
+)
+
+// CanonicalSHA256 reports whether s is a SHA-256 (ValidSHA256) and, when it
+// is, returns a copy rebuilt character by character from the hex alphabet.
+// Stores use the copy wherever a hash becomes a query filter, so the value
+// at that point can only hold those characters whatever the request
+// carried.
+func CanonicalSHA256(s string) (string, bool) {
+	if !ValidSHA256(s) {
+		return "", false
+	}
+	return rebuild(s, hexAlphabet)
+}
+
+// CanonicalGitOID is CanonicalSHA256 for git object ids (ValidGitOID).
+func CanonicalGitOID(s string) (string, bool) {
+	if !ValidGitOID(s) {
+		return "", false
+	}
+	return rebuild(s, hexAlphabet)
+}
+
+// CanonicalWorktreeID is CanonicalSHA256 for worktree ids
+// (ValidWorktreeID).
+func CanonicalWorktreeID(id string) (string, bool) {
+	if !ValidWorktreeID(id) {
+		return "", false
+	}
+	return rebuild(id, worktreeIDAlphabet)
+}
+
+// rebuild returns s spelled from alphabet, or false when s holds any other
+// byte.
+func rebuild(s, alphabet string) (string, bool) {
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		j := strings.IndexByte(alphabet, s[i])
+		if j < 0 {
+			return "", false
+		}
+		b.WriteByte(alphabet[j])
+	}
+	return b.String(), true
+}

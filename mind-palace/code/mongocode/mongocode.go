@@ -5,9 +5,10 @@
 // server's prefix names the project (ProjectPrefix):
 //
 //	code_blobs      _id sha256, size, content
-//	code_trees      one entry of a (worktree, ref) tree: worktree, ref, path
-//	                (unique together), sha256, size, mode, lang, git_oid
-//	                (indexed), dirty, unpushed, session
+//	code_trees      one entry of a (worktree, ref) tree: _id (entryID),
+//	                tree (treeKey; unique with path), worktree (indexed),
+//	                ref, path, sha256, size, mode, lang, git_oid (indexed),
+//	                dirty, unpushed, session
 //	code_worktrees  _id worktree id, owner, source, root, host, origin,
 //	                default_branch, refs, sessions, removed, updated_at
 //	code_changes    the change log: seq (unique, indexed) and the change
@@ -21,6 +22,13 @@
 // the retry writes again and the retry appends at most a duplicate log entry.
 // AppendEvents then reserves its block of seqs before inserting the events,
 // so a failure part-way leaves at most a gap in the activity log's seqs.
+//
+// No caller value reaches a query filter as it was given. Hashes, git object
+// ids and worktree ids are rebuilt from their alphabets at the point of use
+// (code.CanonicalSHA256, CanonicalGitOID, CanonicalWorktreeID). Refs and
+// paths, which may hold any character, never reach a filter at all: a tree
+// is found by treeKey and an entry by entryID, hex digests of them, and a
+// full reconcile deletes the _ids it read back from the tree.
 package mongocode
 
 import (
@@ -29,6 +37,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -101,7 +110,8 @@ func Open(ctx context.Context, db *mongo.Database, prefix string, opts ...Option
 		o(s)
 	}
 	if _, err := s.trees.Indexes().CreateMany(ctx, []mongo.IndexModel{
-		{Keys: bson.D{{Key: "worktree", Value: 1}, {Key: "ref", Value: 1}, {Key: "path", Value: 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{Key: "tree", Value: 1}, {Key: "path", Value: 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{Key: "worktree", Value: 1}}},
 		{Keys: bson.D{{Key: "git_oid", Value: 1}}},
 	}); err != nil {
 		return nil, fmt.Errorf("mongocode: index %s: %w", s.trees.Name(), err)
@@ -171,11 +181,12 @@ type entryDoc struct {
 	Session  string `bson:"session"`
 }
 
-// treeDoc is one entry of a tree; its _id joins worktree, ref and path with
-// NUL, which none of them may contain, so an upsert by _id never races into
-// the unique index.
+// treeDoc is one entry of a tree. Its _id is entryID(worktree, ref, path),
+// so an upsert by _id never races into the unique (tree, path) index, and
+// Tree is treeKey(worktree, ref).
 type treeDoc struct {
 	ID       string `bson:"_id"`
+	Tree     string `bson:"tree"`
 	Worktree string `bson:"worktree"`
 	Ref      string `bson:"ref"`
 	Path     string `bson:"path"`
@@ -190,7 +201,7 @@ type treeDoc struct {
 }
 
 func toTreeDoc(worktree, ref string, e entryDoc) treeDoc {
-	return treeDoc{ID: treeID(worktree, ref, e.Path), Worktree: worktree, Ref: ref, Path: e.Path,
+	return treeDoc{ID: entryID(worktree, ref, e.Path), Tree: treeKey(worktree, ref), Worktree: worktree, Ref: ref, Path: e.Path,
 		SHA256: e.SHA256, Size: e.Size, Mode: e.Mode, Lang: e.Lang, GitOID: e.GitOID,
 		Dirty: e.Dirty, Unpushed: e.Unpushed, Session: e.Session}
 }
@@ -286,7 +297,47 @@ func (d eventDoc) event() code.Event {
 	return e
 }
 
-func treeID(worktree, ref, path string) string { return worktree + "\x00" + ref + "\x00" + path }
+// treeKey names the (worktree, ref) tree in queries: the hex SHA-256 of
+// "tree", worktree and ref joined with NUL, which none of them may contain.
+func treeKey(worktree, ref string) string { return digest("tree", worktree, ref) }
+
+// entryID is the _id of the entry at path in the (worktree, ref) tree: the
+// hex SHA-256 of "entry", worktree, ref and path joined with NUL.
+func entryID(worktree, ref, path string) string { return digest("entry", worktree, ref, path) }
+
+// digest returns the hex SHA-256 of parts joined with NUL, rebuilt from the
+// hex alphabet so a filter built from it holds nothing else.
+func digest(parts ...string) string {
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	id, _ := code.CanonicalSHA256(hex.EncodeToString(sum[:]))
+	return id
+}
+
+// canonicalWorktree is the worktree id as it may appear in a filter, or
+// code.ErrInvalid.
+func canonicalWorktree(id string) (string, error) {
+	c, ok := code.CanonicalWorktreeID(id)
+	if !ok {
+		return "", invalid("worktree id %q", id)
+	}
+	return c, nil
+}
+
+// deleteBatch bounds the _ids of one DeleteMany, well under the 16 MB
+// command limit (a variable so a test can lower it).
+var deleteBatch = 10000
+
+// deleteIDs deletes the tree entries with those _ids, in batches.
+func (s *Store) deleteIDs(ctx context.Context, ids []string) error {
+	for len(ids) > 0 {
+		n := min(len(ids), deleteBatch)
+		if _, err := s.trees.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": ids[:n]}}); err != nil {
+			return err
+		}
+		ids = ids[n:]
+	}
+	return nil
+}
 
 func toEntryDoc(e code.Entry) entryDoc {
 	return entryDoc{Path: e.Path, SHA256: e.SHA256, Size: e.Size, Mode: e.Mode, Lang: e.Lang,
@@ -378,11 +429,21 @@ func (s *Store) MissingBlobs(ctx context.Context, shas []string) ([]string, erro
 	return s.missing(ctx, shas)
 }
 
+// missing returns the hashes in shas (valid SHA-256s) the store does not
+// hold, in the order given.
 func (s *Store) missing(ctx context.Context, shas []string) ([]string, error) {
 	if len(shas) == 0 {
 		return nil, nil
 	}
-	cur, err := s.blobs.Find(ctx, bson.M{"_id": bson.M{"$in": shas}}, options.Find().SetProjection(bson.M{"_id": 1}))
+	ids := make([]string, 0, len(shas))
+	for _, sha := range shas {
+		id, ok := code.CanonicalSHA256(sha)
+		if !ok {
+			return nil, invalid("sha256 %q", sha)
+		}
+		ids = append(ids, id)
+	}
+	cur, err := s.blobs.Find(ctx, bson.M{"_id": bson.M{"$in": ids}}, options.Find().SetProjection(bson.M{"_id": 1}))
 	if err != nil {
 		return nil, err
 	}
@@ -397,9 +458,9 @@ func (s *Store) missing(ctx context.Context, shas []string) ([]string, error) {
 		have[h.ID] = true
 	}
 	var out []string
-	for _, sha := range shas {
-		if !have[sha] {
-			out = append(out, sha)
+	for _, id := range ids {
+		if !have[id] {
+			out = append(out, id)
 		}
 	}
 	return out, nil
@@ -408,21 +469,22 @@ func (s *Store) missing(ctx context.Context, shas []string) ([]string, error) {
 // PutBlob stores b after verifying its hash and size; a blob already held is
 // left as it is.
 func (s *Store) PutBlob(ctx context.Context, b code.Blob) error {
-	if !code.ValidSHA256(b.SHA256) {
+	id, ok := code.CanonicalSHA256(b.SHA256)
+	if !ok {
 		return invalid("sha256 %q", b.SHA256)
 	}
 	if b.Size != int64(len(b.Content)) {
 		return invalid("size %d of a %d-byte blob", b.Size, len(b.Content))
 	}
 	sum := sha256.Sum256(b.Content)
-	if hex.EncodeToString(sum[:]) != b.SHA256 {
-		return invalid("content does not hash to %s", b.SHA256)
+	if hex.EncodeToString(sum[:]) != id {
+		return invalid("content does not hash to %s", id)
 	}
 	content := b.Content
 	if content == nil {
 		content = []byte{}
 	}
-	_, err := s.blobs.UpdateOne(ctx, bson.M{"_id": b.SHA256},
+	_, err := s.blobs.UpdateOne(ctx, bson.M{"_id": id},
 		bson.M{"$setOnInsert": bson.M{"size": b.Size, "content": content}},
 		options.UpdateOne().SetUpsert(true))
 	if mongo.IsDuplicateKeyError(err) { // a concurrent put of the same blob
@@ -433,11 +495,12 @@ func (s *Store) PutBlob(ctx context.Context, b code.Blob) error {
 
 // Blob returns the blob with that SHA-256, or code.ErrNotFound.
 func (s *Store) Blob(ctx context.Context, sha string) (code.Blob, error) {
-	if !code.ValidSHA256(sha) {
+	id, ok := code.CanonicalSHA256(sha)
+	if !ok {
 		return code.Blob{}, fmt.Errorf("%w: blob %q", code.ErrNotFound, sha)
 	}
 	var d blobDoc
-	err := s.blobs.FindOne(ctx, bson.M{"_id": sha}).Decode(&d)
+	err := s.blobs.FindOne(ctx, bson.M{"_id": id}).Decode(&d)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return code.Blob{}, fmt.Errorf("%w: blob %s", code.ErrNotFound, sha)
 	}
@@ -473,8 +536,9 @@ func (s *Store) Usage(ctx context.Context) (int64, int64, error) {
 // PutWorktree creates or updates the worktree's metadata, adds w.Refs and
 // clears Removed.
 func (s *Store) PutWorktree(ctx context.Context, w code.Worktree) error {
-	if !code.ValidWorktreeID(w.ID) {
-		return invalid("worktree id %q", w.ID)
+	id, err := canonicalWorktree(w.ID)
+	if err != nil {
+		return err
 	}
 	refs := []string{}
 	for _, r := range w.Refs {
@@ -483,7 +547,7 @@ func (s *Store) PutWorktree(ctx context.Context, w code.Worktree) error {
 		}
 		refs = append(refs, r)
 	}
-	_, err := s.worktrees.UpdateOne(ctx, bson.M{"_id": w.ID}, bson.M{
+	_, err = s.worktrees.UpdateOne(ctx, bson.M{"_id": id}, bson.M{
 		"$set": bson.M{
 			"owner": w.Owner, "source": w.Source, "root": w.Root, "host": w.Host,
 			"origin": w.Origin, "default_branch": w.DefaultBranch,
@@ -536,12 +600,16 @@ func touchPipeline(now time.Time, refs []string, sessionID string, ended bool) m
 // touch applies touchPipeline to the worktree, code.ErrNotFound when there
 // is none.
 func (s *Store) touch(ctx context.Context, worktree string, refs []string, sessionID string, ended bool) error {
-	res, err := s.worktrees.UpdateOne(ctx, bson.M{"_id": worktree}, touchPipeline(time.Now().UTC(), refs, sessionID, ended))
+	id, err := canonicalWorktree(worktree)
+	if err != nil {
+		return err
+	}
+	res, err := s.worktrees.UpdateOne(ctx, bson.M{"_id": id}, touchPipeline(time.Now().UTC(), refs, sessionID, ended))
 	if err != nil {
 		return err
 	}
 	if res.MatchedCount == 0 {
-		return fmt.Errorf("%w: worktree %s", code.ErrNotFound, worktree)
+		return fmt.Errorf("%w: worktree %s", code.ErrNotFound, id)
 	}
 	return nil
 }
@@ -574,11 +642,15 @@ func (s *Store) Worktrees(ctx context.Context) ([]code.Worktree, error) {
 	return out, nil
 }
 
-func (s *Store) worktreeExists(ctx context.Context, id string) (string, error) {
+func (s *Store) worktreeExists(ctx context.Context, worktree string) (string, error) {
+	id, err := canonicalWorktree(worktree)
+	if err != nil {
+		return "", err
+	}
 	var d struct {
 		Owner string `bson:"owner"`
 	}
-	err := s.worktrees.FindOne(ctx, bson.M{"_id": id}, options.FindOne().SetProjection(bson.M{"owner": 1})).Decode(&d)
+	err = s.worktrees.FindOne(ctx, bson.M{"_id": id}, options.FindOne().SetProjection(bson.M{"owner": 1})).Decode(&d)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return "", fmt.Errorf("%w: worktree %s", code.ErrNotFound, id)
 	}
@@ -692,20 +764,41 @@ func (s *Store) Commit(ctx context.Context, c code.Change) (int64, error) {
 }
 
 // applyTree writes c's deletes and upserts (or, with Full, makes the tree
-// exactly its upserts) to the (worktree, ref) tree.
+// exactly its upserts) to the (worktree, ref) tree. Paths and the ref reach
+// the database only through treeKey and entryID: a delete removes the
+// entries at their entryIDs, and a full reconcile reads the tree's _ids and
+// deletes those it does not keep.
 func (s *Store) applyTree(ctx context.Context, c code.Change, upserts []entryDoc) error {
-	scope := bson.M{"worktree": c.Worktree, "ref": c.Ref}
 	if c.Full {
-		keep := make([]string, 0, len(upserts))
+		keep := make(map[string]bool, len(upserts))
 		for _, e := range upserts {
-			keep = append(keep, e.Path)
+			keep[entryID(c.Worktree, c.Ref, e.Path)] = true
 		}
-		if _, err := s.trees.DeleteMany(ctx, bson.M{"worktree": c.Worktree, "ref": c.Ref, "path": bson.M{"$nin": keep}}); err != nil {
+		cur, err := s.trees.Find(ctx, bson.M{"tree": treeKey(c.Worktree, c.Ref)}, options.Find().SetProjection(bson.M{"_id": 1}))
+		if err != nil {
+			return err
+		}
+		var held []struct {
+			ID string `bson:"_id"`
+		}
+		if err := cur.All(ctx, &held); err != nil {
+			return err
+		}
+		var stale []string
+		for _, h := range held {
+			if !keep[h.ID] {
+				stale = append(stale, h.ID)
+			}
+		}
+		if err := s.deleteIDs(ctx, stale); err != nil {
 			return err
 		}
 	} else if len(c.Deletes) > 0 {
-		scope["path"] = bson.M{"$in": c.Deletes}
-		if _, err := s.trees.DeleteMany(ctx, scope); err != nil {
+		ids := make([]string, 0, len(c.Deletes))
+		for _, p := range c.Deletes {
+			ids = append(ids, entryID(c.Worktree, c.Ref, p))
+		}
+		if err := s.deleteIDs(ctx, ids); err != nil {
 			return err
 		}
 	}
@@ -726,11 +819,12 @@ func (s *Store) applyTree(ctx context.Context, c code.Change, upserts []entryDoc
 
 // RemoveWorktree marks the worktree removed, drops its trees and appends a
 // tombstone, in that order when there is no transaction.
-func (s *Store) RemoveWorktree(ctx context.Context, id string) error {
-	if !code.ValidWorktreeID(id) {
-		return invalid("worktree id %q", id)
+func (s *Store) RemoveWorktree(ctx context.Context, worktree string) error {
+	id, err := canonicalWorktree(worktree)
+	if err != nil {
+		return err
 	}
-	_, err := s.atomically(ctx, func(ctx context.Context) (int64, error) {
+	_, err = s.atomically(ctx, func(ctx context.Context) (int64, error) {
 		var d struct {
 			Owner string `bson:"owner"`
 		}
@@ -756,17 +850,18 @@ func (s *Store) RemoveWorktree(ctx context.Context, id string) error {
 // refs and appends a ref tombstone, in that order when there is no
 // transaction.
 func (s *Store) RemoveRef(ctx context.Context, worktree, ref string) error {
-	if !code.ValidWorktreeID(worktree) {
-		return invalid("worktree id %q", worktree)
+	id, err := canonicalWorktree(worktree)
+	if err != nil {
+		return err
 	}
 	if !code.ValidRef(ref) {
 		return invalid("ref %q", ref)
 	}
-	_, err := s.atomically(ctx, func(ctx context.Context) (int64, error) {
-		if _, err := s.worktreeExists(ctx, worktree); err != nil {
+	_, err = s.atomically(ctx, func(ctx context.Context) (int64, error) {
+		if _, err := s.worktreeExists(ctx, id); err != nil {
 			return 0, err
 		}
-		if _, err := s.trees.DeleteMany(ctx, bson.M{"worktree": worktree, "ref": ref}); err != nil {
+		if _, err := s.trees.DeleteMany(ctx, bson.M{"tree": treeKey(id, ref)}); err != nil {
 			return 0, err
 		}
 		now := time.Now().UTC()
@@ -774,16 +869,16 @@ func (s *Store) RemoveRef(ctx context.Context, worktree, ref string) error {
 			Owner string `bson:"owner"`
 		}
 		// $pull matches ref as a value, so a ref starting with "$" is data.
-		err := s.worktrees.FindOneAndUpdate(ctx, bson.M{"_id": worktree},
+		err := s.worktrees.FindOneAndUpdate(ctx, bson.M{"_id": id},
 			bson.M{"$pull": bson.M{"refs": ref}, "$set": bson.M{"updated_at": now}},
 			options.FindOneAndUpdate().SetProjection(bson.M{"owner": 1})).Decode(&d)
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return 0, fmt.Errorf("%w: worktree %s", code.ErrNotFound, worktree)
+			return 0, fmt.Errorf("%w: worktree %s", code.ErrNotFound, id)
 		}
 		if err != nil {
 			return 0, err
 		}
-		return s.appendChange(ctx, changeDoc{Owner: d.Owner, Worktree: worktree, Ref: ref, Full: true, At: now})
+		return s.appendChange(ctx, changeDoc{Owner: d.Owner, Worktree: id, Ref: ref, Full: true, At: now})
 	})
 	return err
 }
@@ -824,17 +919,20 @@ func (s *Store) AppendEvents(ctx context.Context, events []code.Event) error {
 // SHA256ForGitOID maps each git blob id held by a clean entry with content
 // to that content's SHA-256, through the git_oid index of code_trees.
 func (s *Store) SHA256ForGitOID(ctx context.Context, gitOIDs []string) (map[string]string, error) {
+	oids := make([]string, 0, len(gitOIDs))
 	for _, o := range gitOIDs {
-		if !code.ValidGitOID(o) {
+		c, ok := code.CanonicalGitOID(o)
+		if !ok {
 			return nil, invalid("git oid %q", o)
 		}
+		oids = append(oids, c)
 	}
 	out := map[string]string{}
-	if len(gitOIDs) == 0 {
+	if len(oids) == 0 {
 		return out, nil
 	}
 	cur, err := s.trees.Aggregate(ctx, mongo.Pipeline{
-		{{Key: "$match", Value: bson.M{"git_oid": bson.M{"$in": gitOIDs}, "dirty": false, "sha256": bson.M{"$ne": ""}}}},
+		{{Key: "$match", Value: bson.M{"git_oid": bson.M{"$in": oids}, "dirty": false, "sha256": bson.M{"$ne": ""}}}},
 		{{Key: "$group", Value: bson.M{"_id": "$git_oid", "sha256": bson.M{"$first": "$sha256"}}}},
 	})
 	if err != nil {
@@ -857,7 +955,7 @@ func (s *Store) SHA256ForGitOID(ctx context.Context, gitOIDs []string) (map[stri
 
 // Tree returns the entries of the (worktree, ref) tree sorted by path.
 func (s *Store) Tree(ctx context.Context, worktree, ref string) ([]code.Entry, error) {
-	cur, err := s.trees.Find(ctx, bson.M{"worktree": worktree, "ref": ref}, options.Find().SetSort(bson.D{{Key: "path", Value: 1}}))
+	cur, err := s.trees.Find(ctx, bson.M{"tree": treeKey(worktree, ref)}, options.Find().SetSort(bson.D{{Key: "path", Value: 1}}))
 	if err != nil {
 		return nil, err
 	}
@@ -867,7 +965,9 @@ func (s *Store) Tree(ctx context.Context, worktree, ref string) ([]code.Entry, e
 	}
 	out := make([]code.Entry, 0, len(docs))
 	for _, d := range docs {
-		out = append(out, d.entry())
+		if d.Worktree == worktree && d.Ref == ref { // the key is a digest
+			out = append(out, d.entry())
+		}
 	}
 	return out, nil
 }
