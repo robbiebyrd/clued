@@ -3,12 +3,13 @@ id: 0092-y8g
 title: Extraction for Dart (and Flutter)
 purpose: 'Adds Dart (and Flutter) to the indexer: files .dart.'
 type: feat
-status: in_progress
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:52.472Z"
-updated: "2026-10-19T20:46:58.743Z"
+updated: "2026-10-19T21:15:09.729Z"
 started: "2026-10-19T20:46:54.950Z"
+completed: "2026-10-19T21:15:09.729Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -36,15 +37,15 @@ progress:
   "1":
     status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for Dart (and Flutter)
@@ -85,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/dart'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/dart'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/dart'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/dart'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -97,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/dart.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T21:15:04.187Z - Added codeparse/grammars/dart.go (gotreesitter grammars/dart), queries/dart/tags.scm and profile.yaml (family dart, packageBy file, exported noUnderscore, options for package: URIs via pubspec.yaml), and 7 goldens under testdata/dart (shapes: every definition kind; directives: import/export/part with prefixes, show, deferred, conditional URIs; counter_app: Flutter widgets; user.dart + user.g.dart: json_serializable part/part of and generated code; main: definitions at the start of a file; broken: a syntax error with definitions kept on both sides). TestGolden/dart: 7/7 pass under -race; gofmt, go vet ./..., go build ./... clean; go test -race ./codeparse/... passes. Design: a function/method/constructor with a body is captured on its function_body (the grammar has no node around signature and body), so ranges, nested local functions, enclosing refs and chunks hold the body; @name/@signature come from the signature sibling. Deviations and limits: docs are the extractor default only, so members with annotations (@override) and functions whose signature spans several lines get no doc; capturing doc+annotation siblings needs 3+-sibling quantified patterns, which gotreesitter v0.56.0 matches in quadratic time (it collects every later candidate before checking an anchor; measured 18 s on a 180 KB file) and drops past its 1M work budget. Every definition pattern therefore starts at a named parent and spans at most two siblings (query is ~0.2 s on a 90 KB file). Members of an unnamed extension have no parent. Top-level final and const are both constants. Only files under the story's three paths changed.
