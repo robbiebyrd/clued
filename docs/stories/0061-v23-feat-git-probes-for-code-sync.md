@@ -3,11 +3,13 @@ id: 0061-v23
 title: Git probes for code sync
 purpose: Code sync needs the worktree root, HEAD, the upstream commit, which paths are unpushed or dirty, and the default branch; today only origin and branch are probed.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:38.362Z"
-updated: "2026-10-19T18:26:51.212Z"
+updated: "2026-10-19T19:04:22.912Z"
+started: "2026-10-19T18:58:09.148Z"
+completed: "2026-10-19T19:04:22.912Z"
 tags:
   - plan-0010-awy
   - wave-1
@@ -29,15 +31,15 @@ links:
     - ["0010-awy", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Git probes for code sync
@@ -74,9 +76,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/gitinfo/... ./collect/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/gitinfo/... ./collect/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./session/gitinfo/... ./collect/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/gitinfo/... ./collect/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -85,3 +87,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/collect/gitprobe/gitprobe.go` - use the shared `DefaultBranch` instead of its own
 
 ## Work Log
+
+### 2026-10-19T19:04:18.040Z - session/gitinfo: added Root, Head, StatusPaths (StatusEntry with rename/copy source, Untracked/Deleted), ListFiles, TreeOIDs (TreeEntry mode+oid, submodules skipped, empty before first commit), Upstream (commit, ahead, ok), UnpushedPaths (--no-renames, both sides of renames) and DefaultBranch plus DefaultBranchWith (over a caller's runner). All NUL-split, root-relative, 2 s timeout. collect/gitprobe.DefaultBranch now delegates to gitinfo.DefaultBranchWith over the Probe's Runner. Tests: gitinfo 32 pass (no upstream, behind, detached HEAD, SHA-256 repo, renames, untracked dirs, odd file names, subdirectories, submodules, unborn branch); go test -race ./session/gitinfo/... ./collect/... and ./cli all ok; gofmt/vet/build clean. Only the three listed files changed.
