@@ -206,7 +206,7 @@ type rubyEnv struct {
 
 const rubyProject = "u0123456789abcdef__github.com__o__ruby"
 
-func hexSum(h []byte) string { return hex.EncodeToString(h) }
+func rubyHexSum(h []byte) string { return hex.EncodeToString(h) }
 
 func indexRuby(t *testing.T, tree map[string]string) *rubyEnv {
 	t.Helper()
@@ -239,16 +239,16 @@ func indexRuby(t *testing.T, tree map[string]string) *rubyEnv {
 		t.Fatal(err)
 	}
 	commit := sha1.Sum([]byte("ruby main"))
-	ch := code.Change{Worktree: wt, Ref: "main", Head: hexSum(commit[:]), Upstream: hexSum(commit[:]), Full: true}
+	ch := code.Change{Worktree: wt, Ref: "main", Head: rubyHexSum(commit[:]), Upstream: rubyHexSum(commit[:]), Full: true}
 	e := &rubyEnv{t: t, ctx: ctx, facts: map[string]codeparse.Facts{}}
 	for p, content := range tree {
 		sum := sha256.Sum256([]byte(content))
 		gitOID := sha1.Sum([]byte(content))
-		if err := store.PutBlob(ctx, code.Blob{SHA256: hexSum(sum[:]), Size: int64(len(content)), Content: []byte(content)}); err != nil {
+		if err := store.PutBlob(ctx, code.Blob{SHA256: rubyHexSum(sum[:]), Size: int64(len(content)), Content: []byte(content)}); err != nil {
 			t.Fatal(err)
 		}
-		ch.Upserts = append(ch.Upserts, code.Entry{Path: p, SHA256: hexSum(sum[:]), Size: int64(len(content)),
-			GitOID: hexSum(gitOID[:]), Mode: "100644", Lang: "ruby"})
+		ch.Upserts = append(ch.Upserts, code.Entry{Path: p, SHA256: rubyHexSum(sum[:]), Size: int64(len(content)),
+			GitOID: rubyHexSum(gitOID[:]), Mode: "100644", Lang: "ruby"})
 		facts, err := codeparse.Parse(p, []byte(content))
 		if err != nil {
 			t.Fatal(err)
