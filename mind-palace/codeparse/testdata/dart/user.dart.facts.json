@@ -1,0 +1,216 @@
+{
+  "lang": "dart",
+  "symbols": [
+    {
+      "id": "User",
+      "kind": "class",
+      "name": "User",
+      "qualName": "User",
+      "signature": "@JsonSerializable(explicitToJson: true) class User",
+      "doc": "A user of the service, read from and written to JSON.",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 135
+      },
+      "end": {
+        "line": 23,
+        "column": 1,
+        "offset": 579
+      },
+      "exported": true
+    },
+    {
+      "id": "User.User",
+      "kind": "constructor",
+      "name": "User",
+      "qualName": "User.User",
+      "signature": "User({required this.id, required this.name, this.tags = const []})",
+      "start": {
+        "line": 8,
+        "column": 2,
+        "offset": 190
+      },
+      "end": {
+        "line": 8,
+        "column": 68,
+        "offset": 256
+      },
+      "parent": "User",
+      "exported": true
+    },
+    {
+      "id": "User.fromJson",
+      "kind": "constructor",
+      "name": "fromJson",
+      "qualName": "User.fromJson",
+      "signature": "factory User.fromJson(Map\u003cString, dynamic\u003e json)",
+      "doc": "Reads a user from [json].",
+      "start": {
+        "line": 11,
+        "column": 51,
+        "offset": 342
+      },
+      "end": {
+        "line": 11,
+        "column": 75,
+        "offset": 366
+      },
+      "parent": "User",
+      "exported": true
+    },
+    {
+      "id": "User.id",
+      "kind": "field",
+      "name": "id",
+      "qualName": "User.id",
+      "signature": "final int id",
+      "start": {
+        "line": 13,
+        "column": 12,
+        "offset": 380
+      },
+      "end": {
+        "line": 13,
+        "column": 14,
+        "offset": 382
+      },
+      "parent": "User",
+      "exported": true
+    },
+    {
+      "id": "User.name",
+      "kind": "field",
+      "name": "name",
+      "qualName": "User.name",
+      "signature": "final String name",
+      "start": {
+        "line": 17,
+        "column": 15,
+        "offset": 457
+      },
+      "end": {
+        "line": 17,
+        "column": 19,
+        "offset": 461
+      },
+      "parent": "User",
+      "exported": true
+    },
+    {
+      "id": "User.tags",
+      "kind": "field",
+      "name": "tags",
+      "qualName": "User.tags",
+      "signature": "final List\u003cString\u003e tags",
+      "start": {
+        "line": 19,
+        "column": 21,
+        "offset": 485
+      },
+      "end": {
+        "line": 19,
+        "column": 25,
+        "offset": 489
+      },
+      "parent": "User",
+      "exported": true
+    },
+    {
+      "id": "User.toJson",
+      "kind": "method",
+      "name": "toJson",
+      "qualName": "User.toJson",
+      "signature": "Map\u003cString, dynamic\u003e toJson()",
+      "doc": "Writes the user as JSON.",
+      "start": {
+        "line": 22,
+        "column": 32,
+        "offset": 555
+      },
+      "end": {
+        "line": 22,
+        "column": 54,
+        "offset": 577
+      },
+      "parent": "User",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "package:json_annotation/json_annotation.dart",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    },
+    {
+      "spec": "user.g.dart",
+      "kind": "part",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 56
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "_$UserFromJson",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 54,
+        "offset": 345
+      },
+      "enclosing": "User.fromJson"
+    },
+    {
+      "name": "_$UserToJson",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 35,
+        "offset": 558
+      },
+      "enclosing": "User.toJson"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 19,
+        "offset": 75
+      },
+      "text": "import 'package:json_annotation/json_annotation.dart';\n\npart 'user.g.dart';",
+      "hash": "d0882af07aed5e5936a5d79094a67613e2c1043b53cf103e58b9bf2eee94f4bf"
+    },
+    {
+      "id": "User#1",
+      "kind": "symbol",
+      "symbolId": "User",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 77
+      },
+      "end": {
+        "line": 23,
+        "column": 1,
+        "offset": 579
+      },
+      "text": "/// A user of the service, read from and written to JSON.\n@JsonSerializable(explicitToJson: true)\nclass User {\n  User({required this.id, required this.name, this.tags = const []});\n\n  /// Reads a user from [json].\n  factory User.fromJson(Map\u003cString, dynamic\u003e json) =\u003e _$UserFromJson(json);\n\n  final int id;\n\n  /// The display name.\n  @JsonKey(name: 'display_name')\n  final String name;\n\n  final List\u003cString\u003e tags;\n\n  /// Writes the user as JSON.\n  Map\u003cString, dynamic\u003e toJson() =\u003e _$UserToJson(this);\n}",
+      "hash": "3f9b21fc6cf6a1a50f752dae1e9569fa72285d87681dd04550ef013b5f433d0f"
+    }
+  ]
+}

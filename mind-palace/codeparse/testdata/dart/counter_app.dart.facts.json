@@ -1,0 +1,1006 @@
+{
+  "lang": "dart",
+  "symbols": [
+    {
+      "id": "main",
+      "kind": "function",
+      "name": "main",
+      "qualName": "main",
+      "signature": "void main()",
+      "start": {
+        "line": 5,
+        "column": 12,
+        "offset": 83
+      },
+      "end": {
+        "line": 7,
+        "column": 1,
+        "offset": 116
+      },
+      "exported": true
+    },
+    {
+      "id": "CounterApp",
+      "kind": "class",
+      "name": "CounterApp",
+      "qualName": "CounterApp",
+      "signature": "class CounterApp extends StatelessWidget",
+      "doc": "The app: a Material shell around the counter page.",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 173
+      },
+      "end": {
+        "line": 24,
+        "column": 1,
+        "offset": 541
+      },
+      "exported": true
+    },
+    {
+      "id": "CounterApp.CounterApp",
+      "kind": "constructor",
+      "name": "CounterApp",
+      "qualName": "CounterApp.CounterApp",
+      "signature": "const CounterApp({super.key})",
+      "start": {
+        "line": 11,
+        "column": 2,
+        "offset": 218
+      },
+      "end": {
+        "line": 11,
+        "column": 31,
+        "offset": 247
+      },
+      "parent": "CounterApp",
+      "exported": true
+    },
+    {
+      "id": "CounterApp.build",
+      "kind": "method",
+      "name": "build",
+      "qualName": "CounterApp.build",
+      "signature": "Widget build(BuildContext context)",
+      "start": {
+        "line": 14,
+        "column": 37,
+        "offset": 299
+      },
+      "end": {
+        "line": 23,
+        "column": 3,
+        "offset": 539
+      },
+      "parent": "CounterApp",
+      "exported": true
+    },
+    {
+      "id": "CounterPage",
+      "kind": "class",
+      "name": "CounterPage",
+      "qualName": "CounterPage",
+      "signature": "class CounterPage extends StatefulWidget",
+      "doc": "The page that counts taps.",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 574
+      },
+      "end": {
+        "line": 35,
+        "column": 1,
+        "offset": 800
+      },
+      "exported": true
+    },
+    {
+      "id": "CounterPage.CounterPage",
+      "kind": "constructor",
+      "name": "CounterPage",
+      "qualName": "CounterPage.CounterPage",
+      "signature": "const CounterPage({super.key, required this.title})",
+      "start": {
+        "line": 28,
+        "column": 2,
+        "offset": 619
+      },
+      "end": {
+        "line": 28,
+        "column": 53,
+        "offset": 670
+      },
+      "parent": "CounterPage",
+      "exported": true
+    },
+    {
+      "id": "CounterPage.title",
+      "kind": "field",
+      "name": "title",
+      "qualName": "CounterPage.title",
+      "signature": "final String title",
+      "doc": "The title in the app bar.",
+      "start": {
+        "line": 31,
+        "column": 15,
+        "offset": 720
+      },
+      "end": {
+        "line": 31,
+        "column": 20,
+        "offset": 725
+      },
+      "parent": "CounterPage",
+      "exported": true
+    },
+    {
+      "id": "CounterPage.createState",
+      "kind": "method",
+      "name": "createState",
+      "qualName": "CounterPage.createState",
+      "signature": "State\u003cCounterPage\u003e createState()",
+      "start": {
+        "line": 34,
+        "column": 35,
+        "offset": 775
+      },
+      "end": {
+        "line": 34,
+        "column": 58,
+        "offset": 798
+      },
+      "parent": "CounterPage",
+      "exported": true
+    },
+    {
+      "id": "_CounterPageState",
+      "kind": "class",
+      "name": "_CounterPageState",
+      "qualName": "_CounterPageState",
+      "signature": "class _CounterPageState extends State\u003cCounterPage\u003e with SingleTickerProviderStateMixin implements CounterListener",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 802
+      },
+      "end": {
+        "line": 105,
+        "column": 1,
+        "offset": 2456
+      }
+    },
+    {
+      "id": "_CounterPageState._model",
+      "kind": "field",
+      "name": "_model",
+      "qualName": "_CounterPageState._model",
+      "signature": "final CounterModel _model = CounterModel()",
+      "start": {
+        "line": 40,
+        "column": 21,
+        "offset": 947
+      },
+      "end": {
+        "line": 40,
+        "column": 44,
+        "offset": 970
+      },
+      "parent": "_CounterPageState"
+    },
+    {
+      "id": "_CounterPageState._pulse",
+      "kind": "field",
+      "name": "_pulse",
+      "qualName": "_CounterPageState._pulse",
+      "signature": "late final AnimationController _pulse",
+      "start": {
+        "line": 41,
+        "column": 33,
+        "offset": 1005
+      },
+      "end": {
+        "line": 41,
+        "column": 39,
+        "offset": 1011
+      },
+      "parent": "_CounterPageState"
+    },
+    {
+      "id": "_CounterPageState.initState",
+      "kind": "method",
+      "name": "initState",
+      "qualName": "_CounterPageState.initState",
+      "signature": "void initState()",
+      "start": {
+        "line": 44,
+        "column": 19,
+        "offset": 1045
+      },
+      "end": {
+        "line": 50,
+        "column": 3,
+        "offset": 1225
+      },
+      "parent": "_CounterPageState",
+      "exported": true
+    },
+    {
+      "id": "_CounterPageState.dispose",
+      "kind": "method",
+      "name": "dispose",
+      "qualName": "_CounterPageState.dispose",
+      "signature": "void dispose()",
+      "start": {
+        "line": 53,
+        "column": 17,
+        "offset": 1256
+      },
+      "end": {
+        "line": 56,
+        "column": 3,
+        "offset": 1304
+      },
+      "parent": "_CounterPageState",
+      "exported": true
+    },
+    {
+      "id": "_CounterPageState._onTick",
+      "kind": "method",
+      "name": "_onTick",
+      "qualName": "_CounterPageState._onTick",
+      "signature": "void _onTick()",
+      "start": {
+        "line": 58,
+        "column": 17,
+        "offset": 1323
+      },
+      "end": {
+        "line": 58,
+        "column": 36,
+        "offset": 1342
+      },
+      "parent": "_CounterPageState"
+    },
+    {
+      "id": "_CounterPageState.onChanged",
+      "kind": "method",
+      "name": "onChanged",
+      "qualName": "_CounterPageState.onChanged",
+      "signature": "void onChanged(int value)",
+      "start": {
+        "line": 61,
+        "column": 28,
+        "offset": 1384
+      },
+      "end": {
+        "line": 67,
+        "column": 3,
+        "offset": 1532
+      },
+      "parent": "_CounterPageState",
+      "exported": true
+    },
+    {
+      "id": "_CounterPageState._increment",
+      "kind": "method",
+      "name": "_increment",
+      "qualName": "_CounterPageState._increment",
+      "signature": "void _increment()",
+      "start": {
+        "line": 69,
+        "column": 20,
+        "offset": 1554
+      },
+      "end": {
+        "line": 73,
+        "column": 3,
+        "offset": 1611
+      },
+      "parent": "_CounterPageState"
+    },
+    {
+      "id": "_CounterPageState.build",
+      "kind": "method",
+      "name": "build",
+      "qualName": "_CounterPageState.build",
+      "signature": "Widget build(BuildContext context)",
+      "start": {
+        "line": 76,
+        "column": 37,
+        "offset": 1662
+      },
+      "end": {
+        "line": 104,
+        "column": 3,
+        "offset": 2454
+      },
+      "parent": "_CounterPageState",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "package:flutter/material.dart",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    },
+    {
+      "spec": "counter_model.dart",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 41
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "runApp",
+      "kind": "call",
+      "start": {
+        "line": 6,
+        "column": 2,
+        "offset": 87
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "CounterApp",
+      "kind": "call",
+      "start": {
+        "line": 6,
+        "column": 15,
+        "offset": 100
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "CounterApp",
+      "kind": "type",
+      "start": {
+        "line": 6,
+        "column": 15,
+        "offset": 100
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "StatelessWidget",
+      "kind": "extends",
+      "start": {
+        "line": 10,
+        "column": 25,
+        "offset": 198
+      },
+      "enclosing": "CounterApp"
+    },
+    {
+      "name": "StatelessWidget",
+      "kind": "type",
+      "start": {
+        "line": 10,
+        "column": 25,
+        "offset": 198
+      },
+      "enclosing": "CounterApp"
+    },
+    {
+      "name": "Widget",
+      "kind": "type",
+      "start": {
+        "line": 14,
+        "column": 2,
+        "offset": 264
+      },
+      "enclosing": "CounterApp"
+    },
+    {
+      "name": "BuildContext",
+      "kind": "type",
+      "start": {
+        "line": 14,
+        "column": 15,
+        "offset": 277
+      },
+      "enclosing": "CounterApp"
+    },
+    {
+      "name": "MaterialApp",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 11,
+        "offset": 312
+      },
+      "enclosing": "CounterApp.build"
+    },
+    {
+      "name": "ThemeData",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 13,
+        "offset": 362
+      },
+      "enclosing": "CounterApp.build"
+    },
+    {
+      "name": "fromSeed",
+      "qualifier": "ColorScheme",
+      "kind": "call",
+      "start": {
+        "line": 18,
+        "column": 33,
+        "offset": 406
+      },
+      "enclosing": "CounterApp.build"
+    },
+    {
+      "name": "CounterPage",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 18,
+        "offset": 501
+      },
+      "enclosing": "CounterApp.build"
+    },
+    {
+      "name": "CounterPage",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 18,
+        "offset": 501
+      },
+      "enclosing": "CounterApp.build"
+    },
+    {
+      "name": "StatefulWidget",
+      "kind": "extends",
+      "start": {
+        "line": 27,
+        "column": 26,
+        "offset": 600
+      },
+      "enclosing": "CounterPage"
+    },
+    {
+      "name": "StatefulWidget",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 26,
+        "offset": 600
+      },
+      "enclosing": "CounterPage"
+    },
+    {
+      "name": "State",
+      "kind": "type",
+      "start": {
+        "line": 34,
+        "column": 2,
+        "offset": 742
+      },
+      "enclosing": "CounterPage"
+    },
+    {
+      "name": "CounterPage",
+      "kind": "type",
+      "start": {
+        "line": 34,
+        "column": 8,
+        "offset": 748
+      },
+      "enclosing": "CounterPage"
+    },
+    {
+      "name": "_CounterPageState",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 38,
+        "offset": 778
+      },
+      "enclosing": "CounterPage.createState"
+    },
+    {
+      "name": "State",
+      "kind": "extends",
+      "start": {
+        "line": 37,
+        "column": 32,
+        "offset": 834
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "State",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 32,
+        "offset": 834
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "CounterPage",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 38,
+        "offset": 840
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "SingleTickerProviderStateMixin",
+      "kind": "extends",
+      "start": {
+        "line": 38,
+        "column": 9,
+        "offset": 862
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "SingleTickerProviderStateMixin",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 9,
+        "offset": 862
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "CounterListener",
+      "kind": "implements",
+      "start": {
+        "line": 39,
+        "column": 15,
+        "offset": 908
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "CounterListener",
+      "kind": "type",
+      "start": {
+        "line": 39,
+        "column": 15,
+        "offset": 908
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "CounterModel",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 8,
+        "offset": 934
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "CounterModel",
+      "kind": "call",
+      "start": {
+        "line": 40,
+        "column": 30,
+        "offset": 956
+      },
+      "enclosing": "_CounterPageState._model"
+    },
+    {
+      "name": "AnimationController",
+      "kind": "type",
+      "start": {
+        "line": 41,
+        "column": 13,
+        "offset": 985
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "initState",
+      "qualifier": "super",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 10,
+        "offset": 1057
+      },
+      "enclosing": "_CounterPageState.initState"
+    },
+    {
+      "name": "AnimationController",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 13,
+        "offset": 1083
+      },
+      "enclosing": "_CounterPageState.initState"
+    },
+    {
+      "name": "addListener",
+      "kind": "call",
+      "start": {
+        "line": 47,
+        "column": 8,
+        "offset": 1152
+      },
+      "enclosing": "_CounterPageState.initState"
+    },
+    {
+      "name": "forward",
+      "kind": "call",
+      "start": {
+        "line": 48,
+        "column": 8,
+        "offset": 1181
+      },
+      "enclosing": "_CounterPageState.initState"
+    },
+    {
+      "name": "addListener",
+      "qualifier": "_model",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 11,
+        "offset": 1203
+      },
+      "enclosing": "_CounterPageState.initState"
+    },
+    {
+      "name": "dispose",
+      "qualifier": "_pulse",
+      "kind": "call",
+      "start": {
+        "line": 54,
+        "column": 11,
+        "offset": 1269
+      },
+      "enclosing": "_CounterPageState.dispose"
+    },
+    {
+      "name": "dispose",
+      "qualifier": "super",
+      "kind": "call",
+      "start": {
+        "line": 55,
+        "column": 10,
+        "offset": 1290
+      },
+      "enclosing": "_CounterPageState.dispose"
+    },
+    {
+      "name": "setState",
+      "kind": "call",
+      "start": {
+        "line": 58,
+        "column": 20,
+        "offset": 1326
+      },
+      "enclosing": "_CounterPageState._onTick"
+    },
+    {
+      "name": "of",
+      "qualifier": "ScaffoldMessenger",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 24,
+        "offset": 1437
+      },
+      "enclosing": "_CounterPageState.onChanged"
+    },
+    {
+      "name": "showSnackBar",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 36,
+        "offset": 1449
+      },
+      "enclosing": "_CounterPageState.onChanged"
+    },
+    {
+      "name": "SnackBar",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 8,
+        "offset": 1471
+      },
+      "enclosing": "_CounterPageState.onChanged"
+    },
+    {
+      "name": "Text",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 26,
+        "offset": 1489
+      },
+      "enclosing": "_CounterPageState.onChanged"
+    },
+    {
+      "name": "setState",
+      "kind": "call",
+      "start": {
+        "line": 70,
+        "column": 4,
+        "offset": 1560
+      },
+      "enclosing": "_CounterPageState._increment"
+    },
+    {
+      "name": "increment",
+      "qualifier": "_model",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 13,
+        "offset": 1587
+      },
+      "enclosing": "_CounterPageState._increment"
+    },
+    {
+      "name": "Widget",
+      "kind": "type",
+      "start": {
+        "line": 76,
+        "column": 2,
+        "offset": 1627
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "BuildContext",
+      "kind": "type",
+      "start": {
+        "line": 76,
+        "column": 15,
+        "offset": 1640
+      },
+      "enclosing": "_CounterPageState"
+    },
+    {
+      "name": "of",
+      "qualifier": "Theme",
+      "kind": "call",
+      "start": {
+        "line": 77,
+        "column": 24,
+        "offset": 1688
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "Scaffold",
+      "kind": "call",
+      "start": {
+        "line": 78,
+        "column": 11,
+        "offset": 1712
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "AppBar",
+      "kind": "call",
+      "start": {
+        "line": 79,
+        "column": 14,
+        "offset": 1736
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "Text",
+      "kind": "call",
+      "start": {
+        "line": 81,
+        "column": 15,
+        "offset": 1818
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "Center",
+      "kind": "call",
+      "start": {
+        "line": 83,
+        "column": 12,
+        "offset": 1859
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "Column",
+      "kind": "call",
+      "start": {
+        "line": 84,
+        "column": 15,
+        "offset": 1882
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "Widget",
+      "kind": "type",
+      "start": {
+        "line": 86,
+        "column": 21,
+        "offset": 1966
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "Text",
+      "kind": "call",
+      "start": {
+        "line": 87,
+        "column": 18,
+        "offset": 1993
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "Text",
+      "kind": "type",
+      "start": {
+        "line": 87,
+        "column": 18,
+        "offset": 1993
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "ScaleTransition",
+      "kind": "call",
+      "start": {
+        "line": 88,
+        "column": 12,
+        "offset": 2058
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "Text",
+      "kind": "call",
+      "start": {
+        "line": 90,
+        "column": 21,
+        "offset": 2125
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "FloatingActionButton",
+      "kind": "call",
+      "start": {
+        "line": 98,
+        "column": 28,
+        "offset": 2314
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "Icon",
+      "kind": "call",
+      "start": {
+        "line": 101,
+        "column": 21,
+        "offset": 2418
+      },
+      "enclosing": "_CounterPageState.build"
+    },
+    {
+      "name": "Icon",
+      "kind": "type",
+      "start": {
+        "line": 101,
+        "column": 21,
+        "offset": 2418
+      },
+      "enclosing": "_CounterPageState.build"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 28,
+        "offset": 69
+      },
+      "text": "import 'package:flutter/material.dart';\n\nimport 'counter_model.dart';",
+      "hash": "c642aa39900155b2b860fc6697b7540e306199b46fb0b4f93e5fe2ce5a9d6f34"
+    },
+    {
+      "id": "main#1",
+      "kind": "symbol",
+      "symbolId": "main",
+      "start": {
+        "line": 5,
+        "column": 12,
+        "offset": 83
+      },
+      "end": {
+        "line": 7,
+        "column": 1,
+        "offset": 116
+      },
+      "text": "{\n  runApp(const CounterApp());\n}",
+      "hash": "d91f91ea64f370d4cdd94cfaa045803b80800139fece5dfcc5697563f020fe6a"
+    },
+    {
+      "id": "CounterApp#1",
+      "kind": "symbol",
+      "symbolId": "CounterApp",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 118
+      },
+      "end": {
+        "line": 24,
+        "column": 1,
+        "offset": 541
+      },
+      "text": "/// The app: a Material shell around the counter page.\nclass CounterApp extends StatelessWidget {\n  const CounterApp({super.key});\n\n  @override\n  Widget build(BuildContext context) {\n    return MaterialApp(\n      title: 'Counter',\n      theme: ThemeData(\n        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),\n        useMaterial3: true,\n      ),\n      home: const CounterPage(title: 'Home'),\n    );\n  }\n}",
+      "hash": "12f38898ef69c29634bf5189dafffba55608d6dd5339840f096dc9ae6ae2e167"
+    },
+    {
+      "id": "CounterPage#1",
+      "kind": "symbol",
+      "symbolId": "CounterPage",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 543
+      },
+      "end": {
+        "line": 35,
+        "column": 1,
+        "offset": 800
+      },
+      "text": "/// The page that counts taps.\nclass CounterPage extends StatefulWidget {\n  const CounterPage({super.key, required this.title});\n\n  /// The title in the app bar.\n  final String title;\n\n  @override\n  State\u003cCounterPage\u003e createState() =\u003e _CounterPageState();\n}",
+      "hash": "3bb3791bde82ba2746c725e7ae0cc522eab775777eb21ca9778819ec99d83fcd"
+    },
+    {
+      "id": "_CounterPageState#1",
+      "kind": "symbol",
+      "symbolId": "_CounterPageState",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 802
+      },
+      "end": {
+        "line": 105,
+        "column": 1,
+        "offset": 2456
+      },
+      "text": "class _CounterPageState extends State\u003cCounterPage\u003e\n    with SingleTickerProviderStateMixin\n    implements CounterListener {\n  final CounterModel _model = CounterModel();\n  late final AnimationController _pulse;\n\n  @override\n  void initState() {\n    super.initState();\n    _pulse = AnimationController(vsync: this, duration: Durations.short4)\n      ..addListener(_onTick)\n      ..forward();\n    _model.addListener(this);\n  }\n\n  @override\n  void dispose() {\n    _pulse.dispose();\n    super.dispose();\n  }\n\n  void _onTick() =\u003e setState(() {});\n\n  @override\n  void onChanged(int value) {\n    if (value % 10 == 0) {\n      ScaffoldMessenger.of(context).showSnackBar(\n        SnackBar(content: Text('Reached $value')),\n      );\n    }\n  }\n\n  void _increment() {\n    setState(() {\n      _model.increment();\n    });\n  }\n\n  @override\n  Widget build(BuildContext context) {\n    final theme = Theme.of(context);\n    return Scaffold(\n      appBar: AppBar(\n        backgroundColor: theme.colorScheme.inversePrimary,\n        title: Text(widget.title),\n      ),\n      body: Center(\n        child: Column(\n          mainAxisAlignment: MainAxisAlignment.center,\n          children: \u003cWidget\u003e[\n            const Text('You have pushed the button this many times:'),\n            ScaleTransition(\n              scale: _pulse,\n              child: Text(\n                '${_model.count}',\n                style: theme.textTheme.headlineMedium,\n              ),\n            ),\n          ],\n        ),\n      ),\n      floatingActionButton: FloatingActionButton(\n        onPressed: _increment,\n        tooltip: 'Increment',\n        child: const Icon(Icons.add),\n      ),\n    );\n  }\n}",
+      "hash": "abbf86cda1d03166799f5ac1be586e059e85243ee7a727983eb8d16da0ae0308"
+    }
+  ]
+}

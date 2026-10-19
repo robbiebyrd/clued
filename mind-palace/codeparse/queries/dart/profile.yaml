@@ -1,0 +1,28 @@
+# Dart, and Flutter, which is Dart with the Flutter SDK's packages: widgets
+# are classes, and no grammar or query of its own is needed.
+#
+# A Dart library is a file, plus the files it names with `part` (each says
+# `part of` it back); names starting with `_` are private to the library.
+# A file reaches other libraries with `import` (an `as` prefix, `show` and
+# `hide`, `deferred`, and `if (dart.library.io) 'x.dart'` for a platform's
+# URI) and passes them on with `export`. A URI is relative to the file,
+# `dart:<name>` for the SDK, or `package:<name>/<path>` for <path> under
+# the `lib/` directory of the package whose pubspec.yaml says
+# `name: <name>`. The import kinds the query sets are deferred, export,
+# conditional, part and part_of (a plain import has none); the dart
+# family's resolver reads the options below.
+name: Dart
+family: dart
+extensions: [.dart]
+kinds:
+  definition.mixin: mixin
+  definition.constructor: constructor
+scope:
+  separators: ["."]
+  packageBy: file
+  exported: noUnderscore
+  options:
+    manifest: pubspec.yaml
+    packageScheme: "package:"
+    packageDir: lib
+    sdkScheme: "dart:"
