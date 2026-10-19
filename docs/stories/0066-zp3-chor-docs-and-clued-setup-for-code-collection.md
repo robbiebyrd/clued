@@ -3,11 +3,13 @@ id: 0066-zp3
 title: Docs and `/clued-setup` for code collection
 purpose: Every entrypoint change goes into PROTOCOL.md, and users must be told plainly what leaves their machine.
 type: chor
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:06:04.203Z"
-updated: "2026-10-19T18:27:22.983Z"
+updated: "2026-10-19T20:11:29.693Z"
+started: "2026-10-19T20:00:59.814Z"
+completed: "2026-10-19T20:11:26.311Z"
 tags:
   - plan-0010-awy
   - wave-8
@@ -37,13 +39,13 @@ links:
     - ["0010-awy", "included", ["4.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Docs and `/clued-setup` for code collection
@@ -76,9 +78,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test ./plugin/
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./plugin/
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test ./plugin/
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./plugin/
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -90,3 +92,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `.claude/CLAUDE.md` - layout table: `code/`, `codefilter/`, `server/codeapi/`, `session/codesync/`
 
 ## Work Log
+
+### 2026-10-19T20:11:29.693Z - Documented code collection (plan 0010 4.1) from the code: PROTOCOL.md 4.4.1 (code sync triggers per hook_relay.go incl. WorktreeCreate carrying only name, run steps, filters, budget, failures/back-offs, state file JSON), 7.12 code transport (7 write routes, check order, validation, owner/session stamping, BeforeCodeWrite 403 forbidden / 413 quota, 409 conflict, capabilities incl. github, Mongo collections; graph routes left to 0128), 1.2 conflict/quota kinds, 2.6 relay, 7.9 config-pull keys, 9 session code-sync [status] JSON and exit codes plus server run --code-store, 11.1 codeSync/codeSyncMaxFileBytes/codeSyncExclude (+excludePaths/redaction notes), 11.2 codeSync: false. docs/server.md: Collected code section, --code-store flag, client behaviour. README: Code sync section (what is uploaded, deny list, opting out) and config rows. /clued-setup asks in remote mode (and cloud containers via CLUED_CODE_SYNC) with a plain statement that the source of every repository Claude works in is uploaded. mind-palace/README package map and .claude/CLAUDE.md layout rows for code/, codefilter/, server/codeapi/, session/codesync/. go test ./plugin/ ok (87.9s), gofmt/vet/build + go test -race ./plugin/ ok (104.1s). Follow-up outside Files: hooks/uninstall and /clued-uninstall do not remove <config dir>/codesync/ when the config is kept.
