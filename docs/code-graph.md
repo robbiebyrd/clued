@@ -268,35 +268,36 @@ What each stage gives:
 - **Resolved** (family resolver registered): the references become `CALLS`,
   `REFERENCES`, `IMPLEMENTS` and `EXTENDS` edges, so `callers`, `callees`,
   `references`, `implementations` and the neighbours of `code_context` work.
-- **Detected only** (no grammar or query yet): the file is in the graph with
-  its language, `parseError` set (cause `no grammar`) and 60-line window
-  chunks; no symbols.
+- **Detected only** (a language whose grammar or query a build lacks): the
+  file is in the graph with its language, `parseError` set (cause `no
+  grammar`) and 60-line window chunks; no symbols.
 
-State of this tree (later stories of plan 0012 add the rest; the directories
-above are the authority for a given build):
+State of this tree (the directories above are the authority for a given
+build): every language of the plan is parsed, and every family has a
+resolver.
 
 | Language | Files | Family | Parsed | Resolved |
 |---|---|---|---|---|
 | Go | `.go` | `go` | yes | yes |
-| C | `.c`, `.h` | `cfamily` | yes | not yet |
-| C# | `.cs` | `csharp` | yes | not yet |
-| Java | `.java` | `jvm` | yes | not yet |
-| JavaScript | `.js`, `.mjs`, `.cjs`, `.jsx` | `jsts` | yes | not yet |
-| Lua | `.lua` | `lua` | yes | not yet |
-| OCaml | `.ml`, `.mli` | `ocaml` | yes | not yet |
-| Python | `.py`, `.pyi` | `python` | not yet | not yet |
-| TypeScript | `.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts` | `jsts` | not yet | not yet |
-| Kotlin | `.kt`, `.kts` | `jvm` | not yet | not yet |
-| Rust | `.rs` | `rust` | not yet | not yet |
-| C++ | `.cc`, `.cpp`, `.cxx`, `.hpp`, `.hh`, `.h` | `cfamily` | not yet | not yet |
-| Objective-C | `.m`, `.mm`, `.h` | `cfamily` | not yet | not yet |
-| Swift | `.swift` | `swift` | not yet | not yet |
-| Dart (and Flutter) | `.dart` | `dart` | not yet | not yet |
-| PHP | `.php` | `php` | not yet | not yet |
-| Ruby | `.rb`, `.rake`, `Gemfile` | `ruby` | not yet | not yet |
-| SQL | `.sql` | `sql` | not yet | not yet |
-| Perl | `.pl`, `.pm`, `.t` | `perl` | not yet | not yet |
-| Lisp (Common Lisp, Emacs Lisp, Clojure, Scheme, Racket) | `.lisp`, `.lsp`, `.cl`, `.asd`, `.el`, `.clj`, `.cljs`, `.cljc`, `.edn`, `.scm`, `.ss`, `.rkt` | `lisp` | not yet | not yet |
+| C | `.c`, `.h` | `cfamily` | yes | yes |
+| C# | `.cs` | `csharp` | yes | yes |
+| Java | `.java` | `jvm` | yes | yes |
+| JavaScript | `.js`, `.mjs`, `.cjs`, `.jsx` | `jsts` | yes | yes |
+| Lua | `.lua` | `lua` | yes | yes |
+| OCaml | `.ml`, `.mli` | `ocaml` | yes | yes |
+| Python | `.py`, `.pyi` | `python` | yes | yes |
+| TypeScript | `.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts` | `jsts` | yes | yes |
+| Kotlin | `.kt`, `.kts` | `jvm` | yes | yes |
+| Rust | `.rs` | `rust` | yes | yes |
+| C++ | `.cc`, `.cpp`, `.cxx`, `.hpp`, `.hh`, `.h` | `cfamily` | yes | yes |
+| Objective-C | `.m`, `.mm`, `.h` | `cfamily` | yes | yes |
+| Swift | `.swift` | `swift` | yes | yes |
+| Dart (and Flutter) | `.dart` | `dart` | yes | yes |
+| PHP | `.php` | `php` | yes | yes |
+| Ruby | `.rb`, `.rake`, `Gemfile` | `ruby` | yes | yes |
+| SQL | `.sql` | `sql` | yes | yes |
+| Perl | `.pl`, `.pm`, `.t` | `perl` | yes | yes |
+| Lisp (Common Lisp, Emacs Lisp, Clojure, Scheme, Racket) | `.lisp`, `.lsp`, `.cl`, `.asd`, `.el`, `.clj`, `.cljs`, `.cljc`, `.edn`, `.scm`, `.ss`, `.rkt` | `lisp` | yes | yes |
 
 Markdown (`.md`, `.markdown`, `.mdx`) is chunked by heading and every other
 text file by line windows; neither has symbols, so they do not show up in
@@ -307,11 +308,10 @@ no chunks.
 (`@interface`, `#import`, …) is Objective-C, one with a C++ form (`class`,
 `template`, `namespace`, `std::`, …) C++, otherwise it follows the files
 beside it (`.m`/`.mm`, C++ sources, `.c`) and defaults to C. `.m` is always
-Objective-C. Until C++ and Objective-C land, a header classified as either
-is indexed as text. Mixed files (Vue, Svelte, HTML with scripts, SQL in
+Objective-C. Mixed files (Vue, Svelte, HTML with scripts, SQL in
 strings, Markdown code fences) are indexed as text.
 
-### What the landed languages extract, and their known limits
+### What each language extracts, and its known limits
 
 The query files record their own limits; these are the ones that change what
 an agent gets back.
@@ -320,9 +320,9 @@ an agent gets back.
   and qualifies the name), types, struct fields (named and embedded),
   interface methods, package-level constants and variables (not locals);
   imports with aliases; the `go.mod` module path turns a directory into its
-  import path. Exported by capitalisation. Go is the reference language and
-  the only family resolved in this tree; a bare name never resolves across
-  packages without an import (no name-only fallback).
+  import path. Exported by capitalisation. Go is the reference language; a
+  bare name never resolves across packages without an import (no name-only
+  fallback).
 - **C** (`queries/c/`): functions, prototypes and `extern` declarations (a
   header's API, so a file that declares and defines `f` has `f` and `f~2`),
   globals, structs, unions, enums and their enumerators, members (bit-field
@@ -337,7 +337,8 @@ an agent gets back.
   is the package; classes, structs, records (positional parameters as
   properties), interfaces, enums, delegates, events, methods, constructors,
   operators, indexers, properties and fields; `using`, `using static` and
-  aliases; partial classes are meant to merge in the family resolver.
+  aliases; the parts of a partial class share one qualified name, which the
+  family resolver treats as one type.
   Exported when `public` or `protected`, or a member of an interface or enum.
   A class's first base named like an interface (`IName`) is taken as one.
   Pointer types are left out of the type references (`c.r * k` in an
@@ -357,8 +358,8 @@ an agent gets back.
   `import()` as imports; capitalised JSX elements as component references.
   A definition inside `export` or assigned to `exports.x` is exported; a
   name exported later (`export { a }`, `module.exports = { a }`) is not
-  marked by the query (the resolver is to read those forms). Class members
-  carry no export flag.
+  marked by the query (the resolver counts a name another file imports as
+  exported). Class members carry no export flag.
 - **Lua** (`queries/lua/`): global and local functions, table-field
   functions (`M.f`, `M:f`), functions in table constructors, module tables
   (`local M = {}` exported when the file returns it), class tables made with
@@ -374,6 +375,110 @@ an agent gets back.
   as calls. A file is its own module (`foo.ml` is `Foo`). gotreesitter ships
   no `ocaml_interface` grammar, so `.mli` files are parsed with the `ocaml`
   grammar, which covers signature items.
+- **Python** (`queries/python/`): a file is its own module (`a/b.py` is
+  `a/b`, an `__init__.py` its directory); classes, functions, methods,
+  class attributes, module-level constants and variables; `import` and
+  `from … import` (relative too) with aliases; decorators as call
+  references. The docstring is the doc, else the comments above, past the
+  decorators; a decorated definition's signature is its `def` or `class`
+  line. Exported unless the name starts with an underscore.
+- **TypeScript** (`queries/typescript/`, `.tsx` with JSX references): a
+  file is its own module; functions, classes with methods and fields,
+  interfaces, type aliases, enums, namespaces and `declare module` blocks
+  (which qualify what they hold), constants and variables; ES imports,
+  re-exports, `require` and `import()`, each import name as written (`a as
+  b`, `default as c`) so the resolver knows the local name. A declaration
+  under `export`, and a public class, interface or enum member, is
+  exported.
+- **Kotlin** (`queries/kotlin/`): the `package` header is the package;
+  classes, objects, interfaces, enum classes, type aliases, functions,
+  extension functions (qualified by their receiver), properties and `const
+  val`s, never locals; imports with aliases and wildcards; calls in `.kts`
+  scripts. Everything not `private` is exported. The grammar has no field
+  names, so a signature is the first line (annotation-only lines skipped)
+  and docs (KDoc) are the comments above, past annotations.
+- **Rust** (`queries/rust/`): a file is a module of its crate's `mod`
+  tree, names joined with `::`; functions, structs, enums and variants,
+  unions, traits, type aliases, constants, statics, modules, `macro_rules!`
+  macros, and impls named after their type, so a method is `Type::method`
+  and `impl Trait for Type` references the trait as an implementation;
+  `use` (globs and aliases), `extern crate` and `mod` declarations. An item
+  with a visibility modifier is exported (macros never). A `///` doc above
+  `#[derive(...)]` attributes is found past them.
+- **C++** (`queries/cpp/`): no package clause; namespaces are definitions,
+  so names qualify by position (`a::b::f`); classes, structs, unions,
+  enums, methods, fields, functions, templates, typedefs and aliases,
+  constants, macros; `#include`, `using`, `using namespace` and namespace
+  aliases. A method defined outside its class (`A::f`) takes `A` as its
+  receiver; a receiver that already holds a separator (`n::A::f`) is
+  absolute and not prefixed again. Every definition is exported; no
+  preprocessing, as for C.
+- **Objective-C** (`queries/objc/`): `@interface`, class extensions,
+  categories, `@implementation`, protocols, properties, instance variables,
+  and the C layer (functions, structs, enums, typedefs, macros); methods
+  and messages are named by their full selector, joined from `@name.part`
+  (`initWithName:sides:`, `[self.items insertObject:x atIndex:0]` calls
+  `insertObject:atIndex:`); `#import`, `#include` and `@import`.
+  Foundation's `NS_ENUM` and `NS_ASSUME_NONNULL_BEGIN` parse with error
+  nodes, which the patterns tolerate.
+- **Swift** (`queries/swift/`): classes, structs, enums and their cases,
+  actors, protocols and associated types, extensions (named by the type
+  they extend, so their members qualify as that type's), functions,
+  methods, properties, macros; top-level and member declarations only,
+  never locals; `import`, `@testable` and `@_exported`. Exported when
+  `public` or `open`. Signatures skip annotation-only lines (`@objc`
+  written alone).
+- **Dart** (`queries/dart/`, Flutter included): classes, mixins,
+  extensions, enums, typedefs, functions, methods, constructors, getters,
+  setters, fields and top-level variables; `import`, `export`, `part`,
+  `part of`, deferred and conditional imports; `library a.b;` is the
+  package. A definition with a body is anchored on its body, its name and
+  signature taken from the signature before it; docs are found above the
+  signature, past annotations (`@override`). Exported unless the name
+  starts with an underscore.
+- **PHP** (`queries/php/`): `namespace A\B;` qualifies the definitions
+  that follow it, up to the next `namespace` statement; a braced `namespace
+  A\B { … }` holds its contents. Classes, interfaces, traits, enums,
+  methods, properties, class constants, functions and `define()`
+  constants; `use` (function, const, grouped and aliased), `require` and
+  `include` in their forms. Top-level declarations are exported, members
+  when public. Names compare without case. Anonymous classes' members are
+  not definitions.
+- **Ruby** (`queries/ruby/`): modules, classes, methods (`Shop::Order#total`
+  for instance methods), constants and the definitions written as calls
+  (`attr_*`, `define_method`, Rake's `namespace` and `task`); `require`,
+  `require_relative`, `load`, `autoload` and Gemfile `gem`s; superclasses
+  and `include`/`extend`/`prepend` mixins. Names are qualified by lexical
+  nesting. Bare identifiers are not references: a zero-argument call
+  cannot be told from a local.
+- **SQL** (`queries/sql/`, PostgreSQL-flavoured grammar): schemas, tables,
+  views, columns (`ALTER TABLE … ADD` too), indexes, sequences, types,
+  domains, enums, functions, procedures and triggers; a schema-qualified
+  name (`s.t`) is `s.t`; references to the tables and routines queries
+  reach; `CREATE EXTENSION` and psql `\i` as imports; `USE db` is the
+  package. Names compare without case and lose their quotes. Routine
+  bodies are dollar-quoted strings, so nothing inside them is seen;
+  unparsed statements keep what parsed around them.
+- **Perl** (`queries/perl/`): `package NAME;` qualifies the subs after it
+  up to the next `package` statement, and `sub Other::f` is `Other::f`
+  wherever it is written (a receiver that holds a separator is absolute);
+  subs, constants, package variables, Moose `has` attributes and 5.38
+  `class`/`field`/`method`; `use`, `require` and pragmas; `use parent`,
+  `@ISA` and Moose's `extends`/`with` as inheritance. A POD block or the
+  comments above are the doc. Exported unless the name starts with an
+  underscore. A forward declaration (`sub f;`) runs on to the end of the
+  file in this grammar.
+- **Lisp** (`queries/lisp/`, one query per dialect: `tags.scm` for Common
+  Lisp and files without a dialect, `elisp.scm`, `clojure.scm`,
+  `scheme.scm`, `racket.scm`): `defun`, `defmacro`, `defmethod`,
+  `defgeneric` and every other form whose head starts with `def` (looked up
+  in the profile's `definingForms`; an unknown definer is a call); the
+  docstring or the comments above as the doc. Packages come from
+  `in-package` (Common Lisp), `ns` (Clojure), the file or its library name
+  (Scheme, Racket), none in Emacs Lisp. Imports are `defpackage` clauses,
+  `:require`, `require`, `import`, `#lang` and the like. A Racket or
+  Scheme reference written `prefix:name` (after `prefix-in str:`) is split
+  into qualifier `str` and name, so it resolves through the prefix.
 
 A file the grammar rejects keeps whatever the query matched in the tree
 around the error; a parse cut off after 2 s, or one that fails, indexes the
@@ -383,9 +488,44 @@ file as text with `parseError` set.
 the facts version (the engine's `codeparse.Version` plus a digest of the
 language's profile and query files), so a file version is parsed once for
 every branch, layer and member that holds it, and changing a language's
-query re-parses that language alone. `server run` keeps the cache in memory
-(4,096 file versions); `codeparse/mongocache` is the persistent MongoDB cache
-(`code_parses`) a composing server can pass as `codeindex.Options.Cache`.
+query re-parses that language alone (a change of `codeparse.Version`, now
+`"3"`, re-parses everything). `server run --code-store mongo` and the
+`server graph` commands keep the facts in the persistent MongoDB parse cache
+(`codeparse/mongocache`, collection `code_parses` in the session database,
+an entry expiring 30 days after its last use), so a restart or a rebuild
+does not parse again; an in-memory setup (`--code-store memory`) keeps a
+memory cache of 4,096 file versions that lives as long as the indexer. A
+composing server passes its own as `codeindex.Options.Cache`.
+
+### How references resolve
+
+The engine (`codeindex/resolve.go`) tries, in order, the reference's
+enclosing definitions, its file, its package, what an import binds to the
+qualifier or name, the packages opened unqualified, a definition whose
+qualified name ends with the qualifier and name, a member reached through a
+qualifier that is not an import, and last, where the family allows it, any
+visible definition of that name (confidence `name`). Each family's resolver
+(`codeindex/resolvers/<family>.go`, whose doc comments hold the full rules)
+says what a package is, what imports bind and what is visible:
+
+| Family | Packages and imports | Name fallback and visibility |
+|---|---|---|
+| `go` | A package is its directory, keyed by import path (`go.mod`); an import binds its alias or the package's name, `.` opens it | No name fallback; another package's definitions must be exported |
+| `cfamily` | No packages: a file sees its `#include`/`#import` chain (quoted next to the file, then CMake and `compile_commands.json` include directories, the root, path suffix, base name) and its header/source pair, so callers land on the body, not the prototype | Name fallback; `std::` stays unresolved; C++ bare names only through the global, an enclosing or a `using` namespace; `static` is file-private |
+| `csharp` | The outermost namespace, with its parents opened; `using` opens a namespace, an alias binds a qualifier, `using static` reaches through the fallback | Name fallback; public, protected and internal members are visible, private ones only within their (partial) type |
+| `dart` | A library (its parts share its key); `package:` and relative URIs resolve to files; a prefix binds the library and its exports, no prefix opens them, `show`/`hide` filter | Name fallback; a leading underscore is library-private |
+| `jsts` | A file is its module; relative specs, `tsconfig` `paths`/`baseUrl`, `package.json` `imports`/`exports` and workspaces; default and namespace imports bind a qualifier, named imports names; re-exports are followed | Name fallback, never to a name the file imports from outside the project; module-level definitions visible when exported, imported by name, or in a script |
+| `jvm` | Java and Kotlin share packages (the declaration); a single import binds its name, on-demand and implicit (`java.lang`, Kotlin defaults) imports open the package | Name fallback; an explicit import shadows other definitions of its name; Kotlin `private` is file-private |
+| `lisp` | Per dialect: `in-package`/`defpackage` (`:use`, `:import-from`, nicknames), Clojure `ns` and `:require`, one global Emacs Lisp namespace, Scheme and Racket modules by path or library name, prefixes bound as qualifiers | Name fallback within the dialect group; case-insensitive; no member fallback (a qualifier is a package) |
+| `lua` | `require` binds the module's returned table as a qualifier | Name fallback to globals only; members through an expression only of exported tables |
+| `ocaml` | No imports: a qualifier binds the module the compiler would pick (own library, directory, opened library); `open`, `include` and local opens open a module | No name fallback: bare names leave the module only through an open |
+| `perl` | `package NAME;` (else `main`, keyed by path); `use Module LIST` binds the names, `use Module` opens it; `Package::sub` is absolute; `$self` names the file's package | Name fallback; a leading underscore keeps a sub from fallbacks and opens, not from qualified calls |
+| `php` | The namespace; `use` binds a name and a qualifier, `use function`/`use const` the name; functions and constants fall back to the global namespace; `require`/`include` mark a file's namespace imported | No name fallback; case-insensitive |
+| `python` | A module per file (`__init__.py` for its directory); relative and absolute imports, `from m import x` followed through `__init__.py` re-exports, `*` opens | Name fallback to other modules' exported top-level definitions only; class members only through `self` and the member fallback |
+| `ruby` | A file's feature (path below `lib/`); `require`, `require_relative`, `load` open features, followed transitively; `autoload` imports a name; lexical nesting for constants | Name fallback (Rails and Zeitwerk autoload); every definition visible except Rake tasks |
+| `rust` | The module's path in its crate's `mod` tree (`Cargo.toml`, `src/lib.rs`, `src/main.rs`); `use` paths from `crate::`, `self::`, `super::` or a crate name bind a module qualifier or an item name; globs open | Name fallback (covers re-exports); a crate sees all its own definitions, another crate only `pub` ones |
+| `sql` | A file's default schema (`USE`, else `public`); schema-qualified references by qualified name; a table alias reaches a column | Name fallback to an object of that name in any schema; case-insensitive |
+| `swift` | A module is a SwiftPM target (or an Xcode top directory); `import M` opens M and binds it as a qualifier; extensions merge into their type | Name fallback within the module and imported modules; another module's definitions only when `public`/`open`, or imported `@testable` |
 
 ## Rebuild, status and checks
 
