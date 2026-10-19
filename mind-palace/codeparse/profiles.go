@@ -108,6 +108,12 @@ type Scope struct {
 	Exported string `yaml:"exported"`
 	// CaseInsensitive names compare without case (SQL, Common Lisp).
 	CaseInsensitive bool `yaml:"caseInsensitive"`
+	// SplitQualifiers, per dialect ("*" for every dialect and a file of
+	// none), is the separator a grammar leaves inside one symbol between a
+	// reference's qualifier and its name (Racket's str:string-join, after
+	// prefix-in str:): a reference captured without @qualifier whose name
+	// holds it, not at either end, is cut at its first occurrence.
+	SplitQualifiers map[string]string `yaml:"splitQualifiers"`
 	// Options are family-specific settings the family's resolver reads.
 	Options map[string]string `yaml:"options"`
 }
@@ -167,6 +173,15 @@ func (p *Profile) SymbolKind(capture string) (string, bool) {
 		return word, true
 	}
 	return "", false
+}
+
+// SplitQualifier returns the separator references are split at in a
+// dialect (Scope.SplitQualifiers), or "".
+func (p *Profile) SplitQualifier(dialect string) string {
+	if s, ok := p.Scope.SplitQualifiers[dialect]; ok && dialect != "" {
+		return s
+	}
+	return p.Scope.SplitQualifiers["*"]
 }
 
 // DefiningForm returns the kind a defining form produces in a dialect.
@@ -382,6 +397,14 @@ func ParseProfile(lang string, data []byte) (*Profile, error) {
 		}
 		if d.Dialect != "" && !dialects[d.Dialect] {
 			bad("definingForms[%d]: dialect %q is not one of %s's", i, d.Dialect, l.Name)
+		}
+	}
+	for d, sep := range p.Scope.SplitQualifiers {
+		if d != "*" && !dialects[d] {
+			bad("scope.splitQualifiers: dialect %q is not one of %s's", d, l.Name)
+		}
+		if sep == "" {
+			bad("scope.splitQualifiers: %s: empty separator", d)
 		}
 	}
 	if len(p.Scope.Separators) == 0 {

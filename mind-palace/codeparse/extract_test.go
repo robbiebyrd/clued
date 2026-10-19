@@ -274,3 +274,27 @@ func TestDocAboveDartSignature(t *testing.T) {
 		t.Errorf("greet doc = %q, want %q", greet.Doc, "Greets.")
 	}
 }
+
+func TestSplitQualifiers(t *testing.T) {
+	src := "#lang racket\n(require (prefix-in str: racket/string))\n(define (f) (str:string-join (list \"a\") \",\"))\n"
+	facts, err := engineForTest(t).Parse("f.rkt", []byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, r := range facts.Refs {
+		if r.Name == "string-join" && r.Qualifier == "str" {
+			found = true
+		}
+		if r.Name == "str:string-join" {
+			t.Errorf("reference not split: %+v", r)
+		}
+	}
+	if !found {
+		t.Errorf("no string-join reference qualified by str: %+v", facts.Refs)
+	}
+	p := &Profile{Scope: Scope{SplitQualifiers: map[string]string{"racket": ":", "*": "/"}}}
+	if p.SplitQualifier("racket") != ":" || p.SplitQualifier("clojure") != "/" || p.SplitQualifier("") != "/" {
+		t.Errorf("SplitQualifier: racket %q, clojure %q, none %q", p.SplitQualifier("racket"), p.SplitQualifier("clojure"), p.SplitQualifier(""))
+	}
+}

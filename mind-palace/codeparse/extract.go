@@ -118,12 +118,23 @@ func NewEngine(fsys fs.FS, opts Options) (*Engine, error) {
 	return &Engine{fsys: fsys, profiles: profiles, opts: opts, langs: map[string]*language{}}, nil
 }
 
+// defaultTimeout is the default engine's parse timeout (SetDefaultTimeout);
+// zero is DefaultTimeout.
+var defaultTimeout time.Duration
+
+// SetDefaultTimeout sets the parse timeout of the default engine (Parse,
+// ParseVersion, Default). It is for tests and tools: a test under -race on
+// a loaded machine raises it so a parse is not cut off into text facts. It
+// must be called before the default engine is first used (a TestMain);
+// later calls change nothing.
+func SetDefaultTimeout(d time.Duration) { defaultTimeout = d }
+
 var defaultEngine = sync.OnceValues(func() (*Engine, error) {
 	sub, err := fs.Sub(embeddedQueries, "queries")
 	if err != nil {
 		return nil, err
 	}
-	return NewEngine(sub, Options{})
+	return NewEngine(sub, Options{Timeout: defaultTimeout})
 })
 
 // Default returns the engine over the query files compiled into the
@@ -623,6 +634,10 @@ func (x *extraction) addRef(kind, name string, at int, qualifier *ts.QueryCaptur
 	r := ref{Ref: Ref{Name: name, Kind: kind, Start: x.lines.pos(at)}, at: at, start: int(n.StartByte()), end: int(n.EndByte())}
 	if qualifier != nil {
 		r.Qualifier = truncate(normalizeSpace(x.text(*qualifier)), maxQualifierBytes)
+	} else if sep := x.l.profile.SplitQualifier(x.l.dialect); sep != "" {
+		if q, n, ok := strings.Cut(name, sep); ok && q != "" && n != "" {
+			r.Qualifier, r.Name = truncate(q, maxQualifierBytes), n
+		}
 	}
 	x.refs = append(x.refs, r)
 }
