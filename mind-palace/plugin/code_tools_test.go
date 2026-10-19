@@ -28,9 +28,9 @@ import (
 // it (.mcp.json: scripts/clued session mcp, in the project directory).
 
 const (
-	codeOrigin  = "https://github.com/acme/widgets.git"
-	codeSlug    = "github.com__acme__widgets"
-	codeSession = "sess-plugin-code"
+	codeOrigin   = "https://github.com/acme/widgets.git"
+	codeSlug     = "github.com__acme__widgets"
+	toolsSession = "sess-plugin-code"
 )
 
 const widgetGo = `package widgets
@@ -198,7 +198,7 @@ func TestCodeToolsAgainstAServerWithTheMemoryGraph(t *testing.T) {
 
 	// A project with no code collected: the tools are not listed.
 	bare := gitRepoWithOrigin(t, "https://github.com/acme/empty.git")
-	env := remoteEnv(t, home, closedPort(t), "CLAUDE_SESSION_ID="+codeSession)
+	env := remoteEnv(t, home, closedPort(t), "CLAUDE_SESSION_ID="+toolsSession)
 	if names := listedTools(t, mcpSession(t, bare, env)); names["code_search"] || !names["find_sessions"] {
 		t.Fatalf("a project without code lists %v", names)
 	}
@@ -212,7 +212,7 @@ func TestCodeToolsAgainstAServerWithTheMemoryGraph(t *testing.T) {
 	on := true
 	cfg := session.Config{ServerURL: url, ServerToken: token, CodeSync: &on}
 	rep, err := codesync.Run(context.Background(), codesync.Request{
-		Cwd: repo, SessionID: codeSession, Full: true, Touch: codesync.TouchStart, Budget: -1,
+		Cwd: repo, SessionID: toolsSession, Full: true, Touch: codesync.TouchStart, Budget: -1,
 		Config: cfg, StateDir: t.TempDir(), Host: "plugin-test",
 	})
 	if err != nil || rep.Skipped != "" || rep.Upserts == 0 || rep.Project != codeSlug {
@@ -230,7 +230,7 @@ func TestCodeToolsAgainstAServerWithTheMemoryGraph(t *testing.T) {
 	}
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		res, err := graph.Outline(context.Background(), codeapi.OutlineBody{View: &codeapi.ViewBody{SessionID: codeSession}, Path: "widget.go"})
+		res, err := graph.Outline(context.Background(), codeapi.OutlineBody{View: &codeapi.ViewBody{SessionID: toolsSession}, Path: "widget.go"})
 		if err == nil && res.Status == codeapi.StatusReady && len(res.Files) == 1 {
 			break
 		}
@@ -252,7 +252,7 @@ func TestCodeToolsAgainstAServerWithTheMemoryGraph(t *testing.T) {
 
 	res := callJSON(t, cs, "code_outline", map[string]any{"path": "widget.go"})
 	view, _ := res["view"].(map[string]any)
-	if res["status"] != codeapi.StatusReady || view == nil || view["session"] != codeSession || view["localEdits"] != true {
+	if res["status"] != codeapi.StatusReady || view == nil || view["session"] != toolsSession || view["localEdits"] != true {
 		t.Fatalf("code_outline did not read the session's view: %v", res)
 	}
 	files, _ := res["files"].([]any)
@@ -270,7 +270,7 @@ func TestCodeToolsAgainstAServerWithTheMemoryGraph(t *testing.T) {
 	}
 
 	res = callJSON(t, cs, "code_search", map[string]any{"query": "NewWidget"})
-	if view, _ := res["view"].(map[string]any); res["status"] != codeapi.StatusReady || view == nil || view["session"] != codeSession {
+	if view, _ := res["view"].(map[string]any); res["status"] != codeapi.StatusReady || view == nil || view["session"] != toolsSession {
 		t.Fatalf("code_search: %v", res)
 	}
 	for _, h := range anyList(res["results"]) {
