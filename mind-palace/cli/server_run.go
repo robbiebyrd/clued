@@ -9,11 +9,17 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
+	"github.com/robbiebyrd/clued/mind-palace/code"
+	"github.com/robbiebyrd/clued/mind-palace/code/memcode"
+	"github.com/robbiebyrd/clued/mind-palace/code/mongocode"
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/server"
@@ -31,7 +37,20 @@ const (
 	envServerTLSCert     = "CLUED_SERVER_TLS_CERT"
 	envServerTLSKey      = "CLUED_SERVER_TLS_KEY"
 	envServerBehindProxy = "CLUED_SERVER_BEHIND_PROXY"
+	envServerCodeStore   = "CLUED_SERVER_CODE_STORE"
 	defaultServerAddr    = "127.0.0.1:8443"
+)
+
+// The code stores `server run --code-store` accepts.
+const (
+	// codeStoreMongo keeps collected code in the session config's MongoDB
+	// (mongoUrl, dbName), one set of collections per namespaced project.
+	codeStoreMongo = "mongo"
+	// codeStoreMemory keeps it in memory, one store per namespaced project.
+	codeStoreMemory = "memory"
+	// codeStoreOff serves no code routes: every one answers 404, which a
+	// client takes as "this server collects no code".
+	codeStoreOff = "off"
 )
 
 // serverRunOptions is everything `server run` resolved from its flags, the
@@ -56,6 +75,10 @@ type serverRunOptions struct {
 	// Store is "" for the configured stores or "memory" for in-memory
 	// session and document stores (the test hook).
 	Store string
+	// CodeStore is the code store (--code-store, CLUED_SERVER_CODE_STORE):
+	// "mongo", "memory" or "off"; "" is the session store's backend (memory
+	// under --store memory, else mongo).
+	CodeStore string
 	// Version is reported by /health and whoami.
 	Version string
 	// Ready, when non-nil, receives the bound address once listening.
@@ -88,7 +111,13 @@ or with --behind-proxy. Each flag falls back to its CLUED_SERVER_* variable.
 Plans and stories use the storage of the mind-palace config (--config,
 MIND_PALACE_CONFIG; a file store is not required), namespaced per project;
 sessions use the MongoDB of the clued config (--session-config,
-CLUED_MONGO_URL, CLUED_DB_NAME). Enrichment runs on the server.`,
+CLUED_MONGO_URL, CLUED_DB_NAME). Enrichment runs on the server.
+
+--code-store (CLUED_SERVER_CODE_STORE) turns on the write-only code transport
+under /api/v1/projects/{project}/code/: mongo keeps the collected code in the
+session config's MongoDB, one set of collections per namespaced project;
+memory keeps it in memory; off serves no code routes. The default is the
+session store's backend.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			o.Addr = firstNonEmpty(o.Addr, os.Getenv(envServerAddr), defaultServerAddr)
@@ -101,6 +130,10 @@ CLUED_MONGO_URL, CLUED_DB_NAME). Enrichment runs on the server.`,
 			o.ConfigPath = a.configPath
 			if o.Store != "" && o.Store != "memory" {
 				return a.fail(&service.Error{Kind: service.KindBadRequest, Message: fmt.Sprintf("--store %q: only \"memory\" is accepted (leave it unset for the configured stores)", o.Store)})
+			}
+			o.CodeStore = defaultCodeStore(firstNonEmpty(o.CodeStore, os.Getenv(envServerCodeStore)), o.Store)
+			if err := checkCodeStore(o.CodeStore); err != nil {
+				return a.fail(&service.Error{Kind: service.KindBadRequest, Message: err.Error()})
 			}
 			// The listening line is printed from a goroutine; closing ready on
 			// return ends it when the server never came up.
@@ -131,6 +164,7 @@ CLUED_MONGO_URL, CLUED_DB_NAME). Enrichment runs on the server.`,
 	f.BoolVar(&o.BehindProxy, "behind-proxy", false, "serve plain HTTP off loopback because a reverse proxy terminates TLS (default: $"+envServerBehindProxy+")")
 	f.StringVar(&o.SessionConfig, "session-config", session.DefaultConfigPath(), "clued session config file (mongoUrl, dbName, enrichers)")
 	f.StringVar(&o.Store, "store", "", "\"memory\" keeps sessions, plans and stories in memory (for tests)")
+	f.StringVar(&o.CodeStore, "code-store", "", "code store: mongo, memory or off (default: $"+envServerCodeStore+", then the session store's backend)")
 	f.StringVar(&o.Version, "version", remote.Version, "version reported by /health and /api/v1/whoami")
 	return cmd
 }
@@ -175,6 +209,9 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 	if err != nil {
 		return a.fail(&service.Error{Kind: service.KindBadRequest, Message: err.Error()})
 	}
+	if err := checkCodeStore(defaultCodeStore(o.CodeStore, o.Store)); err != nil {
+		return a.fail(&service.Error{Kind: service.KindBadRequest, Message: err.Error()})
+	}
 	opener := projects.NewOpener(cfg.EnabledStorage(), cfg.Dirs())
 
 	var sessions session.Store
@@ -190,11 +227,22 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 	// What clients send is redacted and excluded as the server's own config
 	// says too, for clients that do not redact themselves.
 	sessions = capturing(sessions, sessionCfg)
+	codeStores, err := openCodeStores(ctx, defaultCodeStore(o.CodeStore, o.Store), sessionCfg)
+	if err != nil {
+		closeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = sessions.Close(closeCtx)
+		_ = opener.Close(closeCtx)
+		return a.fail(&service.Error{Kind: kindConnect, Message: err.Error()})
+	}
 	defer func() {
 		closeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := sessions.Close(closeCtx); err != nil {
 			logger.Warn("closing the session store", "error", err)
+		}
+		if err := codeStores.Close(closeCtx); err != nil {
+			logger.Warn("closing the code stores", "error", err)
 		}
 		if err := opener.Close(closeCtx); err != nil {
 			logger.Warn("closing the project stores", "error", err)
@@ -213,6 +261,7 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 		Device:       device.New(device.Options{Tokens: tokens}),
 		Exchange:     tokens,
 		ClientConfig: clientConfigFrom(sessionCfg, o.SessionConfig, time.Now()),
+		Code:         codeStores.opener(),
 	})
 	if err := srv.Serve(ctx, listen, o.Ready); err != nil {
 		return a.fail(&service.Error{Kind: service.KindStorage, Message: err.Error(), Cause: err})
@@ -275,4 +324,109 @@ func loadServerConfig(path string) (*config.Config, error) {
 		return nil, errors.New("no storage plugin is enabled in " + firstNonEmpty(cfg.Source, "the default configuration"))
 	}
 	return cfg, nil
+}
+
+// defaultCodeStore is the code store kind, or, when kind is "", the session
+// store's backend: memory under --store memory, else mongo.
+func defaultCodeStore(kind, store string) string {
+	if kind != "" {
+		return kind
+	}
+	if store == "memory" {
+		return codeStoreMemory
+	}
+	return codeStoreMongo
+}
+
+// checkCodeStore refuses a code store kind `server run` does not know.
+func checkCodeStore(kind string) error {
+	switch kind {
+	case codeStoreMongo, codeStoreMemory, codeStoreOff:
+		return nil
+	}
+	return fmt.Errorf("--code-store %q: one of mongo, memory or off is accepted", kind)
+}
+
+// codeStores opens and caches one code store per namespaced project (the key
+// CluedOptions.Code receives). The zero value, for --code-store off, opens
+// nothing.
+type codeStores struct {
+	open  func(ctx context.Context, key string) (code.Store, error)
+	close func(ctx context.Context) error
+
+	mu     sync.Mutex
+	stores map[string]code.Store
+}
+
+// connectCodeMongo connects the MongoDB of --code-store mongo; tests replace
+// it to observe the connection.
+var connectCodeMongo = func(ctx context.Context, url string) (*mongo.Client, error) {
+	client, err := mongo.Connect(options.Client().ApplyURI(url))
+	if err != nil {
+		return nil, err
+	}
+	if err := client.Ping(ctx, nil); err != nil {
+		_ = client.Disconnect(context.Background())
+		return nil, err
+	}
+	return client, nil
+}
+
+// openCodeStores prepares the code stores of kind: none for off, memcode per
+// project for memory, and for mongo one mongocode store per project in the
+// session config's MongoDB (mongoUrl, dbName), its collections prefixed as
+// server/projects stamps the mongodb store plugin's.
+func openCodeStores(ctx context.Context, kind string, cfg session.Config) (*codeStores, error) {
+	c := &codeStores{stores: map[string]code.Store{}}
+	switch kind {
+	case codeStoreOff:
+	case codeStoreMemory:
+		c.open = func(context.Context, string) (code.Store, error) { return memcode.New(), nil }
+	case codeStoreMongo:
+		client, err := connectCodeMongo(ctx, cfg.MongoURL)
+		if err != nil {
+			return nil, fmt.Errorf("code store: %w", err)
+		}
+		db := client.Database(cfg.DBName)
+		c.open = func(ctx context.Context, key string) (code.Store, error) {
+			return mongocode.Open(ctx, db, mongocode.ProjectPrefix("", key))
+		}
+		c.close = client.Disconnect
+	default:
+		return nil, checkCodeStore(kind)
+	}
+	return c, nil
+}
+
+// opener is CluedOptions.Code: nil when no code store is configured, so the
+// code routes answer 404.
+func (c *codeStores) opener() func(ctx context.Context, key string) (code.Store, error) {
+	if c.open == nil {
+		return nil
+	}
+	return c.Open
+}
+
+// Open returns the code store of the namespaced project key, opening it on
+// first use. A failed open is not cached, so the next request retries.
+func (c *codeStores) Open(ctx context.Context, key string) (code.Store, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if s, ok := c.stores[key]; ok {
+		return s, nil
+	}
+	s, err := c.open(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	c.stores[key] = s
+	return s, nil
+}
+
+// Close releases the MongoDB connection of --code-store mongo.
+func (c *codeStores) Close(ctx context.Context) error {
+	if c.close == nil {
+		return nil
+	}
+	return c.close(ctx)
 }

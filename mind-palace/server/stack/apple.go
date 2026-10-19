@@ -178,6 +178,7 @@ SERVER_ARGS=(--detach --name "${CONTAINERS[1]}" --user 0:0
   --env MIND_PALACE_CONFIG=/etc/clued/run/mind-palace.config.yaml
   --env "CLUED_MONGO_URL=mongodb://${MONGO_IP}:27017"
   --env CLUED_DB_NAME=claude_sessions
+  --env CLUED_SERVER_CODE_STORE=` + CodeStore + `
   --env CLUED_SERVER_BEHIND_PROXY=true)
 if [[ "$PROXY" == "none" ]]; then
   # Plain HTTP on loopback only, for the terminator on this host.
