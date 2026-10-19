@@ -25,10 +25,14 @@ import (
 // to a syntax error). Namespaces compare without case, so the keys are
 // lower case.
 //
-// `use A\B` (and `use A\B as C`) binds the bare name B to the namespace A
-// and the qualifier B (or C) to both A (B is a class: B::f, B::X) and A\B
-// (B is a namespace: B\f, B\C::g); a group `use A\{B, C as D}` binds each
-// clause the same way under its prefix. `use function` and `use const`
+// `use A\B` binds the bare name B to the namespace A, `use A\B as C`
+// binds C as B renamed (Scope.Renamed: new C reaches A\B), and both bind
+// the qualifier B (or C) to A (B is a class: B::f, B::X) and A\B (B is a
+// namespace: B\f, B\C::g), except that C is left to the renamed binding
+// when the project holds A but no namespace A\B (B is one of its classes:
+// C::f is B::f); a group `use A\{B, C as D}` binds each clause the same
+// way under its prefix. A qualified name is matched whole first
+// (A\B::f, \A\f: AbsoluteQualifiers, exact). `use function` and `use const`
 // bind the bare name only. The qualifier `namespace` (namespace\f) names
 // the file's own namespace. A bare name reaches the file's enclosing
 // functions and namespaces (never a class's members: those take $this,
@@ -46,7 +50,7 @@ func init() { Register(codeparse.FamilyPHP, php{}) }
 
 type php struct{}
 
-var phpRules = Rules{Separators: []string{`\`, "::"}, CaseInsensitive: true, MemberFallback: true}
+var phpRules = Rules{Separators: []string{`\`, "::"}, CaseInsensitive: true, MemberFallback: true, AbsoluteQualifiers: true}
 
 // Rules implements Resolver.
 func (php) Rules() Rules { return phpRules }
@@ -252,8 +256,13 @@ func (php) Scope(ctx context.Context, v View, f *File) (Scope, error) {
 			if last == "" {
 				continue
 			}
-			if im.Alias == "" {
+			renamed := im.Alias != "" && !strings.EqualFold(im.Alias, last)
+			switch {
+			case im.Alias == "":
 				s.AddName(last, PHPNamespaceKey(parent))
+			case renamed:
+				// use A\B as C: C is B renamed (new C, C as a type, C()).
+				s.AddRenamed(im.Alias, PHPNamespaceKey(parent), last)
 			}
 			if im.Kind == phpUseFunction || im.Kind == phpUseConst {
 				continue
@@ -261,6 +270,12 @@ func (php) Scope(ctx context.Context, v View, f *File) (Scope, error) {
 			q := im.Alias
 			if q == "" {
 				q = last
+			}
+			if renamed && len(v.Package(codeparse.FamilyPHP, PHPNamespaceKey(name))) == 0 &&
+				len(v.Package(codeparse.FamilyPHP, PHPNamespaceKey(parent))) > 0 {
+				// A class of the project renamed: C::f is B::f, which the
+				// renamed qualifier finds by B's qualified name.
+				continue
 			}
 			s.AddQualifier(q, PHPNamespaceKey(parent))
 			s.AddQualifier(q, PHPNamespaceKey(name))

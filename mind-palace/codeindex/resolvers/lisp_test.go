@@ -463,6 +463,7 @@ func TestResolve_lispGoldens(t *testing.T) {
 		"rkt/private/util.rkt":    lispFile("racket", "").fn("log-shape").src(),
 		"scm/queue.scm":           lispGolden(t, "queue.scm"),
 		"scm/modules.ss":          lispGolden(t, "modules.ss"),
+		"scm/data/util.scm":       lispFile("scheme", "(data util)").fn("ensure-queue").src(),
 		"scm/user.scm": lispFile("scheme", "").imp(codeparse.Import{Spec: "(data queue)", Kind: "import"}).
 			imp(codeparse.Import{Spec: "(app main)", Kind: "import"}).
 			fn("go").call("go", "make-queue").call("go", "adder").src(),
@@ -513,5 +514,10 @@ func TestResolve_lispGoldens(t *testing.T) {
 	})
 	has("dequeue", lispCallees(t, g, "scm/queue.scm", "(data queue):dequeue"), map[string]string{
 		"scm/queue.scm#(data queue):queue-empty?": "exact",
+	})
+	// (prefix (data util) util:): the extractor splits util:ensure-queue
+	// into the prefix and the name, and the prefix names the library.
+	has("with-queue", lispCallees(t, g, "scm/queue.scm", "(data queue):with-queue"), map[string]string{
+		"scm/data/util.scm#(data util):ensure-queue": "exact",
 	})
 }

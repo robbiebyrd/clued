@@ -77,7 +77,7 @@ func TestResolve_lua_Registered(t *testing.T) {
 		t.Fatalf("ForLang(lua) = %q, %v", fam, ok)
 	}
 	rules := res.Rules()
-	if !reflect.DeepEqual(rules.Separators, []string{".", ":"}) || rules.CaseInsensitive || !rules.NameFallback || !rules.MemberFallback {
+	if !reflect.DeepEqual(rules.Separators, []string{".", ":"}) || rules.CaseInsensitive || !rules.NameFallback || !rules.MemberFallback || !rules.ImportMembers {
 		t.Errorf("rules = %+v", rules)
 	}
 	// The resolver's separators are the profile's.
@@ -342,7 +342,8 @@ end
 	}
 
 	// A module required by path, its returned table qualified by the
-	// require's alias; a member reached through a table the module returns
+	// require's alias (a member of the table the module returns under
+	// another name, local M = {} ... return M, is qualified: ImportMembers); a member reached through a table the module returns
 	// under another name; globals of an opened require and of dofile; a
 	// global of a module that is only required (a name match); a local of
 	// another module, a module outside the project: nothing.
@@ -350,7 +351,7 @@ end
 		"app/nested.lua#app.util.escape qualified",
 		"config.lua#load_config exact",
 		"helpers.lua#helper exact",
-		"socket/http.lua#M.request name",
+		"socket/http.lua#M.request qualified", // the table the module returns
 		"strutil.lua#strutil.split qualified",
 		"strutil.lua#strutil.trim qualified",
 		"strutil.lua#strutil.words qualified",
@@ -395,7 +396,7 @@ end
 
 	// imports.lua: socket.http is in the project, cjson is not.
 	want("fetch", luaEdges(t, ctx, g, codegraph.RelCallees, "imports.lua", "fetch"),
-		"socket/http.lua#M.request name")
+		"socket/http.lua#M.request qualified")
 
 	// broken.lua: a global of a file it never requires (a name match); a
 	// call through its own module table.

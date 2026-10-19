@@ -40,7 +40,7 @@ func init() { Register(codeparse.FamilySwift, swift{}) }
 
 type swift struct{}
 
-var swiftRules = Rules{Separators: []string{"."}, NameFallback: true, MemberFallback: true}
+var swiftRules = Rules{Separators: []string{"."}, NameFallback: true, MemberFallback: true, ReceiverMembers: true}
 
 // Swift profile options and their values (queries/swift/profile.yaml).
 const (

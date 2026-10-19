@@ -47,8 +47,8 @@ import (
 // package of the project leaves the reference unresolved (no member
 // fallback: a Lisp qualifier is a package, never an expression). A Scheme or
 // Racket prefix (prefix-in str:, (prefix (lib) p:)) is bound as a
-// qualifier, so a reference reaches it only when the extractor splits the
-// prefix off the name.
+// qualifier, which the extractor splits off the name (the profile's
+// splitQualifiers: util:ensure-queue is ensure-queue qualified by util).
 func init() { Register(codeparse.FamilyLisp, lisp{}) }
 
 type lisp struct{}

@@ -21,7 +21,12 @@ import (
 // namespace); a spec outside the project is kept as it is, so what it
 // qualifies stays unresolved. using static T brings T's static members into
 // scope; they are members, which the engine's bare-name steps do not reach,
-// so they resolve through the name fallback, as inherited members do.
+// so they resolve through the name fallback, as inherited members do. A
+// qualifier written from the root binds global to the global namespace and
+// global::A.B to the namespace A.B (the longest of the qualifier's leading
+// parts the project declares), so global::A.B.T.M() is T.M of A.B. An
+// extension method (static string Shout(this string s)) is a member of its
+// static class, reached through any receiver by the member fallback.
 //
 // Visibility follows C#'s accessibility: a top-level type is visible in the
 // whole project (public or internal) unless declared file-local; a member
@@ -35,7 +40,12 @@ func init() { Register(codeparse.FamilyCSharp, csharp{}) }
 
 type csharp struct{}
 
-var csharpRules = Rules{Separators: []string{"."}, NameFallback: true, MemberFallback: true}
+// "::" separates an extern alias (global::A.B) from what it qualifies; no
+// qualified name holds it.
+var csharpRules = Rules{Separators: []string{".", "::"}, NameFallback: true, MemberFallback: true, ReceiverMembers: true}
+
+// csharpGlobal is the alias of the global namespace (global::A.B).
+const csharpGlobal = "global"
 
 // Rules implements Resolver.
 func (csharp) Rules() Rules { return csharpRules }
@@ -63,6 +73,26 @@ func (csharp) Scope(_ context.Context, v View, f *File) (Scope, error) {
 	}
 	if f.Facts == nil {
 		return s, nil
+	}
+	// global::A.B.T: global names the global namespace, and global::A.B
+	// the namespace A.B, written from the root.
+	for _, r := range f.Facts.Refs {
+		rest, ok := strings.CutPrefix(r.Qualifier, csharpGlobal+"::")
+		if !ok {
+			continue
+		}
+		s.AddQualifier(csharpGlobal, "")
+		for ns := CSharpName(rest); ns != ""; {
+			if len(v.Package(codeparse.FamilyCSharp, ns)) > 0 {
+				s.AddQualifier(csharpGlobal+"::"+ns, ns)
+				break
+			}
+			i := strings.LastIndex(ns, ".")
+			if i < 0 {
+				break
+			}
+			ns = ns[:i]
+		}
 	}
 	for _, im := range f.Facts.Imports {
 		spec := CSharpName(im.Spec)

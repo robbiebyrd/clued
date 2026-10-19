@@ -16,8 +16,9 @@ import (
 // else the spec without its last segment. Without an alias, and when that
 // package is the spec's parent, the name is bound as a bare name too; a
 // nested type's import (a.b.Outer.Inner) binds the qualifier only, since
-// the engine's import step reaches top-level definitions, and an alias
-// cannot be found by the definition's name. On-demand imports (Java's
+// the engine's import step reaches top-level definitions. An alias that
+// renames (Kotlin's import a.b.Box as Crate) binds Crate as Box renamed
+// (Scope.Renamed): Crate() is Box, Crate.f is Box.f. On-demand imports (Java's
 // import a.b.*, Kotlin's wildcard a.b.*) open the package, as do the
 // implicit ones (the profile's implicitImports or defaultImports option,
 // else JVMImplicitImports). Static imports bind no package: they name
@@ -37,14 +38,15 @@ import (
 //   - a Kotlin extension declared outside its receiver's file (a top-level
 //     definition whose qualified name holds its receiver: pkg.String.shout)
 //     is reachable from another package only when imported by name or on
-//     demand.
+//     demand; it is a member of its receiver for the engine
+//     (ReceiverMembers: "a".shout() finds it).
 func init() { Register(codeparse.FamilyJVM, jvm{}) }
 
 type jvm struct{ Default }
 
 const jvmKotlin = "kotlin"
 
-var jvmRules = Rules{Separators: []string{"."}, NameFallback: true, MemberFallback: true}
+var jvmRules = Rules{Separators: []string{"."}, NameFallback: true, MemberFallback: true, ReceiverMembers: true}
 
 // Rules implements Resolver.
 func (jvm) Rules() Rules { return jvmRules }
@@ -183,7 +185,13 @@ func (jvm) Scope(_ context.Context, v View, f *File) (Scope, error) {
 			if owner == "" {
 				owner = parent
 			}
-			if owner == parent && im.local == LastSegment(im.spec, jvmRules.Separators) {
+			if im.local != LastSegment(im.spec, jvmRules.Separators) {
+				// import x.Y as Z: Z is Y renamed (a nested type's alias,
+				// a.b.Outer.Inner as Z, names Outer.Inner in its package).
+				s.AddRenamed(im.local, owner, strings.TrimPrefix(im.spec, owner+"."))
+				continue
+			}
+			if owner == parent {
 				s.AddName(im.local, owner)
 			}
 			s.AddQualifier(im.local, owner)
@@ -237,10 +245,10 @@ func (jvm) Visible(f *File, c Candidate, step Step) bool {
 }
 
 // jvmNames reports whether a single or static import names the
-// definition c by its own name.
+// definition c, by its own name or renamed (import x.Y as Z).
 func jvmNames(imports []jvmImport, c Candidate) bool {
 	for _, im := range imports {
-		if (im.form == jvmSingle || im.form == jvmStatic) && im.local == c.Symbol.Name && jvmMatches(im.spec, c) {
+		if (im.form == jvmSingle || im.form == jvmStatic) && jvmMatches(im.spec, c) {
 			return true
 		}
 	}

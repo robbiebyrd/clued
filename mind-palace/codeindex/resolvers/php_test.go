@@ -215,13 +215,24 @@ func TestScope_php(t *testing.T) {
 	if !reflect.DeepEqual(s.Names, wantN) {
 		t.Errorf("names:\n got %v\nwant %v", s.Names, wantN)
 	}
+	// use … as: the original name in its namespace (the namespaces are not
+	// in this view, so the qualifiers above stay bound too).
+	wantR := map[string][]resolvers.Original{
+		"BlogPost": {{Package: `app\models`, Name: "Post"}},
+		"Log":      {{Package: `app\services`, Name: "Logger"}},
+		"money":    {{Package: `app\support`, Name: "format_money"}}, // use function … as money
+		"APP_MODE": {{Package: `app\support`, Name: "MODE"}},         // use const … as APP_MODE
+	}
+	if !reflect.DeepEqual(s.Renamed, wantR) {
+		t.Errorf("renamed:\n got %v\nwant %v", s.Renamed, wantR)
+	}
 	// The global fallback, bootstrap.php's namespace and config/app.php's
 	// (global); the two other requires name no file of the view.
 	if want := []string{"", "boot"}; !reflect.DeepEqual(s.Open, want) {
 		t.Errorf("open = %v, want %v", s.Open, want)
 	}
 
-	if rules := res.Rules(); !rules.CaseInsensitive || rules.NameFallback || !rules.MemberFallback ||
+	if rules := res.Rules(); !rules.CaseInsensitive || rules.NameFallback || !rules.MemberFallback || !rules.AbsoluteQualifiers ||
 		!reflect.DeepEqual(rules.Separators, []string{`\`, "::"}) {
 		t.Errorf("rules = %+v", rules)
 	}
@@ -395,7 +406,7 @@ func TestResolve_php(t *testing.T) {
 
 	// imports.php: use, use as, group use.
 	e.want("show", e.edges(codegraph.RelCallees, ctrl, `App\Http\Controllers\UserController\show`), map[string]string{
-		`app/Services/Logger.php#App\Services\Logger\info`: name, // Log aliases Logger: a member of the imported namespace
+		`app/Services/Logger.php#App\Services\Logger\info`: qualified, // Log aliases Logger: Logger::info
 		`app/Models/User.php#App\Models\User\findOrFail`:   qualified,
 		`app/Services/Mailer.php#App\Services\Mailer\send`: qualified, // a group use
 	})
@@ -409,7 +420,7 @@ func TestResolve_php(t *testing.T) {
 		`app/Models/Order.php#App\Models\Order\toArray`:                  name,
 		"helpers.php#event": exact, // the global fallback
 		`app/Repository/Base.php#App\Repository\BaseRepository\flush`: name,
-		`app/Support/functions.php#App\Support\sum`:                   qualified,
+		`app/Support/functions.php#App\Support\sum`:                   exact, // \App\Support\sum: the whole name
 		`app/Repository/functions.php#App\Repository\audit`:           exact, // namespace\audit
 	})
 	e.want("find", e.edges(codegraph.RelCallees, repo, `App\Repository\OrderRepository\find`), map[string]string{
@@ -434,7 +445,7 @@ func TestResolve_php(t *testing.T) {
 	// nested.php: a fully qualified call into a braced namespace, a nested
 	// function.
 	e.want("global_helper", e.edges(codegraph.RelCallees, legacy, "global_helper"), map[string]string{
-		legacy + `#Legacy\Helpers\render`: qualified,
+		legacy + `#Legacy\Helpers\render`: exact, // AbsoluteQualifiers
 	})
 	e.want("render", e.edges(codegraph.RelCallees, legacy, `Legacy\Helpers\render`), map[string]string{
 		legacy + `#Legacy\Helpers\render\escape`: exact,
@@ -443,7 +454,7 @@ func TestResolve_php(t *testing.T) {
 	// PSR-4, case, the global fallback (functions only).
 	e.want("call", e.edges(codegraph.RelCallees, "app/Uses/Caller.php", `App\Uses\call`), map[string]string{
 		"app/Lost/Thing.php#Thing\\go":              qualified,
-		`app/Support/functions.php#App\Support\sum`: qualified,
+		`app/Support/functions.php#App\Support\sum`: exact, // \app\support\SUM, any case
 		legacy + "#global_helper":                   exact,
 		"helpers.php#event":                         exact,
 	})

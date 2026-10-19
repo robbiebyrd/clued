@@ -108,7 +108,7 @@ func TestResolvers_csharpRules(t *testing.T) {
 		t.Fatalf("ForLang(csharp) = %q, %v", family, ok)
 	}
 	rules := r.Rules()
-	if !reflect.DeepEqual(rules.Separators, []string{"."}) || rules.CaseInsensitive || !rules.NameFallback || !rules.MemberFallback {
+	if !reflect.DeepEqual(rules.Separators, []string{".", "::"}) || rules.CaseInsensitive || !rules.NameFallback || !rules.MemberFallback || !rules.ReceiverMembers {
 		t.Errorf("rules = %+v", rules)
 	}
 	for in, want := range map[string]string{
@@ -174,6 +174,9 @@ func TestResolvers_csharpPackageAndScope(t *testing.T) {
 			"G":   {"Demo.Geometry"}, // a namespace alias
 			"UiC": {"Demo.Ui"},       // a nested namespace: its outermost namespace
 			"Cus": {"Demo.Data"},     // a type alias: the type's namespace
+			// global::GlobalThing and global::Demo.Other.Dialog (Demo.Other
+			// has no file in this view, so only global is bound).
+			"global": {""},
 		},
 		Open: []string{"Demo", "", "Demo.Geometry", "Demo.Orders", "Demo.Ui"},
 	}
@@ -259,6 +262,8 @@ namespace Demo.App
             Cus.Notify(null);
             Unknown.Call();
             Local();
+            global::Demo.Other.Dialog.Open();
+            global::GlobalThing.Make();
         }
 
         static void Local() { }
@@ -382,7 +387,7 @@ func TestResolve_csharp(t *testing.T) {
 `,
 		"other/Dialog.cs": csharpDialog,
 		"Shared.cs":       "namespace Demo { public class Shared { } }\n",
-		"Global.cs":       "public class GlobalThing { }\n",
+		"Global.cs":       "public class GlobalThing { public static void Make() { } }\n",
 		"app/Program.cs":  csharpProgram,
 	})
 	const prog = "app/Program.cs"
@@ -393,6 +398,8 @@ func TestResolve_csharp(t *testing.T) {
 		"other/Dialog.cs#Demo.Other.Dialog.Show":        "qualified", // a qualified name, internal
 		"data/Data.cs#Demo.Data.Customer.Notify":        "name",      // a type alias: a member of its namespace
 		prog + "#Demo.App.Program.Local":                "exact",     // the enclosing type
+		"other/Dialog.cs#Demo.Other.Dialog.Open":        "qualified", // global::Demo.Other: the namespace
+		"Global.cs#GlobalThing.Make":                    "qualified", // global::: the global namespace
 	})
 	for _, c := range []struct{ path, id, conf string }{
 		{"geometry/Shapes.cs", "Demo.Geometry.Point", "exact"},    // using

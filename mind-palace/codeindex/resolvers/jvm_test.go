@@ -203,6 +203,7 @@ fun main() {
     whisper("a")
     secret()
     Crate()
+    "a".shout()
 }
 `,
 	"k/other/Other.kt": `package k.other
@@ -232,9 +233,13 @@ func TestResolve_jvmRules(t *testing.T) {
 			"a.app.App.run REFERENCES a/util/Util.java#a.util.Util.Inner name"}, //
 		// Java and Kotlin share a package.
 		"k/text/Use.java": {"k.text.Use.use CALLS k/text/Text.kt#k.text.Box exact", "k.text.Use.use REFERENCES k/text/Text.kt#k.text.Box exact"},
-		// The extension and the function are imported; the private
-		// function and the alias are not reached.
-		"k/app/Main.kt": {"k.app.String.loud CALLS k/text/Text.kt#k.text.String.shout exact", "k.app.main CALLS k/text/Text.kt#k.text.whisper exact"},
+		// The extension and the function are imported, the alias names
+		// Box renamed; the private function is not reached; "a".shout()
+		// reaches the imported extension as a member of its receiver.
+		"k/app/Main.kt": {"k.app.String.loud CALLS k/text/Text.kt#k.text.String.shout exact",
+			"k.app.main CALLS k/text/Text.kt#k.text.Box exact",
+			"k.app.main CALLS k/text/Text.kt#k.text.String.shout name",
+			"k.app.main CALLS k/text/Text.kt#k.text.whisper exact"},
 		// A private function in its own file.
 		"k/text/Text.kt": {"k.text.Box.open CALLS k/text/Text.kt#k.text.secret exact"},
 		// An extension of another package is not reached unimported; a
@@ -382,8 +387,9 @@ func TestResolver_jvmPackageAndScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	want = resolvers.Scope{
-		Qualifiers: map[string][]string{"Gadget": {"com.acme"}, "shout": {"com.acme"}},
+		Qualifiers: map[string][]string{"shout": {"com.acme"}},
 		Names:      map[string][]string{"shout": {"com.acme"}},
+		Renamed:    map[string][]resolvers.Original{"Gadget": {{Package: "com.acme", Name: "Widget"}}},
 		Open: []string{"kotlin", "kotlin.annotation", "kotlin.collections", "kotlin.comparisons", "kotlin.io",
 			"kotlin.ranges", "kotlin.sequences", "kotlin.text", "kotlin.jvm", "java.lang", "com.acme.util"},
 	}

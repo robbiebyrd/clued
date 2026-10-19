@@ -21,12 +21,15 @@ import (
 // of the imported files when the project holds them, otherwise the name the
 // go command would guess from the path. "." opens the package, "_" binds
 // nothing. Bare names never leave their package except through a dot
-// import; another package's definitions must be exported.
+// import; another package's definitions must be exported. A method declared
+// in another file than its type has no parent in its file's facts; it is a
+// member of its receiver all the same (ReceiverMembers), so s.Serve()
+// reaches it.
 func init() { Register(codeparse.FamilyGo, golang{}) }
 
 type golang struct{}
 
-var goRules = Rules{Separators: []string{"."}, MemberFallback: true}
+var goRules = Rules{Separators: []string{"."}, MemberFallback: true, ReceiverMembers: true}
 
 // Rules implements Resolver.
 func (golang) Rules() Rules { return goRules }

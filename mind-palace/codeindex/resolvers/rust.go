@@ -44,18 +44,22 @@ import (
 // rule binds fall back to any definition of that name (confidence name),
 // which covers re-exports, globs of enums and items of inline modules.
 //
-// Not followed: #[path] attributes, re-exports through `pub use` (they
-// resolve by name), aliases of items (use a::f as g; g() is unresolved:
-// the engine looks definitions up by the referenced name), and paths of
-// three or more segments through file modules (crate::a::f(): a qualifier
-// binds its first segment only, and the rest must be part of a
-// definition's qualified name, which in Rust never holds the file's
-// module path).
+// An alias of an item (use a::f as g) binds g as f renamed
+// (Scope.Renamed): g() is f, G::new is F::new. A path through file modules
+// (crate::a::b::f(), super::a::f, a::b::f after use crate::a) binds its
+// longest leading part that names a module of the project, so f is found
+// in that module (a definition's qualified name never holds its file's
+// module path). A qualified name is matched whole first (Type::method from
+// anywhere: AbsoluteQualifiers, exact), and a method of an impl in another
+// file than its type is a member of the type (ReceiverMembers).
+//
+// Not followed: #[path] attributes and re-exports through `pub use` (they
+// resolve by name).
 func init() { Register(codeparse.FamilyRust, rust{}) }
 
 type rust struct{}
 
-var rustRules = Rules{Separators: []string{"::"}, NameFallback: true, MemberFallback: true}
+var rustRules = Rules{Separators: []string{"::"}, NameFallback: true, MemberFallback: true, ReceiverMembers: true, AbsoluteQualifiers: true}
 
 // Rules implements Resolver.
 func (rust) Rules() Rules { return rustRules }
@@ -566,8 +570,12 @@ func (rust) Scope(_ context.Context, v View, f *File) (Scope, error) {
 			case inProject && exists(k): // a module
 				s.AddQualifier(name, k)
 			case inProject: // an item of a module
-				if hasParent && u.Alias == "" {
+				switch {
+				case !hasParent:
+				case u.Alias == "":
 					s.AddName(last, parent)
+				default: // use a::f as g: g is f renamed
+					s.AddRenamed(u.Alias, parent, last)
 				}
 			default: // outside the project: keep its references unresolved
 				s.AddQualifier(name, k)
@@ -600,6 +608,47 @@ func (rust) Scope(_ context.Context, v View, f *File) (Scope, error) {
 			}
 		case exists(head) && rustCrate(head) == head:
 			s.AddQualifier(head, head)
+		}
+	}
+	// Paths through file modules (crate::net::http::get, super::a::f,
+	// net::http::get after use crate::net): the longest leading part that
+	// names a module of the project is bound to it, since no definition's
+	// qualified name holds its module's path.
+	for _, ref := range f.Facts.Refs {
+		q, absolute := strings.CutPrefix(ref.Qualifier, "::")
+		if !strings.Contains(q, "::") || strings.ContainsAny(q, ".()[]<> ") {
+			continue
+		}
+		segs := strings.Split(q, "::")
+		for i := len(segs); i >= 2; i-- {
+			prefix := strings.Join(segs[:i], "::")
+			if _, bound := s.Qualifiers[prefix]; bound {
+				break
+			}
+			var keys []string
+			if pkgs, bound := s.Qualifiers[segs[0]]; bound && !absolute {
+				for _, p := range pkgs {
+					keys = append(keys, p+"::"+strings.Join(segs[1:i], "::"))
+				}
+			} else {
+				path := segs[:i]
+				if absolute {
+					path = append([]string{""}, path...)
+				}
+				if k, ok := key(f.Package, path); ok {
+					keys = append(keys, k)
+				}
+			}
+			found := false
+			for _, k := range keys {
+				if exists(k) {
+					s.AddQualifier(prefix, k)
+					found = true
+				}
+			}
+			if found {
+				break
+			}
 		}
 	}
 	return s, nil

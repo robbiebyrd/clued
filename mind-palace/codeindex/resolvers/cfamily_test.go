@@ -25,7 +25,7 @@ import (
 // cfamilySrc builds the facts the C, C++ and Objective-C extractors give for one
 // file, by hand, as those extractors do (C++ namespaces as definitions of
 // kind namespace, out-of-line methods qualified by position, Objective-C
-// methods named by their selector's first keyword).
+// methods named by their full selector, insertObject:atIndex:).
 type cfamilySrc struct {
 	f    codeparse.Facts
 	line int
@@ -51,9 +51,14 @@ func (s *cfamilySrc) alias(spec, alias string) *cfamilySrc {
 // def adds a definition with id and qualified name qual; its name is the
 // last part of qual, its parent the definition id parent ("" at the top).
 func (s *cfamilySrc) def(kind, id, qual, parent, sig string) *cfamilySrc {
+	// After the last separator; a selector's own colons stay
+	// (Shape.insertObject:atIndex:).
 	name := qual
-	if i := strings.LastIndexAny(qual, ":."); i >= 0 {
-		name = qual[i+1:]
+	if i := strings.LastIndex(qual, "::"); i >= 0 {
+		name = qual[i+2:]
+	}
+	if i := strings.LastIndex(name, "."); i >= 0 {
+		name = name[i+1:]
 	}
 	p := s.pos()
 	s.f.Symbols = append(s.f.Symbols, codeparse.Symbol{ID: id, Kind: kind, Name: name, QualName: qual, Signature: sig,
@@ -229,7 +234,8 @@ func Test_cfamilyRegistered(t *testing.T) {
 		}
 	}
 	r, _ := resolvers.Lookup(codeparse.FamilyCFamily)
-	if seps := r.Rules().Separators; !reflect.DeepEqual(seps, []string{"::", "."}) || !r.Rules().NameFallback || !r.Rules().MemberFallback {
+	if seps := r.Rules().Separators; !reflect.DeepEqual(seps, []string{"::", "."}) || !r.Rules().NameFallback || !r.Rules().MemberFallback ||
+		!r.Rules().AbsoluteQualifiers || !r.Rules().ReceiverMembers {
 		t.Errorf("Rules = %+v", r.Rules())
 	}
 }
@@ -385,23 +391,56 @@ func Test_cfamilyCPP(t *testing.T) {
 	cfamilyWantMap(t, "totalArea", e.callees("geo/geometry.cpp", "geometry::totalArea"), map[string]string{
 		"geo/geometry.cpp#geometry::area": "name"}) // s->area(): the member in the file
 	cfamilyWantMap(t, "main", e.callees("geo/geometry.cpp", "main"), map[string]string{
-		"geo/geometry.cpp#geometry::describe": "qualified",
+		"geo/geometry.cpp#geometry::describe": "exact", // geometry::describe, the whole name (AbsoluteQualifiers)
 		"geo/geometry.hpp#geometry::largest":  "exact", // namespace geometry is open in the file; other:: is not
 	})
-	cfamilyWantList(t, "Shape", e.referrers("geo/geometry.hpp", "geometry::Shape"), "geo/geometry.cpp#main qualified")
+	cfamilyWantList(t, "Shape", e.referrers("geo/geometry.hpp", "geometry::Shape"), "geo/geometry.cpp#main exact")
 	cfamilyWantList(t, "Point", e.referrers("geo/geometry/point.hpp", "geometry::Point"),
 		"app/use.cpp#report exact", "geo/geometry.hpp#geometry::Bounds::max exact") // namespace members are its top level
 
 	cfamilyWantMap(t, "report", e.callees("app/use.cpp", "report"), map[string]string{
-		"geo/geometry.cpp#geometry::totalArea": "qualified",
+		"geo/geometry.cpp#geometry::totalArea": "exact",
 		"geo/geometry.hpp#geometry::largest":   "exact", // using namespace geometry opens its definitions
 		"geo/geometry.cpp#geometry::count":     "name",
 	})
 }
 
+// Test_cfamilyReceiverMembers: a C++ method defined out of line in another
+// file than its class, outside any namespace (double Circle::area() {}), has
+// no parent in its file's facts; a call through an object reaches it as a
+// member (ReceiverMembers), and Circle::area from the root is exact.
+func Test_cfamilyReceiverMembers(t *testing.T) {
+	hpp := cfamilyFile("cpp").def(cfamilyKClass, "Circle", "Circle", "", "class Circle")
+	cpp := cfamilyFile("cpp").imp(cfamilyInclude, "circle.hpp").
+		def(cfamilyKMethod, "Circle::area", "Circle::area", "", "double Circle::area()")
+	use := cfamilyFile("cpp").imp(cfamilyInclude, "circle.hpp").
+		def(cfamilyKFn, "run", "run", "", "void run(Circle *c)").
+		call("run", "c", "area").
+		call("run", "::Circle", "area")
+	e := cfamilyIndexTree(t, map[string]string{
+		"src/circle.hpp": hpp.src(),
+		"src/circle.cpp": cpp.src(),
+		"src/use.cpp":    use.src(),
+	})
+	cfamilyWantMap(t, "run", e.callees("src/use.cpp", "run"), map[string]string{
+		"src/circle.cpp#Circle::area": "exact", // ::Circle::area; c->area() reaches the same definition
+	})
+	only := cfamilyFile("cpp").imp(cfamilyInclude, "circle.hpp").
+		def(cfamilyKFn, "run", "run", "", "void run(Circle *c)").
+		call("run", "c", "area")
+	e = cfamilyIndexTree(t, map[string]string{
+		"src/circle.hpp": hpp.src(),
+		"src/circle.cpp": cpp.src(),
+		"src/use.cpp":    only.src(),
+	})
+	cfamilyWantMap(t, "run (member)", e.callees("src/use.cpp", "run"), map[string]string{
+		"src/circle.cpp#Circle::area": "name",
+	})
+}
+
 // Test_cfamilyObjC resolves hand-built facts shaped like the Objective-C
 // extractor's (codeparse/testdata/objc Shapes.h, Shape.m, AppDelegate.m):
-// #import, @import of a module, messages named by their selector, and a
+// #import, @import of a module, messages named by their full selector, and a
 // class extension's method declaration before its implementation.
 func Test_cfamilyObjC(t *testing.T) {
 	shapes := cfamilyFile("objc").imp("import_system", "Foundation/Foundation.h").imp("import", "ShapeTypes.h").
@@ -409,7 +448,7 @@ func Test_cfamilyObjC(t *testing.T) {
 		def(cfamilyKFn, "SKMakeShape", "SKMakeShape", "", "id<Drawable> SKMakeShape(ShapeKind kind);").
 		def(cfamilyKConst, "SKErrorDomain", "SKErrorDomain", "", "extern NSString *const SKErrorDomain;").
 		def(cfamilyKClass, "Shape", "Shape", "", "@interface Shape : NSObject <Drawable, NSCopying>").
-		def(cfamilyKMethod, "Shape.shapeNamed", "Shape.shapeNamed", "Shape", "+ (Shape *)shapeNamed:(NSString *)name;").
+		def(cfamilyKMethod, "Shape.shapeNamed:", "Shape.shapeNamed:", "Shape", "+ (Shape *)shapeNamed:(NSString *)name;").
 		def(cfamilyKMethod, "Shape.area", "Shape.area", "Shape", "- (double)area;")
 	types := cfamilyFile("objc").def(cfamilyKStruct, "SKPoint3", "SKPoint3", "", "typedef struct")
 	shape := cfamilyFile("objc").imp("import", "Shapes.h").
@@ -417,35 +456,37 @@ func Test_cfamilyObjC(t *testing.T) {
 		def(codeparse.KindExtension, "Shape", "Shape", "", "@interface Shape () <NSSecureCoding>").
 		def(cfamilyKMethod, "Shape.invalidate", "Shape.invalidate", "Shape", "- (void)invalidate;").
 		def(codeparse.KindImpl, "Shape~2", "Shape", "", "@implementation Shape").
-		def(cfamilyKMethod, "Shape.shapeNamed", "Shape.shapeNamed", "Shape~2", "+ (Shape *)shapeNamed:(NSString *)name").
+		def(cfamilyKMethod, "Shape.shapeNamed:", "Shape.shapeNamed:", "Shape~2", "+ (Shape *)shapeNamed:(NSString *)name").
 		def(cfamilyKMethod, "Shape.area", "Shape.area", "Shape~2", "- (double)area").
-		def(cfamilyKMethod, "Shape.splitInto", "Shape.splitInto", "Shape~2", "- (NSArray<Shape *> *)splitInto:(NSUInteger)parts").
+		def(cfamilyKMethod, "Shape.splitInto:", "Shape.splitInto:", "Shape~2", "- (NSArray<Shape *> *)splitInto:(NSUInteger)parts").
 		def(cfamilyKMethod, "Shape.invalidate~2", "Shape.invalidate", "Shape~2", "- (void)invalidate").
+		def(cfamilyKMethod, "Shape.insertObject:atIndex:", "Shape.insertObject:atIndex:", "Shape~2", "- (void)insertObject:(id)o atIndex:(NSUInteger)i").
 		def(cfamilyKFn, "SKDistance", "SKDistance", "", "double SKDistance(SKPoint3 a, SKPoint3 b)").
 		def(cfamilyKFn, "SKMakeShape", "SKMakeShape", "", "id<Drawable> SKMakeShape(ShapeKind kind)").
 		ref(codeparse.RefType, "Shape.area", "", "SKPoint3").
 		call("Shape.area", "", "SKDistance").
 		call("Shape.area", "self", "invalidate").
-		call("Shape.splitInto", "Shape", "shapeNamed").
-		call("Shape.splitInto", "NSMutableArray", "arrayWithCapacity").
-		call("SKMakeShape", "Shape", "shapeNamed")
+		call("Shape.splitInto:", "Shape", "shapeNamed:").
+		call("Shape.splitInto:", "Shape", "insertObject:atIndex:"). // a selector of several keywords
+		call("Shape.splitInto:", "NSMutableArray", "arrayWithCapacity:").
+		call("SKMakeShape", "Shape", "shapeNamed:")
 	delegateH := cfamilyFile("objc").imp("import_system", "UIKit/UIKit.h").
 		def(cfamilyKClass, "AppDelegate", "AppDelegate", "", "@interface AppDelegate : UIResponder <UIApplicationDelegate>")
 	delegate := cfamilyFile("objc").imp("module", "UIKit").imp("module", "CoreData", "NSManagedObject").
 		imp("import", "AppDelegate.h").imp("import", "Kit/Shapes.h").
 		def(codeparse.KindImpl, "AppDelegate~2", "AppDelegate", "", "@implementation AppDelegate").
-		def(cfamilyKMethod, "AppDelegate.application", "AppDelegate.application", "AppDelegate~2", "- (BOOL)application:(UIApplication *)application").
-		call("AppDelegate.application", "", "SKMakeShape").
-		call("AppDelegate.application", "Shape", "shapeNamed").
-		ref(codeparse.RefType, "AppDelegate.application", "", "AppDelegate").
-		ref(codeparse.RefValue, "AppDelegate.application", "", "SKErrorDomain")
+		def(cfamilyKMethod, "AppDelegate.application:", "AppDelegate.application:", "AppDelegate~2", "- (BOOL)application:(UIApplication *)application").
+		call("AppDelegate.application:", "", "SKMakeShape").
+		call("AppDelegate.application:", "Shape", "shapeNamed:").
+		ref(codeparse.RefType, "AppDelegate.application:", "", "AppDelegate").
+		ref(codeparse.RefValue, "AppDelegate.application:", "", "SKErrorDomain")
 	e := cfamilyIndexTree(t, map[string]string{
 		"Kit/Shapes.h":       shapes.src(),
 		"Kit/ShapeTypes.h":   types.src(),
 		"Kit/Shape.m":        shape.src(),
 		"App/AppDelegate.h":  delegateH.src(),
 		"App/AppDelegate.m":  delegate.src(),
-		"App/Unrelated/x.mm": cfamilyFile("objc").def(cfamilyKMethod, "X.shapeNamed", "X.shapeNamed", "", "- (id)shapeNamed").src(),
+		"App/Unrelated/x.mm": cfamilyFile("objc").def(cfamilyKMethod, "X.shapeNamed:", "X.shapeNamed:", "", "- (id)shapeNamed").src(),
 	})
 
 	cfamilyWantMap(t, "area", e.callees("Kit/Shape.m", "Shape.area"), map[string]string{
@@ -453,16 +494,20 @@ func Test_cfamilyObjC(t *testing.T) {
 		"Kit/Shape.m#Shape.invalidate~2": "name",  // [self invalidate]: the implementation, not the extension's declaration
 	})
 	cfamilyWantList(t, "SKPoint3", e.referrers("Kit/ShapeTypes.h", "SKPoint3"), "Kit/Shape.m#Shape.area exact")
-	cfamilyWantMap(t, "splitInto", e.callees("Kit/Shape.m", "Shape.splitInto"), map[string]string{
-		"Kit/Shape.m#Shape.shapeNamed": "qualified", // [Shape shapeNamed:]
+	cfamilyWantMap(t, "splitInto", e.callees("Kit/Shape.m", "Shape.splitInto:"), map[string]string{
+		// [Shape shapeNamed:] is the whole qualified name of the
+		// implementation and of Shapes.h's @interface declaration (which
+		// does not pair with Shape.m): the first by path.
+		"Kit/Shape.m#Shape.shapeNamed:":           "name",
+		"Kit/Shape.m#Shape.insertObject:atIndex:": "exact", // [Shape insertObject:atIndex:]
 	})
-	cfamilyWantMap(t, "application", e.callees("App/AppDelegate.m", "AppDelegate.application"), map[string]string{
-		"Kit/Shapes.h#SKMakeShape":     "exact", // #import "Kit/Shapes.h" from the root; Shape.m does not pair with Shapes.h
-		"Kit/Shape.m#Shape.shapeNamed": "name",  // the implementation or the @interface declaration: the first by path
+	cfamilyWantMap(t, "application", e.callees("App/AppDelegate.m", "AppDelegate.application:"), map[string]string{
+		"Kit/Shapes.h#SKMakeShape":      "exact", // #import "Kit/Shapes.h" from the root; Shape.m does not pair with Shapes.h
+		"Kit/Shape.m#Shape.shapeNamed:": "name",  // the implementation or the @interface declaration: the first by path
 	})
 	// The class from its own implementation: the @implementation in the file.
-	cfamilyWantList(t, "AppDelegate", e.referrers("App/AppDelegate.m", "AppDelegate~2"), "App/AppDelegate.m#AppDelegate.application exact")
-	cfamilyWantList(t, "SKErrorDomain", e.referrers("Kit/Shapes.h", "SKErrorDomain"), "App/AppDelegate.m#AppDelegate.application exact")
+	cfamilyWantList(t, "AppDelegate", e.referrers("App/AppDelegate.m", "AppDelegate~2"), "App/AppDelegate.m#AppDelegate.application: exact")
+	cfamilyWantList(t, "SKErrorDomain", e.referrers("Kit/Shapes.h", "SKErrorDomain"), "App/AppDelegate.m#AppDelegate.application: exact")
 }
 
 // cfamilyView is a View over files with facts and other files' content.

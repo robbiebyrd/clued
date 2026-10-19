@@ -28,7 +28,8 @@ import (
 //
 // Modules are reached without imports: a qualifier (Module.name,
 // Module.Sub.name) is bound to the module the compiler would pick from the
-// file — its own library's module, a module of the same directory, a module
+// file, and Lib.Module (Geo.Shapes.area) to the module of a wrapped
+// library by its path — its own library's module, a module of the same directory, a module
 // of a library the file opens (open Geo), a library's main module (geo.ml
 // of library geo), then an unwrapped or root module. A qualifier that names
 // a module defined in the file (or a functor's parameter) is left to the
@@ -430,9 +431,17 @@ func (ocaml) Scope(ctx context.Context, v View, f *File) (Scope, error) {
 
 	// Qualifiers.
 	for _, r := range f.Facts.Refs {
-		root, _, _ := strings.Cut(r.Qualifier, ".")
+		root, rest, multi := strings.Cut(r.Qualifier, ".")
 		if !ocamlModulePath.MatchString(root) {
 			continue
+		}
+		if multi && sc.alias[root] == "" && !sc.local[root] {
+			// Lib.Module.name: a module of a wrapped library by its
+			// path (the engine binds the longest leading part).
+			sub, _, _ := strings.Cut(rest, ".")
+			if key := OCamlModuleName(root) + "." + sub; len(v.Package(codeparse.FamilyOCaml, key)) > 0 {
+				s.AddQualifier(root+"."+sub, key)
+			}
 		}
 		if _, done := s.Qualifiers[root]; done {
 			continue

@@ -45,7 +45,7 @@ func TestResolverRules_ruby(t *testing.T) {
 	if !reflect.DeepEqual(rules.Separators, p.Scope.Separators) {
 		t.Errorf("separators %v, profile %v", rules.Separators, p.Scope.Separators)
 	}
-	if !rules.NameFallback || !rules.MemberFallback || rules.CaseInsensitive {
+	if !rules.NameFallback || !rules.MemberFallback || rules.CaseInsensitive || !rules.ImportMembers || !rules.AbsoluteQualifiers {
 		t.Errorf("rules = %+v", rules)
 	}
 	if got := p.Scope.Options[resolvers.RubyLoadPathOption]; got != resolvers.RubyDefaultLoadPath {
@@ -321,6 +321,8 @@ func TestResolve_ruby(t *testing.T) {
 		"lib/report.rb":             "require \"repository\"\n\nclass Report\n  def build = Repository.instance\nend\n",
 		"lib/summary.rb":            "require_relative \"report\"\n\nclass Summary\n  def build = Repository.new\n  def plain = Ledger.new\nend\n",
 		"lib/cli.rb":                "def main\n  reindex\n  ::Shop::Mailer.order_placed(1)\n  ::Shop\nend\n",
+		"lib/helpers.rb":            "module Helpers\n  def fmt(x) = x\nend\n",
+		"lib/page.rb":               "require \"helpers\"\n\nclass Page\n  include Helpers\n  def show = fmt(1)\nend\n",
 	}
 	got := indexRuby(t, tree).edges()
 	want := map[string]string{
@@ -328,31 +330,41 @@ func TestResolve_ruby(t *testing.T) {
 		// required one, directly or through another file's require.
 		"lib/report.rb#Report::build -references-> lib/repository.rb#Repository":      "exact",
 		"lib/summary.rb#Summary::build -references-> lib/repository.rb#Repository":    "exact",
-		"lib/report.rb#Report::build -calls-> lib/repository.rb#Repository::instance": "qualified",
+		"lib/report.rb#Report::build -calls-> lib/repository.rb#Repository::instance": "exact",
 		// Not required: any definition of the name, the best of two.
 		"lib/shop/order.rb#Shop::Order::find -references-> app/other/repository.rb#Repository": "name",
 		// autoload imports the name from its feature.
 		"lib/accounts.rb#Accounts::book -references-> lib/billing/ledger.rb#Ledger": "exact",
 		"lib/summary.rb#Summary::plain -references-> app/ledger.rb#Ledger":          "name",
-		// Module::Class nesting: the lexical scope, then qualified names.
+		// Module::Class nesting: the lexical scope, then qualified names; a
+		// path written from the root (Shop::Mailer, Billing::Invoice) is
+		// the whole qualified name (AbsoluteQualifiers: exact), one written
+		// from the lexical scope (Mailer in Shop, Gateways::Stripe in
+		// Billing) a suffix of it.
 		"lib/shop/order.rb#Shop::Order::initialize -references-> lib/shop/order.rb#Shop::LineItem":        "exact",
 		"lib/shop/order.rb#Shop::Order::place! -references-> lib/shop/order.rb#Shop::Error":               "exact",
 		"lib/shop/order.rb#Shop::Order::place! -references-> lib/shop/order.rb#Shop::MAX_ITEMS":           "exact",
 		"lib/shop/order.rb#Shop::Order::place! -calls-> lib/shop/order.rb#Shop::Order::notify":            "exact",
-		"lib/shop/order.rb#format_money -references-> lib/shop/order.rb#Shop::CURRENCY":                   "qualified",
-		"lib/shop/order.rb#Shop::Order::place! -references-> lib/shop/mailer.rb#Shop::Mailer":             "qualified",
-		"lib/shop/order.rb#Shop::Order::place! -calls-> lib/shop/mailer.rb#Shop::Mailer::order_placed":    "qualified",
+		"lib/shop/order.rb#format_money -references-> lib/shop/order.rb#Shop::CURRENCY":                   "exact",
+		"lib/shop/order.rb#Shop::Order::place! -references-> lib/shop/mailer.rb#Shop::Mailer":             "exact",
+		"lib/shop/order.rb#Shop::Order::place! -calls-> lib/shop/mailer.rb#Shop::Mailer::order_placed":    "exact",
 		"lib/shop/importer.rb#Shop::Importer::run -calls-> lib/shop/mailer.rb#Shop::Mailer::order_placed": "qualified",
 		"lib/billing.rb#Billing::Invoice::pay -references-> lib/billing.rb#Billing::Gateways::Stripe":     "qualified",
 		"lib/billing.rb#Billing::Invoice::== -references-> lib/billing.rb#Billing::Invoice":               "exact",
-		"lib/billing.rb#Refund -references-> lib/billing.rb#Billing::Invoice":                             "qualified",
-		"lib/tasks/shop.rake#shop::import -references-> lib/shop/importer.rb#Shop::Importer":              "qualified",
-		"lib/tasks/shop.rake#shop::orders::purge -references-> lib/shop/order.rb#Shop::Order":             "qualified",
+		"lib/billing.rb#Refund -references-> lib/billing.rb#Billing::Invoice":                             "exact",
+		"lib/tasks/shop.rake#shop::import -references-> lib/shop/importer.rb#Shop::Importer":              "exact",
+		"lib/tasks/shop.rake#shop::orders::purge -references-> lib/shop/order.rb#Shop::Order":             "exact",
 		// A module reopened in several required files is ambiguous.
 		"lib/tasks/shop.rake#shop::import -references-> lib/shop/importer.rb#Shop": "name",
 		// include, extend and prepend link the class to the module.
-		"lib/shop/order.rb#Shop::Order -extends-> lib/concerns/auditable.rb#Shop::Auditable": "qualified",
+		"lib/shop/order.rb#Shop::Order -extends-> lib/concerns/auditable.rb#Shop::Auditable": "exact",
 		"lib/shop/order.rb#Shop::Order -extends-> lib/instrumented.rb#Instrumented":          "name",
+		// A root qualifier is the whole qualified name.
+		"lib/cli.rb#main -calls-> lib/shop/mailer.rb#Shop::Mailer::order_placed": "exact",
+		// A method of a module a required file defines, mixed in: the
+		// module's member through the require (ImportMembers).
+		"lib/page.rb#Page::show -calls-> lib/helpers.rb#Helpers::fmt": "qualified",
+		"lib/page.rb#Page -extends-> lib/helpers.rb#Helpers":          "exact",
 		// A method through a receiver is a member.
 		"lib/shop/order.rb#Shop::Order::total -calls-> lib/shop/line_item.rb#Shop::LineItem::price": "name",
 	}

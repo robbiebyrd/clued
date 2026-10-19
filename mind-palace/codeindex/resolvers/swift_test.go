@@ -271,11 +271,8 @@ func render(_ c: Circle) -> Int {
     return ShapeKit.drawAll([c], in: Canvas())
 }
 `
-	// A file of imports alone has no facts the engine keeps, so Core
-	// re-exports from a file that defines something.
+	// A file of imports alone: Core only re-exports ShapeKit.
 	swiftCore = `@_exported import ShapeKit
-
-public let coreVersion = 1
 `
 	swiftUI = `import Core
 

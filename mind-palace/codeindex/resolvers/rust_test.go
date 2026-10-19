@@ -319,7 +319,10 @@ func TestScope_rust(t *testing.T) {
 		codeparse.Ref{Name: "f", Qualifier: "crate", Kind: codeparse.RefCall},
 		codeparse.Ref{Name: "g", Qualifier: "super", Kind: codeparse.RefCall},
 		codeparse.Ref{Name: "h", Qualifier: "serde_json::de", Kind: codeparse.RefCall},
-		codeparse.Ref{Name: "i", Qualifier: "self", Kind: codeparse.RefCall})
+		codeparse.Ref{Name: "i", Qualifier: "self", Kind: codeparse.RefCall},
+		codeparse.Ref{Name: "j", Qualifier: "crate::imports::parser::Ast", Kind: codeparse.RefCall}, // through file modules
+		codeparse.Ref{Name: "k", Qualifier: "::kv::imports::api", Kind: codeparse.RefCall})          // from the root
+	gen.Imports = append(gen.Imports, codeparse.Import{Spec: "crate::imports::api::Client", Alias: "C"}) // renamed
 	g := &resolvers.File{Path: "src/a/generated.rs", Lang: "rust", Family: codeparse.FamilyRust, Package: "kv::a::generated", Facts: &gen}
 	s, err = r.Scope(context.Background(), v, g)
 	if err != nil {
@@ -331,8 +334,12 @@ func TestScope_rust(t *testing.T) {
 	if want := map[string][]string{"deep": {"kv::a::generated::outer::inner"}}; !reflect.DeepEqual(s.Names, want) {
 		t.Errorf("generated names = %v, want %v", s.Names, want)
 	}
-	if want := map[string][]string{"crate": {"kv"}, "super": {"kv::a"}, "serde_json": {"serde_json"}}; !reflect.DeepEqual(s.Qualifiers, want) {
+	if want := map[string][]string{"crate": {"kv"}, "super": {"kv::a"}, "serde_json": {"serde_json"},
+		"crate::imports::parser": {"kv::imports::parser"}, "kv::imports::api": {"kv::imports::api"}}; !reflect.DeepEqual(s.Qualifiers, want) {
 		t.Errorf("generated qualifiers = %v, want %v", s.Qualifiers, want)
+	}
+	if want := map[string][]resolvers.Original{"C": {{Package: "kv::imports::api", Name: "Client"}}}; !reflect.DeepEqual(s.Renamed, want) {
+		t.Errorf("generated renamed = %v, want %v", s.Renamed, want)
 	}
 }
 
@@ -420,6 +427,10 @@ func TestResolve_rust(t *testing.T) {
 		ref(codeparse.RefValue, "main", "kv_store::OPENED"). // private to the crate
 		ref(codeparse.RefCall, "main", "reserve").           // a glob import
 		ref(codeparse.RefCall, "main", "sh::area").          // a module alias
+		use("kv_store::shapes::Circle", "Round").use("kv_store::shapes::area", "surface").
+		ref(codeparse.RefCall, "main", "surface").                // use …::area as surface
+		ref(codeparse.RefCall, "main", "Round::center").          // use …::Circle as Round
+		ref(codeparse.RefCall, "main", "kv_store::shapes::area"). // a path through a file module
 		facts()
 	tree := map[string]string{
 		"Cargo.toml":        "[package]\nname = \"kv-store\"\nversion = \"0.1.0\"\n",
@@ -492,10 +503,11 @@ func TestResolve_rust(t *testing.T) {
 	// lib.rs: `mod storage;` binds storage, `pub mod error;` error, the
 	// inline module util is reached by its qualified name, Store::new by
 	// the impl method's (the impl blocks named Store are no targets).
+	// Qualified names are matched whole (AbsoluteQualifiers).
 	check("open calls", neighbors(codegraph.RelCallees, lib, "open"), map[string]string{
 		n(sto, "reserve"):     codegraph.ConfidenceExact,
-		n(lib, "util::clamp"): codegraph.ConfidenceQualified,
-		n(lib, "Store::new"):  codegraph.ConfidenceQualified,
+		n(lib, "util::clamp"): codegraph.ConfidenceExact,
+		n(lib, "Store::new"):  codegraph.ConfidenceExact,
 	})
 	check("Error referrers", neighbors(codegraph.RelReferences, errf, "Error"), map[string]string{n(lib, "open"): codegraph.ConfidenceExact})
 	check("Store referrers", neighbors(codegraph.RelReferences, lib, "Store"), map[string]string{
@@ -528,12 +540,15 @@ func TestResolve_rust(t *testing.T) {
 	check("MAX_ENTRIES referrers", neighbors(codegraph.RelReferences, lib, "MAX_ENTRIES"), map[string]string{n(sto, "reserve"): codegraph.ConfidenceExact})
 
 	// The binary is a crate of its own: the library by name, its pub items
-	// only (OPENED is private), a glob import, a module alias.
+	// only (OPENED is private), a glob import, a module alias, renamed
+	// items (area as surface; Circle as Round, whose method is found by
+	// the original's qualified name), a path through a file module.
 	check("main calls", neighbors(codegraph.RelCallees, bin, "main"), map[string]string{
-		n(lib, "Store::new"): codegraph.ConfidenceQualified,
-		n(lib, "open"):       codegraph.ConfidenceExact,
-		n(sto, "reserve"):    codegraph.ConfidenceExact,
-		n(shp, "area"):       codegraph.ConfidenceExact,
+		n(lib, "Store::new"):     codegraph.ConfidenceExact,
+		n(lib, "open"):           codegraph.ConfidenceExact,
+		n(sto, "reserve"):        codegraph.ConfidenceExact,
+		n(shp, "area"):           codegraph.ConfidenceExact,
+		n(shp, "Circle::center"): codegraph.ConfidenceQualified,
 	})
 	check("OPENED referrers", neighbors(codegraph.RelReferences, lib, "OPENED"), map[string]string{})
 }

@@ -149,7 +149,7 @@ func Test_jstsRegistered(t *testing.T) {
 			t.Fatalf("%s: resolver %T", lang, r)
 		}
 		rules := r.Rules()
-		if !reflect.DeepEqual(rules.Separators, []string{"."}) || !rules.NameFallback || !rules.MemberFallback || rules.CaseInsensitive {
+		if !reflect.DeepEqual(rules.Separators, []string{"."}) || !rules.NameFallback || !rules.MemberFallback || rules.CaseInsensitive || !rules.ImportMembers {
 			t.Errorf("%s: rules %+v", lang, rules)
 		}
 	}
@@ -183,11 +183,14 @@ func Test_jstsGoldensJavaScript(t *testing.T) {
 	})
 	wantBound(t, "App.jsx name", s.Names, map[string][]string{
 		"useState":       {"npm:react"},
-		"useEffect":      nil, // `useEffect as useMountEffect`: a renamed import binds nothing
+		"useEffect":      nil, // `useEffect as useMountEffect`: renamed (Scope.Renamed)
 		"useMountEffect": nil,
 		"Button":         {"src/Button.jsx"},
 		"React":          {"npm:react"},
 	})
+	if want := []Original{{Package: "npm:react", Name: "useEffect"}}; !reflect.DeepEqual(s.Renamed["useMountEffect"], want) {
+		t.Errorf("App.jsx renamed useMountEffect = %v, want %v", s.Renamed["useMountEffect"], want)
+	}
 	if len(s.Open) != 0 {
 		t.Errorf("App.jsx open: %v", s.Open)
 	}
@@ -210,11 +213,14 @@ func Test_jstsGoldensJavaScript(t *testing.T) {
 	wantBound(t, "reexports.js name", s.Names, map[string][]string{
 		"round": nil,
 		"a":     {"npm:quoted-lib"},
-		"b":     nil, // `b as c`: a renamed import binds nothing
+		"b":     nil, // `b as c`: renamed (Scope.Renamed)
 		"c":     nil,
 		"d":     {"npm:quoted-lib"}, // `default as d`
 		"Store": {"src/store.cjs"},
 	})
+	if want := []Original{{Package: "npm:quoted-lib", Name: "b"}}; !reflect.DeepEqual(s.Renamed["c"], want) {
+		t.Errorf("reexports.js renamed c = %v, want %v", s.Renamed["c"], want)
+	}
 
 	s = v.scope(store)
 	wantBound(t, "store.cjs qualifier", s.Qualifiers, map[string][]string{
@@ -279,6 +285,9 @@ func Test_jstsGoldensTypeScript(t *testing.T) {
 		"createStore": {"ts/store.ts"}, // "default as createStore"
 		"lazy":        nil,             // import() binds nothing named
 	})
+	if want := []Original{{Package: "npm:node:fs", Name: "writeFile"}}; !reflect.DeepEqual(s.Renamed["write"], want) {
+		t.Errorf("imports.mts renamed write = %v, want %v", s.Renamed["write"], want)
+	}
 
 	s = v.scope(legacy)
 	wantBound(t, "legacy.cts qualifier", s.Qualifiers, map[string][]string{
@@ -287,9 +296,12 @@ func Test_jstsGoldensTypeScript(t *testing.T) {
 	})
 	wantBound(t, "legacy.cts name", s.Names, map[string][]string{
 		"Router":    {"npm:express"},
-		"parseJson": nil, // { json: parseJson }
+		"parseJson": nil, // { json: parseJson }: renamed
 		"json":      nil,
 	})
+	if want := []Original{{Package: "npm:express", Name: "json"}}; !reflect.DeepEqual(s.Renamed["parseJson"], want) {
+		t.Errorf("legacy.cts renamed parseJson = %v, want %v", s.Renamed["parseJson"], want)
+	}
 
 	s = v.scope(component)
 	wantBound(t, "component.tsx", s.Qualifiers, map[string][]string{"UI": {"ts/ui/index.tsx"}, "React": {"npm:react"}})
@@ -308,11 +320,14 @@ func Test_jstsGoldensTypeScript(t *testing.T) {
 		// export * from ./types.js may re-export any name, so types.ts is
 		// a candidate too.
 		"format":     {"ts/imports.mts", "ts/definitions.ts", "ts/types.ts"},
-		"parseEntry": {"ts/imports.mts", "ts/definitions.ts", "ts/types.ts"},
+		"parseEntry": {"ts/imports.mts", "ts/types.ts"}, // definitions.ts defines parse: renamed
 		"Kind2":      {"ts/imports.mts", "ts/types.ts"},
 		"load":       {"ts/imports.mts", "ts/types.ts"},
 	})
 	wantBound(t, "user.ts qualifier", s.Qualifiers, map[string][]string{"util": {"ts/util.ts"}})
+	if want := []Original{{Package: "ts/definitions.ts", Name: "parse"}}; !reflect.DeepEqual(s.Renamed["parseEntry"], want) {
+		t.Errorf("user.ts renamed parseEntry = %v, want %v (export {parse as parseEntry} from)", s.Renamed["parseEntry"], want)
+	}
 }
 
 // Test_jstsModuleResolution covers tsconfig paths and baseUrl, package.json
