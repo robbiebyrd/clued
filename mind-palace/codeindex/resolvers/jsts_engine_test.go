@@ -93,9 +93,9 @@ func jstsProject(t *testing.T, files map[string]string) func(path, id string) []
 // (ImportMembers; it was a name match).
 func TestResolve_jsts_RenamedAndMembers(t *testing.T) {
 	callees := jstsProject(t, map[string]string{
-		"src/fs.ts":    "export function writeFile(p: string): void {}\nexport function readFile(p: string): string { return p }\n",
-		"src/parse.ts": "export function parse(s: string): number { return 1 }\n",
-		"src/index.ts": "export { parse as parseEntry } from \"./parse\";\n",
+		"src/fs.ts":     "export function writeFile(p: string): void {}\nexport function readFile(p: string): string { return p }\n",
+		"src/parse.ts":  "export function parse(s: string): number { return 1 }\n",
+		"src/index.ts":  "export { parse as parseEntry } from \"./parse\";\n",
 		"src/client.ts": "export default class Client {\n  static create(): Client { return new Client() }\n}\n",
 		"src/main.ts": `import { writeFile as write, readFile } from "./fs";
 import { parseEntry } from "./index";

@@ -188,7 +188,7 @@ func TestScope_python(t *testing.T) {
 			imp("app", "", "User", "Base"). // re-exported through two __init__/modules
 			imp("app.models", "", "*").     // star
 			imp("app.sub", "s", "deep").    // from m import x as s, x a submodule
-			imp("app.models", "u", "User"). // a renamed name is not traced
+			imp("app.models", "u", "User"). // a renamed name: u is User
 			imp("app.core", "c").           // import m as c
 			imp("app.sub.deep", "").        // binds app
 			imp("os.path", "").             // outside the project: binds os
@@ -208,7 +208,12 @@ func TestScope_python(t *testing.T) {
 		"s":    {"app/sub/deep"},
 		"c":    {"app/core"},
 		"app":  {"app", "app/core"}, // app's __init__ star-imports .core
-		"os":   {"os"},
+		// import app.sub.deep binds the dotted paths to their own modules
+		// (app.sub's __init__ star-imports app.models).
+		"app.sub":      {"app/sub", "app/models"},
+		"app.sub.deep": {"app/sub/deep"},
+		"os":           {"os"},
+		"os.path":      {"os.path"}, // outside the project: a key no file has
 	}
 	if !reflect.DeepEqual(sc.Qualifiers, wantQ) {
 		t.Errorf("qualifiers:\n got %v\nwant %v", sc.Qualifiers, wantQ)
@@ -224,6 +229,9 @@ func TestScope_python(t *testing.T) {
 	}
 	if !reflect.DeepEqual(sc.Names, wantN) {
 		t.Errorf("names:\n got %v\nwant %v", sc.Names, wantN)
+	}
+	if want := map[string][]resolvers.Original{"u": {{Package: "app/models", Name: "User"}}}; !reflect.DeepEqual(sc.Renamed, want) {
+		t.Errorf("renamed = %v, want %v", sc.Renamed, want)
 	}
 	if want := []string{"app/models", "mystery"}; !reflect.DeepEqual(sc.Open, want) {
 		t.Errorf("open = %v, want %v", sc.Open, want)
@@ -272,7 +280,7 @@ func TestScopeRoots_python(t *testing.T) {
 	}
 	// Inside a package, the root is above its outermost __init__.py.
 	sc = scope("pkg/a/mod.py")
-	want := map[string][]string{"ns": {"ns"}, "top": {"top"}}
+	want := map[string][]string{"ns": {"ns"}, "ns.leaf": {"ns/leaf"}, "top": {"top"}}
 	if !reflect.DeepEqual(sc.Qualifiers, want) || !reflect.DeepEqual(sc.Names["x"], []string{"pkg/b"}) {
 		t.Errorf("pkg: qualifiers %v names %v", sc.Qualifiers, sc.Names)
 	}
@@ -430,6 +438,7 @@ func TestResolve_python(t *testing.T) {
 			src(),
 		"main.py": pyFile().
 			imp("app", "").imp("app", "", "User").imp("os", "").
+			imp("app.sub.sibling", "").imp("app.models", "U", "User").
 			fn("check").class("Admin").method("Admin.promote").method("Admin.check").fn("main").fn("main.inner").
 			ref(codeparse.RefExtends, "Admin", "User"). // class Admin(User)
 			call("Admin.promote", "self.check").        // a member of the class
@@ -443,6 +452,9 @@ func TestResolve_python(t *testing.T) {
 			call("main", "inner").                      // the enclosing function
 			call("main", "Engine.start").               // qualified by the class name
 			call("main", "nowhere").
+			call("main", "app.sub.sibling.f"). // import app.sub.sibling: the dotted path
+			call("main", "U").                 // from app.models import User as U
+			call("main", "U.save").
 			src(),
 		"README.md": "# app\n",
 	}
@@ -454,6 +466,8 @@ func TestResolve_python(t *testing.T) {
 		"app/util.py#helper":       codegraph.ConfidenceName,
 		"main.py#main.inner":       codegraph.ConfidenceExact,
 		"app/core.py#Engine.start": codegraph.ConfidenceQualified,
+		"app/sub/sibling.py#f":     codegraph.ConfidenceExact,     // app.sub.sibling.f()
+		"app/models.py#User.save":  codegraph.ConfidenceQualified, // U.save(): User.save
 	})
 	wantPy(t, "Admin.promote", neighbors(codegraph.RelCallees, "main.py", "Admin.promote", false), map[string]string{
 		"main.py#Admin.check": codegraph.ConfidenceName,

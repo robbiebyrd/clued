@@ -2,11 +2,9 @@ package resolvers
 
 import (
 	"context"
-	"crypto/sha256"
 	"path"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/robbiebyrd/clued/mind-palace/codeparse"
 )
@@ -27,15 +25,15 @@ import (
 // keeps its dotted spec as the key, which no file has, so references
 // through it stay unresolved.
 //
-// import a.b.c binds a (the top package) and import a.b.c as m binds m to
+// import a.b.c binds a (the top package), and a.b and a.b.c to their own
+// modules (a.b.c.f() is f of a/b/c, exact); import a.b.c as m binds m to
 // a.b.c; from m import x binds the bare name x to m, followed through the
 // __init__.py re-exports of m (from .impl import x, from .impl import *)
 // to the modules that define it, and binds x as a qualifier when it is a
 // submodule (m/x.py); from m import * opens m. A module's qualifier also
 // reaches what its __init__.py star-imports. from m import x as y binds y
-// only when x is a submodule: a renamed name is not traced. A module the
-// view holds no facts for because it only imports (an __init__.py that
-// re-exports) is parsed from its content for its imports.
+// as a qualifier when x is a submodule, else as x renamed (Scope.Renamed)
+// in the modules that define x: y() and y.f reach x.
 //
 // Python reaches nothing unimported, so a bare name the scopes do not
 // define falls back (confidence name) only to top-level definitions, the
@@ -74,28 +72,22 @@ func PythonModuleKey(p string) string {
 }
 
 // Scope implements Resolver.
-func (python) Scope(ctx context.Context, v View, f *File) (Scope, error) {
+func (python) Scope(_ context.Context, v View, f *File) (Scope, error) {
 	var s Scope
 	if f.Facts == nil {
 		return s, nil
 	}
-	r := &pyRun{ctx: ctx, v: v, files: map[string][]*File{}}
+	r := &pyRun{v: v, files: map[string][]*File{}}
 	for _, im := range f.Facts.Imports {
 		r.bind(&s, f, im)
-		if r.err != nil {
-			return Scope{}, r.err
-		}
 	}
 	return s, nil
 }
 
-// pyRun is one Scope call: the view, the modules' files read so far and
-// the first error.
+// pyRun is one Scope call: the view and the modules' files read so far.
 type pyRun struct {
-	ctx   context.Context
 	v     View
 	files map[string][]*File
-	err   error
 }
 
 // bind records what one import of f brings into scope.
@@ -127,6 +119,11 @@ func (r *pyRun) bind(s *Scope, f *File, im codeparse.Import) {
 			if im.Alias != "" && len(names) == 1 {
 				if isSub {
 					s.AddQualifier(im.Alias, sub)
+					continue
+				}
+				// from m import a as b: b names a where m defines it.
+				for _, k := range r.nameSources(mod, n) {
+					s.AddRenamed(im.Alias, k, n)
 				}
 				continue
 			}
@@ -154,8 +151,11 @@ func (r *pyRun) bind(s *Scope, f *File, im codeparse.Import) {
 			}
 		}
 	default:
-		// import a.b.c binds a, the top package, located where a.b.c is.
-		top, _, _ := strings.Cut(spec, ".")
+		// import a.b.c binds a, the top package, located where a.b.c is,
+		// and the dotted paths a.b and a.b.c to their own modules, so
+		// a.b.c.f() is f of a/b/c (the engine binds the longest prefix).
+		parts := strings.Split(spec, ".")
+		top := parts[0]
 		_, root, ok := pyLocate(v, f, spec)
 		key := top
 		if ok {
@@ -165,6 +165,19 @@ func (r *pyRun) bind(s *Scope, f *File, im codeparse.Import) {
 		}
 		for _, k := range r.starClosure(key) {
 			s.AddQualifier(top, k)
+		}
+		for i := 2; i <= len(parts); i++ {
+			q := strings.Join(parts[:i], ".")
+			if parts[i-1] == "" {
+				break
+			}
+			key := q // outside the project: a key no file has
+			if ok {
+				key = pyJoin(root, strings.Join(parts[:i], "/"))
+			}
+			for _, k := range r.starClosure(key) {
+				s.AddQualifier(q, k)
+			}
 		}
 	}
 }
@@ -314,78 +327,15 @@ func (r *pyRun) sources(key, name string, seen map[string]bool, depth int, out *
 	}
 }
 
-// moduleFiles are the files of the module keyed key. The view holds only
-// files with definitions or references, so a module that only imports (an
-// __init__.py re-exporting its submodules) is read from its content and
-// parsed for its imports.
+// moduleFiles are the files of the module keyed key (the view keeps a
+// module that only imports, an __init__.py re-exporting its submodules).
 func (r *pyRun) moduleFiles(key string) []*File {
 	if fs, ok := r.files[key]; ok {
 		return fs
 	}
 	fs := r.v.Package(codeparse.FamilyPython, key)
-	if len(fs) == 0 && r.err == nil {
-		for _, p := range pyModulePaths(key) {
-			if !r.v.Has(p) {
-				continue
-			}
-			content, ok, err := r.v.Content(r.ctx, p)
-			if err != nil {
-				r.err = err
-				break
-			}
-			if !ok {
-				continue
-			}
-			if facts := pyImportsOf(p, content); facts != nil {
-				fs = append(fs, &File{Path: p, Layer: r.v.Layer(), Lang: "python", Family: codeparse.FamilyPython, Package: key, Facts: facts})
-			}
-		}
-	}
 	r.files[key] = fs
 	return fs
-}
-
-// pyModulePaths are the paths a module keyed key may have.
-func pyModulePaths(key string) []string {
-	prefix := ""
-	if key != "." {
-		prefix = key + "/"
-	}
-	paths := []string{prefix + "__init__.py", prefix + "__init__.pyi"}
-	if key != "." {
-		paths = append([]string{key + ".py", key + ".pyi"}, paths...)
-	}
-	return paths
-}
-
-// pyImportCacheSize bounds the import-only modules whose imports are kept.
-const pyImportCacheSize = 4096
-
-var pyImportCache = struct {
-	sync.Mutex
-	m map[[sha256.Size]byte]*codeparse.Facts
-}{m: map[[sha256.Size]byte]*codeparse.Facts{}}
-
-// pyImportsOf parses a module's content for its imports alone; nil when it
-// has none or does not parse.
-func pyImportsOf(p string, content []byte) *codeparse.Facts {
-	sum := sha256.Sum256(content)
-	pyImportCache.Lock()
-	facts, ok := pyImportCache.m[sum]
-	pyImportCache.Unlock()
-	if ok {
-		return facts
-	}
-	if full, err := codeparse.Parse(p, content); err == nil && full.ParseError == "" && len(full.Imports) > 0 {
-		facts = &codeparse.Facts{Lang: full.Lang, Imports: full.Imports}
-	}
-	pyImportCache.Lock()
-	if len(pyImportCache.m) >= pyImportCacheSize {
-		clear(pyImportCache.m)
-	}
-	pyImportCache.m[sum] = facts
-	pyImportCache.Unlock()
-	return facts
 }
 
 // Visible implements Resolver: an explicit import or a qualifier reaches
