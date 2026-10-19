@@ -34,6 +34,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/url"
 	"regexp"
@@ -205,26 +206,32 @@ func (o *Opener) dial(ctx context.Context) (*conn, error) {
 		nc = tc
 	}
 	c := &conn{nc: nc, r: bufio.NewReader(nc), w: bufio.NewWriter(nc)}
-	var setup [][]string
+	// Each step names itself with a constant so an error never quotes
+	// its arguments (the password).
+	type step struct {
+		name string
+		args []string
+	}
+	var setup []step
 	switch {
 	case o.password != "" && o.user != "":
-		setup = append(setup, []string{"AUTH", o.user, o.password})
+		setup = append(setup, step{"AUTH", []string{"AUTH", o.user, o.password}})
 	case o.password != "":
-		setup = append(setup, []string{"AUTH", o.password})
+		setup = append(setup, step{"AUTH", []string{"AUTH", o.password}})
 	}
 	if o.db != 0 {
-		setup = append(setup, []string{"SELECT", strconv.Itoa(o.db)})
+		setup = append(setup, step{"SELECT", []string{"SELECT", strconv.Itoa(o.db)}})
 	}
-	for _, args := range setup {
-		reply, err := c.do(ctx, args...)
+	for _, st := range setup {
+		reply, err := c.do(ctx, st.args...)
 		if err == nil {
 			if e, ok := reply.(respError); ok {
-				err = fmt.Errorf("%s: %s", args[0], e)
+				err = fmt.Errorf("%s: %s", st.name, e)
 			}
 		}
 		if err != nil {
 			c.close()
-			return nil, err
+			return nil, fmt.Errorf("falkor: %s failed: %w", st.name, err)
 		}
 	}
 	return c, nil
@@ -608,14 +615,31 @@ func str(v any) string {
 	return s
 }
 
+// num converts a reply integer to int, clamping what int cannot hold
+// (32-bit targets).
 func num(v any) int {
-	switch n := v.(type) {
+	var n int64
+	switch x := v.(type) {
 	case int64:
-		return int(n)
+		n = x
 	case float64:
-		return int(n)
+		if x >= math.MaxInt64 {
+			n = math.MaxInt64
+		} else if x <= math.MinInt64 {
+			n = math.MinInt64
+		} else {
+			n = int64(x)
+		}
+	default:
+		return 0
 	}
-	return 0
+	if n > math.MaxInt {
+		return math.MaxInt
+	}
+	if n < math.MinInt {
+		return math.MinInt
+	}
+	return int(n)
 }
 
 func flag(v any) bool {
