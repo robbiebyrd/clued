@@ -79,6 +79,19 @@ type Config struct {
 	// boolean) overrides it.
 	CaptureContent *bool `json:"captureContent,omitempty"`
 
+	// CodeSync turns on code collection (session/codesync): in remote mode,
+	// the files of each worktree a session works in are mirrored to the
+	// server. Unset means off; CLUED_CODE_SYNC (a boolean) overrides it, and
+	// a repository's `codeSync: false` in mind-palace.config.yaml opts that
+	// repository out. CodeSyncMaxFileBytes caps the content uploaded per
+	// file (CLUED_CODE_SYNC_MAX_FILE_BYTES; DefaultCodeSyncMaxFileBytes when
+	// unset or not positive), and CodeSyncExclude are extra globs, relative
+	// to the worktree root, whose files are never uploaded. A server or
+	// clued cloud may set all three through `session config-pull`.
+	CodeSync             *bool    `json:"codeSync,omitempty"`
+	CodeSyncMaxFileBytes int64    `json:"codeSyncMaxFileBytes,omitempty"`
+	CodeSyncExclude      []string `json:"codeSyncExclude,omitempty"`
+
 	// RetentionDays, when positive, has MongoDB delete captured documents
 	// that many days after they were stored (a TTL index on created_at,
 	// last_seen for sessions).
@@ -124,6 +137,10 @@ type MemoryConfig struct {
 	Exclude       []string `json:"exclude,omitempty"`
 }
 
+// DefaultCodeSyncMaxFileBytes is the content cap per file of code sync
+// (1 MiB); larger files are recorded by size only.
+const DefaultCodeSyncMaxFileBytes int64 = 1 << 20
+
 // Defaults of the memory block.
 const (
 	DefaultMemoryModel         = "haiku"
@@ -151,6 +168,15 @@ func (c Config) RedactsAtCapture() bool { return c.RedactAtCapture != nil && *c.
 // CapturesContent reports whether capture keeps content (transcript lines,
 // artifact files, the content of hook events), which is the default.
 func (c Config) CapturesContent() bool { return c.CaptureContent == nil || *c.CaptureContent }
+
+// CodeSyncEnabled reports whether code sync may run on this machine: it
+// is opted in (CodeSync set and true), the plugin is in remote mode, and
+// capture keeps content (captureContent false turns it off). A
+// repository's own opt-out (config.Config.CodeSyncAllowed) is checked
+// separately.
+func (c Config) CodeSyncEnabled() bool {
+	return c.CodeSync != nil && *c.CodeSync && c.Remote() && c.CapturesContent()
+}
 
 // PrimesOnStart reports whether sessions start with the prime report.
 func (c Config) PrimesOnStart() bool { return c.PrimeOnStart == nil || *c.PrimeOnStart }
@@ -252,6 +278,19 @@ func LoadConfig(path string) Config {
 			cfg.CaptureContent = &b
 		}
 	}
+	if v := os.Getenv("CLUED_CODE_SYNC"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.CodeSync = &b
+		}
+	}
+	if v := os.Getenv("CLUED_CODE_SYNC_MAX_FILE_BYTES"); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+			cfg.CodeSyncMaxFileBytes = n
+		}
+	}
+	if cfg.CodeSyncMaxFileBytes <= 0 {
+		cfg.CodeSyncMaxFileBytes = DefaultCodeSyncMaxFileBytes
+	}
 	setFromEnv(&cfg.OTelEndpoint, "CLUED_OTEL_ENDPOINT")
 	if v := os.Getenv("CLUED_REDACT_AT_CAPTURE"); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
@@ -303,4 +342,38 @@ func (m MemoryConfig) withDefaults() MemoryConfig {
 		m.BudgetTokens = DefaultMemoryBudgetTokens
 	}
 	return m
+}
+
+// ValidPulledValue reports whether v, decoded from JSON, is a value
+// config.json may hold under key, so `session config-pull` never writes a
+// value that would make the file unparsable: captureContent and codeSync
+// are booleans, codeSyncMaxFileBytes a positive whole number and
+// codeSyncExclude a list of strings. Other keys are not checked here.
+func ValidPulledValue(key string, v any) bool {
+	switch key {
+	case "captureContent", "codeSync":
+		_, ok := v.(bool)
+		return ok
+	case "codeSyncMaxFileBytes":
+		switch n := v.(type) {
+		case float64:
+			return n > 0 && n <= 1<<53 && n == float64(int64(n))
+		case json.Number:
+			i, err := n.Int64()
+			return err == nil && i > 0
+		}
+		return false
+	case "codeSyncExclude":
+		list, ok := v.([]any)
+		if !ok {
+			return false
+		}
+		for _, item := range list {
+			if _, ok := item.(string); !ok {
+				return false
+			}
+		}
+		return true
+	}
+	return true
 }

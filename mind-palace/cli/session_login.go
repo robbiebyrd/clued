@@ -33,8 +33,10 @@ const (
 
 // Config keys the server's client settings may set (the same names as in
 // config.json); nothing else from the server reaches the file. The
-// redaction keys carry a workspace's enforced capture redaction.
-var pulledConfigKeys = []string{"enabledEnrichers", "disabledEnrichers", "projectsDir", "fileHistoryDir", "redactAtCapture", "redactPatterns", "excludePaths", captureContentKey}
+// redaction keys carry a workspace's enforced capture redaction; the code
+// sync keys let a server or clued cloud turn code collection on (or off)
+// for an account.
+var pulledConfigKeys = []string{"enabledEnrichers", "disabledEnrichers", "projectsDir", "fileHistoryDir", "redactAtCapture", "redactPatterns", "excludePaths", captureContentKey, "codeSync", "codeSyncMaxFileBytes", "codeSyncExclude"}
 
 // meConfig is the body of GET /api/v1/me/config. Managed lists the keys a
 // workspace policy enforces and ManagedBy who manages each; the cloud may
@@ -333,7 +335,7 @@ succeeds; the session-start hook runs it with --quiet.`,
 					updated := []string{}
 					for _, k := range pulledConfigKeys {
 						if v, ok := body.ClientConfig[k]; ok && v != nil {
-							if _, isBool := v.(bool); k == captureContentKey && !isBool {
+							if !session.ValidPulledValue(k, v) {
 								continue
 							}
 							set[k] = v

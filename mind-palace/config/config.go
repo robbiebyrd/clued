@@ -121,6 +121,10 @@ type Config struct {
 	Storage []StorageDef `yaml:"storage" json:"storage"`
 	Server  ServerConfig `yaml:"server" json:"server"`
 	Remote  RemoteConfig `yaml:"remote" json:"remote"`
+	// CodeSync, when false, opts this repository out of code sync
+	// (session/codesync) whatever the machine's config.json says; unset or
+	// true leaves the decision to the machine (see CodeSyncAllowed).
+	CodeSync *bool `yaml:"codeSync" json:"codeSync,omitempty"`
 	// Source is the config file the values came from ("" for defaults).
 	Source string `yaml:"-" json:"source,omitempty"`
 }
@@ -248,11 +252,12 @@ func (fc *fileKindConfig) apply(c *KindConfig) {
 // only part of the defaults. The legacy top-level plan keys (plansDir, types,
 // statuses, workflow, priorities, efforts) still apply to plans.
 type fileConfig struct {
-	Plans   *fileKindConfig `yaml:"plans" json:"plans"`
-	Stories *fileKindConfig `yaml:"stories" json:"stories"`
-	Storage []StorageDef    `yaml:"storage" json:"storage"`
-	Server  *ServerConfig   `yaml:"server" json:"server"`
-	Remote  *RemoteConfig   `yaml:"remote" json:"remote"`
+	Plans    *fileKindConfig `yaml:"plans" json:"plans"`
+	Stories  *fileKindConfig `yaml:"stories" json:"stories"`
+	Storage  []StorageDef    `yaml:"storage" json:"storage"`
+	Server   *ServerConfig   `yaml:"server" json:"server"`
+	Remote   *RemoteConfig   `yaml:"remote" json:"remote"`
+	CodeSync *bool           `yaml:"codeSync" json:"codeSync"`
 
 	PlansDir   *string             `yaml:"plansDir" json:"plansDir"`
 	Types      []TypeDef           `yaml:"types" json:"types"`
@@ -402,8 +407,16 @@ func (c *Config) Overlay(data []byte, ext string) error {
 	if fc.Remote != nil {
 		c.Remote.Project = strings.TrimSpace(fc.Remote.Project)
 	}
+	if fc.CodeSync != nil {
+		c.CodeSync = fc.CodeSync
+	}
 	return nil
 }
+
+// CodeSyncAllowed reports whether this repository lets code sync run: only
+// an explicit `codeSync: false` forbids it. It never turns code sync on;
+// the machine's config.json does (session.Config.CodeSyncEnabled).
+func (c *Config) CodeSyncAllowed() bool { return c.CodeSync == nil || *c.CodeSync }
 
 // Kind returns the configuration for a kind name ("plan"/"story").
 func (c *Config) Kind(name string) *KindConfig {
