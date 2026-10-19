@@ -3,11 +3,13 @@ id: 0080-6sk
 title: Generic extractor, chunker, golden harness and the Go reference language
 purpose: The engine every language plugs into, proven on Go.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-19T18:07:16.265Z"
-updated: "2026-10-19T18:28:52.418Z"
+updated: "2026-10-19T20:40:33.188Z"
+started: "2026-10-19T19:51:59.653Z"
+completed: "2026-10-19T20:40:33.188Z"
 tags:
   - plan-0012-cgi
   - wave-2
@@ -40,19 +42,19 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
   "7":
-    status: pending
+    status: complete
 ---
 
 # Generic extractor, chunker, golden harness and the Go reference language
@@ -97,9 +99,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/... && GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build ./...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/... && GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build ./...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -115,3 +117,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/testdata/go/` - Go golden files
 
 ## Work Log
+
+### 2026-10-19T20:40:27.311Z - Built the generic extractor (codeparse/extract.go: Engine, NewEngine, Default, Parse, ParseDetected, Version/VersionDetected, Check; package-level Parse(path, content) and ParseVersion matching codeindex's ParseFunc/ParseVersion options), the structural chunker (chunk.go: one chunk per top-level definition with its doc, split at statement boundaries into <= 1,500-token parts repeating the signature, comments kept with their statement, the code between definitions as windows, gaps under 16 bytes skipped), Markdown heading sections (markdown.go), 60/10 line windows and text fallback (text.go), the grammar registry (grammars/registry.go; each language registers from grammars/<lang>.go, Go in grammars/go.go), the Go query and profile (queries/go/), the contributor note (queries/README.md) and the golden harness (golden_test.go: TestGolden/<lang>/<input> with -update, x.in inputs parsed as x, chunk invariants, every profile needs goldens, plus text, Markdown, no-grammar, bad-query, timeout, capture, concurrency and split tests; 98 tests and subtests pass with -race, with and without MongoDB). Decisions: a parse cut off (2 s) or failed gives text facts with parseError; a tree with error nodes keeps whatever the query matched (no parseError, as Facts.Validate requires). Added github.com/odvcencio/gotreesitter v0.56.0 (MIT); CGO_ENABLED=0 go build ./... passes for all 7 targets; go-licenses check (CI's flags) passes. Files outside the list: codeparse/grammars/go.go (the per-language registration file the registry design calls for) and codeparse/queries/README.md (required by step 6). Not wired into a server: nothing constructs codeindex.Service yet, so callers pass Options{Parse: codeparse.Parse, ParseVersion: codeparse.ParseVersion} when they do.

@@ -1,0 +1,10 @@
+# Go: packages by directory, import paths and aliases; the go.mod module
+# path turns a directory into its import path (the go family resolver).
+name: Go
+family: go
+extensions: [.go]
+query: tags.scm
+scope:
+  separators: ["."]
+  packageBy: directory
+  exported: capitalized
