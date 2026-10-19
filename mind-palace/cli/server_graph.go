@@ -16,6 +16,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/codegraph"
 	"github.com/robbiebyrd/clued/mind-palace/codegraph/falkor"
 	"github.com/robbiebyrd/clued/mind-palace/codeindex"
+	"github.com/robbiebyrd/clued/mind-palace/codeparse"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 )
@@ -86,15 +87,22 @@ var openGraphEnv = func(ctx context.Context, o graphCmdOptions) (*graphEnv, erro
 }
 
 // graphIndexer is the code-graph indexer over env, configured as the
-// server's: the FileApplier writes the files.
+// server's: files are parsed with codeparse's tree-sitter engine, written
+// by the FileApplier and their references resolved per layer.
 func graphIndexer(env *graphEnv, logger *slog.Logger) (*codeindex.Service, error) {
+	engine, err := codeparse.Default()
+	if err != nil {
+		return nil, err
+	}
 	return codeindex.New(codeindex.Options{
-		Projects: env.Projects,
-		Code:     env.Code,
-		Graphs:   env.Graphs,
-		Cursors:  env.Cursors,
-		Apply:    codeindex.FileApplier{},
-		Logger:   logger,
+		Projects:     env.Projects,
+		Code:         env.Code,
+		Graphs:       env.Graphs,
+		Cursors:      env.Cursors,
+		Parse:        codeparse.Parse,
+		ParseVersion: codeparse.ParseVersion,
+		Apply:        codeindex.NewResolver(codeindex.ResolverOptions{Profiles: engine.Profiles()}),
+		Logger:       logger,
 	})
 }
 
