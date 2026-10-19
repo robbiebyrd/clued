@@ -27,7 +27,7 @@
 // ids and worktree ids are rebuilt from their alphabets at the point of use
 // (code.CanonicalSHA256, CanonicalGitOID, CanonicalWorktreeID). Refs and
 // paths, which may hold any character, never reach a filter at all: a tree
-// is found by treeKey and an entry by entryID, hex digests of them, and a
+// is found by treeKey and an entry by entryID, hex encodings of them, and a
 // full reconcile deletes the _ids it read back from the tree.
 package mongocode
 
@@ -297,19 +297,19 @@ func (d eventDoc) event() code.Event {
 	return e
 }
 
-// treeKey names the (worktree, ref) tree in queries: the hex SHA-256 of
+// treeKey names the (worktree, ref) tree in queries: the hex encoding of
 // "tree", worktree and ref joined with NUL, which none of them may contain.
-func treeKey(worktree, ref string) string { return digest("tree", worktree, ref) }
+func treeKey(worktree, ref string) string { return hexKey("tree", worktree, ref) }
 
 // entryID is the _id of the entry at path in the (worktree, ref) tree: the
-// hex SHA-256 of "entry", worktree, ref and path joined with NUL.
-func entryID(worktree, ref, path string) string { return digest("entry", worktree, ref, path) }
+// hex encoding of "entry", worktree, ref and path joined with NUL.
+func entryID(worktree, ref, path string) string { return hexKey("entry", worktree, ref, path) }
 
-// digest returns the hex SHA-256 of parts joined with NUL, rebuilt from the
-// hex alphabet so a filter built from it holds nothing else.
-func digest(parts ...string) string {
-	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
-	id, _ := code.CanonicalSHA256(hex.EncodeToString(sum[:]))
+// hexKey returns the hex encoding of parts joined with NUL, rebuilt from
+// the hex alphabet so a filter built from it holds nothing else. It is an
+// encoding, not a hash, so two different keys never collide.
+func hexKey(parts ...string) string {
+	id, _ := code.CanonicalHex(hex.EncodeToString([]byte(strings.Join(parts, "\x00"))))
 	return id
 }
 
@@ -965,7 +965,7 @@ func (s *Store) Tree(ctx context.Context, worktree, ref string) ([]code.Entry, e
 	}
 	out := make([]code.Entry, 0, len(docs))
 	for _, d := range docs {
-		if d.Worktree == worktree && d.Ref == ref { // the key is a digest
+		if d.Worktree == worktree && d.Ref == ref { // belt and braces: the key encodes both
 			out = append(out, d.entry())
 		}
 	}

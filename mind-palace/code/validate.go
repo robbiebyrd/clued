@@ -154,6 +154,13 @@ func CanonicalWorktreeID(id string) (string, bool) {
 	return rebuild(id, worktreeIDAlphabet)
 }
 
+// CanonicalHex returns a copy of s rebuilt from the lowercase hex alphabet,
+// or false when s holds any other byte. Stores use it for keys they encode
+// themselves (code/mongocode's tree keys) before those reach a filter.
+func CanonicalHex(s string) (string, bool) {
+	return rebuild(s, hexAlphabet)
+}
+
 // rebuild returns s spelled from alphabet, or false when s holds any other
 // byte.
 func rebuild(s, alphabet string) (string, bool) {
