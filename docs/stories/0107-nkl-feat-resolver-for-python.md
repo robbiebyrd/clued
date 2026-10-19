@@ -3,11 +3,13 @@ id: 0107-nkl
 title: Resolver for Python
 purpose: Resolves references for Python so calls, references and implementations link to the right definitions.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:10.732Z"
-updated: "2026-10-19T18:31:47.472Z"
+updated: "2026-10-19T21:01:15.311Z"
+started: "2026-10-19T20:51:51.441Z"
+completed: "2026-10-19T21:01:15.311Z"
 tags:
   - plan-0012-cgi
   - wave-7
@@ -33,15 +35,15 @@ links:
     - ["0012-cgi", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Resolver for Python
@@ -78,10 +80,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'python'
-- [ ] [MANUAL] Only this family's two files changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'python'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'python'
+- [x] [MANUAL] Only this family's two files changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'python'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -89,3 +91,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/resolvers/python_test.go` - resolution tests over the language goldens
 
 ## Work Log
+
+### 2026-10-19T21:01:09.943Z - Added codeindex/resolvers/python.go (python resolver registered for FamilyPython; exported PythonModuleKey) and python_test.go (5 tests: module keys, scope incl. relative/absolute/src roots/re-exports/stars/aliases, visibility, engine resolution over hand-built facts, engine resolution over codeparse/testdata/python goldens parsed with codeparse.Parse). Keys are module paths (a/b.py -> a/b, a/__init__.py -> a); imports located via View.Has under the importer's package root, project root and src/. Merged claude/sharp-gates-45zpak (0081 extraction) and aligned to real facts. Core notes: resolve.go drops files with neither symbols nor refs from the view, so import-only __init__.py modules are parsed from View.Content for their imports (bounded cache); dotted qualifiers through import a.b.c (a.b.c.f()) stay unresolved because the engine binds only the qualifier's first part and Python QualNames carry no module prefix. Verify: gofmt/vet/build clean, go test -race ./codeindex/... ok.
