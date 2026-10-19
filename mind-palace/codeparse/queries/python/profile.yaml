@@ -1,0 +1,13 @@
+# Python: a file is its own module (a.b for a/b.py, a/__init__.py the
+# package a); `import a.b [as c]` binds a module, `from m import x [as y]`
+# a name of m (relative when m starts with dots), `from m import *`
+# imports every public name. Names starting with an underscore are
+# private by convention.
+name: Python
+family: python
+extensions: [.py, .pyi]
+query: tags.scm
+scope:
+  separators: ["."]
+  packageBy: file
+  exported: noUnderscore

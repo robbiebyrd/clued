@@ -1,0 +1,969 @@
+{
+  "lang": "python",
+  "symbols": [
+    {
+      "id": "DEFAULT_LIMIT",
+      "kind": "const",
+      "name": "DEFAULT_LIMIT",
+      "qualName": "DEFAULT_LIMIT",
+      "signature": "DEFAULT_LIMIT = 50",
+      "doc": "DEFAULT_LIMIT bounds a page of results.",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 317
+      },
+      "end": {
+        "line": 14,
+        "column": 18,
+        "offset": 335
+      },
+      "exported": true
+    },
+    {
+      "id": "_MAX_RETRIES",
+      "kind": "const",
+      "name": "_MAX_RETRIES",
+      "qualName": "_MAX_RETRIES",
+      "signature": "_MAX_RETRIES: int = 3",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 336
+      },
+      "end": {
+        "line": 15,
+        "column": 21,
+        "offset": 357
+      }
+    },
+    {
+      "id": "registry",
+      "kind": "var",
+      "name": "registry",
+      "qualName": "registry",
+      "signature": "registry: dict[str, \"Item\"] = {}",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 358
+      },
+      "end": {
+        "line": 16,
+        "column": 32,
+        "offset": 390
+      },
+      "exported": true
+    },
+    {
+      "id": "version_info",
+      "kind": "var",
+      "name": "version_info",
+      "qualName": "version_info",
+      "signature": "version_info = (1, 2)",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 391
+      },
+      "end": {
+        "line": 17,
+        "column": 21,
+        "offset": 412
+      },
+      "exported": true
+    },
+    {
+      "id": "HOST",
+      "kind": "const",
+      "name": "HOST",
+      "qualName": "HOST",
+      "signature": "HOST, PORT = \"localhost\", 8080",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 413
+      },
+      "end": {
+        "line": 18,
+        "column": 30,
+        "offset": 443
+      },
+      "exported": true
+    },
+    {
+      "id": "PORT",
+      "kind": "const",
+      "name": "PORT",
+      "qualName": "PORT",
+      "signature": "HOST, PORT = \"localhost\", 8080",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 413
+      },
+      "end": {
+        "line": 18,
+        "column": 30,
+        "offset": 443
+      },
+      "exported": true
+    },
+    {
+      "id": "_cache",
+      "kind": "var",
+      "name": "_cache",
+      "qualName": "_cache",
+      "signature": "_cache = None",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 444
+      },
+      "end": {
+        "line": 19,
+        "column": 13,
+        "offset": 457
+      }
+    },
+    {
+      "id": "ItemID",
+      "kind": "type",
+      "name": "ItemID",
+      "qualName": "ItemID",
+      "signature": "type ItemID = int",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 459
+      },
+      "end": {
+        "line": 21,
+        "column": 17,
+        "offset": 476
+      },
+      "exported": true
+    },
+    {
+      "id": "Pair",
+      "kind": "type",
+      "name": "Pair",
+      "qualName": "Pair",
+      "signature": "type Pair[T] = tuple[T, T]",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 477
+      },
+      "end": {
+        "line": 22,
+        "column": 26,
+        "offset": 503
+      },
+      "exported": true
+    },
+    {
+      "id": "Color",
+      "kind": "class",
+      "name": "Color",
+      "qualName": "Color",
+      "signature": "class Color(enum.Enum):",
+      "doc": "A colour an item comes in.",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 506
+      },
+      "end": {
+        "line": 29,
+        "column": 13,
+        "offset": 593
+      },
+      "exported": true
+    },
+    {
+      "id": "Color.RED",
+      "kind": "field",
+      "name": "RED",
+      "qualName": "Color.RED",
+      "signature": "RED = 1",
+      "start": {
+        "line": 28,
+        "column": 4,
+        "offset": 572
+      },
+      "end": {
+        "line": 28,
+        "column": 11,
+        "offset": 579
+      },
+      "parent": "Color",
+      "exported": true
+    },
+    {
+      "id": "Color.GREEN",
+      "kind": "field",
+      "name": "GREEN",
+      "qualName": "Color.GREEN",
+      "signature": "GREEN = 2",
+      "start": {
+        "line": 29,
+        "column": 4,
+        "offset": 584
+      },
+      "end": {
+        "line": 29,
+        "column": 13,
+        "offset": 593
+      },
+      "parent": "Color",
+      "exported": true
+    },
+    {
+      "id": "Sized",
+      "kind": "class",
+      "name": "Sized",
+      "qualName": "Sized",
+      "signature": "class Sized(Protocol):",
+      "doc": "Anything with a size.",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 596
+      },
+      "end": {
+        "line": 37,
+        "column": 11,
+        "offset": 731
+      },
+      "exported": true
+    },
+    {
+      "id": "Sized.size",
+      "kind": "method",
+      "name": "size",
+      "qualName": "Sized.size",
+      "signature": "def size(self) -\u003e int:",
+      "doc": "Returns the size in bytes.",
+      "start": {
+        "line": 35,
+        "column": 4,
+        "offset": 656
+      },
+      "end": {
+        "line": 37,
+        "column": 11,
+        "offset": 731
+      },
+      "parent": "Sized",
+      "exported": true
+    },
+    {
+      "id": "Item",
+      "kind": "class",
+      "name": "Item",
+      "qualName": "Item",
+      "signature": "class Item:",
+      "doc": "One item of the inventory.\n\nItems are immutable.",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 758
+      },
+      "end": {
+        "line": 81,
+        "column": 27,
+        "offset": 1718
+      },
+      "exported": true
+    },
+    {
+      "id": "Item.kind",
+      "kind": "field",
+      "name": "kind",
+      "qualName": "Item.kind",
+      "signature": "kind: ClassVar[str] = \"item\"",
+      "start": {
+        "line": 47,
+        "column": 4,
+        "offset": 843
+      },
+      "end": {
+        "line": 47,
+        "column": 32,
+        "offset": 871
+      },
+      "parent": "Item",
+      "exported": true
+    },
+    {
+      "id": "Item.name",
+      "kind": "field",
+      "name": "name",
+      "qualName": "Item.name",
+      "signature": "name: str",
+      "start": {
+        "line": 48,
+        "column": 4,
+        "offset": 876
+      },
+      "end": {
+        "line": 48,
+        "column": 13,
+        "offset": 885
+      },
+      "parent": "Item",
+      "exported": true
+    },
+    {
+      "id": "Item.price",
+      "kind": "field",
+      "name": "price",
+      "qualName": "Item.price",
+      "signature": "price: float = 0.0",
+      "start": {
+        "line": 49,
+        "column": 4,
+        "offset": 890
+      },
+      "end": {
+        "line": 49,
+        "column": 22,
+        "offset": 908
+      },
+      "parent": "Item",
+      "exported": true
+    },
+    {
+      "id": "Item.tags",
+      "kind": "field",
+      "name": "tags",
+      "qualName": "Item.tags",
+      "signature": "tags: list[str] = field(default_factory=list)",
+      "start": {
+        "line": 50,
+        "column": 4,
+        "offset": 913
+      },
+      "end": {
+        "line": 50,
+        "column": 49,
+        "offset": 958
+      },
+      "parent": "Item",
+      "exported": true
+    },
+    {
+      "id": "Item.__post_init__",
+      "kind": "method",
+      "name": "__post_init__",
+      "qualName": "Item.__post_init__",
+      "signature": "def __post_init__(self) -\u003e None:",
+      "start": {
+        "line": 52,
+        "column": 4,
+        "offset": 964
+      },
+      "end": {
+        "line": 54,
+        "column": 46,
+        "offset": 1070
+      },
+      "parent": "Item"
+    },
+    {
+      "id": "Item.total",
+      "kind": "method",
+      "name": "total",
+      "qualName": "Item.total",
+      "signature": "def total(self, n: int = 1) -\u003e float:",
+      "doc": "total returns the price of n items.",
+      "start": {
+        "line": 57,
+        "column": 4,
+        "offset": 1118
+      },
+      "end": {
+        "line": 58,
+        "column": 29,
+        "offset": 1185
+      },
+      "parent": "Item",
+      "exported": true
+    },
+    {
+      "id": "Item.label",
+      "kind": "method",
+      "name": "label",
+      "qualName": "Item.label",
+      "signature": "def label(self) -\u003e str:",
+      "doc": "The item's display label.",
+      "start": {
+        "line": 61,
+        "column": 4,
+        "offset": 1205
+      },
+      "end": {
+        "line": 63,
+        "column": 44,
+        "offset": 1313
+      },
+      "parent": "Item",
+      "exported": true
+    },
+    {
+      "id": "Item.parse",
+      "kind": "method",
+      "name": "parse",
+      "qualName": "Item.parse",
+      "signature": "def parse(text: str) -\u003e Item:",
+      "start": {
+        "line": 66,
+        "column": 4,
+        "offset": 1337
+      },
+      "end": {
+        "line": 68,
+        "column": 50,
+        "offset": 1462
+      },
+      "parent": "Item",
+      "exported": true
+    },
+    {
+      "id": "Item.fetch",
+      "kind": "method",
+      "name": "fetch",
+      "qualName": "Item.fetch",
+      "signature": "async def fetch(cls, client, key: str) -\u003e \"Item\":",
+      "start": {
+        "line": 71,
+        "column": 4,
+        "offset": 1485
+      },
+      "end": {
+        "line": 73,
+        "column": 26,
+        "offset": 1598
+      },
+      "parent": "Item",
+      "exported": true
+    },
+    {
+      "id": "Item._private",
+      "kind": "method",
+      "name": "_private",
+      "qualName": "Item._private",
+      "signature": "def _private(self):",
+      "start": {
+        "line": 75,
+        "column": 4,
+        "offset": 1604
+      },
+      "end": {
+        "line": 76,
+        "column": 12,
+        "offset": 1636
+      },
+      "parent": "Item"
+    },
+    {
+      "id": "Item.Meta",
+      "kind": "class",
+      "name": "Meta",
+      "qualName": "Item.Meta",
+      "signature": "class Meta:",
+      "doc": "Options of the model.",
+      "start": {
+        "line": 78,
+        "column": 4,
+        "offset": 1642
+      },
+      "end": {
+        "line": 81,
+        "column": 27,
+        "offset": 1718
+      },
+      "parent": "Item",
+      "exported": true
+    },
+    {
+      "id": "Item.Meta.ordering",
+      "kind": "field",
+      "name": "ordering",
+      "qualName": "Item.Meta.ordering",
+      "signature": "ordering = [\"name\"]",
+      "start": {
+        "line": 81,
+        "column": 8,
+        "offset": 1699
+      },
+      "end": {
+        "line": 81,
+        "column": 27,
+        "offset": 1718
+      },
+      "parent": "Item.Meta",
+      "exported": true
+    },
+    {
+      "id": "make_item",
+      "kind": "function",
+      "name": "make_item",
+      "qualName": "make_item",
+      "signature": "def make_item(name: str, *, price: float = 0.0) -\u003e Item:",
+      "doc": "Builds an item with a price.",
+      "start": {
+        "line": 84,
+        "column": 0,
+        "offset": 1721
+      },
+      "end": {
+        "line": 86,
+        "column": 39,
+        "offset": 1856
+      },
+      "exported": true
+    },
+    {
+      "id": "load_all",
+      "kind": "function",
+      "name": "load_all",
+      "qualName": "load_all",
+      "signature": "async def load_all(client) -\u003e list[Item]:",
+      "start": {
+        "line": 89,
+        "column": 0,
+        "offset": 1859
+      },
+      "end": {
+        "line": 90,
+        "column": 69,
+        "offset": 1970
+      },
+      "exported": true
+    },
+    {
+      "id": "_helper",
+      "kind": "function",
+      "name": "_helper",
+      "qualName": "_helper",
+      "signature": "def _helper():",
+      "start": {
+        "line": 93,
+        "column": 0,
+        "offset": 1973
+      },
+      "end": {
+        "line": 94,
+        "column": 24,
+        "offset": 2012
+      }
+    }
+  ],
+  "imports": [
+    {
+      "spec": "__future__",
+      "names": [
+        "annotations"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 147
+      }
+    },
+    {
+      "spec": "enum",
+      "kind": "import",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 183
+      }
+    },
+    {
+      "spec": "dataclasses",
+      "names": [
+        "dataclass",
+        "field"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 195
+      }
+    },
+    {
+      "spec": "typing",
+      "names": [
+        "ClassVar",
+        "Protocol"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 236
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 22,
+        "column": 10,
+        "offset": 487
+      },
+      "enclosing": "Pair"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 22,
+        "column": 21,
+        "offset": 498
+      },
+      "enclosing": "Pair"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 22,
+        "column": 24,
+        "offset": 501
+      },
+      "enclosing": "Pair"
+    },
+    {
+      "name": "Enum",
+      "qualifier": "enum",
+      "kind": "extends",
+      "start": {
+        "line": 25,
+        "column": 17,
+        "offset": 523
+      },
+      "enclosing": "Color"
+    },
+    {
+      "name": "Protocol",
+      "kind": "extends",
+      "start": {
+        "line": 32,
+        "column": 12,
+        "offset": 608
+      },
+      "enclosing": "Sized"
+    },
+    {
+      "name": "dataclass",
+      "kind": "call",
+      "start": {
+        "line": 40,
+        "column": 1,
+        "offset": 735
+      }
+    },
+    {
+      "name": "ClassVar",
+      "kind": "type",
+      "start": {
+        "line": 47,
+        "column": 10,
+        "offset": 849
+      },
+      "enclosing": "Item.kind"
+    },
+    {
+      "name": "field",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 22,
+        "offset": 931
+      },
+      "enclosing": "Item.tags"
+    },
+    {
+      "name": "ValueError",
+      "kind": "call",
+      "start": {
+        "line": 54,
+        "column": 18,
+        "offset": 1042
+      },
+      "enclosing": "Item.__post_init__"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 66,
+        "column": 28,
+        "offset": 1361
+      },
+      "enclosing": "Item.parse"
+    },
+    {
+      "name": "partition",
+      "qualifier": "text",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 30,
+        "offset": 1397
+      },
+      "enclosing": "Item.parse"
+    },
+    {
+      "name": "Item",
+      "kind": "call",
+      "start": {
+        "line": 68,
+        "column": 15,
+        "offset": 1427
+      },
+      "enclosing": "Item.parse"
+    },
+    {
+      "name": "get",
+      "qualifier": "client",
+      "kind": "call",
+      "start": {
+        "line": 72,
+        "column": 28,
+        "offset": 1563
+      },
+      "enclosing": "Item.fetch"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 84,
+        "column": 51,
+        "offset": 1772
+      },
+      "enclosing": "make_item"
+    },
+    {
+      "name": "Item",
+      "kind": "call",
+      "start": {
+        "line": 86,
+        "column": 11,
+        "offset": 1828
+      },
+      "enclosing": "make_item"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 89,
+        "column": 35,
+        "offset": 1894
+      },
+      "enclosing": "load_all"
+    },
+    {
+      "name": "fetch",
+      "qualifier": "Item",
+      "kind": "call",
+      "start": {
+        "line": 90,
+        "column": 23,
+        "offset": 1924
+      },
+      "enclosing": "load_all"
+    },
+    {
+      "name": "keys",
+      "qualifier": "client",
+      "kind": "call",
+      "start": {
+        "line": 90,
+        "column": 62,
+        "offset": 1963
+      },
+      "enclosing": "load_all"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 19,
+        "column": 13,
+        "offset": 457
+      },
+      "text": "# Copyright 2026 Example. A file header, not a doc comment.\n\"\"\"Models of the inventory service.\n\nEvery model is a plain class or a dataclass.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport enum\nfrom dataclasses import dataclass, field\nfrom typing import ClassVar, Protocol\n\n# DEFAULT_LIMIT bounds a page of results.\nDEFAULT_LIMIT = 50\n_MAX_RETRIES: int = 3\nregistry: dict[str, \"Item\"] = {}\nversion_info = (1, 2)\nHOST, PORT = \"localhost\", 8080\n_cache = None",
+      "hash": "e065c7d3b1ed19293a9d555cdff0f5030417dcc3519b69563be0ff1a34ae3d3c"
+    },
+    {
+      "id": "ItemID#1",
+      "kind": "symbol",
+      "symbolId": "ItemID",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 459
+      },
+      "end": {
+        "line": 21,
+        "column": 17,
+        "offset": 476
+      },
+      "text": "type ItemID = int",
+      "hash": "f52e0f32e865dce77a1675b910857d2acee799a8dd94ef5897177a49ad6dbda1"
+    },
+    {
+      "id": "Pair#1",
+      "kind": "symbol",
+      "symbolId": "Pair",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 477
+      },
+      "end": {
+        "line": 22,
+        "column": 26,
+        "offset": 503
+      },
+      "text": "type Pair[T] = tuple[T, T]",
+      "hash": "b980f3fb98d226bb690e15543352e5f9b7c1e7dcb5551db5a14ec11abc7d2010"
+    },
+    {
+      "id": "Color#1",
+      "kind": "symbol",
+      "symbolId": "Color",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 506
+      },
+      "end": {
+        "line": 29,
+        "column": 13,
+        "offset": 593
+      },
+      "text": "class Color(enum.Enum):\n    \"\"\"A colour an item comes in.\"\"\"\n\n    RED = 1\n    GREEN = 2",
+      "hash": "e259df02ca246a9e2bd13049e09e3bc214d1f40eff6622c6a3d3bd1bf015e1b8"
+    },
+    {
+      "id": "Sized#1",
+      "kind": "symbol",
+      "symbolId": "Sized",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 596
+      },
+      "end": {
+        "line": 37,
+        "column": 11,
+        "offset": 731
+      },
+      "text": "class Sized(Protocol):\n    \"\"\"Anything with a size.\"\"\"\n\n    def size(self) -\u003e int:\n        \"\"\"Returns the size in bytes.\"\"\"\n        ...",
+      "hash": "92bd1165ed39967e4f1a0225cf5b409dcabfa752a6c01c105b71aa0e240ec5b8"
+    },
+    {
+      "id": "L40#1",
+      "kind": "window",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 734
+      },
+      "end": {
+        "line": 40,
+        "column": 23,
+        "offset": 757
+      },
+      "text": "@dataclass(frozen=True)",
+      "hash": "6b38c9a9ed64fcd7602bba1efae5a3586f70a4a4743870b5a2c05e97c0612544"
+    },
+    {
+      "id": "Item#1",
+      "kind": "symbol",
+      "symbolId": "Item",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 758
+      },
+      "end": {
+        "line": 81,
+        "column": 27,
+        "offset": 1718
+      },
+      "text": "class Item:\n    \"\"\"One item of the inventory.\n\n    Items are immutable.\n    \"\"\"\n\n    kind: ClassVar[str] = \"item\"\n    name: str\n    price: float = 0.0\n    tags: list[str] = field(default_factory=list)\n\n    def __post_init__(self) -\u003e None:\n        if self.price \u003c 0:\n            raise ValueError(\"negative price\")\n\n    # total returns the price of n items.\n    def total(self, n: int = 1) -\u003e float:\n        return self.price * n\n\n    @property\n    def label(self) -\u003e str:\n        \"\"\"The item's display label.\"\"\"\n        return f\"{self.name} ({self.price})\"\n\n    @staticmethod\n    def parse(text: str) -\u003e Item:\n        name, _, price = text.partition(\":\")\n        return Item(name=name, price=float(price))\n\n    @classmethod\n    async def fetch(cls, client, key: str) -\u003e \"Item\":\n        data = await client.get(key)\n        return cls(**data)\n\n    def _private(self):\n        pass\n\n    class Meta:\n        \"\"\"Options of the model.\"\"\"\n\n        ordering = [\"name\"]",
+      "hash": "571f6bf9458704ac26390c98fc5ce481d411d4b1fde30b0a9af9c5300cc2121c"
+    },
+    {
+      "id": "make_item#1",
+      "kind": "symbol",
+      "symbolId": "make_item",
+      "start": {
+        "line": 84,
+        "column": 0,
+        "offset": 1721
+      },
+      "end": {
+        "line": 86,
+        "column": 39,
+        "offset": 1856
+      },
+      "text": "def make_item(name: str, *, price: float = 0.0) -\u003e Item:\n    \"\"\"Builds an item with a price.\"\"\"\n    return Item(name=name, price=price)",
+      "hash": "1ed0aba0c43e4af34a10d4e58db80230b71b1426bcf1be9c81c7a26d9f4eb3d6"
+    },
+    {
+      "id": "load_all#1",
+      "kind": "symbol",
+      "symbolId": "load_all",
+      "start": {
+        "line": 89,
+        "column": 0,
+        "offset": 1859
+      },
+      "end": {
+        "line": 90,
+        "column": 69,
+        "offset": 1970
+      },
+      "text": "async def load_all(client) -\u003e list[Item]:\n    return [await Item.fetch(client, k) for k in await client.keys()]",
+      "hash": "6cf3887a0d61cb991a337e8a0f9d8ddaba3b385787ff829b2f84988abc40c606"
+    },
+    {
+      "id": "_helper#1",
+      "kind": "symbol",
+      "symbolId": "_helper",
+      "start": {
+        "line": 93,
+        "column": 0,
+        "offset": 1973
+      },
+      "end": {
+        "line": 94,
+        "column": 24,
+        "offset": 2012
+      },
+      "text": "def _helper():\n    return DEFAULT_LIMIT",
+      "hash": "3ae38e3b5711c53f72564b46777399e4e72f256759aa314b53563c568cf69ed1"
+    }
+  ]
+}
