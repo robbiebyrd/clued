@@ -445,3 +445,43 @@ func TestCodeSyncKey(t *testing.T) {
 		t.Error("a later overlay without codeSync cleared the opt-out")
 	}
 }
+
+func TestGitHubSection(t *testing.T) {
+	dir := t.TempDir()
+	yamlPath := filepath.Join(dir, "mind-palace.config.yaml")
+	os.WriteFile(yamlPath, []byte("github:\n  branches: all\n  activeDays: 30\n  maxBranches: 50\ncodeSync: true\n"), 0o644)
+	c, err := Load(yamlPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (GitHubConfig{Branches: "all", ActiveDays: 30, MaxBranches: 50}); c.GitHub != want {
+		t.Errorf("github = %+v, want %+v", c.GitHub, want)
+	}
+	jsonPath := filepath.Join(dir, "mind-palace.config.json")
+	os.WriteFile(jsonPath, []byte(`{"github": {"branches": "default"}}`), 0o644)
+	if c, err := Load(jsonPath); err != nil || c.GitHub.Branches != "default" {
+		t.Errorf("github from JSON = %+v, %v", c, err)
+	}
+	for _, body := range []string{
+		"github:\n  branches: some\n",
+		"github:\n  activeDays: -1\n",
+		"github:\n  maxBranches: -2\n",
+		"github:\n  unknown: 1\n",
+	} {
+		os.WriteFile(yamlPath, []byte(body), 0o644)
+		if _, err := Load(yamlPath); err == nil {
+			t.Errorf("%q: want an error", body)
+		}
+	}
+	// A later overlay keeps keys it does not set.
+	c = Default()
+	if err := c.Overlay([]byte("github:\n  branches: all\n"), ".yaml"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Overlay([]byte("github:\n  activeDays: 7\n"), ".yaml"); err != nil {
+		t.Fatal(err)
+	}
+	if c.GitHub != (GitHubConfig{Branches: "all", ActiveDays: 7}) {
+		t.Errorf("overlays = %+v", c.GitHub)
+	}
+}

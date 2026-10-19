@@ -147,11 +147,6 @@ type GitHubApp = *ghapp.App
 // are written to.
 type CodeStore = code.Store
 
-// ActivityFunc turns a delivery into the allow-listed activity events it
-// records (events.go's ActivityEvents in the host). Handle appends what it
-// returns to the claimed project's activity log; nil records nothing.
-type ActivityFunc func(ctx context.Context, d Delivery, ev ghapp.Event) []code.Event
-
 // RedactPatterns returns the target's own redactPatterns (the account's
 // pulled patterns), applied on top of the built-in redaction rules to
 // GitHub content before it is stored. A pattern that does not compile is
@@ -175,8 +170,6 @@ type Options struct {
 	Claims Claims
 	Code   CodeOpener
 	Docs   DocsOpener
-	// Activity records a delivery's activity events (nil: none).
-	Activity ActivityFunc
 	// Redact returns the target's redactPatterns (nil: the built-in
 	// rules only).
 	Redact RedactPatterns
@@ -216,10 +209,9 @@ type Service struct {
 	Claims Claims
 	Code   CodeOpener
 	Docs   DocsOpener
-	// Activity, Redact and State are Options' (State never nil).
-	Activity ActivityFunc
-	Redact   RedactPatterns
-	State    StateStore
+	// Redact and State are Options' (State never nil).
+	Redact RedactPatterns
+	State  StateStore
 
 	maxFileBytes int64
 	lease        time.Duration
@@ -242,7 +234,7 @@ func New(opts Options) (*Service, error) {
 	}
 	s := &Service{
 		App: opts.App, Jobs: opts.Jobs, Claims: opts.Claims, Code: opts.Code, Docs: opts.Docs,
-		Activity: opts.Activity, Redact: opts.Redact, State: opts.State,
+		Redact: opts.Redact, State: opts.State,
 		maxFileBytes: opts.MaxFileBytes, lease: opts.Lease, poll: opts.PollInterval,
 		now: opts.Now, log: opts.Logger,
 	}

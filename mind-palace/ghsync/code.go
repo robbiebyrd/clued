@@ -52,8 +52,6 @@ type BranchState struct {
 	Head string `json:"head,omitempty"`
 	// LastPush is when the branch last received a push (or was created).
 	LastPush time.Time `json:"lastPush,omitzero"`
-	// OpenPRs are the numbers of the open pull requests from the branch.
-	OpenPRs []int `json:"openPRs,omitempty"`
 	// Inactive is true while the policy leaves the branch out: its last
 	// tree is kept, but pushes no longer update it.
 	Inactive bool `json:"inactive,omitempty"`
@@ -83,6 +81,10 @@ type RepoState struct {
 	DocsCommit string `json:"docsCommit,omitempty"`
 	// Branches is the state of every branch seen, by name.
 	Branches map[string]*BranchState `json:"branches"`
+	// OpenPRs are the repository's open pull requests from its own
+	// branches: seeded from the open-PR listing at import and reconcile,
+	// kept current from pull_request deliveries (OpenPRs.Apply).
+	OpenPRs OpenPRs `json:"openPRs,omitempty"`
 }
 
 // branch returns the state of a branch, adding it when unknown.
@@ -250,6 +252,9 @@ func (r *repoRun) save(ctx context.Context) error {
 // out (ConfigInvalid) rather than risk ignoring codeSync: false.
 func (r *repoRun) loadConfig(ctx context.Context, ref string) error {
 	if ref == "" {
+		if r.st.ConfigCommit != "" && r.st.Slug != "" {
+			return nil
+		}
 		ref = r.st.DefaultBranch
 	}
 	if r.st.ConfigCommit == ref && r.st.Slug != "" {
@@ -315,9 +320,9 @@ func (r *repoRun) policy() BranchPolicy { return EffectivePolicy(r.claim.Policy,
 func (r *repoRun) selection() Selection {
 	branches := make([]Branch, 0, len(r.st.Branches))
 	for name, b := range r.st.Branches {
-		branches = append(branches, Branch{Name: name, LastPush: b.LastPush, OpenPR: len(b.OpenPRs) > 0})
+		branches = append(branches, Branch{Name: name, LastPush: b.LastPush})
 	}
-	return r.policy().Select(r.st.DefaultBranch, branches, r.s.now())
+	return r.policy().Select(r.st.DefaultBranch, r.st.OpenPRs.Mark(branches), r.s.now())
 }
 
 // wanted reports whether the policy syncs branch now.
@@ -360,6 +365,16 @@ func (r *repoRun) openStore(ctx context.Context, worktree bool) (code.Store, err
 		}
 	}
 	return r.store, nil
+}
+
+// seed opens the store (seeding the stored heads) before a head is
+// compared, when the run started without a state.
+func (r *repoRun) seed(ctx context.Context) error {
+	if !r.fresh || r.seeded {
+		return nil
+	}
+	_, err := r.openStore(ctx, true)
+	return err
 }
 
 // seedHeads recovers the stored heads of a repository whose state was lost
@@ -663,6 +678,9 @@ func (r *repoRun) syncPushCode(ctx context.Context, branch, before, after string
 		b.Inactive = true
 		return pushResult{}, nil
 	}
+	if err := r.seed(ctx); err != nil {
+		return pushResult{}, err
+	}
 	if b.Head == after {
 		b.Inactive = false
 		return pushResult{}, nil
@@ -851,22 +869,14 @@ func (r *repoRun) syncBranches(ctx context.Context, only string) error {
 	if err != nil {
 		return err
 	}
-	for _, b := range r.st.Branches {
-		b.OpenPRs = nil
-	}
+	r.st.OpenPRs = OpenPRsFromList(r.st.Repository, pulls)
 	for name := range tips {
 		r.st.branch(name)
 	}
-	for _, pr := range pulls {
-		if pr.Head.Repo != nil && pr.Head.Repo.ID != r.st.Repository {
-			continue // a fork's branch is not this repository's
-		}
-		if _, ok := tips[pr.Head.Ref]; ok {
-			b := r.st.branch(pr.Head.Ref)
-			b.OpenPRs = append(b.OpenPRs, pr.Number)
-		}
-	}
 	if r.codeAllowed() {
+		if err := r.seed(ctx); err != nil {
+			return err
+		}
 		sel := r.selection()
 		for _, name := range sel.Active {
 			if only != "" && name != only {
