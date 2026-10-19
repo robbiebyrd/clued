@@ -3,11 +3,13 @@ id: 0101-qmn
 title: '`codegraph` contract: port, schema, views'
 purpose: Fixes the graph shapes so the memory adapter, the FalkorDB adapter, the indexer and the read API can be built in parallel.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:09:38.850Z"
-updated: "2026-10-19T18:31:07.716Z"
+updated: "2026-10-19T19:04:25.259Z"
+started: "2026-10-19T18:57:44.507Z"
+completed: "2026-10-19T19:04:25.259Z"
 tags:
   - plan-0012-cgi
   - wave-1
@@ -31,13 +33,13 @@ links:
     - ["0012-cgi", "included", ["2.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # `codegraph` contract: port, schema, views
@@ -70,9 +72,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codegraph/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codegraph/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codegraph/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codegraph/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -82,3 +84,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codegraph/view_test.go` - visibility truth table
 
 ## Work Log
+
+### 2026-10-19T19:04:19.460Z - Added mind-palace/codegraph: graph.go (Opener, Graph port with PutLayer/Layers/Files, ApplyFile/RemoveFile/SetHidden/PutEdges/DropLayer/Drop and FindSymbols/Symbol/Neighbors/Outline/SearchText; Layer, File, Package, Symbol, Chunk, Import, FileFacts, NodeRef, Edge, query and result types; ErrNotFound/ErrUnknownLayer/ErrInvalid/ErrUnavailable; shared validation, Filter, EffectiveLimit, BuildOutline), view.go (View with NodeVisible/FileVisible/EdgeVisible, Rank/Top, layer id constructors and ParseLayerID), schema.go (labels, properties, edge types, layer/package/symbol kinds, confidences, Indexes). view_test.go: 14 tests (visibility truth tables for nodes, tombstones and edges across base/branch/two overlays, layer ids, validation, relations, outline), all pass with -race; gofmt/vet/build clean. Deviation: PutLayer, Layers and Files added to the port beyond the story's list (layer nodes need a writer; lifecycle and consistency checks need listings). codegraph does not import codeparse (built in parallel); the indexer maps codeparse facts to FileFacts.
