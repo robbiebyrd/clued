@@ -3,12 +3,13 @@ id: 0083-a3p
 title: Extraction for TypeScript
 purpose: 'Adds TypeScript to the indexer: files .ts, .tsx, .mts, .cts, .d.ts.'
 type: feat
-status: in_progress
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-19T18:07:31.582Z"
-updated: "2026-10-19T20:57:44.541Z"
+updated: "2026-10-19T20:58:54.279Z"
 started: "2026-10-19T20:45:08.262Z"
+completed: "2026-10-19T20:58:51.212Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -44,7 +45,7 @@ progress:
   "5":
     status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for TypeScript
@@ -85,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/typescript'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/typescript'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/typescript'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/typescript'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -97,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/typescript.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:58:54.278Z - Added grammars/typescript.go (registers typescript and tsx from gotreesitter v0.56.0 per-language packages; go.mod unchanged), queries/typescript/{profile.yaml,tags.scm,tsx.scm} and 7 goldens under testdata/typescript (definitions.ts, imports.mts, legacy.cts, references.ts, globals.d.ts, component.tsx, broken.ts). Symbols: functions (declarations, generators, overload and declare signatures, function-valued module variables), classes (abstract too), methods/fields (private, protected and #private not exported), interfaces and object-type members, type aliases, enums and members (constant), namespaces (A.B), modules (declare module "m"), module-level const/let/var (in the file, under export/declare, in namespace and module bodies; no locals). Imports: ES import (default and namespace as alias, named specifiers as written, e.g. 'a as b'), import = require, require() with alias and destructured names, dynamic import(), re-exports (kind export). Refs: calls, member calls with qualifier, decorators, new (type), types (qualified via nested_type_identifier), extends (class and interface), implements; tsx.scm = tags.scm + JSX component references (capitalised or member names, as calls). Profile: family jsts, packageBy file, exported declared, dialect tsx -> grammar tsx / tsx.scm, options for the 0108 resolver (extensions, index files, tsconfig.json compilerOptions.paths/baseUrl). No @package (a TS file is its own module); docs use the extractor's default (comments just above, JSDoc included). Deviations/known limits: constructor parameter properties are not fields; decorated fields' signature is the decorator line; interface extends/implements also give a type ref at the same name; type parameters give type refs. gotreesitter quirks found: a wildcard root ignores negated fields ((_ !parameters ...) matched a generator function), and alternations capturing @name are avoided per LANG.md, so each form is its own pattern. Tests: go test -race ./codeparse/... ok (TestGolden/typescript: 7 inputs pass); gofmt, go vet ./..., go build ./... clean. Only the story's three paths changed.
