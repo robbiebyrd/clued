@@ -3,11 +3,13 @@ id: 0059-5zs
 title: '`server run --code-store` and the `server init` stack'
 purpose: Self-hosted servers need a way to turn the code store on.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:28.291Z"
-updated: "2026-10-19T18:26:38.063Z"
+updated: "2026-10-19T19:32:37.779Z"
+started: "2026-10-19T19:25:08.615Z"
+completed: "2026-10-19T19:32:37.779Z"
 tags:
   - plan-0010-awy
   - wave-5
@@ -36,13 +38,13 @@ links:
     - ["0010-awy", "included", ["2.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # `server run --code-store` and the `server init` stack
@@ -75,9 +77,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./cli/... ./server/stack/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./cli/... ./server/stack/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./cli/... ./server/stack/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./cli/... ./server/stack/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -89,3 +91,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/server/stack/stack_test.go` - generated files
 
 ## Work Log
+
+### 2026-10-19T19:32:22.337Z - server run: --code-store mongo|memory|off and CLUED_SERVER_CODE_STORE (flag, then env, then the session store's backend: memory under --store memory, else mongo); unknown values are a bad_request before anything opens. One code store per namespaced project key, opened on first use and cached (codeStores in cli/server_run.go): memcode for memory; mongocode.Open over the session config's MongoDB (mongoUrl, dbName) with mongocode.ProjectPrefix("", key) for mongo, pinged at start like the session store and disconnected on shutdown; off leaves CluedOptions.Code nil (code routes 404). server init: stack.CodeStore = "mongo" passed as CLUED_SERVER_CODE_STORE by the compose file and by up.sh (Apple Containers); no new container. Deviation: the Apple Containers template lives in server/stack/apple.go, not templates.go, so step 3 needed a one-line change there and the matching expected-args update in server/stack/apple_test.go (both outside Files). Tests: 6 new cli tests (flag/env/default, unknown kind, memory per project, off is 404, mongo uses the session Mongo, real MongoDB with MIND_PALACE_TEST_MONGODB_URI) and TestInitTurnsTheCodeStoreOnInEveryRuntime (4 subtests); go test -race ./cli/... ./server/... ./plugin/... pass with MongoDB (135 top-level tests in cli + server/stack).

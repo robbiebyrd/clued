@@ -6,11 +6,15 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"net"
@@ -20,6 +24,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/robbiebyrd/clued/mind-palace/server"
 	"github.com/robbiebyrd/clued/mind-palace/server/auth"
@@ -31,7 +39,7 @@ import (
 // the developer's shell cannot leak into the tests.
 func clearServerEnv(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"CLUED_SERVER_ADDR", "CLUED_SERVER_TLS_CERT", "CLUED_SERVER_TLS_KEY", "CLUED_SERVER_BEHIND_PROXY", "CLUED_SERVER_TOKENS", "MIND_PALACE_CONFIG", "CLUED_MONGO_URL", "CLUED_DB_NAME"} {
+	for _, name := range []string{"CLUED_SERVER_ADDR", "CLUED_SERVER_TLS_CERT", "CLUED_SERVER_TLS_KEY", "CLUED_SERVER_BEHIND_PROXY", "CLUED_SERVER_TOKENS", "CLUED_SERVER_CODE_STORE", "MIND_PALACE_CONFIG", "CLUED_MONGO_URL", "CLUED_DB_NAME"} {
 		t.Setenv(name, "")
 	}
 }
@@ -404,7 +412,7 @@ func resolveServerRun(t *testing.T, args ...string) serverRunOptions {
 	var seen serverRunOptions
 	serverRunHook = func(o *serverRunOptions) {
 		seen = *o
-		o.Addr, o.CertFile, o.KeyFile, o.BehindProxy, o.Store, o.Ready = "127.0.0.1:0", "", "", false, "memory", ready
+		o.Addr, o.CertFile, o.KeyFile, o.BehindProxy, o.Store, o.CodeStore, o.Ready = "127.0.0.1:0", "", "", false, "memory", "memory", ready
 	}
 	defer func() { serverRunHook = nil }()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -665,7 +673,7 @@ func TestServerRunStoresSessionsItselfEvenWhenItsConfigNamesAServer(t *testing.T
 		return memsession.New(), nil
 	}
 	defer func() { openSessionStore = saved }()
-	r := startServer(t, serverRunOptions{Addr: "127.0.0.1:0", Tokens: tokens, Store: "mongo", SessionConfig: cfgPath}, nil)
+	r := startServer(t, serverRunOptions{Addr: "127.0.0.1:0", Tokens: tokens, Store: "mongo", CodeStore: "off", SessionConfig: cfgPath}, nil)
 	if err := r.wait(t); err != nil {
 		t.Fatal(err)
 	}
@@ -687,5 +695,209 @@ func TestClientConfigFromServesTheCaptureHint(t *testing.T) {
 	cfg, at := clientConfigFrom(session.Config{CaptureContent: &off}, filepath.Join(t.TempDir(), "none.json"), started)()
 	if cfg["captureContent"] != false || !at.Equal(started) {
 		t.Errorf("served %v at %v, want captureContent false at the start time", cfg, at)
+	}
+}
+
+func TestServerRunCodeStoreFlagEnvAndDefault(t *testing.T) {
+	clearServerEnv(t)
+	// The default is the session store's backend.
+	if seen := resolveServerRun(t); seen.CodeStore != "mongo" {
+		t.Errorf("default code store = %q, want mongo", seen.CodeStore)
+	}
+	if seen := resolveServerRun(t, "--store", "memory"); seen.CodeStore != "memory" {
+		t.Errorf("code store under --store memory = %q, want memory", seen.CodeStore)
+	}
+	// The variable applies, the flag wins.
+	t.Setenv("CLUED_SERVER_CODE_STORE", "off")
+	if seen := resolveServerRun(t, "--store", "memory"); seen.CodeStore != "off" {
+		t.Errorf("CLUED_SERVER_CODE_STORE=off: code store = %q", seen.CodeStore)
+	}
+	if seen := resolveServerRun(t, "--code-store", "memory"); seen.CodeStore != "memory" {
+		t.Errorf("--code-store memory over the variable: code store = %q", seen.CodeStore)
+	}
+}
+
+func TestServerRunCodeStoreRefusesAnUnknownKind(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		env  string
+		args []string
+	}{
+		{"flag", "", []string{"--code-store", "postgres"}},
+		{"env", "files", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			clearServerEnv(t)
+			t.Setenv("CLUED_SERVER_CODE_STORE", tc.env)
+			tokens, _, _ := tokenFile(t, "t")
+			app := New()
+			var errb bytes.Buffer
+			app.Stdout, app.Stderr, app.Stdin = io.Discard, &errb, strings.NewReader("")
+			root := app.Root()
+			root.SetArgs(append([]string{"server", "run", "--store", "memory", "--addr", "127.0.0.1:0", "--tokens", tokens}, tc.args...))
+			if err := root.Execute(); err == nil {
+				t.Fatal("an unknown code store started the server")
+			}
+			if !strings.Contains(errb.String(), "--code-store") {
+				t.Errorf("stderr = %s", errb.String())
+			}
+		})
+	}
+	// runCluedServer checks it too, before opening anything.
+	app := New()
+	app.Stdout, app.Stderr, app.Stdin = io.Discard, io.Discard, strings.NewReader("")
+	if err := app.runCluedServer(context.Background(), serverRunOptions{Addr: "127.0.0.1:0", Store: "memory", CodeStore: "nope"}); err == nil {
+		t.Error("runCluedServer accepted an unknown code store")
+	}
+}
+
+// putCodeBlob uploads content as a blob of project's code store.
+func putCodeBlob(t *testing.T, r *running, token, project string, content []byte) (sha string, status int) {
+	t.Helper()
+	sum := sha256.Sum256(content)
+	sha = hex.EncodeToString(sum[:])
+	req, err := http.NewRequest("PUT", r.url("/api/v1/projects/"+project+"/code/blobs/"+sha), bytes.NewReader(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := r.client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+	return sha, resp.StatusCode
+}
+
+// missingBlobs asks project's manifest which of shas the server lacks.
+func missingBlobs(t *testing.T, r *running, token, project string, shas ...string) []any {
+	t.Helper()
+	status, body := r.call(t, "POST", "/api/v1/projects/"+project+"/code/manifest", token, map[string]any{"shas": shas})
+	if status != http.StatusOK {
+		t.Fatalf("manifest %s = %d %v", project, status, body)
+	}
+	result, _ := body["result"].(map[string]any)
+	missing, _ := result["missing"].([]any)
+	return missing
+}
+
+func TestServerRunCodeStoreMemoryServesOneStorePerProject(t *testing.T) {
+	clearServerEnv(t)
+	tokens, raw, _ := tokenFile(t, "laptop", "*")
+	r := startServer(t, serverRunOptions{Addr: "127.0.0.1:0", Tokens: tokens}, nil)
+	if status, body := r.call(t, "GET", "/api/v1/projects/alpha/code/capabilities", raw, nil); status != http.StatusOK {
+		t.Fatalf("capabilities = %d %v", status, body)
+	}
+	sha, status := putCodeBlob(t, r, raw, "alpha", []byte("package main\n"))
+	if status != http.StatusOK {
+		t.Fatalf("put blob = %d", status)
+	}
+	if missing := missingBlobs(t, r, raw, "alpha", sha); len(missing) != 0 {
+		t.Errorf("alpha lost its blob: missing %v", missing)
+	}
+	if missing := missingBlobs(t, r, raw, "beta", sha); len(missing) != 1 {
+		t.Errorf("beta shares alpha's store: missing %v", missing)
+	}
+	if err := r.wait(t); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestServerRunCodeStoreOffServesNoCodeRoutes(t *testing.T) {
+	clearServerEnv(t)
+	tokens, raw, _ := tokenFile(t, "laptop", "*")
+	r := startServer(t, serverRunOptions{Addr: "127.0.0.1:0", Tokens: tokens, CodeStore: "off"}, nil)
+	if status, body := r.call(t, "GET", "/api/v1/projects/alpha/code/capabilities", raw, nil); status != http.StatusNotFound {
+		t.Errorf("capabilities with --code-store off = %d %v, want 404", status, body)
+	}
+	if _, status := putCodeBlob(t, r, raw, "alpha", []byte("x")); status != http.StatusNotFound {
+		t.Errorf("put blob with --code-store off = %d, want 404", status)
+	}
+	if err := r.wait(t); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestServerRunCodeStoreMongoUsesTheSessionMongo(t *testing.T) {
+	clearServerEnv(t)
+	tokens, _, _ := tokenFile(t, "t")
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(cfgPath, []byte(`{"mongoUrl":"mongodb://127.0.0.1:1","dbName":"code_db"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	savedSessions, savedMongo := openSessionStore, connectCodeMongo
+	defer func() { openSessionStore, connectCodeMongo = savedSessions, savedMongo }()
+	openSessionStore = func(context.Context, session.Config) (session.Store, error) { return memsession.New(), nil }
+	var url string
+	connectCodeMongo = func(_ context.Context, u string) (*mongo.Client, error) {
+		url = u
+		// Connecting does not dial; nothing is opened without a request.
+		return mongo.Connect(options.Client().ApplyURI(u))
+	}
+	// The default under the configured stores is mongo.
+	r := startServer(t, serverRunOptions{Addr: "127.0.0.1:0", Tokens: tokens, Store: "mongo", SessionConfig: cfgPath}, nil)
+	if err := r.wait(t); err != nil {
+		t.Fatal(err)
+	}
+	if url != "mongodb://127.0.0.1:1" {
+		t.Errorf("code store connected to %q, want the session config's mongoUrl", url)
+	}
+
+	// A MongoDB that cannot be reached fails the start, as the session store does.
+	connectCodeMongo = func(context.Context, string) (*mongo.Client, error) { return nil, errors.New("unreachable") }
+	app := New()
+	var errb bytes.Buffer
+	app.Stdout, app.Stderr, app.Stdin = io.Discard, &errb, strings.NewReader("")
+	if err := app.runCluedServer(context.Background(), serverRunOptions{Addr: "127.0.0.1:0", Tokens: tokens, Store: "mongo", SessionConfig: cfgPath}); err == nil || !strings.Contains(errb.String(), "unreachable") {
+		t.Errorf("unreachable code store: err %v, stderr %s", err, errb.String())
+	}
+}
+
+// Runs only with MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017.
+func TestServerRunCodeStoreMongo(t *testing.T) {
+	uri := os.Getenv("MIND_PALACE_TEST_MONGODB_URI")
+	if uri == "" {
+		t.Skip("set MIND_PALACE_TEST_MONGODB_URI to run the MongoDB code store test")
+	}
+	clearServerEnv(t)
+	dbName := fmt.Sprintf("mp_cli_code_%d", time.Now().UnixNano())
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+	cfgJSON, _ := json.Marshal(map[string]string{"mongoUrl": uri, "dbName": dbName})
+	if err := os.WriteFile(cfgPath, cfgJSON, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	saved := openSessionStore
+	defer func() { openSessionStore = saved }()
+	openSessionStore = func(context.Context, session.Config) (session.Store, error) { return memsession.New(), nil }
+
+	client, err := mongo.Connect(options.Client().ApplyURI(uri))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_ = client.Database(dbName).Drop(ctx)
+		_ = client.Disconnect(ctx)
+	})
+
+	tokens, raw, _ := tokenFile(t, "laptop", "*")
+	r := startServer(t, serverRunOptions{Addr: "127.0.0.1:0", Tokens: tokens, Store: "mongo", CodeStore: "mongo", SessionConfig: cfgPath}, nil)
+	sha, status := putCodeBlob(t, r, raw, "github.com__o__r", []byte("package main\n"))
+	if status != http.StatusOK {
+		t.Fatalf("put blob = %d", status)
+	}
+	if missing := missingBlobs(t, r, raw, "github.com__o__r", sha); len(missing) != 0 {
+		t.Errorf("blob missing after put: %v", missing)
+	}
+	if err := r.wait(t); err != nil {
+		t.Fatal(err)
+	}
+	// The project's collections carry its prefix, as server/projects stamps
+	// the mongodb store plugin's.
+	n, err := client.Database(dbName).Collection("github.com__o__r_code_blobs").CountDocuments(context.Background(), bson.M{"_id": sha})
+	if err != nil || n != 1 {
+		t.Errorf("blob in github.com__o__r_code_blobs: %d, %v", n, err)
 	}
 }

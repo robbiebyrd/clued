@@ -3,7 +3,7 @@
 // front-end that terminates TLS, as a Docker Compose file (RuntimeCompose)
 // or as start and stop scripts with a launchd agent for Apple Containers
 // (RuntimeApple, apple.go); the nginx configuration; the server's plan and
-// story storage; a private CA with a certificate for the host; and a first
+// story storage, with the code store turned on in the same MongoDB; a private CA with a certificate for the host; and a first
 // bearer token. It is the business logic behind `mind-palace server init`,
 // which /clued-setup runs to host the server on the user's own machine.
 //
@@ -50,6 +50,10 @@ const (
 	DefaultServerImage = "ghcr.io/robbiebyrd/clued-server"
 	DefaultNginxImage  = "nginx:stable-alpine"
 	DefaultMongoImage  = "mongo:8"
+	// CodeStore is the server's code store in every generated stack
+	// (CLUED_SERVER_CODE_STORE): collected code lives in the stack's
+	// MongoDB beside the sessions, so the stack needs no other container.
+	CodeStore = "mongo"
 	// DefaultDirName is the stack directory under the home directory; it is
 	// also where `mind-palace server token` looks for tokens.json by default.
 	DefaultDirName = ".clued-server"

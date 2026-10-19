@@ -122,6 +122,8 @@ func composeYAML(opts Options) string {
 	w("      MIND_PALACE_CONFIG: /etc/clued/mind-palace.config.yaml\n")
 	w("      CLUED_MONGO_URL: mongodb://mongo:27017\n")
 	w("      CLUED_DB_NAME: claude_sessions\n")
+	w("      # Collected code (the write-only code transport) in the same MongoDB.\n")
+	w("      CLUED_SERVER_CODE_STORE: %s\n", CodeStore)
 	if opts.Proxy == ProxyNginx {
 		w("      # Plain HTTP inside the compose network only: nginx terminates TLS.\n")
 	} else {

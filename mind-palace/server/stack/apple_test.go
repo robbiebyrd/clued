@@ -171,7 +171,7 @@ func TestUpAndDownScriptsDriveTheContainerCLI(t *testing.T) {
 		"volume create clued_mongo_data\n",
 		"run --detach --name clued-mongo --volume clued_mongo_data:/data/db " + DefaultMongoImage + "\n",
 		"exec clued-mongo mongosh --port 27017 --quiet --eval db.runCommand(\"ping\").ok\n",
-		"run --detach --name clued-server --user 0:0 --mount type=bind,source=" + opts.Dir + ",target=/etc/clued,readonly --env CLUED_SERVER_ADDR=0.0.0.0:8443 --env CLUED_SERVER_TOKENS=/etc/clued/tokens.json --env MIND_PALACE_CONFIG=/etc/clued/run/mind-palace.config.yaml --env CLUED_MONGO_URL=mongodb://192.168.64.3:27017 --env CLUED_DB_NAME=claude_sessions --env CLUED_SERVER_BEHIND_PROXY=true ghcr.io/robbiebyrd/clued-server:v9.9.9\n",
+		"run --detach --name clued-server --user 0:0 --mount type=bind,source=" + opts.Dir + ",target=/etc/clued,readonly --env CLUED_SERVER_ADDR=0.0.0.0:8443 --env CLUED_SERVER_TOKENS=/etc/clued/tokens.json --env MIND_PALACE_CONFIG=/etc/clued/run/mind-palace.config.yaml --env CLUED_MONGO_URL=mongodb://192.168.64.3:27017 --env CLUED_DB_NAME=claude_sessions --env CLUED_SERVER_CODE_STORE=mongo --env CLUED_SERVER_BEHIND_PROXY=true ghcr.io/robbiebyrd/clued-server:v9.9.9\n",
 		"run --detach --name clued-nginx --publish 0.0.0.0:8443:443 --mount type=bind,source=" + opts.Dir + "/run/nginx,target=/etc/nginx/conf.d,readonly --mount type=bind,source=" + opts.Dir + "/tls,target=/etc/nginx/tls,readonly " + DefaultNginxImage + "\n",
 	} {
 		if !strings.Contains(string(calls), want) {

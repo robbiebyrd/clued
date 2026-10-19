@@ -30,7 +30,8 @@ func (a *App) serverInitCmd() *cobra.Command {
 (default ~/.clued-server): the server, its MongoDB and, by default, an nginx
 container that terminates TLS on --port, as docker-compose.yml (--runtime
 compose) or as up.sh, down.sh and a launchd agent driving Apple's container
-CLI (--runtime apple, macOS 26); nginx/clued.conf; mind-palace.config.yaml
+CLI (--runtime apple, macOS 26), with the code store on in the same MongoDB
+(CLUED_SERVER_CODE_STORE=mongo); nginx/clued.conf; mind-palace.config.yaml
 (plans and stories in MongoDB, per project); a private CA and a server
 certificate under tls/ covering localhost, this host's name and every
 --host; a first token in tokens.json, printed once; and stack.json saying
