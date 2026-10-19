@@ -1,0 +1,1111 @@
+{
+  "lang": "java",
+  "package": "com.example.geo.proto",
+  "symbols": [
+    {
+      "id": "com.example.geo.proto.ShapeProto",
+      "kind": "class",
+      "name": "ShapeProto",
+      "qualName": "com.example.geo.proto.ShapeProto",
+      "signature": "@javax.annotation.Generated(\"protoc\") public final class ShapeProto",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 116
+      },
+      "end": {
+        "line": 65,
+        "column": 1,
+        "offset": 1749
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.ShapeProto",
+      "kind": "constructor",
+      "name": "ShapeProto",
+      "qualName": "com.example.geo.proto.ShapeProto.ShapeProto",
+      "signature": "private ShapeProto()",
+      "start": {
+        "line": 8,
+        "column": 2,
+        "offset": 188
+      },
+      "end": {
+        "line": 8,
+        "column": 25,
+        "offset": 211
+      },
+      "parent": "com.example.geo.proto.ShapeProto"
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Shape",
+      "kind": "interface",
+      "name": "Shape",
+      "qualName": "com.example.geo.proto.ShapeProto.Shape",
+      "signature": "public sealed interface Shape permits Circle, Square",
+      "start": {
+        "line": 14,
+        "column": 2,
+        "offset": 272
+      },
+      "end": {
+        "line": 16,
+        "column": 3,
+        "offset": 349
+      },
+      "parent": "com.example.geo.proto.ShapeProto",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Shape.area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "com.example.geo.proto.ShapeProto.Shape.area",
+      "signature": "double area();",
+      "start": {
+        "line": 15,
+        "column": 4,
+        "offset": 331
+      },
+      "end": {
+        "line": 15,
+        "column": 18,
+        "offset": 345
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Shape",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle",
+      "kind": "class",
+      "name": "Circle",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle",
+      "signature": "public static final class Circle implements Shape",
+      "start": {
+        "line": 18,
+        "column": 2,
+        "offset": 353
+      },
+      "end": {
+        "line": 46,
+        "column": 3,
+        "offset": 1218
+      },
+      "parent": "com.example.geo.proto.ShapeProto",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle.radius",
+      "kind": "field",
+      "name": "radius",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle.radius",
+      "signature": "private final double radius;",
+      "start": {
+        "line": 19,
+        "column": 4,
+        "offset": 409
+      },
+      "end": {
+        "line": 19,
+        "column": 32,
+        "offset": 437
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Circle"
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle.Circle",
+      "kind": "constructor",
+      "name": "Circle",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle.Circle",
+      "signature": "public Circle(double radius)",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 443
+      },
+      "end": {
+        "line": 21,
+        "column": 58,
+        "offset": 497
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Circle",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle.area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle.area",
+      "signature": "@java.lang.Override public double area()",
+      "start": {
+        "line": 23,
+        "column": 4,
+        "offset": 503
+      },
+      "end": {
+        "line": 24,
+        "column": 62,
+        "offset": 585
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Circle",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle.newBuilder",
+      "kind": "method",
+      "name": "newBuilder",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle.newBuilder",
+      "signature": "public static Builder newBuilder()",
+      "start": {
+        "line": 26,
+        "column": 4,
+        "offset": 591
+      },
+      "end": {
+        "line": 26,
+        "column": 64,
+        "offset": 651
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Circle",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle.newBuilder~2",
+      "kind": "method",
+      "name": "newBuilder",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle.newBuilder",
+      "signature": "public static Builder newBuilder(Circle prototype)",
+      "start": {
+        "line": 28,
+        "column": 4,
+        "offset": 657
+      },
+      "end": {
+        "line": 28,
+        "column": 101,
+        "offset": 754
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Circle",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle.Builder",
+      "kind": "class",
+      "name": "Builder",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle.Builder",
+      "signature": "public static final class Builder extends com.google.protobuf.GeneratedMessageV3.Builder\u003cBuilder\u003e",
+      "doc": "Builder for {@link Circle}.",
+      "start": {
+        "line": 31,
+        "column": 4,
+        "offset": 799
+      },
+      "end": {
+        "line": 45,
+        "column": 5,
+        "offset": 1214
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Circle",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle.Builder.radius_",
+      "kind": "field",
+      "name": "radius_",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle.Builder.radius_",
+      "signature": "private double radius_;",
+      "start": {
+        "line": 32,
+        "column": 6,
+        "offset": 905
+      },
+      "end": {
+        "line": 32,
+        "column": 29,
+        "offset": 928
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Circle.Builder"
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle.Builder.setRadius",
+      "kind": "method",
+      "name": "setRadius",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle.Builder.setRadius",
+      "signature": "public Builder setRadius(double value)",
+      "start": {
+        "line": 34,
+        "column": 6,
+        "offset": 936
+      },
+      "end": {
+        "line": 38,
+        "column": 7,
+        "offset": 1051
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Circle.Builder",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle.Builder.mergeFrom",
+      "kind": "method",
+      "name": "mergeFrom",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle.Builder.mergeFrom",
+      "signature": "public Builder mergeFrom(Circle other)",
+      "start": {
+        "line": 40,
+        "column": 6,
+        "offset": 1059
+      },
+      "end": {
+        "line": 42,
+        "column": 7,
+        "offset": 1147
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Circle.Builder",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Circle.Builder.build",
+      "kind": "method",
+      "name": "build",
+      "qualName": "com.example.geo.proto.ShapeProto.Circle.Builder.build",
+      "signature": "public Circle build()",
+      "start": {
+        "line": 44,
+        "column": 6,
+        "offset": 1155
+      },
+      "end": {
+        "line": 44,
+        "column": 59,
+        "offset": 1208
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Circle.Builder",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Square",
+      "kind": "record",
+      "name": "Square",
+      "qualName": "com.example.geo.proto.ShapeProto.Square",
+      "signature": "public record Square(double side) implements Shape",
+      "start": {
+        "line": 48,
+        "column": 2,
+        "offset": 1222
+      },
+      "end": {
+        "line": 56,
+        "column": 3,
+        "offset": 1486
+      },
+      "parent": "com.example.geo.proto.ShapeProto",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Square.side",
+      "kind": "field",
+      "name": "side",
+      "qualName": "com.example.geo.proto.ShapeProto.Square.side",
+      "signature": "double side",
+      "start": {
+        "line": 48,
+        "column": 23,
+        "offset": 1243
+      },
+      "end": {
+        "line": 48,
+        "column": 34,
+        "offset": 1254
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Square",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Square.Square",
+      "kind": "constructor",
+      "name": "Square",
+      "qualName": "com.example.geo.proto.ShapeProto.Square.Square",
+      "signature": "public Square",
+      "start": {
+        "line": 49,
+        "column": 4,
+        "offset": 1279
+      },
+      "end": {
+        "line": 51,
+        "column": 5,
+        "offset": 1364
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Square",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Square.area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "com.example.geo.proto.ShapeProto.Square.area",
+      "signature": "public double area()",
+      "start": {
+        "line": 53,
+        "column": 4,
+        "offset": 1370
+      },
+      "end": {
+        "line": 53,
+        "column": 48,
+        "offset": 1414
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Square",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Square.Corner",
+      "kind": "enum",
+      "name": "Corner",
+      "qualName": "com.example.geo.proto.ShapeProto.Square.Corner",
+      "signature": "enum Corner",
+      "start": {
+        "line": 55,
+        "column": 4,
+        "offset": 1420
+      },
+      "end": {
+        "line": 55,
+        "column": 66,
+        "offset": 1482
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Square"
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Square.Corner.TOP_LEFT",
+      "kind": "const",
+      "name": "TOP_LEFT",
+      "qualName": "com.example.geo.proto.ShapeProto.Square.Corner.TOP_LEFT",
+      "signature": "TOP_LEFT",
+      "start": {
+        "line": 55,
+        "column": 18,
+        "offset": 1434
+      },
+      "end": {
+        "line": 55,
+        "column": 26,
+        "offset": 1442
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Square.Corner",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Square.Corner.TOP_RIGHT",
+      "kind": "const",
+      "name": "TOP_RIGHT",
+      "qualName": "com.example.geo.proto.ShapeProto.Square.Corner.TOP_RIGHT",
+      "signature": "TOP_RIGHT",
+      "start": {
+        "line": 55,
+        "column": 28,
+        "offset": 1444
+      },
+      "end": {
+        "line": 55,
+        "column": 37,
+        "offset": 1453
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Square.Corner",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Square.Corner.BOTTOM_LEFT",
+      "kind": "const",
+      "name": "BOTTOM_LEFT",
+      "qualName": "com.example.geo.proto.ShapeProto.Square.Corner.BOTTOM_LEFT",
+      "signature": "BOTTOM_LEFT",
+      "start": {
+        "line": 55,
+        "column": 39,
+        "offset": 1455
+      },
+      "end": {
+        "line": 55,
+        "column": 50,
+        "offset": 1466
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Square.Corner",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.Square.Corner.BOTTOM_RIGHT",
+      "kind": "const",
+      "name": "BOTTOM_RIGHT",
+      "qualName": "com.example.geo.proto.ShapeProto.Square.Corner.BOTTOM_RIGHT",
+      "signature": "BOTTOM_RIGHT",
+      "start": {
+        "line": 55,
+        "column": 52,
+        "offset": 1468
+      },
+      "end": {
+        "line": 55,
+        "column": 64,
+        "offset": 1480
+      },
+      "parent": "com.example.geo.proto.ShapeProto.Square.Corner",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.largest",
+      "kind": "method",
+      "name": "largest",
+      "qualName": "com.example.geo.proto.ShapeProto.largest",
+      "signature": "static \u003cT extends Shape \u0026 Comparable\u003cT\u003e\u003e T largest(java.util.List\u003cT\u003e shapes)",
+      "start": {
+        "line": 58,
+        "column": 2,
+        "offset": 1490
+      },
+      "end": {
+        "line": 64,
+        "column": 3,
+        "offset": 1747
+      },
+      "parent": "com.example.geo.proto.ShapeProto"
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.largest.Pair",
+      "kind": "record",
+      "name": "Pair",
+      "qualName": "com.example.geo.proto.ShapeProto.largest.Pair",
+      "signature": "record Pair(Shape a, Shape b)",
+      "start": {
+        "line": 59,
+        "column": 4,
+        "offset": 1573
+      },
+      "end": {
+        "line": 59,
+        "column": 36,
+        "offset": 1605
+      },
+      "parent": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.largest.Pair.a",
+      "kind": "field",
+      "name": "a",
+      "qualName": "com.example.geo.proto.ShapeProto.largest.Pair.a",
+      "signature": "Shape a",
+      "start": {
+        "line": 59,
+        "column": 16,
+        "offset": 1585
+      },
+      "end": {
+        "line": 59,
+        "column": 23,
+        "offset": 1592
+      },
+      "parent": "com.example.geo.proto.ShapeProto.largest.Pair",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.largest.Pair.b",
+      "kind": "field",
+      "name": "b",
+      "qualName": "com.example.geo.proto.ShapeProto.largest.Pair.b",
+      "signature": "Shape b",
+      "start": {
+        "line": 59,
+        "column": 25,
+        "offset": 1594
+      },
+      "end": {
+        "line": 59,
+        "column": 32,
+        "offset": 1601
+      },
+      "parent": "com.example.geo.proto.ShapeProto.largest.Pair",
+      "exported": true
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.largest.Local",
+      "kind": "class",
+      "name": "Local",
+      "qualName": "com.example.geo.proto.ShapeProto.largest.Local",
+      "signature": "class Local",
+      "start": {
+        "line": 60,
+        "column": 4,
+        "offset": 1610
+      },
+      "end": {
+        "line": 62,
+        "column": 5,
+        "offset": 1646
+      },
+      "parent": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto.largest.Local.count",
+      "kind": "field",
+      "name": "count",
+      "qualName": "com.example.geo.proto.ShapeProto.largest.Local.count",
+      "signature": "int count;",
+      "start": {
+        "line": 61,
+        "column": 6,
+        "offset": 1630
+      },
+      "end": {
+        "line": 61,
+        "column": 16,
+        "offset": 1640
+      },
+      "parent": "com.example.geo.proto.ShapeProto.largest.Local"
+    }
+  ],
+  "refs": [
+    {
+      "name": "Generated",
+      "qualifier": "javax.annotation",
+      "kind": "type",
+      "start": {
+        "line": 6,
+        "column": 18,
+        "offset": 134
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto"
+    },
+    {
+      "name": "register",
+      "qualifier": "Registry",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 13,
+        "offset": 237
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto"
+    },
+    {
+      "name": "ShapeProto",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 22,
+        "offset": 246
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 14,
+        "column": 40,
+        "offset": 310
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Shape"
+    },
+    {
+      "name": "Square",
+      "kind": "type",
+      "start": {
+        "line": 14,
+        "column": 48,
+        "offset": 318
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Shape"
+    },
+    {
+      "name": "Shape",
+      "kind": "implements",
+      "start": {
+        "line": 18,
+        "column": 46,
+        "offset": 397
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 46,
+        "offset": 397
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle"
+    },
+    {
+      "name": "radius",
+      "qualifier": "this",
+      "kind": "value",
+      "start": {
+        "line": 21,
+        "column": 40,
+        "offset": 479
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Circle"
+    },
+    {
+      "name": "Override",
+      "qualifier": "java.lang",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 15,
+        "offset": 514
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.area"
+    },
+    {
+      "name": "PI",
+      "qualifier": "Math",
+      "kind": "value",
+      "start": {
+        "line": 24,
+        "column": 39,
+        "offset": 562
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.area"
+    },
+    {
+      "name": "Builder",
+      "kind": "type",
+      "start": {
+        "line": 26,
+        "column": 18,
+        "offset": 605
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.newBuilder"
+    },
+    {
+      "name": "Builder",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 52,
+        "offset": 639
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.newBuilder"
+    },
+    {
+      "name": "Builder",
+      "kind": "type",
+      "start": {
+        "line": 26,
+        "column": 52,
+        "offset": 639
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.newBuilder"
+    },
+    {
+      "name": "Builder",
+      "kind": "type",
+      "start": {
+        "line": 28,
+        "column": 18,
+        "offset": 671
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.newBuilder~2"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 28,
+        "column": 37,
+        "offset": 690
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.newBuilder~2"
+    },
+    {
+      "name": "Builder",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 68,
+        "offset": 721
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.newBuilder~2"
+    },
+    {
+      "name": "Builder",
+      "kind": "type",
+      "start": {
+        "line": 28,
+        "column": 68,
+        "offset": 721
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.newBuilder~2"
+    },
+    {
+      "name": "mergeFrom",
+      "qualifier": "new Builder()",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 78,
+        "offset": 731
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.newBuilder~2"
+    },
+    {
+      "name": "GeneratedMessageV3",
+      "qualifier": "com.google.protobuf",
+      "kind": "type",
+      "start": {
+        "line": 31,
+        "column": 66,
+        "offset": 861
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder"
+    },
+    {
+      "name": "Builder",
+      "qualifier": "com.google.protobuf.GeneratedMessageV3",
+      "kind": "extends",
+      "start": {
+        "line": 31,
+        "column": 85,
+        "offset": 880
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder"
+    },
+    {
+      "name": "Builder",
+      "qualifier": "com.google.protobuf.GeneratedMessageV3",
+      "kind": "type",
+      "start": {
+        "line": 31,
+        "column": 85,
+        "offset": 880
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder"
+    },
+    {
+      "name": "Builder",
+      "kind": "type",
+      "start": {
+        "line": 31,
+        "column": 93,
+        "offset": 888
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder"
+    },
+    {
+      "name": "Builder",
+      "kind": "type",
+      "start": {
+        "line": 34,
+        "column": 13,
+        "offset": 943
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder.setRadius"
+    },
+    {
+      "name": "onChanged",
+      "kind": "call",
+      "start": {
+        "line": 36,
+        "column": 8,
+        "offset": 1010
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder.setRadius"
+    },
+    {
+      "name": "Builder",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 13,
+        "offset": 1066
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder.mergeFrom"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 31,
+        "offset": 1084
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder.mergeFrom"
+    },
+    {
+      "name": "setRadius",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 15,
+        "offset": 1115
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder.mergeFrom"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 44,
+        "column": 13,
+        "offset": 1162
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder.build"
+    },
+    {
+      "name": "Circle",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 41,
+        "offset": 1190
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder.build"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 44,
+        "column": 41,
+        "offset": 1190
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Circle.Builder.build"
+    },
+    {
+      "name": "Shape",
+      "kind": "implements",
+      "start": {
+        "line": 48,
+        "column": 47,
+        "offset": 1267
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Square"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 48,
+        "column": 47,
+        "offset": 1267
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Square"
+    },
+    {
+      "name": "IllegalArgumentException",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 30,
+        "offset": 1325
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Square.Square"
+    },
+    {
+      "name": "IllegalArgumentException",
+      "kind": "type",
+      "start": {
+        "line": 50,
+        "column": 30,
+        "offset": 1325
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.Square.Square"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 58,
+        "column": 10,
+        "offset": 1498
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 58,
+        "column": 20,
+        "offset": 1508
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "Comparable",
+      "kind": "type",
+      "start": {
+        "line": 58,
+        "column": 28,
+        "offset": 1516
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 58,
+        "column": 39,
+        "offset": 1527
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 58,
+        "column": 43,
+        "offset": 1531
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "List",
+      "qualifier": "java.util",
+      "kind": "type",
+      "start": {
+        "line": 58,
+        "column": 63,
+        "offset": 1551
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 58,
+        "column": 68,
+        "offset": 1556
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 16,
+        "offset": 1585
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest.Pair.a"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 25,
+        "offset": 1594
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest.Pair.b"
+    },
+    {
+      "name": "stream",
+      "qualifier": "shapes",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 18,
+        "offset": 1665
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "max",
+      "qualifier": "shapes.stream()",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 27,
+        "offset": 1674
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "Comparator",
+      "qualifier": "java.util",
+      "kind": "value",
+      "start": {
+        "line": 63,
+        "column": 41,
+        "offset": 1688
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "comparingDouble",
+      "qualifier": "java.util.Comparator",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 52,
+        "offset": 1699
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "area",
+      "qualifier": "Shape",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 75,
+        "offset": 1722
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    },
+    {
+      "name": "orElseThrow",
+      "qualifier": "shapes.stream().max(java.util.Comparator.comparingDouble(Shape::area))",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 82,
+        "offset": 1729
+      },
+      "enclosing": "com.example.geo.proto.ShapeProto.largest"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 4,
+        "column": 30,
+        "offset": 114
+      },
+      "text": "// Generated by the protocol buffer compiler.  DO NOT EDIT!\n// source: shape.proto\n\npackage com.example.geo.proto;",
+      "hash": "5e2b817d291890635e90a77b30bc416fc575210a86d854557aaf7f94e664cff3"
+    },
+    {
+      "id": "com.example.geo.proto.ShapeProto#1",
+      "kind": "symbol",
+      "symbolId": "com.example.geo.proto.ShapeProto",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 116
+      },
+      "end": {
+        "line": 65,
+        "column": 1,
+        "offset": 1749
+      },
+      "text": "@javax.annotation.Generated(\"protoc\")\npublic final class ShapeProto {\n  private ShapeProto() {}\n\n  static {\n    Registry.register(ShapeProto.class);\n  }\n\n  public sealed interface Shape permits Circle, Square {\n    double area();\n  }\n\n  public static final class Circle implements Shape {\n    private final double radius;\n\n    public Circle(double radius) { this.radius = radius; }\n\n    @java.lang.Override\n    public double area() { return Math.PI * radius * radius; }\n\n    public static Builder newBuilder() { return new Builder(); }\n\n    public static Builder newBuilder(Circle prototype) { return new Builder().mergeFrom(prototype); }\n\n    /** Builder for {@link Circle}. */\n    public static final class Builder extends com.google.protobuf.GeneratedMessageV3.Builder\u003cBuilder\u003e {\n      private double radius_;\n\n      public Builder setRadius(double value) {\n        radius_ = value;\n        onChanged();\n        return this;\n      }\n\n      public Builder mergeFrom(Circle other) {\n        return setRadius(other.radius);\n      }\n\n      public Circle build() { return new Circle(radius_); }\n    }\n  }\n\n  public record Square(double side) implements Shape {\n    public Square {\n      if (side \u003c 0) throw new IllegalArgumentException(\"side\");\n    }\n\n    public double area() { return side * side; }\n\n    enum Corner { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }\n  }\n\n  static \u003cT extends Shape \u0026 Comparable\u003cT\u003e\u003e T largest(java.util.List\u003cT\u003e shapes) {\n    record Pair(Shape a, Shape b) {}\n    class Local {\n      int count;\n    }\n    return shapes.stream().max(java.util.Comparator.comparingDouble(Shape::area)).orElseThrow();\n  }\n}",
+      "hash": "61279345046c0a5784592488e9b15f93df8041eb3881a5651919845fee420aa9"
+    }
+  ]
+}

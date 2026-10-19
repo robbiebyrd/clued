@@ -1,0 +1,21 @@
+# Java: one package per file declared by its package clause; single-type
+# and on-demand imports, static ones too; java.lang is imported implicitly;
+# public and protected members are visible outside the package (the jvm
+# family resolver).
+name: Java
+family: jvm
+extensions: [.java]
+query: tags.scm
+kinds:
+  definition.constructor: constructor
+  definition.record: record
+  definition.annotation: annotation
+scope:
+  separators: ["."]
+  packageBy: declaration
+  exported: declared
+  options:
+    implicitImports: java.lang
+    onDemandImport: on_demand
+    staticImport: static
+    staticOnDemandImport: static_on_demand

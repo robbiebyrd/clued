@@ -1,0 +1,1234 @@
+{
+  "lang": "java",
+  "package": "com.example.orders",
+  "symbols": [
+    {
+      "id": "com.example.orders.OrderService",
+      "kind": "class",
+      "name": "OrderService",
+      "qualName": "com.example.orders.OrderService",
+      "signature": "@Service @Transactional(readOnly = false) public final class OrderService extends BaseService\u003cOrder\u003e implements OrderApi, java.io.Serializable",
+      "doc": "OrderService places orders against an inventory.",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 275
+      },
+      "end": {
+        "line": 60,
+        "column": 1,
+        "offset": 1938
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.orders.OrderService.serialVersionUID",
+      "kind": "field",
+      "name": "serialVersionUID",
+      "qualName": "com.example.orders.OrderService.serialVersionUID",
+      "signature": "private static final long serialVersionUID = 1L;",
+      "start": {
+        "line": 15,
+        "column": 4,
+        "offset": 425
+      },
+      "end": {
+        "line": 15,
+        "column": 52,
+        "offset": 473
+      },
+      "parent": "com.example.orders.OrderService"
+    },
+    {
+      "id": "com.example.orders.OrderService.inventory",
+      "kind": "field",
+      "name": "inventory",
+      "qualName": "com.example.orders.OrderService.inventory",
+      "signature": "private final Inventory\u003cItem\u003e inventory;",
+      "start": {
+        "line": 17,
+        "column": 4,
+        "offset": 479
+      },
+      "end": {
+        "line": 17,
+        "column": 44,
+        "offset": 519
+      },
+      "parent": "com.example.orders.OrderService"
+    },
+    {
+      "id": "com.example.orders.OrderService.executor",
+      "kind": "field",
+      "name": "executor",
+      "qualName": "com.example.orders.OrderService.executor",
+      "signature": "private final java.util.concurrent.ExecutorService executor;",
+      "start": {
+        "line": 18,
+        "column": 4,
+        "offset": 524
+      },
+      "end": {
+        "line": 18,
+        "column": 64,
+        "offset": 584
+      },
+      "parent": "com.example.orders.OrderService"
+    },
+    {
+      "id": "com.example.orders.OrderService.last",
+      "kind": "field",
+      "name": "last",
+      "qualName": "com.example.orders.OrderService.last",
+      "signature": "private final Map.Entry\u003cString, Order\u003e last;",
+      "start": {
+        "line": 19,
+        "column": 4,
+        "offset": 589
+      },
+      "end": {
+        "line": 19,
+        "column": 48,
+        "offset": 633
+      },
+      "parent": "com.example.orders.OrderService"
+    },
+    {
+      "id": "com.example.orders.OrderService.OrderService",
+      "kind": "constructor",
+      "name": "OrderService",
+      "qualName": "com.example.orders.OrderService.OrderService",
+      "signature": "public OrderService(Inventory\u003cItem\u003e inventory, Clock clock)",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 639
+      },
+      "end": {
+        "line": 26,
+        "column": 5,
+        "offset": 868
+      },
+      "parent": "com.example.orders.OrderService",
+      "exported": true
+    },
+    {
+      "id": "com.example.orders.OrderService.place",
+      "kind": "method",
+      "name": "place",
+      "qualName": "com.example.orders.OrderService.place",
+      "signature": "@Override public String place(List\u003cItem\u003e items) throws OrderException",
+      "doc": "Places an order for the items, returning its id.",
+      "start": {
+        "line": 29,
+        "column": 4,
+        "offset": 934
+      },
+      "end": {
+        "line": 46,
+        "column": 5,
+        "offset": 1572
+      },
+      "parent": "com.example.orders.OrderService",
+      "exported": true
+    },
+    {
+      "id": "com.example.orders.OrderService.place.run",
+      "kind": "method",
+      "name": "run",
+      "qualName": "com.example.orders.OrderService.place.run",
+      "signature": "@Override public void run()",
+      "start": {
+        "line": 40,
+        "column": 12,
+        "offset": 1420
+      },
+      "end": {
+        "line": 43,
+        "column": 13,
+        "offset": 1514
+      },
+      "parent": "com.example.orders.OrderService.place",
+      "exported": true
+    },
+    {
+      "id": "com.example.orders.OrderService.find",
+      "kind": "method",
+      "name": "find",
+      "qualName": "com.example.orders.OrderService.find",
+      "signature": "Optional\u003cOrder\u003e find(String id)",
+      "start": {
+        "line": 48,
+        "column": 4,
+        "offset": 1578
+      },
+      "end": {
+        "line": 50,
+        "column": 5,
+        "offset": 1699
+      },
+      "parent": "com.example.orders.OrderService"
+    },
+    {
+      "id": "com.example.orders.OrderService.nextId",
+      "kind": "method",
+      "name": "nextId",
+      "qualName": "com.example.orders.OrderService.nextId",
+      "signature": "private static String nextId()",
+      "start": {
+        "line": 52,
+        "column": 4,
+        "offset": 1705
+      },
+      "end": {
+        "line": 54,
+        "column": 5,
+        "offset": 1798
+      },
+      "parent": "com.example.orders.OrderService"
+    },
+    {
+      "id": "com.example.orders.OrderService.notifyShipping",
+      "kind": "method",
+      "name": "notifyShipping",
+      "qualName": "com.example.orders.OrderService.notifyShipping",
+      "signature": "private void notifyShipping(Order order)",
+      "start": {
+        "line": 56,
+        "column": 4,
+        "offset": 1804
+      },
+      "end": {
+        "line": 59,
+        "column": 5,
+        "offset": 1936
+      },
+      "parent": "com.example.orders.OrderService"
+    },
+    {
+      "id": "com.example.orders.OrderApi",
+      "kind": "interface",
+      "name": "OrderApi",
+      "qualName": "com.example.orders.OrderApi",
+      "signature": "public interface OrderApi extends Api, Comparable\u003cOrderApi\u003e",
+      "doc": "OrderApi is the public face of orders.",
+      "start": {
+        "line": 63,
+        "column": 0,
+        "offset": 1986
+      },
+      "end": {
+        "line": 65,
+        "column": 1,
+        "offset": 2107
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.orders.OrderApi.place",
+      "kind": "method",
+      "name": "place",
+      "qualName": "com.example.orders.OrderApi.place",
+      "signature": "String place(List\u003cItem\u003e items) throws OrderException;",
+      "start": {
+        "line": 64,
+        "column": 4,
+        "offset": 2052
+      },
+      "end": {
+        "line": 64,
+        "column": 57,
+        "offset": 2105
+      },
+      "parent": "com.example.orders.OrderApi",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "com.example.store.Inventory",
+      "names": [
+        "Inventory"
+      ],
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 29
+      }
+    },
+    {
+      "spec": "com.example.store.Item",
+      "names": [
+        "Item"
+      ],
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 65
+      }
+    },
+    {
+      "spec": "java.util.List",
+      "names": [
+        "List"
+      ],
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 96
+      }
+    },
+    {
+      "spec": "java.util.Optional",
+      "names": [
+        "Optional"
+      ],
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 119
+      }
+    },
+    {
+      "spec": "java.util.function.Function",
+      "names": [
+        "Function"
+      ],
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 146
+      }
+    },
+    {
+      "spec": "java.util.stream.Collectors",
+      "names": [
+        "Collectors"
+      ],
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 182
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Service",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 1,
+        "offset": 276
+      },
+      "enclosing": "com.example.orders.OrderService"
+    },
+    {
+      "name": "Transactional",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 1,
+        "offset": 285
+      },
+      "enclosing": "com.example.orders.OrderService"
+    },
+    {
+      "name": "BaseService",
+      "kind": "extends",
+      "start": {
+        "line": 13,
+        "column": 40,
+        "offset": 357
+      },
+      "enclosing": "com.example.orders.OrderService"
+    },
+    {
+      "name": "BaseService",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 40,
+        "offset": 357
+      },
+      "enclosing": "com.example.orders.OrderService"
+    },
+    {
+      "name": "Order",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 52,
+        "offset": 369
+      },
+      "enclosing": "com.example.orders.OrderService"
+    },
+    {
+      "name": "OrderApi",
+      "kind": "implements",
+      "start": {
+        "line": 13,
+        "column": 70,
+        "offset": 387
+      },
+      "enclosing": "com.example.orders.OrderService"
+    },
+    {
+      "name": "OrderApi",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 70,
+        "offset": 387
+      },
+      "enclosing": "com.example.orders.OrderService"
+    },
+    {
+      "name": "Serializable",
+      "qualifier": "java.io",
+      "kind": "implements",
+      "start": {
+        "line": 13,
+        "column": 88,
+        "offset": 405
+      },
+      "enclosing": "com.example.orders.OrderService"
+    },
+    {
+      "name": "Serializable",
+      "qualifier": "java.io",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 88,
+        "offset": 405
+      },
+      "enclosing": "com.example.orders.OrderService"
+    },
+    {
+      "name": "Inventory",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 18,
+        "offset": 493
+      },
+      "enclosing": "com.example.orders.OrderService.inventory"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 28,
+        "offset": 503
+      },
+      "enclosing": "com.example.orders.OrderService.inventory"
+    },
+    {
+      "name": "ExecutorService",
+      "qualifier": "java.util.concurrent",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 39,
+        "offset": 559
+      },
+      "enclosing": "com.example.orders.OrderService.executor"
+    },
+    {
+      "name": "Map",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 18,
+        "offset": 603
+      },
+      "enclosing": "com.example.orders.OrderService.last"
+    },
+    {
+      "name": "Entry",
+      "qualifier": "Map",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 22,
+        "offset": 607
+      },
+      "enclosing": "com.example.orders.OrderService.last"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 28,
+        "offset": 613
+      },
+      "enclosing": "com.example.orders.OrderService.last"
+    },
+    {
+      "name": "Order",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 36,
+        "offset": 621
+      },
+      "enclosing": "com.example.orders.OrderService.last"
+    },
+    {
+      "name": "Inventory",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 24,
+        "offset": 659
+      },
+      "enclosing": "com.example.orders.OrderService.OrderService"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 34,
+        "offset": 669
+      },
+      "enclosing": "com.example.orders.OrderService.OrderService"
+    },
+    {
+      "name": "Clock",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 51,
+        "offset": 686
+      },
+      "enclosing": "com.example.orders.OrderService.OrderService"
+    },
+    {
+      "name": "inventory",
+      "qualifier": "this",
+      "kind": "value",
+      "start": {
+        "line": 23,
+        "column": 13,
+        "offset": 736
+      },
+      "enclosing": "com.example.orders.OrderService.OrderService"
+    },
+    {
+      "name": "executor",
+      "qualifier": "this",
+      "kind": "value",
+      "start": {
+        "line": 24,
+        "column": 13,
+        "offset": 772
+      },
+      "enclosing": "com.example.orders.OrderService.OrderService"
+    },
+    {
+      "name": "Executors",
+      "qualifier": "java.util.concurrent",
+      "kind": "value",
+      "start": {
+        "line": 24,
+        "column": 45,
+        "offset": 804
+      },
+      "enclosing": "com.example.orders.OrderService.OrderService"
+    },
+    {
+      "name": "newFixedThreadPool",
+      "qualifier": "java.util.concurrent.Executors",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 55,
+        "offset": 814
+      },
+      "enclosing": "com.example.orders.OrderService.OrderService"
+    },
+    {
+      "name": "last",
+      "qualifier": "this",
+      "kind": "value",
+      "start": {
+        "line": 25,
+        "column": 13,
+        "offset": 850
+      },
+      "enclosing": "com.example.orders.OrderService.OrderService"
+    },
+    {
+      "name": "Override",
+      "kind": "type",
+      "start": {
+        "line": 29,
+        "column": 5,
+        "offset": 935
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 30,
+        "column": 11,
+        "offset": 955
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 30,
+        "column": 24,
+        "offset": 968
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 30,
+        "column": 29,
+        "offset": 973
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "OrderException",
+      "kind": "type",
+      "start": {
+        "line": 30,
+        "column": 49,
+        "offset": 993
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "Order",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 24,
+        "offset": 1034
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "Order",
+      "kind": "type",
+      "start": {
+        "line": 31,
+        "column": 24,
+        "offset": 1034
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "nextId",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 30,
+        "offset": 1040
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "forEach",
+      "qualifier": "items",
+      "kind": "call",
+      "start": {
+        "line": 32,
+        "column": 14,
+        "offset": 1072
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "add",
+      "qualifier": "inventory",
+      "kind": "call",
+      "start": {
+        "line": 32,
+        "column": 33,
+        "offset": 1091
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 33,
+        "column": 8,
+        "offset": 1105
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 33,
+        "column": 13,
+        "offset": 1110
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "stream",
+      "qualifier": "items",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 33,
+        "offset": 1130
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "map",
+      "qualifier": "items.stream()",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 17,
+        "offset": 1156
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "id",
+      "qualifier": "Item",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 27,
+        "offset": 1166
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "filter",
+      "qualifier": "items.stream() .map(Item::id)",
+      "kind": "call",
+      "start": {
+        "line": 35,
+        "column": 17,
+        "offset": 1187
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "isBlank",
+      "qualifier": "id",
+      "kind": "call",
+      "start": {
+        "line": 35,
+        "column": 34,
+        "offset": 1204
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "collect",
+      "qualifier": "items.stream() .map(Item::id) .filter(id -\u003e !id.isBlank())",
+      "kind": "call",
+      "start": {
+        "line": 36,
+        "column": 17,
+        "offset": 1232
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "toList",
+      "qualifier": "Collectors",
+      "kind": "call",
+      "start": {
+        "line": 36,
+        "column": 36,
+        "offset": 1251
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "Function",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 8,
+        "offset": 1270
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 17,
+        "offset": 1279
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "Long",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 23,
+        "offset": 1285
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "price",
+      "qualifier": "item",
+      "kind": "call",
+      "start": {
+        "line": 37,
+        "column": 50,
+        "offset": 1312
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "record",
+      "qualifier": "audit",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 14,
+        "offset": 1335
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "IN_STOCK",
+      "qualifier": "Status",
+      "kind": "value",
+      "start": {
+        "line": 38,
+        "column": 35,
+        "offset": 1356
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "submit",
+      "qualifier": "executor",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 17,
+        "offset": 1384
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "Runnable",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 28,
+        "offset": 1395
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "Runnable",
+      "kind": "type",
+      "start": {
+        "line": 39,
+        "column": 28,
+        "offset": 1395
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "Override",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 13,
+        "offset": 1421
+      },
+      "enclosing": "com.example.orders.OrderService.place.run"
+    },
+    {
+      "name": "notifyShipping",
+      "kind": "call",
+      "start": {
+        "line": 42,
+        "column": 16,
+        "offset": 1478
+      },
+      "enclosing": "com.example.orders.OrderService.place.run"
+    },
+    {
+      "name": "place",
+      "qualifier": "super",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 21,
+        "offset": 1548
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "id",
+      "qualifier": "super.place(order)",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 34,
+        "offset": 1561
+      },
+      "enclosing": "com.example.orders.OrderService.place"
+    },
+    {
+      "name": "Optional",
+      "kind": "type",
+      "start": {
+        "line": 48,
+        "column": 4,
+        "offset": 1578
+      },
+      "enclosing": "com.example.orders.OrderService.find"
+    },
+    {
+      "name": "Order",
+      "kind": "type",
+      "start": {
+        "line": 48,
+        "column": 13,
+        "offset": 1587
+      },
+      "enclosing": "com.example.orders.OrderService.find"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 48,
+        "column": 25,
+        "offset": 1599
+      },
+      "enclosing": "com.example.orders.OrderService.find"
+    },
+    {
+      "name": "findById",
+      "qualifier": "repository",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 26,
+        "offset": 1638
+      },
+      "enclosing": "com.example.orders.OrderService.find"
+    },
+    {
+      "name": "map",
+      "qualifier": "repository.findById(id)",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 39,
+        "offset": 1651
+      },
+      "enclosing": "com.example.orders.OrderService.find"
+    },
+    {
+      "name": "Order",
+      "qualifier": "com.example.orders",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 71,
+        "offset": 1683
+      },
+      "enclosing": "com.example.orders.OrderService.find"
+    },
+    {
+      "name": "Order",
+      "qualifier": "com.example.orders",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 71,
+        "offset": 1683
+      },
+      "enclosing": "com.example.orders.OrderService.find"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 52,
+        "column": 19,
+        "offset": 1720
+      },
+      "enclosing": "com.example.orders.OrderService.nextId"
+    },
+    {
+      "name": "UUID",
+      "qualifier": "java.util",
+      "kind": "value",
+      "start": {
+        "line": 53,
+        "column": 25,
+        "offset": 1763
+      },
+      "enclosing": "com.example.orders.OrderService.nextId"
+    },
+    {
+      "name": "randomUUID",
+      "qualifier": "java.util.UUID",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 30,
+        "offset": 1768
+      },
+      "enclosing": "com.example.orders.OrderService.nextId"
+    },
+    {
+      "name": "toString",
+      "qualifier": "java.util.UUID.randomUUID()",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 43,
+        "offset": 1781
+      },
+      "enclosing": "com.example.orders.OrderService.nextId"
+    },
+    {
+      "name": "Order",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 32,
+        "offset": 1832
+      },
+      "enclosing": "com.example.orders.OrderService.notifyShipping"
+    },
+    {
+      "name": "Shipping",
+      "kind": "type",
+      "start": {
+        "line": 57,
+        "column": 8,
+        "offset": 1855
+      },
+      "enclosing": "com.example.orders.OrderService.notifyShipping"
+    },
+    {
+      "name": "Client",
+      "qualifier": "Shipping",
+      "kind": "type",
+      "start": {
+        "line": 57,
+        "column": 17,
+        "offset": 1864
+      },
+      "enclosing": "com.example.orders.OrderService.notifyShipping"
+    },
+    {
+      "name": "Shipping",
+      "kind": "type",
+      "start": {
+        "line": 57,
+        "column": 37,
+        "offset": 1884
+      },
+      "enclosing": "com.example.orders.OrderService.notifyShipping"
+    },
+    {
+      "name": "Client",
+      "qualifier": "Shipping",
+      "kind": "call",
+      "start": {
+        "line": 57,
+        "column": 46,
+        "offset": 1893
+      },
+      "enclosing": "com.example.orders.OrderService.notifyShipping"
+    },
+    {
+      "name": "Client",
+      "qualifier": "Shipping",
+      "kind": "type",
+      "start": {
+        "line": 57,
+        "column": 46,
+        "offset": 1893
+      },
+      "enclosing": "com.example.orders.OrderService.notifyShipping"
+    },
+    {
+      "name": "send",
+      "qualifier": "client",
+      "kind": "call",
+      "start": {
+        "line": 58,
+        "column": 15,
+        "offset": 1918
+      },
+      "enclosing": "com.example.orders.OrderService.notifyShipping"
+    },
+    {
+      "name": "Api",
+      "kind": "extends",
+      "start": {
+        "line": 63,
+        "column": 34,
+        "offset": 2020
+      },
+      "enclosing": "com.example.orders.OrderApi"
+    },
+    {
+      "name": "Api",
+      "kind": "type",
+      "start": {
+        "line": 63,
+        "column": 34,
+        "offset": 2020
+      },
+      "enclosing": "com.example.orders.OrderApi"
+    },
+    {
+      "name": "Comparable",
+      "kind": "extends",
+      "start": {
+        "line": 63,
+        "column": 39,
+        "offset": 2025
+      },
+      "enclosing": "com.example.orders.OrderApi"
+    },
+    {
+      "name": "Comparable",
+      "kind": "type",
+      "start": {
+        "line": 63,
+        "column": 39,
+        "offset": 2025
+      },
+      "enclosing": "com.example.orders.OrderApi"
+    },
+    {
+      "name": "OrderApi",
+      "kind": "type",
+      "start": {
+        "line": 63,
+        "column": 50,
+        "offset": 2036
+      },
+      "enclosing": "com.example.orders.OrderApi"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 64,
+        "column": 4,
+        "offset": 2052
+      },
+      "enclosing": "com.example.orders.OrderApi.place"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 64,
+        "column": 17,
+        "offset": 2065
+      },
+      "enclosing": "com.example.orders.OrderApi.place"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 64,
+        "column": 22,
+        "offset": 2070
+      },
+      "enclosing": "com.example.orders.OrderApi.place"
+    },
+    {
+      "name": "OrderException",
+      "kind": "type",
+      "start": {
+        "line": 64,
+        "column": 42,
+        "offset": 2090
+      },
+      "enclosing": "com.example.orders.OrderApi.place"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 8,
+        "column": 35,
+        "offset": 217
+      },
+      "text": "package com.example.orders;\n\nimport com.example.store.Inventory;\nimport com.example.store.Item;\nimport java.util.List;\nimport java.util.Optional;\nimport java.util.function.Function;\nimport java.util.stream.Collectors;",
+      "hash": "e1531d545d8337a158c2a88b039bec4a0fc31e174c6a564f27c0548ac93c0976"
+    },
+    {
+      "id": "com.example.orders.OrderService#1",
+      "kind": "symbol",
+      "symbolId": "com.example.orders.OrderService",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 219
+      },
+      "end": {
+        "line": 60,
+        "column": 1,
+        "offset": 1938
+      },
+      "text": "/** OrderService places orders against an inventory. */\n@Service\n@Transactional(readOnly = false)\npublic final class OrderService extends BaseService\u003cOrder\u003e implements OrderApi, java.io.Serializable {\n\n    private static final long serialVersionUID = 1L;\n\n    private final Inventory\u003cItem\u003e inventory;\n    private final java.util.concurrent.ExecutorService executor;\n    private final Map.Entry\u003cString, Order\u003e last;\n\n    public OrderService(Inventory\u003cItem\u003e inventory, Clock clock) {\n        super(clock);\n        this.inventory = inventory;\n        this.executor = java.util.concurrent.Executors.newFixedThreadPool(4);\n        this.last = null;\n    }\n\n    /** Places an order for the items, returning its id. */\n    @Override\n    public String place(List\u003cItem\u003e items) throws OrderException {\n        var order = new Order(nextId(), items);\n        items.forEach(inventory::add);\n        List\u003cString\u003e ids = items.stream()\n                .map(Item::id)\n                .filter(id -\u003e !id.isBlank())\n                .collect(Collectors.toList());\n        Function\u003cItem, Long\u003e price = item -\u003e item.price();\n        audit.record(order, Status.IN_STOCK);\n        executor.submit(new Runnable() {\n            @Override\n            public void run() {\n                notifyShipping(order);\n            }\n        });\n        return super.place(order).id();\n    }\n\n    Optional\u003cOrder\u003e find(String id) {\n        return repository.findById(id).map(o -\u003e new com.example.orders.Order(o));\n    }\n\n    private static String nextId() {\n        return java.util.UUID.randomUUID().toString();\n    }\n\n    private void notifyShipping(Order order) {\n        Shipping.Client client = new Shipping.Client();\n        client.send(order);\n    }\n}",
+      "hash": "8f54756dcb4dcd0842f343ebbf55854c9223c98bd0132f1ecb300d229583fd10"
+    },
+    {
+      "id": "com.example.orders.OrderApi#1",
+      "kind": "symbol",
+      "symbolId": "com.example.orders.OrderApi",
+      "start": {
+        "line": 62,
+        "column": 0,
+        "offset": 1940
+      },
+      "end": {
+        "line": 65,
+        "column": 1,
+        "offset": 2107
+      },
+      "text": "/** OrderApi is the public face of orders. */\npublic interface OrderApi extends Api, Comparable\u003cOrderApi\u003e {\n    String place(List\u003cItem\u003e items) throws OrderException;\n}",
+      "hash": "9ee83ae68968c1c573fbe59229836a222200b1f7d194b9a8b06b21202fb3538b"
+    }
+  ]
+}

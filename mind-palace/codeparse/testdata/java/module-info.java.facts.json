@@ -1,0 +1,116 @@
+{
+  "lang": "java",
+  "symbols": [
+    {
+      "id": "com.example.store",
+      "kind": "module",
+      "name": "com.example.store",
+      "qualName": "com.example.store",
+      "signature": "@Deprecated(since = \"2\") open module com.example.store",
+      "doc": "The store module: inventory and its services.",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 53
+      },
+      "end": {
+        "line": 12,
+        "column": 1,
+        "offset": 491
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "java.sql",
+      "kind": "requires",
+      "start": {
+        "line": 4,
+        "column": 4,
+        "offset": 114
+      }
+    },
+    {
+      "spec": "com.example.common",
+      "kind": "requires",
+      "start": {
+        "line": 5,
+        "column": 4,
+        "offset": 137
+      }
+    },
+    {
+      "spec": "lombok",
+      "kind": "requires",
+      "start": {
+        "line": 6,
+        "column": 4,
+        "offset": 181
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Deprecated",
+      "kind": "type",
+      "start": {
+        "line": 2,
+        "column": 1,
+        "offset": 54
+      },
+      "enclosing": "com.example.store"
+    },
+    {
+      "name": "StoreProvider",
+      "qualifier": "com.example.store.spi",
+      "kind": "type",
+      "start": {
+        "line": 10,
+        "column": 31,
+        "offset": 382
+      },
+      "enclosing": "com.example.store"
+    },
+    {
+      "name": "StoreProvider",
+      "qualifier": "com.example.store.spi",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 35,
+        "offset": 432
+      },
+      "enclosing": "com.example.store"
+    },
+    {
+      "name": "MemoryStoreProvider",
+      "qualifier": "com.example.store",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 72,
+        "offset": 469
+      },
+      "enclosing": "com.example.store"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 12,
+        "column": 1,
+        "offset": 491
+      },
+      "text": "/** The store module: inventory and its services. */\n@Deprecated(since = \"2\")\nopen module com.example.store {\n    requires java.sql;\n    requires transitive com.example.common;\n    requires static lombok;\n    exports com.example.store;\n    exports com.example.store.internal to com.example.admin, com.example.tools;\n    opens com.example.store.model;\n    uses com.example.store.spi.StoreProvider;\n    provides com.example.store.spi.StoreProvider with com.example.store.MemoryStoreProvider;\n}",
+      "hash": "9f3328b68457de1e9541411d704bf12496d5fa8a5584948b5f9b098d9cb172f5"
+    }
+  ]
+}

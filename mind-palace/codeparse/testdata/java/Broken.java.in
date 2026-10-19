@@ -1,0 +1,22 @@
+package com.example.broken;
+
+import java.util.List;
+
+/** Parser reads tokens. */
+public class Parser {
+    private List<String> tokens;
+
+    /** Reads the next token. */
+    public String next() {
+        return tokens.remove(0)
+    }
+
+    public void skip(int n {
+        for (int i = 0; i < n; i++) next();
+    }
+
+    /** Peeks without consuming. */
+    public String peek() {
+        return tokens.get(0);
+    }
+}
