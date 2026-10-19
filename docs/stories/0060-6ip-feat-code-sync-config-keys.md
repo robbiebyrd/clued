@@ -3,12 +3,13 @@ id: 0060-6ip
 title: Code sync config keys
 purpose: The client needs an opt-in switch (off by default) and limits before it uploads anything.
 type: feat
-status: in_progress
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:33.909Z"
-updated: "2026-10-19T19:08:30.577Z"
+updated: "2026-10-19T19:08:54.891Z"
 started: "2026-10-19T18:57:30.462Z"
+completed: "2026-10-19T19:08:54.891Z"
 tags:
   - plan-0010-awy
   - wave-1
@@ -77,9 +78,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/ ./cli/ ./config/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/ ./cli/ ./config/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./session/ ./cli/ ./config/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/ ./cli/ ./config/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
