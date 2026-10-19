@@ -1,0 +1,326 @@
+{
+  "lang": "php",
+  "symbols": [
+    {
+      "id": "Legacy\\Helpers",
+      "kind": "namespace",
+      "name": "Legacy\\Helpers",
+      "qualName": "Legacy\\Helpers",
+      "signature": "namespace Legacy\\Helpers",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 138
+      },
+      "end": {
+        "line": 39,
+        "column": 1,
+        "offset": 1057
+      },
+      "exported": true
+    },
+    {
+      "id": "Legacy\\Helpers\\render",
+      "kind": "function",
+      "name": "render",
+      "qualName": "Legacy\\Helpers\\render",
+      "signature": "function render(string $view, array $vars = []): string",
+      "doc": "Renders a template with its variables.",
+      "start": {
+        "line": 13,
+        "column": 8,
+        "offset": 301
+      },
+      "end": {
+        "line": 26,
+        "column": 9,
+        "offset": 775
+      },
+      "parent": "Legacy\\Helpers",
+      "exported": true
+    },
+    {
+      "id": "Legacy\\Helpers\\render\\escape",
+      "kind": "function",
+      "name": "escape",
+      "qualName": "Legacy\\Helpers\\render\\escape",
+      "signature": "function escape(string $s): string",
+      "start": {
+        "line": 15,
+        "column": 12,
+        "offset": 379
+      },
+      "end": {
+        "line": 18,
+        "column": 13,
+        "offset": 498
+      },
+      "parent": "Legacy\\Helpers\\render",
+      "exported": true
+    },
+    {
+      "id": "Route",
+      "kind": "class",
+      "name": "Route",
+      "qualName": "Route",
+      "signature": "#[Attribute(Attribute::TARGET_CLASS)] final class Route",
+      "start": {
+        "line": 43,
+        "column": 4,
+        "offset": 1076
+      },
+      "end": {
+        "line": 49,
+        "column": 5,
+        "offset": 1224
+      },
+      "exported": true
+    },
+    {
+      "id": "Route\\__construct",
+      "kind": "method",
+      "name": "__construct",
+      "qualName": "Route\\__construct",
+      "signature": "public function __construct(public string $path)",
+      "start": {
+        "line": 46,
+        "column": 8,
+        "offset": 1150
+      },
+      "end": {
+        "line": 48,
+        "column": 9,
+        "offset": 1218
+      },
+      "parent": "Route",
+      "exported": true
+    },
+    {
+      "id": "Route\\__construct\\path",
+      "kind": "property",
+      "name": "path",
+      "qualName": "Route\\__construct\\path",
+      "signature": "public string $path",
+      "start": {
+        "line": 46,
+        "column": 36,
+        "offset": 1178
+      },
+      "end": {
+        "line": 46,
+        "column": 55,
+        "offset": 1197
+      },
+      "parent": "Route\\__construct",
+      "exported": true
+    },
+    {
+      "id": "global_helper",
+      "kind": "function",
+      "name": "global_helper",
+      "qualName": "global_helper",
+      "signature": "function global_helper(): void",
+      "start": {
+        "line": 51,
+        "column": 4,
+        "offset": 1230
+      },
+      "end": {
+        "line": 54,
+        "column": 5,
+        "offset": 1312
+      },
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "function_exists",
+      "kind": "call",
+      "start": {
+        "line": 9,
+        "column": 9,
+        "offset": 175
+      },
+      "enclosing": "Legacy\\Helpers"
+    },
+    {
+      "name": "htmlspecialchars",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 23,
+        "offset": 451
+      },
+      "enclosing": "Legacy\\Helpers\\render\\escape"
+    },
+    {
+      "name": "strtoupper",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 46,
+        "offset": 686
+      },
+      "enclosing": "Legacy\\Helpers\\render"
+    },
+    {
+      "name": "escape",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 32,
+        "offset": 735
+      },
+      "enclosing": "Legacy\\Helpers\\render"
+    },
+    {
+      "name": "implode",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 39,
+        "offset": 742
+      },
+      "enclosing": "Legacy\\Helpers\\render"
+    },
+    {
+      "name": "Handler",
+      "kind": "extends",
+      "start": {
+        "line": 29,
+        "column": 37,
+        "offset": 820
+      },
+      "enclosing": "Legacy\\Helpers"
+    },
+    {
+      "name": "JsonSerializable",
+      "qualifier": "\\",
+      "kind": "implements",
+      "start": {
+        "line": 29,
+        "column": 57,
+        "offset": 840
+      },
+      "enclosing": "Legacy\\Helpers"
+    },
+    {
+      "name": "Attribute",
+      "kind": "type",
+      "start": {
+        "line": 43,
+        "column": 6,
+        "offset": 1078
+      },
+      "enclosing": "Route"
+    },
+    {
+      "name": "TARGET_CLASS",
+      "qualifier": "Attribute",
+      "kind": "value",
+      "start": {
+        "line": 43,
+        "column": 27,
+        "offset": 1099
+      },
+      "enclosing": "Route"
+    },
+    {
+      "name": "render",
+      "qualifier": "Legacy\\Helpers",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 24,
+        "offset": 1291
+      },
+      "enclosing": "global_helper"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 9,
+        "column": 52,
+        "offset": 218
+      },
+      "text": "\u003c?php\n/**\n * A template with code inside braces namespaces, conditional and nested\n * declarations, closures and an anonymous class.\n */\n\nnamespace Legacy\\Helpers {\n\n    if (!function_exists('Legacy\\Helpers\\render')) {",
+      "hash": "3e63ef615355a44a54c74f271b79fd39926112802824421e8e33c0ff0b0a86e9"
+    },
+    {
+      "id": "Legacy\\Helpers\\render#1",
+      "kind": "symbol",
+      "symbolId": "Legacy\\Helpers\\render",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 219
+      },
+      "end": {
+        "line": 26,
+        "column": 9,
+        "offset": 775
+      },
+      "text": "        /**\n         * Renders a template with its variables.\n         */\n        function render(string $view, array $vars = []): string\n        {\n            function escape(string $s): string\n            {\n                return htmlspecialchars($s, ENT_QUOTES);\n            }\n\n            $wrap = function (string $html) use ($view): string {\n                return \"\u003cdiv class=\\\"$view\\\"\u003e$html\u003c/div\u003e\";\n            };\n            $upper = fn(string $s): string =\u003e strtoupper($s);\n\n            return $wrap($upper(escape(implode(',', $vars))));\n        }",
+      "hash": "9853ff229c5963c8bd84d45f3e5e094fb4c73e46a8c17ea9e8065544ceaa25f4"
+    },
+    {
+      "id": "L27#1",
+      "kind": "window",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 776
+      },
+      "end": {
+        "line": 41,
+        "column": 11,
+        "offset": 1070
+      },
+      "text": "    }\n\n    $handler = new class(10) extends Handler implements \\JsonSerializable {\n        public function __construct(private int $limit)\n        {\n        }\n\n        public function jsonSerialize(): mixed\n        {\n            return ['limit' =\u003e $this-\u003elimit];\n        }\n    };\n}\n\nnamespace {",
+      "hash": "b263373f91c19a07876c639f82bfc3fb99d3d2bb41b6e3da5e8240c85e6194bd"
+    },
+    {
+      "id": "Route#1",
+      "kind": "symbol",
+      "symbolId": "Route",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 1072
+      },
+      "end": {
+        "line": 49,
+        "column": 5,
+        "offset": 1224
+      },
+      "text": "    #[Attribute(Attribute::TARGET_CLASS)]\n    final class Route\n    {\n        public function __construct(public string $path)\n        {\n        }\n    }",
+      "hash": "d8383ecff35f970ed38f593e963c450539564f0a47fb7ac3516fc3e8dbb9b61d"
+    },
+    {
+      "id": "global_helper#1",
+      "kind": "symbol",
+      "symbolId": "global_helper",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 1226
+      },
+      "end": {
+        "line": 54,
+        "column": 5,
+        "offset": 1312
+      },
+      "text": "    function global_helper(): void\n    {\n        \\Legacy\\Helpers\\render('home');\n    }",
+      "hash": "37620b42a36a1d3e2eef56bd5c9c3dc2dea14ec9354e582c9a58235e5997cfbe"
+    }
+  ]
+}
