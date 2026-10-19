@@ -3,11 +3,13 @@ id: 0112-5ga
 title: Resolver for Swift
 purpose: Resolves references for Swift so calls, references and implementations link to the right definitions.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:40.665Z"
-updated: "2026-10-19T18:32:19.459Z"
+updated: "2026-10-19T21:09:42.469Z"
+started: "2026-10-19T20:59:25.416Z"
+completed: "2026-10-19T21:09:42.469Z"
 tags:
   - plan-0012-cgi
   - wave-7
@@ -33,15 +35,15 @@ links:
     - ["0012-cgi", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Resolver for Swift
@@ -78,10 +80,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'swift'
-- [ ] [MANUAL] Only this family's two files changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'swift'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'swift'
+- [x] [MANUAL] Only this family's two files changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'swift'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -89,3 +91,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/resolvers/swift_test.go` - resolution tests over the language goldens
 
 ## Work Log
+
+### 2026-10-19T21:09:36.061Z - Added codeindex/resolvers/swift.go (family swift, registered from init): modules are build targets (the directory below a targetRoots entry, Sources/Tests by default, of the nearest visible Package.swift; else the first target root on the path; else the top directory, as an Xcode project's target folder; '.' at the root; profile option module other than target falls back to Default.Package). Scope: import M opens M and binds M as a qualifier (submodule specs bind their top module), import struct M.T imports the name T, the file's own module qualifies its definitions, @_exported import re-exports are followed transitively through the project's modules. Visible: an extension is never a target (references to Point reach the type, extensions' members merge through their qualified names), same module sees all, other modules need public/open or a @testable import, the name fallback stays within the own and imported modules. Rules: '.', name and member fallbacks. Tests (swift_test.go, 4 tests): module rule, scope over the Imports.swift golden, visibility over Shapes.swift, and an end-to-end index of the Shapes/Builders/ShapeStore goldens plus hand-written files through codeindex with the real Swift extraction (exact/qualified/name confidences, extensions, conformance, re-exports, testable, Xcode layout). go test -race ./codeindex/... passes. Core gaps, not fixed here (resolve.go is outside this story): (1) the engine takes the edge type from the ref kind, so the extractor's extends for a class whose first inherited name is a protocol cannot be corrected to implements by the resolver; (2) the engine drops facts with no symbols and no refs, so a file of @_exported imports alone is invisible to View.Package and its re-exports are not followed.

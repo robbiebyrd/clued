@@ -1,0 +1,134 @@
+{
+  "lang": "lisp",
+  "dialect": "commonlisp",
+  "package": "broken",
+  "symbols": [
+    {
+      "id": "broken:ok-before",
+      "kind": "function",
+      "name": "ok-before",
+      "qualName": "broken:ok-before",
+      "signature": "defun ok-before (x)",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 22
+      },
+      "end": {
+        "line": 4,
+        "column": 9,
+        "offset": 52
+      },
+      "exported": true
+    },
+    {
+      "id": "broken:*after*",
+      "kind": "var",
+      "name": "*after*",
+      "qualName": "broken:*after*",
+      "signature": "(defvar *after* (make-thing))",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 115
+      },
+      "end": {
+        "line": 10,
+        "column": 29,
+        "offset": 144
+      },
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "1+",
+      "kind": "call",
+      "start": {
+        "line": 4,
+        "column": 3,
+        "offset": 46
+      },
+      "enclosing": "broken:ok-before"
+    },
+    {
+      "name": "compute",
+      "kind": "call",
+      "start": {
+        "line": 7,
+        "column": 12,
+        "offset": 87
+      }
+    },
+    {
+      "name": "frob",
+      "kind": "call",
+      "start": {
+        "line": 8,
+        "column": 5,
+        "offset": 105
+      }
+    },
+    {
+      "name": "make-thing",
+      "kind": "call",
+      "start": {
+        "line": 10,
+        "column": 17,
+        "offset": 132
+      },
+      "enclosing": "broken:*after*"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 1,
+        "column": 20,
+        "offset": 20
+      },
+      "text": "(in-package :broken)",
+      "hash": "31f609b2501161f13cad152c9045710e73dfa1ded76e8c64233dfc3a1091ae70"
+    },
+    {
+      "id": "broken:ok-before#1",
+      "kind": "symbol",
+      "symbolId": "broken:ok-before",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 22
+      },
+      "end": {
+        "line": 4,
+        "column": 9,
+        "offset": 52
+      },
+      "text": "(defun ok-before (x)\n  (1+ x))",
+      "hash": "6464e273ee66a314ef4aa8f76a1f46ab68afd2ec0f4e51183fa6ac9cd5d7c347"
+    },
+    {
+      "id": "L6#1",
+      "kind": "window",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 54
+      },
+      "end": {
+        "line": 10,
+        "column": 29,
+        "offset": 144
+      },
+      "text": "(defun unfinished (y\n  (let ((z (compute y)))\n    (frob z))\n\n(defvar *after* (make-thing))",
+      "hash": "27c74a615fa9bb308c38695d69c4cd10cee98799ef3832d077b32eb767d69d2a"
+    }
+  ]
+}
