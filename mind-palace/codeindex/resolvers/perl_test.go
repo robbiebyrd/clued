@@ -261,7 +261,7 @@ func TestResolve_perl(t *testing.T) {
 		circle + "#My::Shape::Circle::area":     "exact",
 		circle + "#My::Shape::Circle::describe": "exact",
 	})
-	e.want(codegraph.RelCallees, circle, "My::Shape::Circle::My::Shape::Registry::register", map[string]string{})
+	e.want(codegraph.RelCallees, circle, "My::Shape::Registry::register", map[string]string{})
 
 	// report.pl: its own subs, Package::sub and Class->method by qualified
 	// name, unknown objects and UNIVERSAL::can left out.
@@ -295,10 +295,10 @@ func TestResolve_perl(t *testing.T) {
 
 	// Imports.
 	e.want(codegraph.RelCallees, "bin/caller.pl", "go", map[string]string{
-		multi + "#Multi::run":                                        "exact",
-		rep + "#My::Report::emit":                                    "exact",
-		rep + "#My::Report::_private":                                "qualified",
-		circle + "#My::Shape::Circle::My::Shape::Registry::register": "qualified",
+		multi + "#Multi::run":                     "exact",
+		rep + "#My::Report::emit":                 "exact",
+		rep + "#My::Report::_private":             "qualified",
+		circle + "#My::Shape::Registry::register": "qualified",
 	})
 	e.want(codegraph.RelCallees, "bin/caller2.pl", "go", map[string]string{
 		multi + "#Multi::run":         "qualified",

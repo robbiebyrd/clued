@@ -114,10 +114,10 @@
       "exported": true
     },
     {
-      "id": "AppDelegate.application",
+      "id": "AppDelegate.application:didFinishLaunchingWithOptions:",
       "kind": "method",
-      "name": "application",
-      "qualName": "AppDelegate.application",
+      "name": "application:didFinishLaunchingWithOptions:",
+      "qualName": "AppDelegate.application:didFinishLaunchingWithOptions:",
       "signature": "- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions",
       "start": {
         "line": 16,
@@ -133,10 +133,10 @@
       "exported": true
     },
     {
-      "id": "AppDelegate.tableView",
+      "id": "AppDelegate.tableView:numberOfRowsInSection:",
       "kind": "method",
-      "name": "tableView",
-      "qualName": "AppDelegate.tableView",
+      "name": "tableView:numberOfRowsInSection:",
+      "qualName": "AppDelegate.tableView:numberOfRowsInSection:",
       "signature": "- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section",
       "start": {
         "line": 46,
@@ -152,10 +152,10 @@
       "exported": true
     },
     {
-      "id": "AppDelegate.tableView~2",
+      "id": "AppDelegate.tableView:cellForRowAtIndexPath:",
       "kind": "method",
-      "name": "tableView",
-      "qualName": "AppDelegate.tableView",
+      "name": "tableView:cellForRowAtIndexPath:",
+      "qualName": "AppDelegate.tableView:cellForRowAtIndexPath:",
       "signature": "- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath",
       "start": {
         "line": 50,
@@ -171,10 +171,10 @@
       "exported": true
     },
     {
-      "id": "AppDelegate.canvas~2",
+      "id": "AppDelegate.canvas:didSelectShape:",
       "kind": "method",
-      "name": "canvas",
-      "qualName": "AppDelegate.canvas",
+      "name": "canvas:didSelectShape:",
+      "qualName": "AppDelegate.canvas:didSelectShape:",
       "signature": "- (void)canvas:(Canvas *)canvas didSelectShape:(Shape *)shape",
       "start": {
         "line": 59,
@@ -310,7 +310,7 @@
         "column": 21,
         "offset": 388
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "NSDictionary",
@@ -320,7 +320,7 @@
         "column": 80,
         "offset": 447
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "window",
@@ -331,7 +331,7 @@
         "column": 9,
         "offset": 487
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "alloc",
@@ -342,10 +342,10 @@
         "column": 29,
         "offset": 507
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
-      "name": "initWithFrame",
+      "name": "initWithFrame:",
       "qualifier": "[UIWindow alloc]",
       "kind": "call",
       "start": {
@@ -353,7 +353,7 @@
         "column": 36,
         "offset": 514
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "mainScreen",
@@ -364,7 +364,7 @@
         "column": 61,
         "offset": 539
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "bounds",
@@ -375,7 +375,7 @@
         "column": 73,
         "offset": 551
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "canvas",
@@ -386,7 +386,7 @@
         "column": 9,
         "offset": 593
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "alloc",
@@ -397,7 +397,7 @@
         "column": 27,
         "offset": 611
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "init",
@@ -408,7 +408,7 @@
         "column": 34,
         "offset": 618
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "canvas",
@@ -419,7 +419,7 @@
         "column": 9,
         "offset": 634
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "delegate",
@@ -430,7 +430,7 @@
         "column": 16,
         "offset": 641
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "Shape",
@@ -440,7 +440,7 @@
         "column": 4,
         "offset": 662
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "Shape",
@@ -450,7 +450,7 @@
         "column": 21,
         "offset": 679
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "SKMakeShape",
@@ -460,7 +460,7 @@
         "column": 29,
         "offset": 687
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "completion",
@@ -471,7 +471,7 @@
         "column": 11,
         "offset": 728
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "NSError",
@@ -481,7 +481,7 @@
         "column": 41,
         "offset": 758
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "NSLog",
@@ -491,7 +491,7 @@
         "column": 12,
         "offset": 813
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "localizedDescription",
@@ -502,7 +502,7 @@
         "column": 31,
         "offset": 832
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "canvas",
@@ -513,10 +513,10 @@
         "column": 10,
         "offset": 882
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
-      "name": "addShape",
+      "name": "addShape:",
       "qualifier": "self.canvas",
       "kind": "call",
       "start": {
@@ -524,7 +524,7 @@
         "column": 17,
         "offset": 889
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "dispatch_async",
@@ -534,7 +534,7 @@
         "column": 4,
         "offset": 952
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "dispatch_get_main_queue",
@@ -544,7 +544,7 @@
         "column": 19,
         "offset": 967
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "canvas",
@@ -555,7 +555,7 @@
         "column": 18,
         "offset": 1015
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "setNeedsDisplay",
@@ -566,7 +566,7 @@
         "column": 25,
         "offset": 1022
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "Protocol",
@@ -576,7 +576,7 @@
         "column": 4,
         "offset": 1052
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "Drawable",
@@ -586,10 +586,10 @@
         "column": 34,
         "offset": 1082
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
-      "name": "conformsToProtocol",
+      "name": "conformsToProtocol:",
       "qualifier": "square",
       "kind": "call",
       "start": {
@@ -597,10 +597,10 @@
         "column": 16,
         "offset": 1109
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
-      "name": "drawInRect",
+      "name": "drawInRect:context:",
       "qualifier": "square",
       "kind": "call",
       "start": {
@@ -608,7 +608,7 @@
         "column": 16,
         "offset": 1156
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "UIGraphicsGetCurrentContext",
@@ -618,7 +618,7 @@
         "column": 46,
         "offset": 1186
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "window",
@@ -629,7 +629,7 @@
         "column": 14,
         "offset": 1249
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "makeKeyAndVisible",
@@ -640,7 +640,7 @@
         "column": 21,
         "offset": 1256
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "NSException",
@@ -650,7 +650,7 @@
         "column": 14,
         "offset": 1290
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "NSLog",
@@ -660,7 +660,7 @@
         "column": 8,
         "offset": 1324
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "reason",
@@ -671,7 +671,7 @@
         "column": 31,
         "offset": 1347
       },
-      "enclosing": "AppDelegate.application"
+      "enclosing": "AppDelegate.application:didFinishLaunchingWithOptions:"
     },
     {
       "name": "NSInteger",
@@ -681,7 +681,7 @@
         "column": 3,
         "offset": 1422
       },
-      "enclosing": "AppDelegate.tableView"
+      "enclosing": "AppDelegate.tableView:numberOfRowsInSection:"
     },
     {
       "name": "UITableView",
@@ -691,7 +691,7 @@
         "column": 24,
         "offset": 1443
       },
-      "enclosing": "AppDelegate.tableView"
+      "enclosing": "AppDelegate.tableView:numberOfRowsInSection:"
     },
     {
       "name": "NSInteger",
@@ -701,7 +701,7 @@
         "column": 71,
         "offset": 1490
       },
-      "enclosing": "AppDelegate.tableView"
+      "enclosing": "AppDelegate.tableView:numberOfRowsInSection:"
     },
     {
       "name": "NSInteger",
@@ -711,7 +711,7 @@
         "column": 12,
         "offset": 1522
       },
-      "enclosing": "AppDelegate.tableView"
+      "enclosing": "AppDelegate.tableView:numberOfRowsInSection:"
     },
     {
       "name": "canvas",
@@ -722,7 +722,7 @@
         "column": 27,
         "offset": 1537
       },
-      "enclosing": "AppDelegate.tableView"
+      "enclosing": "AppDelegate.tableView:numberOfRowsInSection:"
     },
     {
       "name": "shapes",
@@ -733,7 +733,7 @@
         "column": 34,
         "offset": 1544
       },
-      "enclosing": "AppDelegate.tableView"
+      "enclosing": "AppDelegate.tableView:numberOfRowsInSection:"
     },
     {
       "name": "count",
@@ -744,7 +744,7 @@
         "column": 41,
         "offset": 1551
       },
-      "enclosing": "AppDelegate.tableView"
+      "enclosing": "AppDelegate.tableView:numberOfRowsInSection:"
     },
     {
       "name": "UITableViewCell",
@@ -754,7 +754,7 @@
         "column": 3,
         "offset": 1564
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
       "name": "UITableView",
@@ -764,7 +764,7 @@
         "column": 32,
         "offset": 1593
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
       "name": "NSIndexPath",
@@ -774,7 +774,7 @@
         "column": 79,
         "offset": 1640
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
       "name": "UITableViewCell",
@@ -784,10 +784,10 @@
         "column": 4,
         "offset": 1670
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
-      "name": "dequeueReusableCellWithIdentifier",
+      "name": "dequeueReusableCellWithIdentifier:forIndexPath:",
       "qualifier": "tableView",
       "kind": "call",
       "start": {
@@ -795,7 +795,7 @@
         "column": 39,
         "offset": 1705
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
       "name": "Shape",
@@ -805,7 +805,7 @@
         "column": 4,
         "offset": 1777
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
       "name": "box",
@@ -816,10 +816,10 @@
         "column": 25,
         "offset": 1798
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
-      "name": "shapeAtIndex",
+      "name": "shapeAtIndex:",
       "qualifier": "self.box",
       "kind": "call",
       "start": {
@@ -827,7 +827,7 @@
         "column": 29,
         "offset": 1802
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
       "name": "row",
@@ -838,7 +838,7 @@
         "column": 52,
         "offset": 1825
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
       "name": "textLabel",
@@ -849,7 +849,7 @@
         "column": 9,
         "offset": 1840
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
       "name": "text",
@@ -860,7 +860,7 @@
         "column": 19,
         "offset": 1850
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
       "name": "debugLabel",
@@ -871,7 +871,7 @@
         "column": 32,
         "offset": 1863
       },
-      "enclosing": "AppDelegate.tableView~2"
+      "enclosing": "AppDelegate.tableView:cellForRowAtIndexPath:"
     },
     {
       "name": "Canvas",
@@ -881,7 +881,7 @@
         "column": 16,
         "offset": 1942
       },
-      "enclosing": "AppDelegate.canvas~2"
+      "enclosing": "AppDelegate.canvas:didSelectShape:"
     },
     {
       "name": "Shape",
@@ -891,10 +891,10 @@
         "column": 48,
         "offset": 1974
       },
-      "enclosing": "AppDelegate.canvas~2"
+      "enclosing": "AppDelegate.canvas:didSelectShape:"
     },
     {
-      "name": "canvas",
+      "name": "canvas:didSelectShape:",
       "qualifier": "super",
       "kind": "call",
       "start": {
@@ -902,7 +902,7 @@
         "column": 11,
         "offset": 2001
       },
-      "enclosing": "AppDelegate.canvas~2"
+      "enclosing": "AppDelegate.canvas:didSelectShape:"
     }
   ],
   "chunks": [

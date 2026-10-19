@@ -7,7 +7,7 @@
       "kind": "class",
       "name": "ShapeProto",
       "qualName": "com.example.geo.proto.ShapeProto",
-      "signature": "@javax.annotation.Generated(\"protoc\") public final class ShapeProto",
+      "signature": "public final class ShapeProto",
       "start": {
         "line": 6,
         "column": 0,
@@ -137,7 +137,7 @@
       "kind": "method",
       "name": "area",
       "qualName": "com.example.geo.proto.ShapeProto.Circle.area",
-      "signature": "@java.lang.Override public double area()",
+      "signature": "public double area()",
       "start": {
         "line": 23,
         "column": 4,

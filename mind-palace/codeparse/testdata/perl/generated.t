@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # A test with several statement packages, generated subs, a heredoc and a
-# forward declaration: everything after the first package statement is
-# qualified by it, since the grammar does not nest a statement package.
+# forward declaration: each package statement qualifies what follows it,
+# up to the next one, though the grammar does not nest them.
 use strict;
 use warnings;
 use Test::More tests => 3;

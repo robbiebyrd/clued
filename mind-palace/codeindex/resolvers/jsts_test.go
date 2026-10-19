@@ -182,10 +182,11 @@ func Test_jstsGoldensJavaScript(t *testing.T) {
 		"Button":    {"src/Button.jsx"},
 	})
 	wantBound(t, "App.jsx name", s.Names, map[string][]string{
-		"useState":  {"npm:react"},
-		"useEffect": {"npm:react"}, // the JavaScript query writes `useEffect as useMountEffect` as useEffect
-		"Button":    {"src/Button.jsx"},
-		"React":     {"npm:react"},
+		"useState":       {"npm:react"},
+		"useEffect":      nil, // `useEffect as useMountEffect`: a renamed import binds nothing
+		"useMountEffect": nil,
+		"Button":         {"src/Button.jsx"},
+		"React":          {"npm:react"},
 	})
 	if len(s.Open) != 0 {
 		t.Errorf("App.jsx open: %v", s.Open)
@@ -209,7 +210,9 @@ func Test_jstsGoldensJavaScript(t *testing.T) {
 	wantBound(t, "reexports.js name", s.Names, map[string][]string{
 		"round": nil,
 		"a":     {"npm:quoted-lib"},
-		"b":     {"npm:quoted-lib"},
+		"b":     nil, // `b as c`: a renamed import binds nothing
+		"c":     nil,
+		"d":     {"npm:quoted-lib"}, // `default as d`
 		"Store": {"src/store.cjs"},
 	})
 

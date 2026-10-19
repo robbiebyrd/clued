@@ -557,7 +557,8 @@
       "enclosing": "(data queue):queue-\u003elist"
     },
     {
-      "name": "util:ensure-queue",
+      "name": "ensure-queue",
+      "qualifier": "util",
       "kind": "call",
       "start": {
         "line": 46,

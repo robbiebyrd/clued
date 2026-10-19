@@ -793,7 +793,8 @@
       "enclosing": "total-area"
     },
     {
-      "name": "str:string-join",
+      "name": "string-join",
+      "qualifier": "str",
       "kind": "call",
       "start": {
         "line": 64,

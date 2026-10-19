@@ -137,6 +137,7 @@
       "name": "Entry",
       "qualName": "Entry",
       "signature": "pub struct Entry\u003cV\u003e",
+      "doc": "An entry with its value and version.",
       "start": {
         "line": 27,
         "column": 0,
@@ -249,6 +250,7 @@
       "name": "Lookup",
       "qualName": "Lookup",
       "signature": "pub enum Lookup\u003cV\u003e",
+      "doc": "What a lookup found.",
       "start": {
         "line": 43,
         "column": 0,
@@ -366,6 +368,7 @@
       "name": "Raw",
       "qualName": "Raw",
       "signature": "pub union Raw",
+      "doc": "Raw bytes or a number.",
       "start": {
         "line": 53,
         "column": 0,
@@ -517,6 +520,7 @@
       "name": "Store",
       "qualName": "Store",
       "signature": "pub struct Store\u003cV: Storable\u003e",
+      "doc": "The store.",
       "start": {
         "line": 77,
         "column": 0,
@@ -570,6 +574,7 @@
       "name": "new",
       "qualName": "Store::new",
       "signature": "pub fn new() -\u003e Self",
+      "doc": "Opens an empty store.",
       "start": {
         "line": 84,
         "column": 4,
@@ -717,6 +722,7 @@
       "name": "store",
       "qualName": "store",
       "signature": "macro_rules! store",
+      "doc": "Builds a store from pairs.",
       "start": {
         "line": 116,
         "column": 0,
@@ -1438,37 +1444,21 @@
       "hash": "a7d13a8c67b2d7a21ca732e0bd081d4962cbc2fd955216a3c787ca03f264e8fa"
     },
     {
-      "id": "L24#1",
-      "kind": "window",
+      "id": "Entry#1",
+      "kind": "symbol",
+      "symbolId": "Entry",
       "start": {
         "line": 24,
         "column": 0,
         "offset": 494
       },
       "end": {
-        "line": 26,
-        "column": 17,
-        "offset": 587
-      },
-      "text": "/// An entry with its value and version.\n#[derive(Debug, Clone, PartialEq)]\n#[non_exhaustive]",
-      "hash": "3a8d040a5af11267f6284ff838a195691ed3504a110564d7f4912c2b4aba7cbc"
-    },
-    {
-      "id": "Entry#1",
-      "kind": "symbol",
-      "symbolId": "Entry",
-      "start": {
-        "line": 27,
-        "column": 0,
-        "offset": 588
-      },
-      "end": {
         "line": 33,
         "column": 1,
         "offset": 728
       },
-      "text": "pub struct Entry\u003cV\u003e {\n    /// The stored value.\n    pub value: V,\n    #[serde(default)]\n    pub(crate) version: u64,\n    created: Instant,\n}",
-      "hash": "f3ba62c82632b3715b7ce23acfa84527735841aa1b0f98c95d746f4e516df1c5"
+      "text": "/// An entry with its value and version.\n#[derive(Debug, Clone, PartialEq)]\n#[non_exhaustive]\npub struct Entry\u003cV\u003e {\n    /// The stored value.\n    pub value: V,\n    #[serde(default)]\n    pub(crate) version: u64,\n    created: Instant,\n}",
+      "hash": "d37f976003c9ada116f14818b03f9a435b09479a36b9550f070f64c70f664b55"
     },
     {
       "id": "Version#1",
@@ -1505,70 +1495,38 @@
       "hash": "2a928e35536dc3bfc7a0c9cc199dbfcc01fd17ddc00e5145041fe6add5c74a9e"
     },
     {
-      "id": "L41#1",
-      "kind": "window",
+      "id": "Lookup#1",
+      "kind": "symbol",
+      "symbolId": "Lookup",
       "start": {
         "line": 41,
         "column": 0,
         "offset": 835
       },
       "end": {
-        "line": 42,
-        "column": 16,
-        "offset": 876
-      },
-      "text": "/// What a lookup found.\n#[derive(Debug)]",
-      "hash": "a47b8be29525d824fbd542fedf15a60f76ef7ef816c464381a5c5d1fde185e3b"
-    },
-    {
-      "id": "Lookup#1",
-      "kind": "symbol",
-      "symbolId": "Lookup",
-      "start": {
-        "line": 43,
-        "column": 0,
-        "offset": 877
-      },
-      "end": {
         "line": 49,
         "column": 1,
         "offset": 1036
       },
-      "text": "pub enum Lookup\u003cV\u003e {\n    /// The key holds a value.\n    Found(V),\n    /// The key was removed at this version.\n    Removed { at: u64, by: Key },\n    Missing,\n}",
-      "hash": "a700f045c480e1b6fb46c6545c9c4d4468b5b708f490657ed4515bf98e7b673e"
-    },
-    {
-      "id": "L51#1",
-      "kind": "window",
-      "start": {
-        "line": 51,
-        "column": 0,
-        "offset": 1038
-      },
-      "end": {
-        "line": 52,
-        "column": 10,
-        "offset": 1075
-      },
-      "text": "/// Raw bytes or a number.\n#[repr(C)]",
-      "hash": "6a348deea112f8b7f0b4ad85ca4b5a5fa1c9c5678c48a6c4ca882ecc0de55895"
+      "text": "/// What a lookup found.\n#[derive(Debug)]\npub enum Lookup\u003cV\u003e {\n    /// The key holds a value.\n    Found(V),\n    /// The key was removed at this version.\n    Removed { at: u64, by: Key },\n    Missing,\n}",
+      "hash": "829c01e2ad54ca3681038b8d81ed4303ea1240d38926d92768da55059b8e60e5"
     },
     {
       "id": "Raw#1",
       "kind": "symbol",
       "symbolId": "Raw",
       "start": {
-        "line": 53,
+        "line": 51,
         "column": 0,
-        "offset": 1076
+        "offset": 1038
       },
       "end": {
         "line": 56,
         "column": 1,
         "offset": 1130
       },
-      "text": "pub union Raw {\n    bytes: [u8; 8],\n    number: u64,\n}",
-      "hash": "0fbce6a3fc44af6fc0fcd962339a937fe990cce8923771e6df538fa0c83bbef0"
+      "text": "/// Raw bytes or a number.\n#[repr(C)]\npub union Raw {\n    bytes: [u8; 8],\n    number: u64,\n}",
+      "hash": "8e8e74fd3c93298cd0cd5a63d74e1b6390e0a92046415e2688b6d210874a5765"
     },
     {
       "id": "Storable#1",
@@ -1588,37 +1546,21 @@
       "hash": "535f82244286c040c6e035bc512a485bcc0314bb597556a0caaa8d24a8123231"
     },
     {
-      "id": "L75#1",
-      "kind": "window",
+      "id": "Store#1",
+      "kind": "symbol",
+      "symbolId": "Store",
       "start": {
         "line": 75,
         "column": 0,
         "offset": 1496
       },
       "end": {
-        "line": 76,
-        "column": 18,
-        "offset": 1529
-      },
-      "text": "/// The store.\n#[derive(Default)]",
-      "hash": "4316adb5b20d1d082cd60c3dbaae8a3f7c2e7b9db5deaacc15864286dd6e36b8"
-    },
-    {
-      "id": "Store#1",
-      "kind": "symbol",
-      "symbolId": "Store",
-      "start": {
-        "line": 77,
-        "column": 0,
-        "offset": 1530
-      },
-      "end": {
         "line": 79,
         "column": 1,
         "offset": 1600
       },
-      "text": "pub struct Store\u003cV: Storable\u003e {\n    entries: HashMap\u003cKey, Entry\u003cV\u003e\u003e,\n}",
-      "hash": "eb44a4f6973204de1999648e41d7ca8138bc683a68211fd275c7298943d90e00"
+      "text": "/// The store.\n#[derive(Default)]\npub struct Store\u003cV: Storable\u003e {\n    entries: HashMap\u003cKey, Entry\u003cV\u003e\u003e,\n}",
+      "hash": "8f26d0e7e30f2f836d35626e8f8f068d3b3f600f59bc53151e9f431910170d9a"
     },
     {
       "id": "Store~2#1",
@@ -1672,37 +1614,21 @@
       "hash": "689e01e81c089c50e555865caa9623beadacf3897df8bbe00b17763d54e83a22"
     },
     {
-      "id": "L114#1",
-      "kind": "window",
+      "id": "store#1",
+      "kind": "symbol",
+      "symbolId": "store",
       "start": {
         "line": 114,
         "column": 0,
         "offset": 2341
       },
       "end": {
-        "line": 115,
-        "column": 15,
-        "offset": 2387
-      },
-      "text": "/// Builds a store from pairs.\n#[macro_export]",
-      "hash": "f701c71e6178f454e70e32c407b338e6287a77974e85aab8f4c433da0bcd14a5"
-    },
-    {
-      "id": "store#1",
-      "kind": "symbol",
-      "symbolId": "store",
-      "start": {
-        "line": 116,
-        "column": 0,
-        "offset": 2388
-      },
-      "end": {
         "line": 122,
         "column": 1,
         "offset": 2544
       },
-      "text": "macro_rules! store {\n    ($($k:expr =\u003e $v:expr),* $(,)?) =\u003e {{\n        let mut s = $crate::Store::new();\n        $( s.insert($k, $v); )*\n        s\n    }};\n}",
-      "hash": "23340be2e74ec8f62afb41723ef16a1a54567aa9ab4d9e132127dce675850adf"
+      "text": "/// Builds a store from pairs.\n#[macro_export]\nmacro_rules! store {\n    ($($k:expr =\u003e $v:expr),* $(,)?) =\u003e {{\n        let mut s = $crate::Store::new();\n        $( s.insert($k, $v); )*\n        s\n    }};\n}",
+      "hash": "ca0e246faa5b37d4977e2a85576a922d851a806136fd30d61c6b033dd0a502ff"
     },
     {
       "id": "open#1",

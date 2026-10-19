@@ -368,7 +368,7 @@
       "kind": "class",
       "name": "Circle",
       "qualName": "Demo.Geometry.Circle",
-      "signature": "[Serializable] public class Circle : IShape",
+      "signature": "public class Circle : IShape",
       "doc": "\u003csummary\u003eA circle around a centre.\u003c/summary\u003e",
       "start": {
         "line": 49,

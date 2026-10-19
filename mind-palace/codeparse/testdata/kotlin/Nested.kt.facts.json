@@ -214,7 +214,7 @@
       "kind": "function",
       "name": "oldHelper",
       "qualName": "com.example.nested.oldHelper",
-      "signature": "@Deprecated(\"use outsideHelper\")",
+      "signature": "private fun oldHelper(): Int = 41",
       "start": {
         "line": 42,
         "column": 0,
@@ -322,7 +322,7 @@
       "kind": "function",
       "name": "annotated",
       "qualName": "com.example.nested.annotated",
-      "signature": "@Suppress(\"unused\")",
+      "signature": "internal fun annotated(vararg values: Int) = values.sum()",
       "start": {
         "line": 53,
         "column": 0,

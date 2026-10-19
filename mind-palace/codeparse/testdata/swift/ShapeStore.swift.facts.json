@@ -113,7 +113,7 @@
       "kind": "class",
       "name": "ShapeStore",
       "qualName": "ShapeStore",
-      "signature": "@MainActor final class ShapeStore: ObservableObject, ShapeRepository",
+      "signature": "final class ShapeStore: ObservableObject, ShapeRepository",
       "doc": "Loads and caches shapes for the editor.",
       "start": {
         "line": 17,

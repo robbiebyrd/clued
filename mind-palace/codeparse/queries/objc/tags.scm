@@ -1,6 +1,6 @@
 ; Objective-C: classes (@interface), class extensions, categories,
-; @implementation blocks, protocols, methods (named by their selector's
-; first keyword), properties and instance variables, plus the C layer:
+; @implementation blocks, protocols, methods (named by their whole
+; selector), properties and instance variables, plus the C layer:
 ; functions, structs, unions, enums, typedefs, macros and file-level
 ; variables. In tree-sitter's tags-query convention plus clued's captures
 ; (see ../README.md). Doc comments are the comments on the lines just above
@@ -87,26 +87,39 @@
   .
   (identifier) @name) @definition.protocol
 
-; ---- methods: declarations and definitions, named by the first keyword
-; of the selector (initWithName for initWithName:sides:)
+; ---- methods: declarations and definitions, named by their whole
+; selector (initWithName:sides:). Each keyword and its colon is a
+; @name.part; the extractor joins the parts of one method in source order.
+; A keyword is the first identifier or one followed by a parameter, so a
+; trailing macro (NS_DESIGNATED_INITIALIZER) is not one.
 
 (method_declaration
   (method_type)
   .
-  (identifier) @name) @definition.method
+  (identifier) @name.part) @definition.method
 
 (method_declaration
   .
-  (identifier) @name) @definition.method
+  (identifier) @name.part) @definition.method
+
+(method_declaration
+  (identifier) @name.part
+  .
+  (method_parameter ":" @name.part)) @definition.method
 
 (method_definition
   (method_type)
   .
-  (identifier) @name) @definition.method
+  (identifier) @name.part) @definition.method
 
 (method_definition
   .
-  (identifier) @name) @definition.method
+  (identifier) @name.part) @definition.method
+
+(method_definition
+  (identifier) @name.part
+  .
+  (method_parameter ":" @name.part)) @definition.method
 
 ; ---- properties and instance variables (gotreesitter v0.56.0 can give
 ; every match of an alternation the first branch's @name, so each
@@ -372,11 +385,15 @@
 
 ; ---- references: messages (selector-based calls), C calls
 
-; [receiver keyword:arg other:arg] — the call is to the first keyword.
+; [receiver keyword:arg other:arg] — the call is to the whole selector
+; (keyword:other:), joined from its keywords and colons as a method's is.
 (message_expression
   receiver: (_) @qualifier
-  .
-  method: (identifier) @name) @reference.send
+  method: (identifier) @name.part) @reference.send
+
+(message_expression
+  receiver: (_) @qualifier
+  ":" @name.part) @reference.send
 
 ((call_expression
   function: (identifier) @name) @reference.call

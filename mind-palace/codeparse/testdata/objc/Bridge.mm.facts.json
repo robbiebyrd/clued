@@ -21,10 +21,10 @@
       "exported": true
     },
     {
-      "id": "MeshBridge.initWithVertices",
+      "id": "MeshBridge.initWithVertices:",
       "kind": "method",
-      "name": "initWithVertices",
-      "qualName": "MeshBridge.initWithVertices",
+      "name": "initWithVertices:",
+      "qualName": "MeshBridge.initWithVertices:",
       "signature": "- (instancetype)initWithVertices:(int)vertices;",
       "start": {
         "line": 23,
@@ -77,10 +77,10 @@
       "exported": true
     },
     {
-      "id": "MeshBridge.initWithVertices~2",
+      "id": "MeshBridge.initWithVertices:~2",
       "kind": "method",
-      "name": "initWithVertices",
-      "qualName": "MeshBridge.initWithVertices",
+      "name": "initWithVertices:",
+      "qualName": "MeshBridge.initWithVertices:",
       "signature": "- (instancetype)initWithVertices:(int)vertices",
       "start": {
         "line": 31,
@@ -220,7 +220,7 @@
         "column": 23,
         "offset": 760
       },
-      "enclosing": "MeshBridge.initWithVertices~2"
+      "enclosing": "MeshBridge.initWithVertices:~2"
     },
     {
       "name": "Mesh",
@@ -230,7 +230,7 @@
         "column": 30,
         "offset": 800
       },
-      "enclosing": "MeshBridge.initWithVertices~2"
+      "enclosing": "MeshBridge.initWithVertices:~2"
     },
     {
       "name": "vertexCount",

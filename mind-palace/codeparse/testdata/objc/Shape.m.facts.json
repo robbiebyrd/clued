@@ -131,10 +131,10 @@
       "exported": true
     },
     {
-      "id": "Shape.initWithName",
+      "id": "Shape.initWithName:sides:",
       "kind": "method",
-      "name": "initWithName",
-      "qualName": "Shape.initWithName",
+      "name": "initWithName:sides:",
+      "qualName": "Shape.initWithName:sides:",
       "signature": "- (instancetype)initWithName:(NSString *)name sides:(NSInteger)sides",
       "start": {
         "line": 20,
@@ -150,10 +150,10 @@
       "exported": true
     },
     {
-      "id": "Shape.shapeNamed",
+      "id": "Shape.shapeNamed:",
       "kind": "method",
-      "name": "shapeNamed",
-      "qualName": "Shape.shapeNamed",
+      "name": "shapeNamed:",
+      "qualName": "Shape.shapeNamed:",
       "signature": "+ (Shape *)shapeNamed:(NSString *)name",
       "start": {
         "line": 30,
@@ -188,10 +188,10 @@
       "exported": true
     },
     {
-      "id": "Shape.splitInto",
+      "id": "Shape.splitInto:",
       "kind": "method",
-      "name": "splitInto",
-      "qualName": "Shape.splitInto",
+      "name": "splitInto:",
+      "qualName": "Shape.splitInto:",
       "signature": "- (NSArray\u003cShape *\u003e *)splitInto:(NSUInteger)parts",
       "start": {
         "line": 40,
@@ -207,10 +207,10 @@
       "exported": true
     },
     {
-      "id": "Shape.drawInRect",
+      "id": "Shape.drawInRect:context:",
       "kind": "method",
-      "name": "drawInRect",
-      "qualName": "Shape.drawInRect",
+      "name": "drawInRect:context:",
+      "qualName": "Shape.drawInRect:context:",
       "signature": "- (void)drawInRect:(CGRect)rect context:(CGContextRef)context",
       "start": {
         "line": 49,
@@ -245,10 +245,10 @@
       "exported": true
     },
     {
-      "id": "Shape.copyWithZone",
+      "id": "Shape.copyWithZone:",
       "kind": "method",
-      "name": "copyWithZone",
-      "qualName": "Shape.copyWithZone",
+      "name": "copyWithZone:",
+      "qualName": "Shape.copyWithZone:",
       "signature": "- (id)copyWithZone:(NSZone *)zone",
       "start": {
         "line": 62,
@@ -483,7 +483,7 @@
         "column": 30,
         "offset": 407
       },
-      "enclosing": "Shape.initWithName"
+      "enclosing": "Shape.initWithName:sides:"
     },
     {
       "name": "NSInteger",
@@ -493,7 +493,7 @@
         "column": 53,
         "offset": 430
       },
-      "enclosing": "Shape.initWithName"
+      "enclosing": "Shape.initWithName:sides:"
     },
     {
       "name": "init",
@@ -504,7 +504,7 @@
         "column": 18,
         "offset": 466
       },
-      "enclosing": "Shape.initWithName"
+      "enclosing": "Shape.initWithName:sides:"
     },
     {
       "name": "copy",
@@ -515,7 +515,7 @@
         "column": 22,
         "offset": 511
       },
-      "enclosing": "Shape.initWithName"
+      "enclosing": "Shape.initWithName:sides:"
     },
     {
       "name": "SK_CLAMP",
@@ -525,7 +525,7 @@
         "column": 17,
         "offset": 535
       },
-      "enclosing": "Shape.initWithName"
+      "enclosing": "Shape.initWithName:sides:"
     },
     {
       "name": "Shape",
@@ -535,7 +535,7 @@
         "column": 3,
         "offset": 621
       },
-      "enclosing": "Shape.shapeNamed"
+      "enclosing": "Shape.shapeNamed:"
     },
     {
       "name": "NSString",
@@ -545,7 +545,7 @@
         "column": 23,
         "offset": 641
       },
-      "enclosing": "Shape.shapeNamed"
+      "enclosing": "Shape.shapeNamed:"
     },
     {
       "name": "alloc",
@@ -556,10 +556,10 @@
         "column": 18,
         "offset": 677
       },
-      "enclosing": "Shape.shapeNamed"
+      "enclosing": "Shape.shapeNamed:"
     },
     {
-      "name": "initWithName",
+      "name": "initWithName:sides:",
       "qualifier": "[self alloc]",
       "kind": "call",
       "start": {
@@ -567,7 +567,7 @@
         "column": 25,
         "offset": 684
       },
-      "enclosing": "Shape.shapeNamed"
+      "enclosing": "Shape.shapeNamed:"
     },
     {
       "name": "SKPoint3",
@@ -607,7 +607,7 @@
         "column": 3,
         "offset": 852
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "Shape",
@@ -617,7 +617,7 @@
         "column": 11,
         "offset": 860
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "NSUInteger",
@@ -627,7 +627,7 @@
         "column": 33,
         "offset": 882
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "NSMutableArray",
@@ -637,7 +637,7 @@
         "column": 4,
         "offset": 905
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "Shape",
@@ -647,10 +647,10 @@
         "column": 19,
         "offset": 920
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
-      "name": "arrayWithCapacity",
+      "name": "arrayWithCapacity:",
       "qualifier": "NSMutableArray",
       "kind": "call",
       "start": {
@@ -658,7 +658,7 @@
         "column": 54,
         "offset": 955
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "NSUInteger",
@@ -668,7 +668,7 @@
         "column": 9,
         "offset": 990
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "Shape",
@@ -678,10 +678,10 @@
         "column": 8,
         "offset": 1034
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
-      "name": "shapeNamed",
+      "name": "shapeNamed:",
       "qualifier": "Shape",
       "kind": "call",
       "start": {
@@ -689,10 +689,10 @@
         "column": 30,
         "offset": 1056
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
-      "name": "stringWithFormat",
+      "name": "stringWithFormat:",
       "qualifier": "NSString",
       "kind": "call",
       "start": {
@@ -700,7 +700,7 @@
         "column": 51,
         "offset": 1077
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "name",
@@ -711,10 +711,10 @@
         "column": 84,
         "offset": 1110
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
-      "name": "addObject",
+      "name": "addObject:",
       "qualifier": "result",
       "kind": "call",
       "start": {
@@ -722,7 +722,7 @@
         "column": 16,
         "offset": 1152
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "copy",
@@ -733,7 +733,7 @@
         "column": 19,
         "offset": 1195
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "CGRect",
@@ -743,7 +743,7 @@
         "column": 20,
         "offset": 1225
       },
-      "enclosing": "Shape.drawInRect"
+      "enclosing": "Shape.drawInRect:context:"
     },
     {
       "name": "CGContextRef",
@@ -753,7 +753,7 @@
         "column": 41,
         "offset": 1246
       },
-      "enclosing": "Shape.drawInRect"
+      "enclosing": "Shape.drawInRect:context:"
     },
     {
       "name": "CGContextSaveGState",
@@ -763,10 +763,10 @@
         "column": 4,
         "offset": 1273
       },
-      "enclosing": "Shape.drawInRect"
+      "enclosing": "Shape.drawInRect:context:"
     },
     {
-      "name": "strokeRect",
+      "name": "strokeRect:width:",
       "qualifier": "_canvas",
       "kind": "call",
       "start": {
@@ -774,7 +774,7 @@
         "column": 13,
         "offset": 1316
       },
-      "enclosing": "Shape.drawInRect"
+      "enclosing": "Shape.drawInRect:context:"
     },
     {
       "name": "scale",
@@ -785,7 +785,7 @@
         "column": 40,
         "offset": 1343
       },
-      "enclosing": "Shape.drawInRect"
+      "enclosing": "Shape.drawInRect:context:"
     },
     {
       "name": "CGContextRestoreGState",
@@ -795,7 +795,7 @@
         "column": 4,
         "offset": 1355
       },
-      "enclosing": "Shape.drawInRect"
+      "enclosing": "Shape.drawInRect:context:"
     },
     {
       "name": "completion",
@@ -806,7 +806,7 @@
         "column": 13,
         "offset": 1401
       },
-      "enclosing": "Shape.drawInRect"
+      "enclosing": "Shape.drawInRect:context:"
     },
     {
       "name": "completion",
@@ -817,7 +817,7 @@
         "column": 13,
         "offset": 1428
       },
-      "enclosing": "Shape.drawInRect"
+      "enclosing": "Shape.drawInRect:context:"
     },
     {
       "name": "SKScale",
@@ -837,7 +837,7 @@
         "column": 20,
         "offset": 1517
       },
-      "enclosing": "Shape.copyWithZone"
+      "enclosing": "Shape.copyWithZone:"
     },
     {
       "name": "class",
@@ -848,10 +848,10 @@
         "column": 19,
         "offset": 1552
       },
-      "enclosing": "Shape.copyWithZone"
+      "enclosing": "Shape.copyWithZone:"
     },
     {
-      "name": "allocWithZone",
+      "name": "allocWithZone:",
       "qualifier": "[self class]",
       "kind": "call",
       "start": {
@@ -859,10 +859,10 @@
         "column": 26,
         "offset": 1559
       },
-      "enclosing": "Shape.copyWithZone"
+      "enclosing": "Shape.copyWithZone:"
     },
     {
-      "name": "initWithName",
+      "name": "initWithName:sides:",
       "qualifier": "[[self class] allocWithZone:zone]",
       "kind": "call",
       "start": {
@@ -870,7 +870,7 @@
         "column": 46,
         "offset": 1579
       },
-      "enclosing": "Shape.copyWithZone"
+      "enclosing": "Shape.copyWithZone:"
     },
     {
       "name": "name",
@@ -881,10 +881,10 @@
         "column": 64,
         "offset": 1597
       },
-      "enclosing": "Shape.copyWithZone"
+      "enclosing": "Shape.copyWithZone:"
     },
     {
-      "name": "performSelector",
+      "name": "performSelector:withObject:afterDelay:",
       "qualifier": "self",
       "kind": "call",
       "start": {
@@ -905,7 +905,7 @@
       "enclosing": "Shape.Debugging.debugLabel"
     },
     {
-      "name": "stringWithFormat",
+      "name": "stringWithFormat:",
       "qualifier": "NSString",
       "kind": "call",
       "start": {
@@ -1064,7 +1064,7 @@
       "enclosing": "SKMakeShape"
     },
     {
-      "name": "shapeNamed",
+      "name": "shapeNamed:",
       "qualifier": "Shape",
       "kind": "call",
       "start": {
@@ -1086,7 +1086,7 @@
       "enclosing": "SKMakeShape"
     },
     {
-      "name": "initWithName",
+      "name": "initWithName:sides:",
       "qualifier": "[Shape alloc]",
       "kind": "call",
       "start": {

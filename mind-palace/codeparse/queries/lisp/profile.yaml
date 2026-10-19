@@ -107,6 +107,10 @@ scope:
   exported: all
   # Only Common Lisp reads symbols without case (caseInsensitiveDialects).
   caseInsensitive: false
+  # A Racket or Scheme prefix (prefix-in str:, (prefix (lib) util:)) is part
+  # of the symbol to the grammar: the extractor cuts str:string-join into
+  # the qualifier str and the name string-join.
+  splitQualifiers: { racket: ":", scheme: ":" }
   options:
     # Dialects whose symbols compare without case.
     caseInsensitiveDialects: commonlisp
@@ -119,4 +123,4 @@ scope:
     globalDialects: elisp
     # The separator between a qualified reference's Qualifier and its name
     # in the source, per dialect (pkg:name or pkg::name, ns/name).
-    qualifierSeparators: "commonlisp=: clojure=/"
+    qualifierSeparators: "commonlisp=: clojure=/ racket=: scheme=:"

@@ -6,7 +6,7 @@
       "kind": "class",
       "name": "User",
       "qualName": "User",
-      "signature": "@JsonSerializable(explicitToJson: true) class User",
+      "signature": "class User",
       "doc": "A user of the service, read from and written to JSON.",
       "start": {
         "line": 6,
@@ -84,6 +84,7 @@
       "name": "name",
       "qualName": "User.name",
       "signature": "final String name",
+      "doc": "The display name.",
       "start": {
         "line": 17,
         "column": 15,

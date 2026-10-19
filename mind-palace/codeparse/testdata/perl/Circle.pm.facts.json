@@ -201,10 +201,10 @@
       }
     },
     {
-      "id": "My::Shape::Circle::My::Shape::Registry::register",
+      "id": "My::Shape::Registry::register",
       "kind": "function",
       "name": "register",
-      "qualName": "My::Shape::Circle::My::Shape::Registry::register",
+      "qualName": "My::Shape::Registry::register",
       "signature": "sub My::Shape::Registry::register",
       "doc": "Defined into another package from here.",
       "start": {
@@ -393,7 +393,7 @@
         "column": 36,
         "offset": 875
       },
-      "enclosing": "My::Shape::Circle::My::Shape::Registry::register"
+      "enclosing": "My::Shape::Registry::register"
     },
     {
       "name": "area",
@@ -507,9 +507,9 @@
       "hash": "d6eb382d8cc759678b47d33976f492d1428a41447cbe8f08b7aab143461cef28"
     },
     {
-      "id": "My::Shape::Circle::My::Shape::Registry::register#1",
+      "id": "My::Shape::Registry::register#1",
       "kind": "symbol",
-      "symbolId": "My::Shape::Circle::My::Shape::Registry::register",
+      "symbolId": "My::Shape::Registry::register",
       "start": {
         "line": 45,
         "column": 0,

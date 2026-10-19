@@ -30,13 +30,12 @@
   source: (string) @import.spec
   (#set! import.kind "import")) @import
 
-; `import {a, b as c, default as d}`: the exported names, as the module
-; that is imported spells them.
+; `import {a, b as c, default as d}`: each specifier as written (`b as c`),
+; as TypeScript's are; the resolver reads the exported and the local name.
 (import_statement
   (import_clause
     (named_imports
-      (import_specifier
-        name: _ @import.name)))
+      (import_specifier) @import.name))
   source: (string) @import.spec
   (#set! import.kind "import")) @import
 
@@ -53,8 +52,7 @@
 
 (export_statement
   (export_clause
-    (export_specifier
-      name: _ @import.name))
+    (export_specifier) @import.name)
   source: (string) @import.spec
   (#set! import.kind "export")) @import
 
@@ -80,11 +78,10 @@
   (#eq? @_require "require")
   (#set! import.kind "require"))
 
-; `const {a, b: c} = require('m')`: the names it takes.
+; `const {a, b: c} = require('m')`: each property as written (`b: c`).
 (variable_declarator
   name: (object_pattern
-    [(shorthand_property_identifier_pattern) @import.name
-     (pair_pattern key: (property_identifier) @import.name)])
+    [(shorthand_property_identifier_pattern) (pair_pattern)] @import.name)
   value: (call_expression
     function: (identifier) @_require
     arguments: (arguments . (string) @import.spec)) @import
