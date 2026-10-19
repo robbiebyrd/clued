@@ -1,0 +1,2814 @@
+{
+  "lang": "dart",
+  "package": "demo.shapes",
+  "symbols": [
+    {
+      "id": "demo.shapes.kRoughPi",
+      "kind": "const",
+      "name": "kRoughPi",
+      "qualName": "demo.shapes.kRoughPi",
+      "signature": "kRoughPi = 3.14",
+      "doc": "The ratio of a circle's circumference to its diameter, to two places.",
+      "start": {
+        "line": 7,
+        "column": 13,
+        "offset": 208
+      },
+      "end": {
+        "line": 7,
+        "column": 28,
+        "offset": 223
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.registry",
+      "kind": "const",
+      "name": "registry",
+      "qualName": "demo.shapes.registry",
+      "signature": "registry = {}",
+      "doc": "Every shape made so far, by name.",
+      "start": {
+        "line": 10,
+        "column": 25,
+        "offset": 289
+      },
+      "end": {
+        "line": 10,
+        "column": 38,
+        "offset": 302
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.created",
+      "kind": "var",
+      "name": "created",
+      "qualName": "demo.shapes.created",
+      "signature": "created = 0",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 309
+      },
+      "end": {
+        "line": 12,
+        "column": 15,
+        "offset": 320
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.destroyed",
+      "kind": "var",
+      "name": "destroyed",
+      "qualName": "demo.shapes.destroyed",
+      "signature": "destroyed = 0",
+      "start": {
+        "line": 12,
+        "column": 17,
+        "offset": 322
+      },
+      "end": {
+        "line": 12,
+        "column": 30,
+        "offset": 335
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.lastName",
+      "kind": "var",
+      "name": "lastName",
+      "qualName": "demo.shapes.lastName",
+      "signature": "lastName",
+      "start": {
+        "line": 13,
+        "column": 12,
+        "offset": 349
+      },
+      "end": {
+        "line": 13,
+        "column": 20,
+        "offset": 357
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes._cached",
+      "kind": "var",
+      "name": "_cached",
+      "qualName": "demo.shapes._cached",
+      "signature": "_cached",
+      "start": {
+        "line": 14,
+        "column": 5,
+        "offset": 364
+      },
+      "end": {
+        "line": 14,
+        "column": 12,
+        "offset": 371
+      }
+    },
+    {
+      "id": "demo.shapes.Predicate",
+      "kind": "type",
+      "name": "Predicate",
+      "qualName": "demo.shapes.Predicate",
+      "signature": "typedef Predicate\u003cT\u003e = bool Function(T value);",
+      "doc": "Decides whether [value] passes.",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 410
+      },
+      "end": {
+        "line": 17,
+        "column": 46,
+        "offset": 456
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Compare",
+      "kind": "type",
+      "name": "Compare",
+      "qualName": "demo.shapes.Compare",
+      "signature": "typedef int Compare(Shape a, Shape b);",
+      "doc": "Compares two shapes.",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 483
+      },
+      "end": {
+        "line": 20,
+        "column": 38,
+        "offset": 521
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape",
+      "kind": "class",
+      "name": "Shape",
+      "qualName": "demo.shapes.Shape",
+      "signature": "abstract class Shape implements Comparable\u003cShape\u003e",
+      "doc": "A closed figure in the plane.",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 557
+      },
+      "end": {
+        "line": 71,
+        "column": 1,
+        "offset": 1623
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.Shape",
+      "kind": "constructor",
+      "name": "Shape",
+      "qualName": "demo.shapes.Shape.Shape",
+      "signature": "Shape(this.label)",
+      "doc": "Creates a shape called [label].",
+      "start": {
+        "line": 25,
+        "column": 20,
+        "offset": 667
+      },
+      "end": {
+        "line": 27,
+        "column": 3,
+        "offset": 687
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.unnamed",
+      "kind": "constructor",
+      "name": "unnamed",
+      "qualName": "demo.shapes.Shape.unnamed",
+      "signature": "Shape.unnamed() : label = ''",
+      "doc": "A shape with no label yet.",
+      "start": {
+        "line": 30,
+        "column": 2,
+        "offset": 724
+      },
+      "end": {
+        "line": 30,
+        "column": 30,
+        "offset": 752
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.circle",
+      "kind": "constructor",
+      "name": "circle",
+      "qualName": "demo.shapes.Shape.circle",
+      "signature": "factory Shape.circle(double r)",
+      "doc": "A circle of radius [r].",
+      "start": {
+        "line": 33,
+        "column": 33,
+        "offset": 818
+      },
+      "end": {
+        "line": 33,
+        "column": 46,
+        "offset": 831
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.label",
+      "kind": "field",
+      "name": "label",
+      "qualName": "demo.shapes.Shape.label",
+      "signature": "final String label",
+      "doc": "The shape's name.",
+      "start": {
+        "line": 36,
+        "column": 15,
+        "offset": 872
+      },
+      "end": {
+        "line": 36,
+        "column": 20,
+        "offset": 877
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.count",
+      "kind": "field",
+      "name": "count",
+      "qualName": "demo.shapes.Shape.count",
+      "signature": "static int count = 0",
+      "doc": "How many shapes are alive.",
+      "start": {
+        "line": 39,
+        "column": 13,
+        "offset": 926
+      },
+      "end": {
+        "line": 39,
+        "column": 22,
+        "offset": 935
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape._x",
+      "kind": "field",
+      "name": "_x",
+      "qualName": "demo.shapes.Shape._x",
+      "signature": "int _x = 0, _y = 0",
+      "start": {
+        "line": 41,
+        "column": 6,
+        "offset": 944
+      },
+      "end": {
+        "line": 41,
+        "column": 12,
+        "offset": 950
+      },
+      "parent": "demo.shapes.Shape"
+    },
+    {
+      "id": "demo.shapes.Shape._y",
+      "kind": "field",
+      "name": "_y",
+      "qualName": "demo.shapes.Shape._y",
+      "signature": "int _x = 0, _y = 0",
+      "start": {
+        "line": 41,
+        "column": 14,
+        "offset": 952
+      },
+      "end": {
+        "line": 41,
+        "column": 20,
+        "offset": 958
+      },
+      "parent": "demo.shapes.Shape"
+    },
+    {
+      "id": "demo.shapes.Shape.area",
+      "kind": "property",
+      "name": "area",
+      "qualName": "demo.shapes.Shape.area",
+      "signature": "double get area",
+      "doc": "The area, in square units.",
+      "start": {
+        "line": 44,
+        "column": 2,
+        "offset": 996
+      },
+      "end": {
+        "line": 44,
+        "column": 17,
+        "offset": 1011
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.origin",
+      "kind": "property",
+      "name": "origin",
+      "qualName": "demo.shapes.Shape.origin",
+      "signature": "set origin(math.Point\u003cint\u003e p)",
+      "doc": "Moves the shape to [p].",
+      "start": {
+        "line": 47,
+        "column": 32,
+        "offset": 1076
+      },
+      "end": {
+        "line": 50,
+        "column": 3,
+        "offset": 1109
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.compareTo",
+      "kind": "method",
+      "name": "compareTo",
+      "qualName": "demo.shapes.Shape.compareTo",
+      "signature": "int compareTo(Shape other)",
+      "doc": "Orders shapes by area.",
+      "start": {
+        "line": 54,
+        "column": 29,
+        "offset": 1181
+      },
+      "end": {
+        "line": 54,
+        "column": 59,
+        "offset": 1211
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.==",
+      "kind": "method",
+      "name": "==",
+      "qualName": "demo.shapes.Shape.==",
+      "signature": "bool operator ==(Object other)",
+      "doc": "Whether two shapes have the same area.",
+      "start": {
+        "line": 57,
+        "column": 33,
+        "offset": 1291
+      },
+      "end": {
+        "line": 57,
+        "column": 73,
+        "offset": 1331
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.+",
+      "kind": "method",
+      "name": "+",
+      "qualName": "demo.shapes.Shape.+",
+      "signature": "Shape operator +(Shape other)",
+      "start": {
+        "line": 59,
+        "column": 2,
+        "offset": 1335
+      },
+      "end": {
+        "line": 59,
+        "column": 31,
+        "offset": 1364
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.scale",
+      "kind": "method",
+      "name": "scale",
+      "qualName": "demo.shapes.Shape.scale",
+      "signature": "Shape scale(double factor)",
+      "doc": "Scales the shape by [factor].",
+      "start": {
+        "line": 62,
+        "column": 2,
+        "offset": 1405
+      },
+      "end": {
+        "line": 62,
+        "column": 28,
+        "offset": 1431
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape.largest",
+      "kind": "method",
+      "name": "largest",
+      "qualName": "demo.shapes.Shape.largest",
+      "signature": "static Shape largest(List\u003cShape\u003e shapes)",
+      "start": {
+        "line": 64,
+        "column": 43,
+        "offset": 1477
+      },
+      "end": {
+        "line": 66,
+        "column": 3,
+        "offset": 1547
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Shape._log",
+      "kind": "method",
+      "name": "_log",
+      "qualName": "demo.shapes.Shape._log",
+      "signature": "void _log()",
+      "start": {
+        "line": 68,
+        "column": 14,
+        "offset": 1563
+      },
+      "end": {
+        "line": 68,
+        "column": 44,
+        "offset": 1593
+      },
+      "parent": "demo.shapes.Shape"
+    },
+    {
+      "id": "demo.shapes.Shape.release",
+      "kind": "method",
+      "name": "release",
+      "qualName": "demo.shapes.Shape.release",
+      "signature": "external void release()",
+      "start": {
+        "line": 70,
+        "column": 2,
+        "offset": 1597
+      },
+      "end": {
+        "line": 70,
+        "column": 25,
+        "offset": 1620
+      },
+      "parent": "demo.shapes.Shape",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Circle",
+      "kind": "class",
+      "name": "Circle",
+      "qualName": "demo.shapes.Circle",
+      "signature": "class Circle extends Shape with Printable, Comparing\u003cCircle\u003e",
+      "doc": "A circle.",
+      "start": {
+        "line": 74,
+        "column": 0,
+        "offset": 1639
+      },
+      "end": {
+        "line": 98,
+        "column": 1,
+        "offset": 2283
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Circle.Circle",
+      "kind": "constructor",
+      "name": "Circle",
+      "qualName": "demo.shapes.Circle.Circle",
+      "signature": "Circle(this.radius) : super('circle')",
+      "doc": "A circle of radius [radius].",
+      "start": {
+        "line": 76,
+        "column": 2,
+        "offset": 1739
+      },
+      "end": {
+        "line": 76,
+        "column": 39,
+        "offset": 1776
+      },
+      "parent": "demo.shapes.Circle",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Circle.unit",
+      "kind": "constructor",
+      "name": "unit",
+      "qualName": "demo.shapes.Circle.unit",
+      "signature": "const Circle.unit() : radius = 1, super.unnamed()",
+      "doc": "The unit circle.",
+      "start": {
+        "line": 79,
+        "column": 2,
+        "offset": 1804
+      },
+      "end": {
+        "line": 79,
+        "column": 51,
+        "offset": 1853
+      },
+      "parent": "demo.shapes.Circle",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Circle.fromMap",
+      "kind": "constructor",
+      "name": "fromMap",
+      "qualName": "demo.shapes.Circle.fromMap",
+      "signature": "factory Circle.fromMap(Map\u003cString, Object?\u003e map) = _MapCircle",
+      "doc": "A circle read from a map.",
+      "start": {
+        "line": 82,
+        "column": 2,
+        "offset": 1890
+      },
+      "end": {
+        "line": 82,
+        "column": 63,
+        "offset": 1951
+      },
+      "parent": "demo.shapes.Circle",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Circle.radius",
+      "kind": "field",
+      "name": "radius",
+      "qualName": "demo.shapes.Circle.radius",
+      "signature": "final double radius",
+      "start": {
+        "line": 84,
+        "column": 15,
+        "offset": 1969
+      },
+      "end": {
+        "line": 84,
+        "column": 21,
+        "offset": 1975
+      },
+      "parent": "demo.shapes.Circle",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Circle.area",
+      "kind": "property",
+      "name": "area",
+      "qualName": "demo.shapes.Circle.area",
+      "signature": "double get area",
+      "start": {
+        "line": 87,
+        "column": 18,
+        "offset": 2008
+      },
+      "end": {
+        "line": 87,
+        "column": 47,
+        "offset": 2037
+      },
+      "parent": "demo.shapes.Circle",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Circle.+",
+      "kind": "method",
+      "name": "+",
+      "qualName": "demo.shapes.Circle.+",
+      "signature": "Shape operator +(Shape other)",
+      "start": {
+        "line": 90,
+        "column": 32,
+        "offset": 2083
+      },
+      "end": {
+        "line": 90,
+        "column": 73,
+        "offset": 2124
+      },
+      "parent": "demo.shapes.Circle",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Circle.scale",
+      "kind": "method",
+      "name": "scale",
+      "qualName": "demo.shapes.Circle.scale",
+      "signature": "Circle scale(double factor)",
+      "start": {
+        "line": 94,
+        "column": 30,
+        "offset": 2198
+      },
+      "end": {
+        "line": 97,
+        "column": 3,
+        "offset": 2281
+      },
+      "parent": "demo.shapes.Circle",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Circle.scale.grown",
+      "kind": "function",
+      "name": "grown",
+      "qualName": "demo.shapes.Circle.scale.grown",
+      "signature": "Circle grown(double by)",
+      "start": {
+        "line": 95,
+        "column": 4,
+        "offset": 2204
+      },
+      "end": {
+        "line": 95,
+        "column": 51,
+        "offset": 2251
+      },
+      "parent": "demo.shapes.Circle.scale",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes._MapCircle",
+      "kind": "class",
+      "name": "_MapCircle",
+      "qualName": "demo.shapes._MapCircle",
+      "signature": "class _MapCircle extends Circle",
+      "start": {
+        "line": 100,
+        "column": 0,
+        "offset": 2285
+      },
+      "end": {
+        "line": 102,
+        "column": 1,
+        "offset": 2393
+      }
+    },
+    {
+      "id": "demo.shapes._MapCircle._MapCircle",
+      "kind": "constructor",
+      "name": "_MapCircle",
+      "qualName": "demo.shapes._MapCircle._MapCircle",
+      "signature": "_MapCircle(Map\u003cString, Object?\u003e map) : super(map['radius'] as double)",
+      "start": {
+        "line": 101,
+        "column": 2,
+        "offset": 2321
+      },
+      "end": {
+        "line": 101,
+        "column": 71,
+        "offset": 2390
+      },
+      "parent": "demo.shapes._MapCircle"
+    },
+    {
+      "id": "demo.shapes.Printable",
+      "kind": "mixin",
+      "name": "Printable",
+      "qualName": "demo.shapes.Printable",
+      "signature": "mixin Printable on Shape",
+      "doc": "Something that can print itself.",
+      "start": {
+        "line": 105,
+        "column": 0,
+        "offset": 2432
+      },
+      "end": {
+        "line": 110,
+        "column": 1,
+        "offset": 2586
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Printable.printMe",
+      "kind": "method",
+      "name": "printMe",
+      "qualName": "demo.shapes.Printable.printMe",
+      "signature": "void printMe()",
+      "doc": "Prints the shape.",
+      "start": {
+        "line": 107,
+        "column": 17,
+        "offset": 2500
+      },
+      "end": {
+        "line": 107,
+        "column": 38,
+        "offset": 2521
+      },
+      "parent": "demo.shapes.Printable",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Printable.describe",
+      "kind": "method",
+      "name": "describe",
+      "qualName": "demo.shapes.Printable.describe",
+      "signature": "String describe()",
+      "start": {
+        "line": 109,
+        "column": 20,
+        "offset": 2543
+      },
+      "end": {
+        "line": 109,
+        "column": 61,
+        "offset": 2584
+      },
+      "parent": "demo.shapes.Printable",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Comparing",
+      "kind": "mixin",
+      "name": "Comparing",
+      "qualName": "demo.shapes.Comparing",
+      "signature": "mixin Comparing\u003cT extends Shape\u003e implements Comparable\u003cShape\u003e",
+      "start": {
+        "line": 112,
+        "column": 0,
+        "offset": 2588
+      },
+      "end": {
+        "line": 114,
+        "column": 1,
+        "offset": 2705
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Comparing.largerThan",
+      "kind": "method",
+      "name": "largerThan",
+      "qualName": "demo.shapes.Comparing.largerThan",
+      "signature": "bool largerThan(T other)",
+      "start": {
+        "line": 113,
+        "column": 27,
+        "offset": 2679
+      },
+      "end": {
+        "line": 113,
+        "column": 51,
+        "offset": 2703
+      },
+      "parent": "demo.shapes.Comparing",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Polygon",
+      "kind": "class",
+      "name": "Polygon",
+      "qualName": "demo.shapes.Polygon",
+      "signature": "sealed class Polygon extends Shape",
+      "doc": "Shapes in sealed, base, final, interface and mixin classes.",
+      "start": {
+        "line": 117,
+        "column": 0,
+        "offset": 2771
+      },
+      "end": {
+        "line": 123,
+        "column": 1,
+        "offset": 2943
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Polygon.Polygon",
+      "kind": "constructor",
+      "name": "Polygon",
+      "qualName": "demo.shapes.Polygon.Polygon",
+      "signature": "Polygon(super.label, this.sides)",
+      "start": {
+        "line": 118,
+        "column": 2,
+        "offset": 2810
+      },
+      "end": {
+        "line": 118,
+        "column": 34,
+        "offset": 2842
+      },
+      "parent": "demo.shapes.Polygon",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Polygon.sides",
+      "kind": "field",
+      "name": "sides",
+      "qualName": "demo.shapes.Polygon.sides",
+      "signature": "final int sides",
+      "start": {
+        "line": 119,
+        "column": 12,
+        "offset": 2856
+      },
+      "end": {
+        "line": 119,
+        "column": 17,
+        "offset": 2861
+      },
+      "parent": "demo.shapes.Polygon",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Polygon.[]=",
+      "kind": "method",
+      "name": "[]=",
+      "qualName": "demo.shapes.Polygon.[]=",
+      "signature": "void operator []=(int i, double length)",
+      "doc": "Sets the length of side [i].",
+      "start": {
+        "line": 122,
+        "column": 2,
+        "offset": 2901
+      },
+      "end": {
+        "line": 122,
+        "column": 41,
+        "offset": 2940
+      },
+      "parent": "demo.shapes.Polygon",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Square",
+      "kind": "class",
+      "name": "Square",
+      "qualName": "demo.shapes.Square",
+      "signature": "final class Square extends Polygon",
+      "start": {
+        "line": 125,
+        "column": 0,
+        "offset": 2945
+      },
+      "end": {
+        "line": 143,
+        "column": 1,
+        "offset": 3447
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Square.Square",
+      "kind": "constructor",
+      "name": "Square",
+      "qualName": "demo.shapes.Square.Square",
+      "signature": "Square(this.side) : super('square', 4)",
+      "start": {
+        "line": 126,
+        "column": 2,
+        "offset": 2984
+      },
+      "end": {
+        "line": 126,
+        "column": 40,
+        "offset": 3022
+      },
+      "parent": "demo.shapes.Square",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Square.side",
+      "kind": "field",
+      "name": "side",
+      "qualName": "demo.shapes.Square.side",
+      "signature": "final double side",
+      "start": {
+        "line": 127,
+        "column": 15,
+        "offset": 3039
+      },
+      "end": {
+        "line": 127,
+        "column": 19,
+        "offset": 3043
+      },
+      "parent": "demo.shapes.Square",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Square.area",
+      "kind": "property",
+      "name": "area",
+      "qualName": "demo.shapes.Square.area",
+      "signature": "double get area",
+      "start": {
+        "line": 129,
+        "column": 18,
+        "offset": 3075
+      },
+      "end": {
+        "line": 129,
+        "column": 33,
+        "offset": 3090
+      },
+      "parent": "demo.shapes.Square",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Square.+",
+      "kind": "method",
+      "name": "+",
+      "qualName": "demo.shapes.Square.+",
+      "signature": "Shape operator +(Shape other)",
+      "start": {
+        "line": 131,
+        "column": 32,
+        "offset": 3135
+      },
+      "end": {
+        "line": 131,
+        "column": 72,
+        "offset": 3175
+      },
+      "parent": "demo.shapes.Square",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Square.scale",
+      "kind": "method",
+      "name": "scale",
+      "qualName": "demo.shapes.Square.scale",
+      "signature": "Square scale(double factor)",
+      "start": {
+        "line": 133,
+        "column": 30,
+        "offset": 3218
+      },
+      "end": {
+        "line": 133,
+        "column": 55,
+        "offset": 3243
+      },
+      "parent": "demo.shapes.Square",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Square.[]",
+      "kind": "method",
+      "name": "[]",
+      "qualName": "demo.shapes.Square.[]",
+      "signature": "double operator [](int i)",
+      "start": {
+        "line": 135,
+        "column": 28,
+        "offset": 3273
+      },
+      "end": {
+        "line": 135,
+        "column": 36,
+        "offset": 3281
+      },
+      "parent": "demo.shapes.Square",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Square.[]=",
+      "kind": "method",
+      "name": "[]=",
+      "qualName": "demo.shapes.Square.[]=",
+      "signature": "void operator []=(int i, double length)",
+      "start": {
+        "line": 138,
+        "column": 42,
+        "offset": 3337
+      },
+      "end": {
+        "line": 138,
+        "column": 77,
+        "offset": 3372
+      },
+      "parent": "demo.shapes.Square",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Square.-",
+      "kind": "method",
+      "name": "-",
+      "qualName": "demo.shapes.Square.-",
+      "signature": "Square operator -()",
+      "start": {
+        "line": 140,
+        "column": 22,
+        "offset": 3396
+      },
+      "end": {
+        "line": 140,
+        "column": 39,
+        "offset": 3413
+      },
+      "parent": "demo.shapes.Square",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Square.~",
+      "kind": "method",
+      "name": "~",
+      "qualName": "demo.shapes.Square.~",
+      "signature": "Square operator ~()",
+      "start": {
+        "line": 142,
+        "column": 22,
+        "offset": 3437
+      },
+      "end": {
+        "line": 142,
+        "column": 30,
+        "offset": 3445
+      },
+      "parent": "demo.shapes.Square",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Anchor",
+      "kind": "class",
+      "name": "Anchor",
+      "qualName": "demo.shapes.Anchor",
+      "signature": "base class Anchor",
+      "start": {
+        "line": 145,
+        "column": 0,
+        "offset": 3449
+      },
+      "end": {
+        "line": 145,
+        "column": 20,
+        "offset": 3469
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Drawable",
+      "kind": "class",
+      "name": "Drawable",
+      "qualName": "demo.shapes.Drawable",
+      "signature": "interface class Drawable",
+      "start": {
+        "line": 147,
+        "column": 0,
+        "offset": 3471
+      },
+      "end": {
+        "line": 149,
+        "column": 1,
+        "offset": 3529
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Drawable.draw",
+      "kind": "method",
+      "name": "draw",
+      "qualName": "demo.shapes.Drawable.draw",
+      "signature": "void draw(Canvas canvas)",
+      "start": {
+        "line": 148,
+        "column": 27,
+        "offset": 3525
+      },
+      "end": {
+        "line": 148,
+        "column": 29,
+        "offset": 3527
+      },
+      "parent": "demo.shapes.Drawable",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Tagged",
+      "kind": "class",
+      "name": "Tagged",
+      "qualName": "demo.shapes.Tagged",
+      "signature": "mixin class Tagged",
+      "start": {
+        "line": 151,
+        "column": 0,
+        "offset": 3531
+      },
+      "end": {
+        "line": 153,
+        "column": 1,
+        "offset": 3580
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Tagged.tags",
+      "kind": "field",
+      "name": "tags",
+      "qualName": "demo.shapes.Tagged.tags",
+      "signature": "final tags = \u003cString\u003e{}",
+      "start": {
+        "line": 152,
+        "column": 8,
+        "offset": 3560
+      },
+      "end": {
+        "line": 152,
+        "column": 25,
+        "offset": 3577
+      },
+      "parent": "demo.shapes.Tagged",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.ShapeList",
+      "kind": "extension",
+      "name": "ShapeList",
+      "qualName": "demo.shapes.ShapeList",
+      "signature": "extension ShapeList on List\u003cShape\u003e",
+      "doc": "Helpers on every shape list.",
+      "start": {
+        "line": 156,
+        "column": 0,
+        "offset": 3615
+      },
+      "end": {
+        "line": 161,
+        "column": 1,
+        "offset": 3794
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.ShapeList.totalArea",
+      "kind": "property",
+      "name": "totalArea",
+      "qualName": "demo.shapes.ShapeList.totalArea",
+      "signature": "double get totalArea",
+      "doc": "The sum of the areas.",
+      "start": {
+        "line": 158,
+        "column": 23,
+        "offset": 3703
+      },
+      "end": {
+        "line": 158,
+        "column": 60,
+        "offset": 3740
+      },
+      "parent": "demo.shapes.ShapeList",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.ShapeList.sortedByArea",
+      "kind": "method",
+      "name": "sortedByArea",
+      "qualName": "demo.shapes.ShapeList.sortedByArea",
+      "signature": "List\u003cShape\u003e sortedByArea()",
+      "start": {
+        "line": 160,
+        "column": 29,
+        "offset": 3771
+      },
+      "end": {
+        "line": 160,
+        "column": 50,
+        "offset": 3792
+      },
+      "parent": "demo.shapes.ShapeList",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.diameter",
+      "kind": "property",
+      "name": "diameter",
+      "qualName": "demo.shapes.diameter",
+      "signature": "double get diameter",
+      "start": {
+        "line": 164,
+        "column": 22,
+        "offset": 3840
+      },
+      "end": {
+        "line": 164,
+        "column": 36,
+        "offset": 3854
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Meters",
+      "kind": "class",
+      "name": "Meters",
+      "qualName": "demo.shapes.Meters",
+      "signature": "extension type const Meters(double value) implements double",
+      "doc": "A length in metres, with no cost at run time.",
+      "start": {
+        "line": 168,
+        "column": 0,
+        "offset": 3908
+      },
+      "end": {
+        "line": 170,
+        "column": 1,
+        "offset": 4037
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Meters.value",
+      "kind": "field",
+      "name": "value",
+      "qualName": "demo.shapes.Meters.value",
+      "signature": "(double value)",
+      "doc": "A length in metres, with no cost at run time.",
+      "start": {
+        "line": 168,
+        "column": 27,
+        "offset": 3935
+      },
+      "end": {
+        "line": 168,
+        "column": 41,
+        "offset": 3949
+      },
+      "parent": "demo.shapes.Meters",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Meters.+",
+      "kind": "method",
+      "name": "+",
+      "qualName": "demo.shapes.Meters.+",
+      "signature": "Meters operator +(Meters other)",
+      "start": {
+        "line": 169,
+        "column": 34,
+        "offset": 4004
+      },
+      "end": {
+        "line": 169,
+        "column": 65,
+        "offset": 4035
+      },
+      "parent": "demo.shapes.Meters",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Colour",
+      "kind": "enum",
+      "name": "Colour",
+      "qualName": "demo.shapes.Colour",
+      "signature": "enum Colour",
+      "doc": "The primary colours.",
+      "start": {
+        "line": 173,
+        "column": 0,
+        "offset": 4064
+      },
+      "end": {
+        "line": 173,
+        "column": 32,
+        "offset": 4096
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Colour.red",
+      "kind": "const",
+      "name": "red",
+      "qualName": "demo.shapes.Colour.red",
+      "signature": "red",
+      "doc": "The primary colours.",
+      "start": {
+        "line": 173,
+        "column": 14,
+        "offset": 4078
+      },
+      "end": {
+        "line": 173,
+        "column": 17,
+        "offset": 4081
+      },
+      "parent": "demo.shapes.Colour",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Colour.green",
+      "kind": "const",
+      "name": "green",
+      "qualName": "demo.shapes.Colour.green",
+      "signature": "green",
+      "doc": "The primary colours.",
+      "start": {
+        "line": 173,
+        "column": 19,
+        "offset": 4083
+      },
+      "end": {
+        "line": 173,
+        "column": 24,
+        "offset": 4088
+      },
+      "parent": "demo.shapes.Colour",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Colour.blue",
+      "kind": "const",
+      "name": "blue",
+      "qualName": "demo.shapes.Colour.blue",
+      "signature": "blue",
+      "doc": "The primary colours.",
+      "start": {
+        "line": 173,
+        "column": 26,
+        "offset": 4090
+      },
+      "end": {
+        "line": 173,
+        "column": 30,
+        "offset": 4094
+      },
+      "parent": "demo.shapes.Colour",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Planet",
+      "kind": "enum",
+      "name": "Planet",
+      "qualName": "demo.shapes.Planet",
+      "signature": "enum Planet implements Comparable\u003cPlanet\u003e",
+      "doc": "The planets, with their mass.",
+      "start": {
+        "line": 176,
+        "column": 0,
+        "offset": 4132
+      },
+      "end": {
+        "line": 188,
+        "column": 1,
+        "offset": 4389
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Planet.mercury",
+      "kind": "const",
+      "name": "mercury",
+      "qualName": "demo.shapes.Planet.mercury",
+      "signature": "mercury(mass: 0.33)",
+      "start": {
+        "line": 177,
+        "column": 2,
+        "offset": 4178
+      },
+      "end": {
+        "line": 177,
+        "column": 21,
+        "offset": 4197
+      },
+      "parent": "demo.shapes.Planet",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Planet.earth",
+      "kind": "const",
+      "name": "earth",
+      "qualName": "demo.shapes.Planet.earth",
+      "signature": "earth(mass: 5.97)",
+      "start": {
+        "line": 178,
+        "column": 2,
+        "offset": 4201
+      },
+      "end": {
+        "line": 178,
+        "column": 19,
+        "offset": 4218
+      },
+      "parent": "demo.shapes.Planet",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Planet.Planet",
+      "kind": "constructor",
+      "name": "Planet",
+      "qualName": "demo.shapes.Planet.Planet",
+      "signature": "const Planet({required this.mass})",
+      "start": {
+        "line": 180,
+        "column": 2,
+        "offset": 4223
+      },
+      "end": {
+        "line": 180,
+        "column": 36,
+        "offset": 4257
+      },
+      "parent": "demo.shapes.Planet",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Planet.mass",
+      "kind": "field",
+      "name": "mass",
+      "qualName": "demo.shapes.Planet.mass",
+      "signature": "final double mass",
+      "start": {
+        "line": 182,
+        "column": 15,
+        "offset": 4275
+      },
+      "end": {
+        "line": 182,
+        "column": 19,
+        "offset": 4279
+      },
+      "parent": "demo.shapes.Planet",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Planet.isHeavy",
+      "kind": "property",
+      "name": "isHeavy",
+      "qualName": "demo.shapes.Planet.isHeavy",
+      "signature": "bool get isHeavy",
+      "start": {
+        "line": 184,
+        "column": 19,
+        "offset": 4301
+      },
+      "end": {
+        "line": 184,
+        "column": 31,
+        "offset": 4313
+      },
+      "parent": "demo.shapes.Planet",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.Planet.compareTo",
+      "kind": "method",
+      "name": "compareTo",
+      "qualName": "demo.shapes.Planet.compareTo",
+      "signature": "int compareTo(Planet other)",
+      "start": {
+        "line": 187,
+        "column": 30,
+        "offset": 4357
+      },
+      "end": {
+        "line": 187,
+        "column": 60,
+        "offset": 4387
+      },
+      "parent": "demo.shapes.Planet",
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.areas",
+      "kind": "function",
+      "name": "areas",
+      "qualName": "demo.shapes.areas",
+      "signature": "List\u003cdouble\u003e areas(Iterable\u003cShape\u003e shapes)",
+      "doc": "The area of every shape, largest first.",
+      "start": {
+        "line": 191,
+        "column": 43,
+        "offset": 4478
+      },
+      "end": {
+        "line": 194,
+        "column": 1,
+        "offset": 4590
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.latest",
+      "kind": "property",
+      "name": "latest",
+      "qualName": "demo.shapes.latest",
+      "signature": "Shape? get latest",
+      "doc": "The shape most recently made.",
+      "start": {
+        "line": 197,
+        "column": 18,
+        "offset": 4644
+      },
+      "end": {
+        "line": 197,
+        "column": 40,
+        "offset": 4666
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.latest~2",
+      "kind": "property",
+      "name": "latest",
+      "qualName": "demo.shapes.latest",
+      "signature": "set latest(Shape? shape)",
+      "start": {
+        "line": 199,
+        "column": 25,
+        "offset": 4693
+      },
+      "end": {
+        "line": 201,
+        "column": 1,
+        "offset": 4748
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.resetRegistry",
+      "kind": "function",
+      "name": "resetRegistry",
+      "qualName": "demo.shapes.resetRegistry",
+      "signature": "void resetRegistry()",
+      "start": {
+        "line": 204,
+        "column": 21,
+        "offset": 4790
+      },
+      "end": {
+        "line": 204,
+        "column": 41,
+        "offset": 4810
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.shapes.nativeArea",
+      "kind": "function",
+      "name": "nativeArea",
+      "qualName": "demo.shapes.nativeArea",
+      "signature": "int nativeArea(int width, int height)",
+      "start": {
+        "line": 206,
+        "column": 9,
+        "offset": 4821
+      },
+      "end": {
+        "line": 206,
+        "column": 46,
+        "offset": 4858
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "dart:math",
+      "alias": "math",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 92
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 10,
+        "column": 18,
+        "offset": 282
+      }
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 18,
+        "offset": 428
+      },
+      "enclosing": "demo.shapes.Predicate"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 37,
+        "offset": 447
+      },
+      "enclosing": "demo.shapes.Predicate"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 20,
+        "offset": 503
+      },
+      "enclosing": "demo.shapes.Compare"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 29,
+        "offset": 512
+      },
+      "enclosing": "demo.shapes.Compare"
+    },
+    {
+      "name": "Comparable",
+      "kind": "implements",
+      "start": {
+        "line": 23,
+        "column": 32,
+        "offset": 589
+      },
+      "enclosing": "demo.shapes.Shape"
+    },
+    {
+      "name": "Comparable",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 32,
+        "offset": 589
+      },
+      "enclosing": "demo.shapes.Shape"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 43,
+        "offset": 600
+      },
+      "enclosing": "demo.shapes.Shape"
+    },
+    {
+      "name": "Circle",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 36,
+        "offset": 821
+      },
+      "enclosing": "demo.shapes.Shape.circle"
+    },
+    {
+      "name": "Point",
+      "qualifier": "math",
+      "kind": "type",
+      "start": {
+        "line": 47,
+        "column": 18,
+        "offset": 1062
+      },
+      "enclosing": "demo.shapes.Shape"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 54,
+        "column": 16,
+        "offset": 1168
+      },
+      "enclosing": "demo.shapes.Shape"
+    },
+    {
+      "name": "compareTo",
+      "qualifier": "area",
+      "kind": "call",
+      "start": {
+        "line": 54,
+        "column": 37,
+        "offset": 1189
+      },
+      "enclosing": "demo.shapes.Shape.compareTo"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 57,
+        "column": 45,
+        "offset": 1303
+      },
+      "enclosing": "demo.shapes.Shape.=="
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 2,
+        "offset": 1335
+      },
+      "enclosing": "demo.shapes.Shape.+"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 19,
+        "offset": 1352
+      },
+      "enclosing": "demo.shapes.Shape.+"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 62,
+        "column": 2,
+        "offset": 1405
+      },
+      "enclosing": "demo.shapes.Shape.scale"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 64,
+        "column": 9,
+        "offset": 1443
+      },
+      "enclosing": "demo.shapes.Shape"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 64,
+        "column": 28,
+        "offset": 1462
+      },
+      "enclosing": "demo.shapes.Shape"
+    },
+    {
+      "name": "reduce",
+      "qualifier": "shapes",
+      "kind": "call",
+      "start": {
+        "line": 65,
+        "column": 18,
+        "offset": 1497
+      },
+      "enclosing": "demo.shapes.Shape.largest"
+    },
+    {
+      "name": "compareTo",
+      "qualifier": "a",
+      "kind": "call",
+      "start": {
+        "line": 65,
+        "column": 37,
+        "offset": 1516
+      },
+      "enclosing": "demo.shapes.Shape.largest"
+    },
+    {
+      "name": "Shape",
+      "kind": "extends",
+      "start": {
+        "line": 74,
+        "column": 21,
+        "offset": 1660
+      },
+      "enclosing": "demo.shapes.Circle"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 74,
+        "column": 21,
+        "offset": 1660
+      },
+      "enclosing": "demo.shapes.Circle"
+    },
+    {
+      "name": "Printable",
+      "kind": "extends",
+      "start": {
+        "line": 74,
+        "column": 32,
+        "offset": 1671
+      },
+      "enclosing": "demo.shapes.Circle"
+    },
+    {
+      "name": "Printable",
+      "kind": "type",
+      "start": {
+        "line": 74,
+        "column": 32,
+        "offset": 1671
+      },
+      "enclosing": "demo.shapes.Circle"
+    },
+    {
+      "name": "Comparing",
+      "kind": "extends",
+      "start": {
+        "line": 74,
+        "column": 43,
+        "offset": 1682
+      },
+      "enclosing": "demo.shapes.Circle"
+    },
+    {
+      "name": "Comparing",
+      "kind": "type",
+      "start": {
+        "line": 74,
+        "column": 43,
+        "offset": 1682
+      },
+      "enclosing": "demo.shapes.Circle"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 74,
+        "column": 53,
+        "offset": 1692
+      },
+      "enclosing": "demo.shapes.Circle"
+    },
+    {
+      "name": "_MapCircle",
+      "kind": "type",
+      "start": {
+        "line": 82,
+        "column": 53,
+        "offset": 1941
+      },
+      "enclosing": "demo.shapes.Circle.fromMap"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 90,
+        "column": 2,
+        "offset": 2053
+      },
+      "enclosing": "demo.shapes.Circle"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 90,
+        "column": 19,
+        "offset": 2070
+      },
+      "enclosing": "demo.shapes.Circle"
+    },
+    {
+      "name": "Circle",
+      "kind": "call",
+      "start": {
+        "line": 90,
+        "column": 35,
+        "offset": 2086
+      },
+      "enclosing": "demo.shapes.Circle.+"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 94,
+        "column": 2,
+        "offset": 2170
+      },
+      "enclosing": "demo.shapes.Circle"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 95,
+        "column": 4,
+        "offset": 2204
+      },
+      "enclosing": "demo.shapes.Circle.scale.grown"
+    },
+    {
+      "name": "Circle",
+      "kind": "call",
+      "start": {
+        "line": 95,
+        "column": 31,
+        "offset": 2231
+      },
+      "enclosing": "demo.shapes.Circle.scale.grown"
+    },
+    {
+      "name": "grown",
+      "kind": "call",
+      "start": {
+        "line": 96,
+        "column": 11,
+        "offset": 2263
+      },
+      "enclosing": "demo.shapes.Circle.scale"
+    },
+    {
+      "name": "Circle",
+      "kind": "extends",
+      "start": {
+        "line": 100,
+        "column": 25,
+        "offset": 2310
+      },
+      "enclosing": "demo.shapes._MapCircle"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 100,
+        "column": 25,
+        "offset": 2310
+      },
+      "enclosing": "demo.shapes._MapCircle"
+    },
+    {
+      "name": "Shape",
+      "kind": "extends",
+      "start": {
+        "line": 105,
+        "column": 19,
+        "offset": 2451
+      },
+      "enclosing": "demo.shapes.Printable"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 105,
+        "column": 19,
+        "offset": 2451
+      },
+      "enclosing": "demo.shapes.Printable"
+    },
+    {
+      "name": "describe",
+      "kind": "call",
+      "start": {
+        "line": 107,
+        "column": 26,
+        "offset": 2509
+      },
+      "enclosing": "demo.shapes.Printable.printMe"
+    },
+    {
+      "name": "toStringAsFixed",
+      "qualifier": "area",
+      "kind": "call",
+      "start": {
+        "line": 109,
+        "column": 39,
+        "offset": 2562
+      },
+      "enclosing": "demo.shapes.Printable.describe"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 112,
+        "column": 16,
+        "offset": 2604
+      },
+      "enclosing": "demo.shapes.Comparing"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 112,
+        "column": 26,
+        "offset": 2614
+      },
+      "enclosing": "demo.shapes.Comparing"
+    },
+    {
+      "name": "Comparable",
+      "kind": "implements",
+      "start": {
+        "line": 112,
+        "column": 44,
+        "offset": 2632
+      },
+      "enclosing": "demo.shapes.Comparing"
+    },
+    {
+      "name": "Comparable",
+      "kind": "type",
+      "start": {
+        "line": 112,
+        "column": 44,
+        "offset": 2632
+      },
+      "enclosing": "demo.shapes.Comparing"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 112,
+        "column": 55,
+        "offset": 2643
+      },
+      "enclosing": "demo.shapes.Comparing"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 113,
+        "column": 18,
+        "offset": 2670
+      },
+      "enclosing": "demo.shapes.Comparing"
+    },
+    {
+      "name": "compareTo",
+      "kind": "call",
+      "start": {
+        "line": 113,
+        "column": 30,
+        "offset": 2682
+      },
+      "enclosing": "demo.shapes.Comparing.largerThan"
+    },
+    {
+      "name": "Shape",
+      "kind": "extends",
+      "start": {
+        "line": 117,
+        "column": 29,
+        "offset": 2800
+      },
+      "enclosing": "demo.shapes.Polygon"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 117,
+        "column": 29,
+        "offset": 2800
+      },
+      "enclosing": "demo.shapes.Polygon"
+    },
+    {
+      "name": "Polygon",
+      "kind": "extends",
+      "start": {
+        "line": 125,
+        "column": 27,
+        "offset": 2972
+      },
+      "enclosing": "demo.shapes.Square"
+    },
+    {
+      "name": "Polygon",
+      "kind": "type",
+      "start": {
+        "line": 125,
+        "column": 27,
+        "offset": 2972
+      },
+      "enclosing": "demo.shapes.Square"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 131,
+        "column": 2,
+        "offset": 3105
+      },
+      "enclosing": "demo.shapes.Square"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 131,
+        "column": 19,
+        "offset": 3122
+      },
+      "enclosing": "demo.shapes.Square"
+    },
+    {
+      "name": "Square",
+      "kind": "call",
+      "start": {
+        "line": 131,
+        "column": 35,
+        "offset": 3138
+      },
+      "enclosing": "demo.shapes.Square.+"
+    },
+    {
+      "name": "sqrt",
+      "qualifier": "math",
+      "kind": "call",
+      "start": {
+        "line": 131,
+        "column": 47,
+        "offset": 3150
+      },
+      "enclosing": "demo.shapes.Square.+"
+    },
+    {
+      "name": "Square",
+      "kind": "type",
+      "start": {
+        "line": 133,
+        "column": 2,
+        "offset": 3190
+      },
+      "enclosing": "demo.shapes.Square"
+    },
+    {
+      "name": "Square",
+      "kind": "call",
+      "start": {
+        "line": 133,
+        "column": 33,
+        "offset": 3221
+      },
+      "enclosing": "demo.shapes.Square.scale"
+    },
+    {
+      "name": "UnsupportedError",
+      "kind": "call",
+      "start": {
+        "line": 138,
+        "column": 51,
+        "offset": 3346
+      },
+      "enclosing": "demo.shapes.Square.[]="
+    },
+    {
+      "name": "Square",
+      "kind": "type",
+      "start": {
+        "line": 140,
+        "column": 2,
+        "offset": 3376
+      },
+      "enclosing": "demo.shapes.Square"
+    },
+    {
+      "name": "Square",
+      "kind": "call",
+      "start": {
+        "line": 140,
+        "column": 25,
+        "offset": 3399
+      },
+      "enclosing": "demo.shapes.Square.-"
+    },
+    {
+      "name": "Square",
+      "kind": "type",
+      "start": {
+        "line": 142,
+        "column": 2,
+        "offset": 3417
+      },
+      "enclosing": "demo.shapes.Square"
+    },
+    {
+      "name": "Canvas",
+      "kind": "type",
+      "start": {
+        "line": 148,
+        "column": 12,
+        "offset": 3510
+      },
+      "enclosing": "demo.shapes.Drawable"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 156,
+        "column": 28,
+        "offset": 3643
+      },
+      "enclosing": "demo.shapes.ShapeList"
+    },
+    {
+      "name": "fold",
+      "kind": "call",
+      "start": {
+        "line": 158,
+        "column": 26,
+        "offset": 3706
+      },
+      "enclosing": "demo.shapes.ShapeList.totalArea"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 160,
+        "column": 7,
+        "offset": 3749
+      },
+      "enclosing": "demo.shapes.ShapeList"
+    },
+    {
+      "name": "sort",
+      "kind": "call",
+      "start": {
+        "line": 160,
+        "column": 43,
+        "offset": 3785
+      },
+      "enclosing": "demo.shapes.ShapeList.sortedByArea"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 163,
+        "column": 13,
+        "offset": 3809
+      }
+    },
+    {
+      "name": "double",
+      "kind": "implements",
+      "start": {
+        "line": 168,
+        "column": 53,
+        "offset": 3961
+      },
+      "enclosing": "demo.shapes.Meters"
+    },
+    {
+      "name": "Meters",
+      "kind": "type",
+      "start": {
+        "line": 169,
+        "column": 2,
+        "offset": 3972
+      },
+      "enclosing": "demo.shapes.Meters"
+    },
+    {
+      "name": "Meters",
+      "kind": "type",
+      "start": {
+        "line": 169,
+        "column": 20,
+        "offset": 3990
+      },
+      "enclosing": "demo.shapes.Meters"
+    },
+    {
+      "name": "Meters",
+      "kind": "call",
+      "start": {
+        "line": 169,
+        "column": 37,
+        "offset": 4007
+      },
+      "enclosing": "demo.shapes.Meters.+"
+    },
+    {
+      "name": "Comparable",
+      "kind": "implements",
+      "start": {
+        "line": 176,
+        "column": 23,
+        "offset": 4155
+      },
+      "enclosing": "demo.shapes.Planet"
+    },
+    {
+      "name": "Comparable",
+      "kind": "type",
+      "start": {
+        "line": 176,
+        "column": 23,
+        "offset": 4155
+      },
+      "enclosing": "demo.shapes.Planet"
+    },
+    {
+      "name": "Planet",
+      "kind": "type",
+      "start": {
+        "line": 176,
+        "column": 34,
+        "offset": 4166
+      },
+      "enclosing": "demo.shapes.Planet"
+    },
+    {
+      "name": "Planet",
+      "kind": "type",
+      "start": {
+        "line": 187,
+        "column": 16,
+        "offset": 4343
+      },
+      "enclosing": "demo.shapes.Planet"
+    },
+    {
+      "name": "compareTo",
+      "qualifier": "mass",
+      "kind": "call",
+      "start": {
+        "line": 187,
+        "column": 38,
+        "offset": 4365
+      },
+      "enclosing": "demo.shapes.Planet.compareTo"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 191,
+        "column": 28,
+        "offset": 4463
+      }
+    },
+    {
+      "name": "toList",
+      "qualifier": "shapes",
+      "kind": "call",
+      "start": {
+        "line": 192,
+        "column": 24,
+        "offset": 4504
+      },
+      "enclosing": "demo.shapes.areas"
+    },
+    {
+      "name": "sort",
+      "kind": "call",
+      "start": {
+        "line": 192,
+        "column": 34,
+        "offset": 4514
+      },
+      "enclosing": "demo.shapes.areas"
+    },
+    {
+      "name": "compareTo",
+      "qualifier": "b",
+      "kind": "call",
+      "start": {
+        "line": 192,
+        "column": 51,
+        "offset": 4531
+      },
+      "enclosing": "demo.shapes.areas"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 197,
+        "column": 0,
+        "offset": 4626
+      }
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 199,
+        "column": 11,
+        "offset": 4679
+      }
+    },
+    {
+      "name": "clear",
+      "qualifier": "registry",
+      "kind": "call",
+      "start": {
+        "line": 204,
+        "column": 33,
+        "offset": 4802
+      },
+      "enclosing": "demo.shapes.resetRegistry"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 14,
+        "column": 13,
+        "offset": 372
+      },
+      "text": "/// Geometry for the demo app: shapes, their areas and a few helpers.\nlibrary demo.shapes;\n\nimport 'dart:math' as math;\n\n/// The ratio of a circle's circumference to its diameter, to two places.\nconst double kRoughPi = 3.14;\n\n/// Every shape made so far, by name.\nfinal Map\u003cString, Shape\u003e registry = {};\n\nvar created = 0, destroyed = 0;\nlate String lastName;\nint? _cached;",
+      "hash": "3e2fe37b38397836b7bbeefa2e143d76db10a6a545efaaa37bc37639a06833da"
+    },
+    {
+      "id": "demo.shapes.Predicate#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Predicate",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 374
+      },
+      "end": {
+        "line": 17,
+        "column": 46,
+        "offset": 456
+      },
+      "text": "/// Decides whether [value] passes.\ntypedef Predicate\u003cT\u003e = bool Function(T value);",
+      "hash": "6285b9e73e030e9f798feb3b98cb23c47f138f039d06247fc22e80979c9b15be"
+    },
+    {
+      "id": "demo.shapes.Compare#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Compare",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 458
+      },
+      "end": {
+        "line": 20,
+        "column": 38,
+        "offset": 521
+      },
+      "text": "/// Compares two shapes.\ntypedef int Compare(Shape a, Shape b);",
+      "hash": "0196144ed856b6c9116ab8c544e003ca64077e439a56ad3dc55aae1184568b17"
+    },
+    {
+      "id": "demo.shapes.Shape#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Shape",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 523
+      },
+      "end": {
+        "line": 71,
+        "column": 1,
+        "offset": 1623
+      },
+      "text": "/// A closed figure in the plane.\nabstract class Shape implements Comparable\u003cShape\u003e {\n  /// Creates a shape called [label].\n  Shape(this.label) {\n    created++;\n  }\n\n  /// A shape with no label yet.\n  Shape.unnamed() : label = '';\n\n  /// A circle of radius [r].\n  factory Shape.circle(double r) =\u003e Circle(r);\n\n  /// The shape's name.\n  final String label;\n\n  /// How many shapes are alive.\n  static int count = 0;\n\n  int _x = 0, _y = 0;\n\n  /// The area, in square units.\n  double get area;\n\n  /// Moves the shape to [p].\n  set origin(math.Point\u003cint\u003e p) {\n    _x = p.x;\n    _y = p.y;\n  }\n\n  /// Orders shapes by area.\n  @override\n  int compareTo(Shape other) =\u003e area.compareTo(other.area);\n\n  /// Whether two shapes have the same area.\n  bool operator ==(Object other) =\u003e other is Shape \u0026\u0026 other.area == area;\n\n  Shape operator +(Shape other);\n\n  /// Scales the shape by [factor].\n  Shape scale(double factor);\n\n  static Shape largest(List\u003cShape\u003e shapes) {\n    return shapes.reduce((a, b) =\u003e a.compareTo(b) \u003e= 0 ? a : b);\n  }\n\n  void _log() =\u003e print('$label at $_x,$_y');\n\n  external void release();\n}",
+      "hash": "59535ec9d2f929e707bccdaccd71b710a02025791855809f42b45881237aa479"
+    },
+    {
+      "id": "demo.shapes.Circle#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Circle",
+      "start": {
+        "line": 73,
+        "column": 0,
+        "offset": 1625
+      },
+      "end": {
+        "line": 98,
+        "column": 1,
+        "offset": 2283
+      },
+      "text": "/// A circle.\nclass Circle extends Shape with Printable, Comparing\u003cCircle\u003e {\n  /// A circle of radius [radius].\n  Circle(this.radius) : super('circle');\n\n  /// The unit circle.\n  const Circle.unit() : radius = 1, super.unnamed();\n\n  /// A circle read from a map.\n  factory Circle.fromMap(Map\u003cString, Object?\u003e map) = _MapCircle;\n\n  final double radius;\n\n  @override\n  double get area =\u003e math.pi * radius * radius;\n\n  @override\n  Shape operator +(Shape other) =\u003e Circle(radius + other.area / math.pi);\n\n  @override\n  @pragma('vm:prefer-inline')\n  Circle scale(double factor) {\n    Circle grown(double by) =\u003e Circle(radius * by);\n    return grown(factor);\n  }\n}",
+      "hash": "830fe33823fc6e059f85598fc40d7818631002e516cccffec5b960f5cc55aaf9"
+    },
+    {
+      "id": "demo.shapes._MapCircle#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes._MapCircle",
+      "start": {
+        "line": 100,
+        "column": 0,
+        "offset": 2285
+      },
+      "end": {
+        "line": 102,
+        "column": 1,
+        "offset": 2393
+      },
+      "text": "class _MapCircle extends Circle {\n  _MapCircle(Map\u003cString, Object?\u003e map) : super(map['radius'] as double);\n}",
+      "hash": "a7a18ade6b606c78c9509020a56a6bd1268a456cac6d8ca290db04742bf85f7b"
+    },
+    {
+      "id": "demo.shapes.Printable#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Printable",
+      "start": {
+        "line": 104,
+        "column": 0,
+        "offset": 2395
+      },
+      "end": {
+        "line": 110,
+        "column": 1,
+        "offset": 2586
+      },
+      "text": "/// Something that can print itself.\nmixin Printable on Shape {\n  /// Prints the shape.\n  void printMe() =\u003e print(describe());\n\n  String describe() =\u003e '$label (${area.toStringAsFixed(2)})';\n}",
+      "hash": "0003f239607a86c1dd98163ab1222ae07a29fd38ee2b85ee826c4d667c42524e"
+    },
+    {
+      "id": "demo.shapes.Comparing#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Comparing",
+      "start": {
+        "line": 112,
+        "column": 0,
+        "offset": 2588
+      },
+      "end": {
+        "line": 114,
+        "column": 1,
+        "offset": 2705
+      },
+      "text": "mixin Comparing\u003cT extends Shape\u003e implements Comparable\u003cShape\u003e {\n  bool largerThan(T other) =\u003e compareTo(other) \u003e 0;\n}",
+      "hash": "d443b3adc21c6d019021621d175ff900567c9d179d0f59774139725b7f8eaa78"
+    },
+    {
+      "id": "demo.shapes.Polygon#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Polygon",
+      "start": {
+        "line": 116,
+        "column": 0,
+        "offset": 2707
+      },
+      "end": {
+        "line": 123,
+        "column": 1,
+        "offset": 2943
+      },
+      "text": "/// Shapes in sealed, base, final, interface and mixin classes.\nsealed class Polygon extends Shape {\n  Polygon(super.label, this.sides);\n  final int sides;\n\n  /// Sets the length of side [i].\n  void operator []=(int i, double length);\n}",
+      "hash": "0b3b01602484bac836f9fae76e9b73214f853364318aea2a279a3890902e545d"
+    },
+    {
+      "id": "demo.shapes.Square#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Square",
+      "start": {
+        "line": 125,
+        "column": 0,
+        "offset": 2945
+      },
+      "end": {
+        "line": 143,
+        "column": 1,
+        "offset": 3447
+      },
+      "text": "final class Square extends Polygon {\n  Square(this.side) : super('square', 4);\n  final double side;\n  @override\n  double get area =\u003e side * side;\n  @override\n  Shape operator +(Shape other) =\u003e Square(math.sqrt(area + other.area));\n  @override\n  Square scale(double factor) =\u003e Square(side * factor);\n\n  double operator [](int i) =\u003e side;\n\n  @override\n  void operator []=(int i, double length) =\u003e throw UnsupportedError('fixed');\n\n  Square operator -() =\u003e Square(-side);\n\n  Square operator ~() =\u003e this;\n}",
+      "hash": "942b2317f199fe28f0418be97974822ef237d0073c14fc5100138931addeab12"
+    },
+    {
+      "id": "demo.shapes.Anchor#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Anchor",
+      "start": {
+        "line": 145,
+        "column": 0,
+        "offset": 3449
+      },
+      "end": {
+        "line": 145,
+        "column": 20,
+        "offset": 3469
+      },
+      "text": "base class Anchor {}",
+      "hash": "517cdcf00547e56221940a5c77d0845eb62d6358a185f827b530fec37b4f9e1f"
+    },
+    {
+      "id": "demo.shapes.Drawable#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Drawable",
+      "start": {
+        "line": 147,
+        "column": 0,
+        "offset": 3471
+      },
+      "end": {
+        "line": 149,
+        "column": 1,
+        "offset": 3529
+      },
+      "text": "interface class Drawable {\n  void draw(Canvas canvas) {}\n}",
+      "hash": "81af34841603f01e92cb943994a4316e2ac4c6a388bb0561bef7b316c618c978"
+    },
+    {
+      "id": "demo.shapes.Tagged#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Tagged",
+      "start": {
+        "line": 151,
+        "column": 0,
+        "offset": 3531
+      },
+      "end": {
+        "line": 153,
+        "column": 1,
+        "offset": 3580
+      },
+      "text": "mixin class Tagged {\n  final tags = \u003cString\u003e{};\n}",
+      "hash": "a864ddb7992118c567d10f52907f58b13074d4b2d7d755560343fb6fe248d7e1"
+    },
+    {
+      "id": "demo.shapes.ShapeList#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.ShapeList",
+      "start": {
+        "line": 155,
+        "column": 0,
+        "offset": 3582
+      },
+      "end": {
+        "line": 161,
+        "column": 1,
+        "offset": 3794
+      },
+      "text": "/// Helpers on every shape list.\nextension ShapeList on List\u003cShape\u003e {\n  /// The sum of the areas.\n  double get totalArea =\u003e fold(0, (sum, s) =\u003e sum + s.area);\n\n  List\u003cShape\u003e sortedByArea() =\u003e [...this]..sort();\n}",
+      "hash": "ee8df952723a48f682009126f5f0f44ce402d2d79219a9d96da3552d009711ea"
+    },
+    {
+      "id": "L163#1",
+      "kind": "window",
+      "start": {
+        "line": 163,
+        "column": 0,
+        "offset": 3796
+      },
+      "end": {
+        "line": 165,
+        "column": 1,
+        "offset": 3856
+      },
+      "text": "extension on Circle {\n  double get diameter =\u003e radius * 2;\n}",
+      "hash": "dcebf8c44481b7efb4afcb2d8a1490925c8dac500a970da00d97e977c2e60b43"
+    },
+    {
+      "id": "demo.shapes.Meters#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Meters",
+      "start": {
+        "line": 167,
+        "column": 0,
+        "offset": 3858
+      },
+      "end": {
+        "line": 170,
+        "column": 1,
+        "offset": 4037
+      },
+      "text": "/// A length in metres, with no cost at run time.\nextension type const Meters(double value) implements double {\n  Meters operator +(Meters other) =\u003e Meters(value + other.value);\n}",
+      "hash": "7abaacda5f17b4d40498211a55bc7ce9b91602ccf893fc45092676caeffd53df"
+    },
+    {
+      "id": "demo.shapes.Colour#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Colour",
+      "start": {
+        "line": 172,
+        "column": 0,
+        "offset": 4039
+      },
+      "end": {
+        "line": 173,
+        "column": 32,
+        "offset": 4096
+      },
+      "text": "/// The primary colours.\nenum Colour { red, green, blue }",
+      "hash": "2ac3c9b698523c03d0213741c65bca67fb3e4e9d28eb9e3078518f3dcc22927f"
+    },
+    {
+      "id": "demo.shapes.Planet#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.Planet",
+      "start": {
+        "line": 175,
+        "column": 0,
+        "offset": 4098
+      },
+      "end": {
+        "line": 188,
+        "column": 1,
+        "offset": 4389
+      },
+      "text": "/// The planets, with their mass.\nenum Planet implements Comparable\u003cPlanet\u003e {\n  mercury(mass: 0.33),\n  earth(mass: 5.97);\n\n  const Planet({required this.mass});\n\n  final double mass;\n\n  bool get isHeavy =\u003e mass \u003e 1;\n\n  @override\n  int compareTo(Planet other) =\u003e mass.compareTo(other.mass);\n}",
+      "hash": "b7bc6011f56ecf1b90f57ce79200dc3b6b3eb3bcfa432cd22bf88ba22d6a4392"
+    },
+    {
+      "id": "demo.shapes.areas#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.areas",
+      "start": {
+        "line": 190,
+        "column": 0,
+        "offset": 4391
+      },
+      "end": {
+        "line": 194,
+        "column": 1,
+        "offset": 4590
+      },
+      "text": "/// The area of every shape, largest first.\nList\u003cdouble\u003e areas(Iterable\u003cShape\u003e shapes) {\n  final sorted = shapes.toList()..sort((a, b) =\u003e b.compareTo(a));\n  return [for (final s in sorted) s.area];\n}",
+      "hash": "5efe76bec3e3ee57a38eed1cbbb891040a07ee2721defeedd6b25437f0fb4112"
+    },
+    {
+      "id": "L196#1",
+      "kind": "window",
+      "start": {
+        "line": 196,
+        "column": 0,
+        "offset": 4592
+      },
+      "end": {
+        "line": 203,
+        "column": 18,
+        "offset": 4768
+      },
+      "text": "/// The shape most recently made.\nShape? get latest =\u003e registry[lastName];\n\nset latest(Shape? shape) {\n  if (shape != null) registry[shape.label] = shape;\n}\n\n@visibleForTesting",
+      "hash": "81e9f3bdb29b60c13413e21aa202e530c9d9c5b8838fda86afe057188ff936d5"
+    },
+    {
+      "id": "demo.shapes.resetRegistry#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.resetRegistry",
+      "start": {
+        "line": 204,
+        "column": 21,
+        "offset": 4790
+      },
+      "end": {
+        "line": 204,
+        "column": 41,
+        "offset": 4810
+      },
+      "text": "=\u003e registry.clear();",
+      "hash": "89b36e37144e7342eeaa9382d7104540e86f7eda53a021a6ceee1b6c3a394753"
+    },
+    {
+      "id": "demo.shapes.nativeArea#1",
+      "kind": "symbol",
+      "symbolId": "demo.shapes.nativeArea",
+      "start": {
+        "line": 206,
+        "column": 9,
+        "offset": 4821
+      },
+      "end": {
+        "line": 206,
+        "column": 46,
+        "offset": 4858
+      },
+      "text": "int nativeArea(int width, int height)",
+      "hash": "fb0a5e22139f36daea74b34d07630aad9eb38cc78b2594fa383c3e1961e0ab18"
+    }
+  ]
+}

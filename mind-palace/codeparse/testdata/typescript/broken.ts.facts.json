@@ -1,0 +1,272 @@
+{
+  "lang": "typescript",
+  "symbols": [
+    {
+      "id": "Point",
+      "kind": "interface",
+      "name": "Point",
+      "qualName": "Point",
+      "signature": "interface Point",
+      "start": {
+        "line": 3,
+        "column": 7,
+        "offset": 77
+      },
+      "end": {
+        "line": 6,
+        "column": 1,
+        "offset": 122
+      },
+      "exported": true
+    },
+    {
+      "id": "Point.x",
+      "kind": "field",
+      "name": "x",
+      "qualName": "Point.x",
+      "signature": "x: number",
+      "start": {
+        "line": 4,
+        "column": 2,
+        "offset": 97
+      },
+      "end": {
+        "line": 4,
+        "column": 11,
+        "offset": 106
+      },
+      "parent": "Point",
+      "exported": true
+    },
+    {
+      "id": "Point.y",
+      "kind": "field",
+      "name": "y",
+      "qualName": "Point.y",
+      "signature": "y: number",
+      "start": {
+        "line": 5,
+        "column": 2,
+        "offset": 110
+      },
+      "end": {
+        "line": 5,
+        "column": 11,
+        "offset": 119
+      },
+      "parent": "Point",
+      "exported": true
+    },
+    {
+      "id": "distance",
+      "kind": "function",
+      "name": "distance",
+      "qualName": "distance",
+      "signature": "function distance(a: Point, b: Point): number",
+      "start": {
+        "line": 8,
+        "column": 7,
+        "offset": 131
+      },
+      "end": {
+        "line": 10,
+        "column": 1,
+        "offset": 222
+      },
+      "exported": true
+    },
+    {
+      "id": "Shape",
+      "kind": "class",
+      "name": "Shape",
+      "qualName": "Shape",
+      "signature": "class Shape",
+      "start": {
+        "line": 12,
+        "column": 7,
+        "offset": 231
+      },
+      "end": {
+        "line": 16,
+        "column": 1,
+        "offset": 295
+      },
+      "exported": true
+    },
+    {
+      "id": "Shape.area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "Shape.area",
+      "signature": "area(): number",
+      "start": {
+        "line": 13,
+        "column": 2,
+        "offset": 247
+      },
+      "end": {
+        "line": 15,
+        "column": 3,
+        "offset": 293
+      },
+      "parent": "Shape",
+      "exported": true
+    },
+    {
+      "id": "ORIGIN",
+      "kind": "const",
+      "name": "ORIGIN",
+      "qualName": "ORIGIN",
+      "signature": "ORIGIN: Point = { x: 0, y: 0 }",
+      "start": {
+        "line": 18,
+        "column": 13,
+        "offset": 310
+      },
+      "end": {
+        "line": 18,
+        "column": 43,
+        "offset": 340
+      },
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 28,
+        "offset": 152
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 38,
+        "offset": 162
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "hypot",
+      "qualifier": "Math",
+      "kind": "call",
+      "start": {
+        "line": 9,
+        "column": 14,
+        "offset": 193
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "compute",
+      "kind": "call",
+      "start": {
+        "line": 14,
+        "column": 11,
+        "offset": 275
+      },
+      "enclosing": "Shape.area"
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 21,
+        "offset": 318
+      },
+      "enclosing": "ORIGIN"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 1,
+        "column": 68,
+        "offset": 68
+      },
+      "text": "// A file with a syntax error: what the query still matches is kept.",
+      "hash": "4cb77465d0eaee1d9a08ee4ebaf176dd2b63883343700f9976a4e5656f645d44"
+    },
+    {
+      "id": "Point#1",
+      "kind": "symbol",
+      "symbolId": "Point",
+      "start": {
+        "line": 3,
+        "column": 7,
+        "offset": 77
+      },
+      "end": {
+        "line": 6,
+        "column": 1,
+        "offset": 122
+      },
+      "text": "interface Point {\n  x: number;\n  y: number;\n}",
+      "hash": "a53ef2ed0f3ac53d720085754c7724340e3ca13d11f47a7002051fbf925864a2"
+    },
+    {
+      "id": "distance#1",
+      "kind": "symbol",
+      "symbolId": "distance",
+      "start": {
+        "line": 8,
+        "column": 7,
+        "offset": 131
+      },
+      "end": {
+        "line": 10,
+        "column": 1,
+        "offset": 222
+      },
+      "text": "function distance(a: Point, b: Point): number {\n  return Math.hypot(a.x - b.x, a.y - b.y;\n}",
+      "hash": "ef020146d7e4165b3462701d18fea8f8ff43b8833e55e4ea713266f34613e875"
+    },
+    {
+      "id": "Shape#1",
+      "kind": "symbol",
+      "symbolId": "Shape",
+      "start": {
+        "line": 12,
+        "column": 7,
+        "offset": 231
+      },
+      "end": {
+        "line": 16,
+        "column": 1,
+        "offset": 295
+      },
+      "text": "class Shape {\n  area(): number {\n    return compute(this);\n  }\n}",
+      "hash": "df937d9f0ec308373048992c9e020c0ae00658d5aa43df6b05767e2edbf22ba1"
+    },
+    {
+      "id": "L18#1",
+      "kind": "window",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 297
+      },
+      "end": {
+        "line": 18,
+        "column": 44,
+        "offset": 341
+      },
+      "text": "export const ORIGIN: Point = { x: 0, y: 0 };",
+      "hash": "2d6957c0f79bc8aadf33671dd0fe7fd760d9de06acf5704d671c80c5b6e087ff"
+    }
+  ]
+}

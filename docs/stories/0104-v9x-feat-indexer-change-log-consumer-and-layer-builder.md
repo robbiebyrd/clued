@@ -3,11 +3,13 @@ id: 0104-v9x
 title: 'Indexer: change-log consumer and layer builder'
 purpose: Turns 0010's change log into the right layers.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-19T18:09:54.069Z"
-updated: "2026-10-19T18:31:27.427Z"
+updated: "2026-10-19T19:29:29.182Z"
+started: "2026-10-19T19:19:26.388Z"
+completed: "2026-10-19T19:29:29.182Z"
 tags:
   - plan-0012-cgi
   - wave-4
@@ -34,13 +36,13 @@ links:
     - ["0012-cgi", "included", ["3.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Indexer: change-log consumer and layer builder
@@ -73,9 +75,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -85,3 +87,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/layers_test.go` - selection tests from recorded changes
 
 ## Work Log
+
+### 2026-10-19T19:29:13.451Z - Added mind-palace/codeindex: service.go (Service, Options with injected ParseFunc/ParseVersion/Cache/Applier, Sync and Run with workers, per-project lease turns, back-off, Kick; Facts loads blob -> parse cache -> parser; PlanFromGraph), cursor.go (Cursors port for code_index_cursors with MemCursors and MongoCursors: compare-and-set leases, cursor Seq plus per-tree head/upstream/upstreamSeq state from the log), layers.go (Select: base from GitHub-backed worktree else newest-upstream clean pushed default-branch entries with blob chosen by git_oid then majority sha; branch layers per (ref, upstream) holding only git_oid diffs vs base plus tombstones, GitHub tree preferred; overlays per client (worktree, ref) with dirty/unpushed entries, session tags, owner and tombstones vs the view below; Diff into per-layer put/remove plus dropped layers; Plan.View). layers_test.go: 19 tests replaying recorded change logs through memcode + memgraph (all pass with -race; TestMongoCursors runs with MIND_PALACE_TEST_MONGODB_URI, passes incl. concurrent acquire). gofmt/vet/build clean. Deviations: file writes (Facts->FileFacts mapping, ApplyFile, tombstones, hiddenBy) are left to the Applier that 0105 provides in apply.go; the Service puts and drops layer nodes itself. Only the four listed files changed (git diff vs the branch base).

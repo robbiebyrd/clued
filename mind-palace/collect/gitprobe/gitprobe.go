@@ -101,19 +101,10 @@ func (p Probe) Branch(ctx context.Context) string {
 }
 
 // DefaultBranch is the branch origin/HEAD points at, else "main" or "master"
-// when that local branch exists, else "".
+// when that local branch exists, else "" (gitinfo.DefaultBranchWith over
+// the Probe's Runner).
 func (p Probe) DefaultBranch(ctx context.Context) string {
-	if out, err := p.run(ctx, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil {
-		if name := strings.TrimPrefix(strings.TrimSpace(out), "origin/"); name != "" {
-			return name
-		}
-	}
-	for _, name := range []string{"main", "master"} {
-		if _, err := p.run(ctx, "rev-parse", "--verify", "--quiet", "refs/heads/"+name); err == nil {
-			return name
-		}
-	}
-	return ""
+	return gitinfo.DefaultBranchWith(ctx, p.run)
 }
 
 // Log is `git log --oneline -n <n> <ref>`, or "" when git fails.

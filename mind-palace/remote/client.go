@@ -285,8 +285,49 @@ func (c *Client) DoHeader(ctx context.Context, method, path string, header http.
 	return err
 }
 
-// send performs one request with token as the bearer ("" sends none).
-func (c *Client) send(ctx context.Context, method, path string, header http.Header, payload []byte, out any, token string) error {
+// Response is one answer as the server sent it, for an adapter that maps
+// statuses and envelope kinds to its own errors (Send).
+type Response struct {
+	// Status is the HTTP status code.
+	Status int
+	// Envelope reports whether the body was a server/httpapi envelope.
+	Envelope bool
+	// OK is the envelope's ok (false without an envelope).
+	OK bool
+	// Result is the envelope's result, raw.
+	Result json.RawMessage
+	// Kind, Message and Problems are the envelope's error; without an
+	// envelope Message is the body as is (a proxy's error page).
+	Kind     string
+	Message  string
+	Problems []string
+}
+
+// Send sends body as is with contentType ("" sends none) and returns the
+// response without mapping its status: the error is only a request that got
+// no answer (a transport failure wrapping the *url.Error, or a failed token
+// exchange). Headers and the token exchange are as for DoHeader, including
+// the one retry after a 401 with an exchanged token. Adapters whose routes
+// take raw bytes, or that need the envelope's kind of a 403 or 413, use it.
+func (c *Client) Send(ctx context.Context, method, path string, header http.Header, contentType string, body []byte) (*Response, error) {
+	token, err := c.bearer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.roundTrip(ctx, method, path, header, contentType, body, token)
+	if err == nil && c.key != "" && resp.Status == http.StatusUnauthorized {
+		token, rerr := c.renew(ctx, token)
+		if rerr != nil {
+			return nil, rerr
+		}
+		resp, err = c.roundTrip(ctx, method, path, header, contentType, body, token)
+	}
+	return resp, err
+}
+
+// roundTrip performs one request with token as the bearer ("" sends none)
+// and reads the response; payload is sent with contentType when not nil.
+func (c *Client) roundTrip(ctx context.Context, method, path string, header http.Header, contentType string, payload []byte, token string) (*Response, error) {
 	var body io.Reader
 	if payload != nil {
 		body = bytes.NewReader(payload)
@@ -300,7 +341,7 @@ func (c *Client) send(ctx context.Context, method, path string, header http.Head
 
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+"/"+strings.TrimLeft(path, "/"), body)
 	if err != nil {
-		return fmt.Errorf("remote: building %s %s: %w", method, path, err)
+		return nil, fmt.Errorf("remote: building %s %s: %w", method, path, err)
 	}
 	for k, vs := range header {
 		for _, v := range vs {
@@ -312,33 +353,46 @@ func (c *Client) send(ctx context.Context, method, path string, header http.Head
 	}
 	req.Header.Set("User-Agent", "clued/"+Version)
 	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
+	if body != nil && contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("remote: %s %s: %w", method, path, err)
+		return nil, fmt.Errorf("remote: %s %s: %w", method, path, err)
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("remote: %s %s: reading response: %w", method, path, &url.Error{Op: method, URL: req.URL.String(), Err: err})
+		return nil, fmt.Errorf("remote: %s %s: reading response: %w", method, path, &url.Error{Op: method, URL: req.URL.String(), Err: err})
 	}
 
+	out := &Response{Status: resp.StatusCode}
 	var env envelope
-	hasEnvelope := len(bytes.TrimSpace(raw)) > 0 && json.Unmarshal(raw, &env) == nil
+	out.Envelope = len(bytes.TrimSpace(raw)) > 0 && json.Unmarshal(raw, &env) == nil
 	// The message is the envelope's when there is one; a non-envelope body
 	// (a proxy's error page, a bare status text) is used as is.
-	message := ""
 	switch {
-	case hasEnvelope && env.Error != nil:
-		message = env.Error.Message
-	case !hasEnvelope:
-		message = strings.TrimSpace(string(raw))
+	case out.Envelope:
+		out.OK, out.Result = env.OK, env.Result
+		if env.Error != nil {
+			out.Kind, out.Message, out.Problems = env.Error.Kind, env.Error.Message, env.Error.Problems
+		}
+	default:
+		out.Message = strings.TrimSpace(string(raw))
 	}
+	return out, nil
+}
 
-	switch resp.StatusCode {
+// send performs one request with token as the bearer ("" sends none).
+func (c *Client) send(ctx context.Context, method, path string, header http.Header, payload []byte, out any, token string) error {
+	resp, err := c.roundTrip(ctx, method, path, header, "application/json", payload, token)
+	if err != nil {
+		return err
+	}
+	hasEnvelope, message := resp.Envelope, resp.Message
+
+	switch resp.Status {
 	case http.StatusUnauthorized:
 		return wrap(ErrUnauthorized, method, path, message)
 	case http.StatusForbidden:
@@ -349,32 +403,28 @@ func (c *Client) send(ctx context.Context, method, path string, header http.Head
 		return wrap(ErrPrecondition, method, path, message)
 	}
 
-	if hasEnvelope && !env.OK {
-		e := &Error{Status: resp.StatusCode, Message: message}
-		if env.Error != nil {
-			e.Kind = env.Error.Kind
-			e.Problems = env.Error.Problems
-			if isNotFoundKind(env.Error.Kind) {
-				return wrap(ErrNotFound, method, path, message)
-			}
+	if hasEnvelope && !resp.OK {
+		e := &Error{Status: resp.Status, Message: message, Kind: resp.Kind, Problems: resp.Problems}
+		if isNotFoundKind(resp.Kind) {
+			return wrap(ErrNotFound, method, path, message)
 		}
 		if e.Message == "" {
-			e.Message = fmt.Sprintf("%s %s failed with HTTP %d", method, path, resp.StatusCode)
+			e.Message = fmt.Sprintf("%s %s failed with HTTP %d", method, path, resp.Status)
 		}
 		return e
 	}
-	if resp.StatusCode < 200 || resp.StatusCode > 299 || (!hasEnvelope && resp.StatusCode != http.StatusNoContent) {
+	if resp.Status < 200 || resp.Status > 299 || (!hasEnvelope && resp.Status != http.StatusNoContent) {
 		msg := message
 		if msg == "" {
-			msg = http.StatusText(resp.StatusCode)
+			msg = http.StatusText(resp.Status)
 		}
-		return &Error{Status: resp.StatusCode, Kind: "http", Message: fmt.Sprintf("%s %s: HTTP %d: %s", method, path, resp.StatusCode, msg)}
+		return &Error{Status: resp.Status, Kind: "http", Message: fmt.Sprintf("%s %s: HTTP %d: %s", method, path, resp.Status, msg)}
 	}
 
-	if out == nil || !hasEnvelope || len(env.Result) == 0 || bytes.Equal(bytes.TrimSpace(env.Result), []byte("null")) {
+	if out == nil || !hasEnvelope || len(resp.Result) == 0 || bytes.Equal(bytes.TrimSpace(resp.Result), []byte("null")) {
 		return nil
 	}
-	if err := json.Unmarshal(env.Result, out); err != nil {
+	if err := json.Unmarshal(resp.Result, out); err != nil {
 		return fmt.Errorf("remote: %s %s: decoding result: %w", method, path, err)
 	}
 	return nil

@@ -1,0 +1,890 @@
+{
+  "lang": "ruby",
+  "symbols": [
+    {
+      "id": "Billing",
+      "kind": "module",
+      "name": "Billing",
+      "qualName": "Billing",
+      "signature": "module Billing",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 173
+      },
+      "end": {
+        "line": 8,
+        "column": 3,
+        "offset": 214
+      },
+      "exported": true
+    },
+    {
+      "id": "Billing::Gateways",
+      "kind": "module",
+      "name": "Gateways",
+      "qualName": "Billing::Gateways",
+      "signature": "module Gateways; end",
+      "start": {
+        "line": 7,
+        "column": 2,
+        "offset": 190
+      },
+      "end": {
+        "line": 7,
+        "column": 22,
+        "offset": 210
+      },
+      "parent": "Billing",
+      "exported": true
+    },
+    {
+      "id": "Billing::Gateways::Stripe",
+      "kind": "class",
+      "name": "Stripe",
+      "qualName": "Billing::Gateways::Stripe",
+      "signature": "class Billing::Gateways::Stripe \u003c Billing::Gateways::Base",
+      "doc": "Stripe is reached through Billing::Gateways, written compactly.",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 292
+      },
+      "end": {
+        "line": 19,
+        "column": 3,
+        "offset": 476
+      },
+      "exported": true
+    },
+    {
+      "id": "Billing::Gateways::Stripe::API_VERSION",
+      "kind": "const",
+      "name": "API_VERSION",
+      "qualName": "Billing::Gateways::Stripe::API_VERSION",
+      "signature": "API_VERSION = \"2024-06-20\"",
+      "start": {
+        "line": 14,
+        "column": 2,
+        "offset": 352
+      },
+      "end": {
+        "line": 14,
+        "column": 28,
+        "offset": 378
+      },
+      "parent": "Billing::Gateways::Stripe",
+      "exported": true
+    },
+    {
+      "id": "Billing::Gateways::Stripe::charge",
+      "kind": "method",
+      "name": "charge",
+      "qualName": "Billing::Gateways::Stripe::charge",
+      "signature": "def charge(amount, token)",
+      "start": {
+        "line": 16,
+        "column": 2,
+        "offset": 382
+      },
+      "end": {
+        "line": 18,
+        "column": 5,
+        "offset": 472
+      },
+      "parent": "Billing::Gateways::Stripe",
+      "exported": true
+    },
+    {
+      "id": "Billing~2",
+      "kind": "module",
+      "name": "Billing",
+      "qualName": "Billing",
+      "signature": "module Billing",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 478
+      },
+      "end": {
+        "line": 53,
+        "column": 3,
+        "offset": 1252
+      },
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice",
+      "kind": "class",
+      "name": "Invoice",
+      "qualName": "Billing::Invoice",
+      "signature": "class Invoice",
+      "doc": "Reopens the module: Invoice is nested lexically.",
+      "start": {
+        "line": 23,
+        "column": 2,
+        "offset": 548
+      },
+      "end": {
+        "line": 50,
+        "column": 5,
+        "offset": 1222
+      },
+      "parent": "Billing~2",
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice::Line",
+      "kind": "class",
+      "name": "Line",
+      "qualName": "Billing::Invoice::Line",
+      "signature": "Line = Struct.new(:description, :cents)",
+      "start": {
+        "line": 24,
+        "column": 4,
+        "offset": 566
+      },
+      "end": {
+        "line": 24,
+        "column": 43,
+        "offset": 605
+      },
+      "parent": "Billing::Invoice",
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice::Totals",
+      "kind": "class",
+      "name": "Totals",
+      "qualName": "Billing::Invoice::Totals",
+      "signature": "Totals = Data.define(:net, :tax)",
+      "start": {
+        "line": 25,
+        "column": 4,
+        "offset": 610
+      },
+      "end": {
+        "line": 25,
+        "column": 36,
+        "offset": 642
+      },
+      "parent": "Billing::Invoice",
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice::Formatting",
+      "kind": "module",
+      "name": "Formatting",
+      "qualName": "Billing::Invoice::Formatting",
+      "signature": "Formatting = Module.new",
+      "start": {
+        "line": 26,
+        "column": 4,
+        "offset": 647
+      },
+      "end": {
+        "line": 26,
+        "column": 27,
+        "offset": 670
+      },
+      "parent": "Billing::Invoice",
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice::void!",
+      "kind": "method",
+      "name": "void!",
+      "qualName": "Billing::Invoice::void!",
+      "signature": "define_method(:void!) do",
+      "start": {
+        "line": 32,
+        "column": 4,
+        "offset": 779
+      },
+      "end": {
+        "line": 34,
+        "column": 7,
+        "offset": 833
+      },
+      "parent": "Billing::Invoice",
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice::to_s",
+      "kind": "method",
+      "name": "to_s",
+      "qualName": "Billing::Invoice::to_s",
+      "signature": "alias_method :to_s, :number",
+      "start": {
+        "line": 36,
+        "column": 4,
+        "offset": 839
+      },
+      "end": {
+        "line": 36,
+        "column": 31,
+        "offset": 866
+      },
+      "parent": "Billing::Invoice",
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice::settle",
+      "kind": "method",
+      "name": "settle",
+      "qualName": "Billing::Invoice::settle",
+      "signature": "alias settle pay",
+      "start": {
+        "line": 37,
+        "column": 4,
+        "offset": 871
+      },
+      "end": {
+        "line": 37,
+        "column": 20,
+        "offset": 887
+      },
+      "parent": "Billing::Invoice",
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice::[]",
+      "kind": "method",
+      "name": "[]",
+      "qualName": "Billing::Invoice::[]",
+      "signature": "def self.[](number) =",
+      "start": {
+        "line": 39,
+        "column": 4,
+        "offset": 893
+      },
+      "end": {
+        "line": 39,
+        "column": 37,
+        "offset": 926
+      },
+      "parent": "Billing::Invoice",
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice::pay",
+      "kind": "method",
+      "name": "pay",
+      "qualName": "Billing::Invoice::pay",
+      "signature": "def pay",
+      "start": {
+        "line": 41,
+        "column": 4,
+        "offset": 932
+      },
+      "end": {
+        "line": 43,
+        "column": 7,
+        "offset": 995
+      },
+      "parent": "Billing::Invoice",
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice::==",
+      "kind": "method",
+      "name": "==",
+      "qualName": "Billing::Invoice::==",
+      "signature": "def ==(other) =",
+      "start": {
+        "line": 45,
+        "column": 4,
+        "offset": 1001
+      },
+      "end": {
+        "line": 45,
+        "column": 66,
+        "offset": 1063
+      },
+      "parent": "Billing::Invoice",
+      "exported": true
+    },
+    {
+      "id": "Billing::Invoice::Reports::Monthly",
+      "kind": "class",
+      "name": "Monthly",
+      "qualName": "Billing::Invoice::Reports::Monthly",
+      "signature": "class Reports::Monthly; end",
+      "doc": "A compact name inside a nesting: Monthly is qualified by its lexical\ncontainers, Reports stays a reference.",
+      "start": {
+        "line": 49,
+        "column": 4,
+        "offset": 1189
+      },
+      "end": {
+        "line": 49,
+        "column": 31,
+        "offset": 1216
+      },
+      "parent": "Billing::Invoice",
+      "exported": true
+    },
+    {
+      "id": "Billing::Gateways::TIMEOUT",
+      "kind": "const",
+      "name": "TIMEOUT",
+      "qualName": "Billing::Gateways::TIMEOUT",
+      "signature": "Gateways::TIMEOUT = 15",
+      "start": {
+        "line": 52,
+        "column": 2,
+        "offset": 1226
+      },
+      "end": {
+        "line": 52,
+        "column": 24,
+        "offset": 1248
+      },
+      "parent": "Billing~2",
+      "exported": true
+    },
+    {
+      "id": "Refund",
+      "kind": "class",
+      "name": "Refund",
+      "qualName": "Refund",
+      "signature": "Refund = Class.new(Billing::Invoice) do",
+      "doc": "A class built at run time.",
+      "start": {
+        "line": 56,
+        "column": 0,
+        "offset": 1283
+      },
+      "end": {
+        "line": 60,
+        "column": 3,
+        "offset": 1355
+      },
+      "exported": true
+    },
+    {
+      "id": "Refund::credit?",
+      "kind": "method",
+      "name": "credit?",
+      "qualName": "Refund::credit?",
+      "signature": "def credit?",
+      "start": {
+        "line": 57,
+        "column": 2,
+        "offset": 1325
+      },
+      "end": {
+        "line": 59,
+        "column": 5,
+        "offset": 1351
+      },
+      "parent": "Refund",
+      "exported": true
+    },
+    {
+      "id": "Billing::configure",
+      "kind": "method",
+      "name": "configure",
+      "qualName": "Billing::configure",
+      "signature": "def Billing.configure",
+      "start": {
+        "line": 62,
+        "column": 0,
+        "offset": 1357
+      },
+      "end": {
+        "line": 64,
+        "column": 3,
+        "offset": 1397
+      },
+      "parent": "Billing",
+      "exported": true
+    },
+    {
+      "id": "pay",
+      "kind": "method",
+      "name": "pay",
+      "qualName": "pay",
+      "signature": "def pay =",
+      "start": {
+        "line": 66,
+        "column": 38,
+        "offset": 1437
+      },
+      "end": {
+        "line": 66,
+        "column": 53,
+        "offset": 1452
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "billing/ledger",
+      "names": [
+        "Ledger"
+      ],
+      "kind": "autoload",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 137
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Billing",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 6,
+        "offset": 298
+      },
+      "enclosing": "Billing::Gateways::Stripe"
+    },
+    {
+      "name": "Gateways",
+      "qualifier": "Billing",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 15,
+        "offset": 307
+      },
+      "enclosing": "Billing::Gateways::Stripe"
+    },
+    {
+      "name": "Billing",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 34,
+        "offset": 326
+      },
+      "enclosing": "Billing::Gateways::Stripe"
+    },
+    {
+      "name": "Gateways",
+      "qualifier": "Billing",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 43,
+        "offset": 335
+      },
+      "enclosing": "Billing::Gateways::Stripe"
+    },
+    {
+      "name": "Base",
+      "qualifier": "Billing::Gateways",
+      "kind": "extends",
+      "start": {
+        "line": 13,
+        "column": 53,
+        "offset": 345
+      },
+      "enclosing": "Billing::Gateways::Stripe"
+    },
+    {
+      "name": "post",
+      "qualifier": "client",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 11,
+        "offset": 419
+      },
+      "enclosing": "Billing::Gateways::Stripe::charge"
+    },
+    {
+      "name": "Struct",
+      "kind": "type",
+      "start": {
+        "line": 24,
+        "column": 11,
+        "offset": 573
+      },
+      "enclosing": "Billing::Invoice::Line"
+    },
+    {
+      "name": "new",
+      "qualifier": "Struct",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 18,
+        "offset": 580
+      },
+      "enclosing": "Billing::Invoice::Line"
+    },
+    {
+      "name": "Data",
+      "kind": "type",
+      "start": {
+        "line": 25,
+        "column": 13,
+        "offset": 619
+      },
+      "enclosing": "Billing::Invoice::Totals"
+    },
+    {
+      "name": "define",
+      "qualifier": "Data",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 18,
+        "offset": 624
+      },
+      "enclosing": "Billing::Invoice::Totals"
+    },
+    {
+      "name": "Module",
+      "kind": "type",
+      "start": {
+        "line": 26,
+        "column": 17,
+        "offset": 660
+      },
+      "enclosing": "Billing::Invoice::Formatting"
+    },
+    {
+      "name": "new",
+      "qualifier": "Module",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 24,
+        "offset": 667
+      },
+      "enclosing": "Billing::Invoice::Formatting"
+    },
+    {
+      "name": "each",
+      "qualifier": "%w[draft sent paid]",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 24,
+        "offset": 696
+      },
+      "enclosing": "Billing::Invoice"
+    },
+    {
+      "name": "new",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 26,
+        "offset": 915
+      },
+      "enclosing": "Billing::Invoice::[]"
+    },
+    {
+      "name": "Gateways",
+      "kind": "type",
+      "start": {
+        "line": 42,
+        "column": 6,
+        "offset": 946
+      },
+      "enclosing": "Billing::Invoice::pay"
+    },
+    {
+      "name": "Stripe",
+      "qualifier": "Gateways",
+      "kind": "type",
+      "start": {
+        "line": 42,
+        "column": 16,
+        "offset": 956
+      },
+      "enclosing": "Billing::Invoice::pay"
+    },
+    {
+      "name": "new",
+      "qualifier": "Gateways::Stripe",
+      "kind": "call",
+      "start": {
+        "line": 42,
+        "column": 23,
+        "offset": 963
+      },
+      "enclosing": "Billing::Invoice::pay"
+    },
+    {
+      "name": "charge",
+      "qualifier": "Gateways::Stripe.new",
+      "kind": "call",
+      "start": {
+        "line": 42,
+        "column": 27,
+        "offset": 967
+      },
+      "enclosing": "Billing::Invoice::pay"
+    },
+    {
+      "name": "is_a?",
+      "qualifier": "other",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 26,
+        "offset": 1023
+      },
+      "enclosing": "Billing::Invoice::=="
+    },
+    {
+      "name": "Invoice",
+      "kind": "type",
+      "start": {
+        "line": 45,
+        "column": 32,
+        "offset": 1029
+      },
+      "enclosing": "Billing::Invoice::=="
+    },
+    {
+      "name": "number",
+      "qualifier": "other",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 60,
+        "offset": 1057
+      },
+      "enclosing": "Billing::Invoice::=="
+    },
+    {
+      "name": "Reports",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 10,
+        "offset": 1195
+      },
+      "enclosing": "Billing::Invoice::Reports::Monthly"
+    },
+    {
+      "name": "Gateways",
+      "kind": "type",
+      "start": {
+        "line": 52,
+        "column": 2,
+        "offset": 1226
+      },
+      "enclosing": "Billing::Gateways::TIMEOUT"
+    },
+    {
+      "name": "Class",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 9,
+        "offset": 1292
+      },
+      "enclosing": "Refund"
+    },
+    {
+      "name": "new",
+      "qualifier": "Class",
+      "kind": "call",
+      "start": {
+        "line": 56,
+        "column": 15,
+        "offset": 1298
+      },
+      "enclosing": "Refund"
+    },
+    {
+      "name": "Billing",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 19,
+        "offset": 1302
+      },
+      "enclosing": "Refund"
+    },
+    {
+      "name": "Invoice",
+      "qualifier": "Billing",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 28,
+        "offset": 1311
+      },
+      "enclosing": "Refund"
+    },
+    {
+      "name": "Billing",
+      "kind": "type",
+      "start": {
+        "line": 62,
+        "column": 4,
+        "offset": 1361
+      },
+      "enclosing": "Billing::configure"
+    },
+    {
+      "name": "Billing",
+      "kind": "type",
+      "start": {
+        "line": 66,
+        "column": 0,
+        "offset": 1399
+      }
+    },
+    {
+      "name": "Invoice",
+      "qualifier": "Billing",
+      "kind": "type",
+      "start": {
+        "line": 66,
+        "column": 9,
+        "offset": 1408
+      }
+    },
+    {
+      "name": "Module",
+      "kind": "type",
+      "start": {
+        "line": 66,
+        "column": 25,
+        "offset": 1424
+      }
+    },
+    {
+      "name": "new",
+      "qualifier": "Module",
+      "kind": "call",
+      "start": {
+        "line": 66,
+        "column": 32,
+        "offset": 1431
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 8,
+        "column": 3,
+        "offset": 214
+      },
+      "text": "# Compact and nested namespaces, reopened classes and definitions written\n# as calls: the cases name-based resolution has to get right.\n\nautoload :Ledger, \"billing/ledger\"\n\nmodule Billing\n  module Gateways; end\nend",
+      "hash": "b9369913e5e481e4ec8344512272fe363b3043089154afad8353bd154f1c1b7d"
+    },
+    {
+      "id": "Billing::Gateways::Stripe#1",
+      "kind": "symbol",
+      "symbolId": "Billing::Gateways::Stripe",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 216
+      },
+      "end": {
+        "line": 19,
+        "column": 3,
+        "offset": 476
+      },
+      "text": "=begin\nStripe is reached through Billing::Gateways, written compactly.\n=end\nclass Billing::Gateways::Stripe \u003c Billing::Gateways::Base\n  API_VERSION = \"2024-06-20\"\n\n  def charge(amount, token)\n    client.post(\"/charges\", amount: amount, source: token)\n  end\nend",
+      "hash": "a573a384de969acd6b828186f5cfa60fca6e147886439f23159595102582e79a"
+    },
+    {
+      "id": "Billing::Invoice#1",
+      "kind": "symbol",
+      "symbolId": "Billing::Invoice",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 493
+      },
+      "end": {
+        "line": 50,
+        "column": 5,
+        "offset": 1222
+      },
+      "text": "  # Reopens the module: Invoice is nested lexically.\n  class Invoice\n    Line = Struct.new(:description, :cents)\n    Totals = Data.define(:net, :tax)\n    Formatting = Module.new\n\n    %w[draft sent paid].each do |state|\n      define_method(:\"#{state}?\") { @state == state }\n    end\n\n    define_method(:void!) do\n      @state = \"void\"\n    end\n\n    alias_method :to_s, :number\n    alias settle pay\n\n    def self.[](number) = new(number)\n\n    def pay\n      Gateways::Stripe.new.charge(total, token)\n    end\n\n    def ==(other) = other.is_a?(Invoice) \u0026\u0026 number == other.number\n\n    # A compact name inside a nesting: Monthly is qualified by its lexical\n    # containers, Reports stays a reference.\n    class Reports::Monthly; end\n  end",
+      "hash": "ab5d04b3189d9359104b62831a1e2bbfd8acb842161c75b82d0b0a67c4004d33"
+    },
+    {
+      "id": "L52#1",
+      "kind": "window",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1224
+      },
+      "end": {
+        "line": 53,
+        "column": 3,
+        "offset": 1252
+      },
+      "text": "  Gateways::TIMEOUT = 15\nend",
+      "hash": "3d9d74c76c7c95528f67c1e82d733809aee743fe3f0557338647420914a43863"
+    },
+    {
+      "id": "Refund#1",
+      "kind": "symbol",
+      "symbolId": "Refund",
+      "start": {
+        "line": 55,
+        "column": 0,
+        "offset": 1254
+      },
+      "end": {
+        "line": 60,
+        "column": 3,
+        "offset": 1355
+      },
+      "text": "# A class built at run time.\nRefund = Class.new(Billing::Invoice) do\n  def credit?\n    true\n  end\nend",
+      "hash": "06be32b23f79cef76269b651eeb2ae8e4b6b6d0878e812ff4a8aaf47366b44ce"
+    },
+    {
+      "id": "Billing::configure#1",
+      "kind": "symbol",
+      "symbolId": "Billing::configure",
+      "start": {
+        "line": 62,
+        "column": 0,
+        "offset": 1357
+      },
+      "end": {
+        "line": 64,
+        "column": 3,
+        "offset": 1397
+      },
+      "text": "def Billing.configure\n  yield config\nend",
+      "hash": "ec030476b840d5fee75c4faac8f6f8fab96b97c8a9dc9dc708d198b045093d90"
+    },
+    {
+      "id": "pay#1",
+      "kind": "symbol",
+      "symbolId": "pay",
+      "start": {
+        "line": 66,
+        "column": 38,
+        "offset": 1437
+      },
+      "end": {
+        "line": 66,
+        "column": 53,
+        "offset": 1452
+      },
+      "text": "def pay = super",
+      "hash": "5567409f1885b4392f2745a82e8257e60fbc6e60dc63e37ff5b423937c7046ec"
+    }
+  ]
+}

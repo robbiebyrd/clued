@@ -3,11 +3,13 @@ id: 0123-1d8
 title: Typed, token-capped graph read routes
 purpose: The first read path for collected code, for agents only and only for the caller's own view.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-19T18:11:41.725Z"
-updated: "2026-10-19T18:33:30.562Z"
+updated: "2026-10-19T19:57:11.575Z"
+started: "2026-10-19T19:41:23.196Z"
+completed: "2026-10-19T19:57:11.575Z"
 tags:
   - plan-0012-cgi
   - wave-7
@@ -37,15 +39,15 @@ links:
     - ["0012-cgi", "included", ["4.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Typed, token-capped graph read routes
@@ -82,9 +84,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./server/... ./cli/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./server/... ./cli/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./server/... ./cli/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./server/... ./cli/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -94,3 +96,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/cli/server_run.go` - `--graph redis://…`; off without it
 
 ## Work Log
+
+### 2026-10-19T19:56:48.530Z - Added server/codeapi/graph.go: codeapi.MountGraph with GraphOptions{Graphs, Indexed}, POST code/graph/{search,symbol,neighbors,outline,context} with typed bodies (unknown fields refused, no raw Cypher). Views: omitted=base, {ref}=base+newest branch layer, {session_id[,ref]}=the caller's own overlay (session found via code.Worktree.Sessions on worktrees the caller owns, else 404; other accounts' overlays never included; dropped branch layer falls back to newest of its ref, then base; no overlay -> ref layers with localEdits false). Results carry status ready/indexing/empty with progress; graph unreachable -> 503 unavailable. Budgets: max_tokens/cursor via session/query (Fit, Cursor, Budget), defaults 2000 and 6000 (context budget); symbol bodies come from the stored redacted blobs and page by line. clued.go: CluedOptions.Graph mounts the routes beside Code. server_run.go: --graph (CLUED_SERVER_GRAPH, serverGraphURLEnv) redis://, rediss:// or memory; starts the indexer through graphIndexer on the shared code_index_cursors, plus RunChecks (repair) in the background; commits kick the indexer; read progress peeks the cursors. Outside Files: cli/server_graph.go gained graphEnv.Projects (passed to codeindex Options) at the coordinator's request to reuse graphIndexer in server run. Tests: graph_test.go 10 tests (views and overlay privacy, symbol bodies and paging, search paging and filters, neighbors, outline, context, unavailable/indexing/empty, auth/opt-in, end to end with codeindex Service + FileApplier) on memgraph and FalkorDB; go test -race ./server/... ./cli/... ./codeindex/... pass with MongoDB and FalkorDB; manual smoke of server run --code-store mongo --graph redis://.

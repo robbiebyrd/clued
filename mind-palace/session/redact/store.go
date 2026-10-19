@@ -41,18 +41,27 @@ func NewPaths(patterns []string) (p Paths, errs []error) {
 
 // Excludes reports whether path, or a directory above it, matches.
 func (p Paths) Excludes(path string) bool {
+	_, ok := p.Match(path)
+	return ok
+}
+
+// Match reports the first pattern that matches path or a directory above
+// it. It is the per-path matcher behind Excludes, applied to a session's
+// cwd here and to each file by the code collector (codefilter.Matcher), so
+// path is absolute.
+func (p Paths) Match(path string) (pattern string, ok bool) {
 	if len(p) == 0 || path == "" {
-		return false
+		return "", false
 	}
 	for dir := filepath.Clean(path); ; {
 		for _, pat := range p {
 			if ok, _ := filepath.Match(pat, dir); ok {
-				return true
+				return pat, true
 			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return false
+			return "", false
 		}
 		dir = parent
 	}

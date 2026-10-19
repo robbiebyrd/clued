@@ -1,0 +1,1668 @@
+{
+  "lang": "rust",
+  "symbols": [
+    {
+      "id": "error",
+      "kind": "module",
+      "name": "error",
+      "qualName": "error",
+      "signature": "pub mod error;",
+      "doc": "A small key-value store: the crate root of the golden inputs.",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 67
+      },
+      "end": {
+        "line": 3,
+        "column": 14,
+        "offset": 81
+      },
+      "exported": true
+    },
+    {
+      "id": "storage",
+      "kind": "module",
+      "name": "storage",
+      "qualName": "storage",
+      "signature": "mod storage;",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 82
+      },
+      "end": {
+        "line": 4,
+        "column": 12,
+        "offset": 94
+      }
+    },
+    {
+      "id": "util",
+      "kind": "module",
+      "name": "util",
+      "qualName": "util",
+      "signature": "pub(crate) mod util",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 95
+      },
+      "end": {
+        "line": 10,
+        "column": 1,
+        "offset": 237
+      },
+      "exported": true
+    },
+    {
+      "id": "util::clamp",
+      "kind": "function",
+      "name": "clamp",
+      "qualName": "util::clamp",
+      "signature": "pub fn clamp(n: usize) -\u003e usize",
+      "doc": "Clamps a capacity to the allowed range.",
+      "start": {
+        "line": 7,
+        "column": 4,
+        "offset": 169
+      },
+      "end": {
+        "line": 9,
+        "column": 5,
+        "offset": 235
+      },
+      "parent": "util",
+      "exported": true
+    },
+    {
+      "id": "MAX_ENTRIES",
+      "kind": "const",
+      "name": "MAX_ENTRIES",
+      "qualName": "MAX_ENTRIES",
+      "signature": "pub const MAX_ENTRIES: usize = 1024;",
+      "doc": "The most entries a store holds.",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 321
+      },
+      "end": {
+        "line": 16,
+        "column": 36,
+        "offset": 357
+      },
+      "exported": true
+    },
+    {
+      "id": "OPENED",
+      "kind": "var",
+      "name": "OPENED",
+      "qualName": "OPENED",
+      "signature": "static OPENED: AtomicUsize = AtomicUsize::new(0);",
+      "doc": "Counts every store ever opened.",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 395
+      },
+      "end": {
+        "line": 19,
+        "column": 49,
+        "offset": 444
+      }
+    },
+    {
+      "id": "Key",
+      "kind": "type",
+      "name": "Key",
+      "qualName": "Key",
+      "signature": "pub type Key = String;",
+      "doc": "A key in the store.",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 470
+      },
+      "end": {
+        "line": 22,
+        "column": 22,
+        "offset": 492
+      },
+      "exported": true
+    },
+    {
+      "id": "Entry",
+      "kind": "struct",
+      "name": "Entry",
+      "qualName": "Entry",
+      "signature": "pub struct Entry\u003cV\u003e",
+      "doc": "An entry with its value and version.",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 588
+      },
+      "end": {
+        "line": 33,
+        "column": 1,
+        "offset": 728
+      },
+      "exported": true
+    },
+    {
+      "id": "Entry::value",
+      "kind": "field",
+      "name": "value",
+      "qualName": "Entry::value",
+      "signature": "pub value: V",
+      "doc": "The stored value.",
+      "start": {
+        "line": 29,
+        "column": 4,
+        "offset": 640
+      },
+      "end": {
+        "line": 29,
+        "column": 16,
+        "offset": 652
+      },
+      "parent": "Entry",
+      "exported": true
+    },
+    {
+      "id": "Entry::version",
+      "kind": "field",
+      "name": "version",
+      "qualName": "Entry::version",
+      "signature": "pub(crate) version: u64",
+      "start": {
+        "line": 31,
+        "column": 4,
+        "offset": 680
+      },
+      "end": {
+        "line": 31,
+        "column": 27,
+        "offset": 703
+      },
+      "parent": "Entry",
+      "exported": true
+    },
+    {
+      "id": "Entry::created",
+      "kind": "field",
+      "name": "created",
+      "qualName": "Entry::created",
+      "signature": "created: Instant",
+      "start": {
+        "line": 32,
+        "column": 4,
+        "offset": 709
+      },
+      "end": {
+        "line": 32,
+        "column": 20,
+        "offset": 725
+      },
+      "parent": "Entry"
+    },
+    {
+      "id": "Version",
+      "kind": "struct",
+      "name": "Version",
+      "qualName": "Version",
+      "signature": "pub struct Version",
+      "doc": "A tuple struct.",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 750
+      },
+      "end": {
+        "line": 36,
+        "column": 28,
+        "offset": 778
+      },
+      "exported": true
+    },
+    {
+      "id": "Empty",
+      "kind": "struct",
+      "name": "Empty",
+      "qualName": "Empty",
+      "signature": "struct Empty;",
+      "doc": "A unit struct marks an empty store.",
+      "start": {
+        "line": 39,
+        "column": 0,
+        "offset": 820
+      },
+      "end": {
+        "line": 39,
+        "column": 13,
+        "offset": 833
+      }
+    },
+    {
+      "id": "Lookup",
+      "kind": "enum",
+      "name": "Lookup",
+      "qualName": "Lookup",
+      "signature": "pub enum Lookup\u003cV\u003e",
+      "doc": "What a lookup found.",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 877
+      },
+      "end": {
+        "line": 49,
+        "column": 1,
+        "offset": 1036
+      },
+      "exported": true
+    },
+    {
+      "id": "Lookup::Found",
+      "kind": "variant",
+      "name": "Found",
+      "qualName": "Lookup::Found",
+      "signature": "Found",
+      "doc": "The key holds a value.",
+      "start": {
+        "line": 45,
+        "column": 4,
+        "offset": 933
+      },
+      "end": {
+        "line": 45,
+        "column": 12,
+        "offset": 941
+      },
+      "parent": "Lookup",
+      "exported": true
+    },
+    {
+      "id": "Lookup::Removed",
+      "kind": "variant",
+      "name": "Removed",
+      "qualName": "Lookup::Removed",
+      "signature": "Removed",
+      "doc": "The key was removed at this version.",
+      "start": {
+        "line": 47,
+        "column": 4,
+        "offset": 992
+      },
+      "end": {
+        "line": 47,
+        "column": 32,
+        "offset": 1020
+      },
+      "parent": "Lookup",
+      "exported": true
+    },
+    {
+      "id": "Lookup::Removed::at",
+      "kind": "field",
+      "name": "at",
+      "qualName": "Lookup::Removed::at",
+      "signature": "at: u64",
+      "doc": "The key was removed at this version.",
+      "start": {
+        "line": 47,
+        "column": 14,
+        "offset": 1002
+      },
+      "end": {
+        "line": 47,
+        "column": 21,
+        "offset": 1009
+      },
+      "parent": "Lookup::Removed",
+      "exported": true
+    },
+    {
+      "id": "Lookup::Removed::by",
+      "kind": "field",
+      "name": "by",
+      "qualName": "Lookup::Removed::by",
+      "signature": "by: Key",
+      "doc": "The key was removed at this version.",
+      "start": {
+        "line": 47,
+        "column": 23,
+        "offset": 1011
+      },
+      "end": {
+        "line": 47,
+        "column": 30,
+        "offset": 1018
+      },
+      "parent": "Lookup::Removed",
+      "exported": true
+    },
+    {
+      "id": "Lookup::Missing",
+      "kind": "variant",
+      "name": "Missing",
+      "qualName": "Lookup::Missing",
+      "signature": "Missing",
+      "start": {
+        "line": 48,
+        "column": 4,
+        "offset": 1026
+      },
+      "end": {
+        "line": 48,
+        "column": 11,
+        "offset": 1033
+      },
+      "parent": "Lookup",
+      "exported": true
+    },
+    {
+      "id": "Raw",
+      "kind": "union",
+      "name": "Raw",
+      "qualName": "Raw",
+      "signature": "pub union Raw",
+      "doc": "Raw bytes or a number.",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1076
+      },
+      "end": {
+        "line": 56,
+        "column": 1,
+        "offset": 1130
+      },
+      "exported": true
+    },
+    {
+      "id": "Raw::bytes",
+      "kind": "field",
+      "name": "bytes",
+      "qualName": "Raw::bytes",
+      "signature": "bytes: [u8; 8]",
+      "start": {
+        "line": 54,
+        "column": 4,
+        "offset": 1096
+      },
+      "end": {
+        "line": 54,
+        "column": 18,
+        "offset": 1110
+      },
+      "parent": "Raw"
+    },
+    {
+      "id": "Raw::number",
+      "kind": "field",
+      "name": "number",
+      "qualName": "Raw::number",
+      "signature": "number: u64",
+      "start": {
+        "line": 55,
+        "column": 4,
+        "offset": 1116
+      },
+      "end": {
+        "line": 55,
+        "column": 15,
+        "offset": 1127
+      },
+      "parent": "Raw"
+    },
+    {
+      "id": "Storable",
+      "kind": "trait",
+      "name": "Storable",
+      "qualName": "Storable",
+      "signature": "pub trait Storable: fmt::Debug + Clone",
+      "doc": "Anything that can be stored.",
+      "start": {
+        "line": 59,
+        "column": 0,
+        "offset": 1165
+      },
+      "end": {
+        "line": 73,
+        "column": 1,
+        "offset": 1494
+      },
+      "exported": true
+    },
+    {
+      "id": "Storable::Encoded",
+      "kind": "type",
+      "name": "Encoded",
+      "qualName": "Storable::Encoded",
+      "signature": "type Encoded;",
+      "doc": "The encoded form.",
+      "start": {
+        "line": 61,
+        "column": 4,
+        "offset": 1236
+      },
+      "end": {
+        "line": 61,
+        "column": 17,
+        "offset": 1249
+      },
+      "parent": "Storable"
+    },
+    {
+      "id": "Storable::START",
+      "kind": "const",
+      "name": "START",
+      "qualName": "Storable::START",
+      "signature": "const START: u64 = 1;",
+      "doc": "The version this kind starts at.",
+      "start": {
+        "line": 64,
+        "column": 4,
+        "offset": 1296
+      },
+      "end": {
+        "line": 64,
+        "column": 25,
+        "offset": 1317
+      },
+      "parent": "Storable"
+    },
+    {
+      "id": "Storable::encode",
+      "kind": "method",
+      "name": "encode",
+      "qualName": "Storable::encode",
+      "signature": "fn encode(\u0026self) -\u003e Self::Encoded;",
+      "doc": "Encodes the value.",
+      "start": {
+        "line": 67,
+        "column": 4,
+        "offset": 1350
+      },
+      "end": {
+        "line": 67,
+        "column": 38,
+        "offset": 1384
+      },
+      "parent": "Storable",
+      "exported": true
+    },
+    {
+      "id": "Storable::size",
+      "kind": "method",
+      "name": "size",
+      "qualName": "Storable::size",
+      "signature": "fn size(\u0026self) -\u003e usize",
+      "doc": "Reports the size in bytes.",
+      "start": {
+        "line": 70,
+        "column": 4,
+        "offset": 1425
+      },
+      "end": {
+        "line": 72,
+        "column": 5,
+        "offset": 1492
+      },
+      "parent": "Storable",
+      "exported": true
+    },
+    {
+      "id": "Store",
+      "kind": "struct",
+      "name": "Store",
+      "qualName": "Store",
+      "signature": "pub struct Store\u003cV: Storable\u003e",
+      "doc": "The store.",
+      "start": {
+        "line": 77,
+        "column": 0,
+        "offset": 1530
+      },
+      "end": {
+        "line": 79,
+        "column": 1,
+        "offset": 1600
+      },
+      "exported": true
+    },
+    {
+      "id": "Store::entries",
+      "kind": "field",
+      "name": "entries",
+      "qualName": "Store::entries",
+      "signature": "entries: HashMap\u003cKey, Entry\u003cV\u003e\u003e",
+      "start": {
+        "line": 78,
+        "column": 4,
+        "offset": 1566
+      },
+      "end": {
+        "line": 78,
+        "column": 35,
+        "offset": 1597
+      },
+      "parent": "Store"
+    },
+    {
+      "id": "Store~2",
+      "kind": "impl",
+      "name": "Store",
+      "qualName": "Store",
+      "signature": "impl\u003cV: Storable\u003e Store\u003cV\u003e",
+      "start": {
+        "line": 81,
+        "column": 0,
+        "offset": 1602
+      },
+      "end": {
+        "line": 98,
+        "column": 1,
+        "offset": 2040
+      }
+    },
+    {
+      "id": "Store::new",
+      "kind": "method",
+      "name": "new",
+      "qualName": "Store::new",
+      "signature": "pub fn new() -\u003e Self",
+      "doc": "Opens an empty store.",
+      "start": {
+        "line": 84,
+        "column": 4,
+        "offset": 1681
+      },
+      "end": {
+        "line": 87,
+        "column": 5,
+        "offset": 1798
+      },
+      "parent": "Store~2",
+      "exported": true
+    },
+    {
+      "id": "Store::get",
+      "kind": "method",
+      "name": "get",
+      "qualName": "Store::get",
+      "signature": "pub fn get(\u0026self, key: \u0026str) -\u003e Lookup\u003c\u0026V\u003e",
+      "doc": "Looks a key up.",
+      "start": {
+        "line": 90,
+        "column": 4,
+        "offset": 1828
+      },
+      "end": {
+        "line": 95,
+        "column": 5,
+        "offset": 2011
+      },
+      "parent": "Store~2",
+      "exported": true
+    },
+    {
+      "id": "Store::bump",
+      "kind": "method",
+      "name": "bump",
+      "qualName": "Store::bump",
+      "signature": "fn bump(\u0026mut self)",
+      "start": {
+        "line": 97,
+        "column": 4,
+        "offset": 2017
+      },
+      "end": {
+        "line": 97,
+        "column": 25,
+        "offset": 2038
+      },
+      "parent": "Store~2"
+    },
+    {
+      "id": "Store~3",
+      "kind": "impl",
+      "name": "Store",
+      "qualName": "Store",
+      "signature": "impl\u003cV: Storable\u003e fmt::Display for Store\u003cV\u003e",
+      "start": {
+        "line": 100,
+        "column": 0,
+        "offset": 2042
+      },
+      "end": {
+        "line": 104,
+        "column": 1,
+        "offset": 2210
+      }
+    },
+    {
+      "id": "Store::fmt",
+      "kind": "method",
+      "name": "fmt",
+      "qualName": "Store::fmt",
+      "signature": "fn fmt(\u0026self, f: \u0026mut fmt::Formatter\u003c'_\u003e) -\u003e fmt::Result",
+      "start": {
+        "line": 101,
+        "column": 4,
+        "offset": 2092
+      },
+      "end": {
+        "line": 103,
+        "column": 5,
+        "offset": 2208
+      },
+      "parent": "Store~3",
+      "exported": true
+    },
+    {
+      "id": "u64",
+      "kind": "impl",
+      "name": "u64",
+      "qualName": "u64",
+      "signature": "impl Storable for u64",
+      "start": {
+        "line": 106,
+        "column": 0,
+        "offset": 2212
+      },
+      "end": {
+        "line": 112,
+        "column": 1,
+        "offset": 2339
+      }
+    },
+    {
+      "id": "u64::Encoded",
+      "kind": "type",
+      "name": "Encoded",
+      "qualName": "u64::Encoded",
+      "signature": "type Encoded = [u8; 8];",
+      "start": {
+        "line": 107,
+        "column": 4,
+        "offset": 2240
+      },
+      "end": {
+        "line": 107,
+        "column": 27,
+        "offset": 2263
+      },
+      "parent": "u64"
+    },
+    {
+      "id": "u64::encode",
+      "kind": "method",
+      "name": "encode",
+      "qualName": "u64::encode",
+      "signature": "fn encode(\u0026self) -\u003e Self::Encoded",
+      "start": {
+        "line": 109,
+        "column": 4,
+        "offset": 2269
+      },
+      "end": {
+        "line": 111,
+        "column": 5,
+        "offset": 2337
+      },
+      "parent": "u64",
+      "exported": true
+    },
+    {
+      "id": "store",
+      "kind": "macro",
+      "name": "store",
+      "qualName": "store",
+      "signature": "macro_rules! store",
+      "doc": "Builds a store from pairs.",
+      "start": {
+        "line": 116,
+        "column": 0,
+        "offset": 2388
+      },
+      "end": {
+        "line": 122,
+        "column": 1,
+        "offset": 2544
+      }
+    },
+    {
+      "id": "open",
+      "kind": "function",
+      "name": "open",
+      "qualName": "open",
+      "signature": "pub async fn open\u003cV\u003e(capacity: usize) -\u003e Result\u003cStore\u003cV\u003e, error::Error\u003e where V: Storable + Send,",
+      "doc": "Opens a store with a capacity.",
+      "start": {
+        "line": 125,
+        "column": 0,
+        "offset": 2581
+      },
+      "end": {
+        "line": 132,
+        "column": 1,
+        "offset": 2778
+      },
+      "exported": true
+    },
+    {
+      "id": "malloc_usable_size",
+      "kind": "function",
+      "name": "malloc_usable_size",
+      "qualName": "malloc_usable_size",
+      "signature": "fn malloc_usable_size(ptr: *mut u8) -\u003e usize;",
+      "doc": "The C allocator's size of a block.",
+      "start": {
+        "line": 136,
+        "column": 4,
+        "offset": 2840
+      },
+      "end": {
+        "line": 136,
+        "column": 49,
+        "offset": 2885
+      }
+    }
+  ],
+  "imports": [
+    {
+      "spec": "error",
+      "kind": "mod",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 67
+      }
+    },
+    {
+      "spec": "storage",
+      "kind": "mod",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 82
+      }
+    },
+    {
+      "spec": "std::collections",
+      "names": [
+        "HashMap"
+      ],
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 239
+      }
+    },
+    {
+      "spec": "std",
+      "names": [
+        "fmt"
+      ],
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 270
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "min",
+      "qualifier": "n",
+      "kind": "call",
+      "start": {
+        "line": 8,
+        "column": 10,
+        "offset": 213
+      },
+      "enclosing": "util::clamp"
+    },
+    {
+      "name": "AtomicUsize",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 15,
+        "offset": 410
+      },
+      "enclosing": "OPENED"
+    },
+    {
+      "name": "new",
+      "qualifier": "AtomicUsize",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 42,
+        "offset": 437
+      },
+      "enclosing": "OPENED"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 22,
+        "column": 15,
+        "offset": 485
+      },
+      "enclosing": "Key"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 17,
+        "offset": 605
+      },
+      "enclosing": "Entry"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 29,
+        "column": 15,
+        "offset": 651
+      },
+      "enclosing": "Entry::value"
+    },
+    {
+      "name": "Instant",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 13,
+        "offset": 718
+      },
+      "enclosing": "Entry::created"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 43,
+        "column": 16,
+        "offset": 893
+      },
+      "enclosing": "Lookup"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 45,
+        "column": 10,
+        "offset": 939
+      },
+      "enclosing": "Lookup::Found"
+    },
+    {
+      "name": "Key",
+      "kind": "type",
+      "start": {
+        "line": 47,
+        "column": 27,
+        "offset": 1015
+      },
+      "enclosing": "Lookup::Removed::by"
+    },
+    {
+      "name": "Debug",
+      "qualifier": "fmt",
+      "kind": "extends",
+      "start": {
+        "line": 59,
+        "column": 25,
+        "offset": 1190
+      },
+      "enclosing": "Storable"
+    },
+    {
+      "name": "Debug",
+      "qualifier": "fmt",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 25,
+        "offset": 1190
+      },
+      "enclosing": "Storable"
+    },
+    {
+      "name": "Clone",
+      "kind": "extends",
+      "start": {
+        "line": 59,
+        "column": 33,
+        "offset": 1198
+      },
+      "enclosing": "Storable"
+    },
+    {
+      "name": "Clone",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 33,
+        "offset": 1198
+      },
+      "enclosing": "Storable"
+    },
+    {
+      "name": "Encoded",
+      "qualifier": "Self",
+      "kind": "type",
+      "start": {
+        "line": 67,
+        "column": 30,
+        "offset": 1376
+      },
+      "enclosing": "Storable::encode"
+    },
+    {
+      "name": "size_of_val",
+      "qualifier": "std::mem",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 18,
+        "offset": 1469
+      },
+      "enclosing": "Storable::size"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 77,
+        "column": 17,
+        "offset": 1547
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "Storable",
+      "kind": "type",
+      "start": {
+        "line": 77,
+        "column": 20,
+        "offset": 1550
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "HashMap",
+      "kind": "type",
+      "start": {
+        "line": 78,
+        "column": 13,
+        "offset": 1575
+      },
+      "enclosing": "Store::entries"
+    },
+    {
+      "name": "Key",
+      "kind": "type",
+      "start": {
+        "line": 78,
+        "column": 21,
+        "offset": 1583
+      },
+      "enclosing": "Store::entries"
+    },
+    {
+      "name": "Entry",
+      "kind": "type",
+      "start": {
+        "line": 78,
+        "column": 26,
+        "offset": 1588
+      },
+      "enclosing": "Store::entries"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 78,
+        "column": 32,
+        "offset": 1594
+      },
+      "enclosing": "Store::entries"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 81,
+        "column": 5,
+        "offset": 1607
+      },
+      "enclosing": "Store~2"
+    },
+    {
+      "name": "Storable",
+      "kind": "type",
+      "start": {
+        "line": 81,
+        "column": 8,
+        "offset": 1610
+      },
+      "enclosing": "Store~2"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 81,
+        "column": 24,
+        "offset": 1626
+      },
+      "enclosing": "Store~2"
+    },
+    {
+      "name": "fetch_add",
+      "qualifier": "OPENED",
+      "kind": "call",
+      "start": {
+        "line": 85,
+        "column": 15,
+        "offset": 1719
+      },
+      "enclosing": "Store::new"
+    },
+    {
+      "name": "Store",
+      "kind": "type",
+      "start": {
+        "line": 86,
+        "column": 8,
+        "offset": 1759
+      },
+      "enclosing": "Store::new"
+    },
+    {
+      "name": "new",
+      "qualifier": "HashMap",
+      "kind": "call",
+      "start": {
+        "line": 86,
+        "column": 34,
+        "offset": 1785
+      },
+      "enclosing": "Store::new"
+    },
+    {
+      "name": "Lookup",
+      "kind": "type",
+      "start": {
+        "line": 90,
+        "column": 36,
+        "offset": 1860
+      },
+      "enclosing": "Store::get"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 90,
+        "column": 44,
+        "offset": 1868
+      },
+      "enclosing": "Store::get"
+    },
+    {
+      "name": "get",
+      "qualifier": "self.entries",
+      "kind": "call",
+      "start": {
+        "line": 91,
+        "column": 27,
+        "offset": 1900
+      },
+      "enclosing": "Store::get"
+    },
+    {
+      "name": "Found",
+      "qualifier": "Lookup",
+      "kind": "call",
+      "start": {
+        "line": 92,
+        "column": 31,
+        "offset": 1942
+      },
+      "enclosing": "Store::get"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 100,
+        "column": 5,
+        "offset": 2047
+      },
+      "enclosing": "Store~3"
+    },
+    {
+      "name": "Storable",
+      "kind": "type",
+      "start": {
+        "line": 100,
+        "column": 8,
+        "offset": 2050
+      },
+      "enclosing": "Store~3"
+    },
+    {
+      "name": "Display",
+      "qualifier": "fmt",
+      "kind": "implements",
+      "start": {
+        "line": 100,
+        "column": 23,
+        "offset": 2065
+      },
+      "enclosing": "Store~3"
+    },
+    {
+      "name": "Display",
+      "qualifier": "fmt",
+      "kind": "type",
+      "start": {
+        "line": 100,
+        "column": 23,
+        "offset": 2065
+      },
+      "enclosing": "Store~3"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 100,
+        "column": 41,
+        "offset": 2083
+      },
+      "enclosing": "Store~3"
+    },
+    {
+      "name": "Formatter",
+      "qualifier": "fmt",
+      "kind": "type",
+      "start": {
+        "line": 101,
+        "column": 31,
+        "offset": 2119
+      },
+      "enclosing": "Store::fmt"
+    },
+    {
+      "name": "Result",
+      "qualifier": "fmt",
+      "kind": "type",
+      "start": {
+        "line": 101,
+        "column": 54,
+        "offset": 2142
+      },
+      "enclosing": "Store::fmt"
+    },
+    {
+      "name": "Storable",
+      "kind": "implements",
+      "start": {
+        "line": 106,
+        "column": 5,
+        "offset": 2217
+      },
+      "enclosing": "u64"
+    },
+    {
+      "name": "Storable",
+      "kind": "type",
+      "start": {
+        "line": 106,
+        "column": 5,
+        "offset": 2217
+      },
+      "enclosing": "u64"
+    },
+    {
+      "name": "Encoded",
+      "qualifier": "Self",
+      "kind": "type",
+      "start": {
+        "line": 109,
+        "column": 30,
+        "offset": 2295
+      },
+      "enclosing": "u64::encode"
+    },
+    {
+      "name": "to_be_bytes",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 110,
+        "column": 13,
+        "offset": 2318
+      },
+      "enclosing": "u64::encode"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 125,
+        "column": 18,
+        "offset": 2599
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "Result",
+      "kind": "type",
+      "start": {
+        "line": 125,
+        "column": 41,
+        "offset": 2622
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "Store",
+      "kind": "type",
+      "start": {
+        "line": 125,
+        "column": 48,
+        "offset": 2629
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 125,
+        "column": 54,
+        "offset": 2635
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "Error",
+      "qualifier": "error",
+      "kind": "type",
+      "start": {
+        "line": 125,
+        "column": 65,
+        "offset": 2646
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 127,
+        "column": 4,
+        "offset": 2663
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "Storable",
+      "kind": "type",
+      "start": {
+        "line": 127,
+        "column": 7,
+        "offset": 2666
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "Send",
+      "kind": "type",
+      "start": {
+        "line": 127,
+        "column": 18,
+        "offset": 2677
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "clamp",
+      "qualifier": "util",
+      "kind": "call",
+      "start": {
+        "line": 129,
+        "column": 20,
+        "offset": 2705
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "reserve",
+      "qualifier": "storage",
+      "kind": "call",
+      "start": {
+        "line": 130,
+        "column": 13,
+        "offset": 2735
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "new",
+      "qualifier": "Store",
+      "kind": "call",
+      "start": {
+        "line": 131,
+        "column": 14,
+        "offset": 2770
+      },
+      "enclosing": "open"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 5,
+        "column": 21,
+        "offset": 116
+      },
+      "text": "//! A small key-value store: the crate root of the golden inputs.\n\npub mod error;\nmod storage;\npub(crate) mod util {",
+      "hash": "b5aa9b738a8899c2f8c9473aaadc030ced41ff74b4eb4d324741db59f83d52a0"
+    },
+    {
+      "id": "util::clamp#1",
+      "kind": "symbol",
+      "symbolId": "util::clamp",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 117
+      },
+      "end": {
+        "line": 9,
+        "column": 5,
+        "offset": 235
+      },
+      "text": "    /// Clamps a capacity to the allowed range.\n    pub fn clamp(n: usize) -\u003e usize {\n        n.min(MAX_ENTRIES)\n    }",
+      "hash": "5781b60dcfb512db432b0154a4d10d257b9a2b02077e1ca440a55265d87ab7ec"
+    },
+    {
+      "id": "L10#1",
+      "kind": "window",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 236
+      },
+      "end": {
+        "line": 19,
+        "column": 49,
+        "offset": 444
+      },
+      "text": "}\n\nuse std::collections::HashMap;\nuse std::fmt;\n\n/// The most entries a store holds.\npub const MAX_ENTRIES: usize = 1024;\n\n/// Counts every store ever opened.\nstatic OPENED: AtomicUsize = AtomicUsize::new(0);",
+      "hash": "91e04930dc6695954652c95297730df8a605e608bf75ca984e8c417aef3cc5cb"
+    },
+    {
+      "id": "Key#1",
+      "kind": "symbol",
+      "symbolId": "Key",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 446
+      },
+      "end": {
+        "line": 22,
+        "column": 22,
+        "offset": 492
+      },
+      "text": "/// A key in the store.\npub type Key = String;",
+      "hash": "a7d13a8c67b2d7a21ca732e0bd081d4962cbc2fd955216a3c787ca03f264e8fa"
+    },
+    {
+      "id": "Entry#1",
+      "kind": "symbol",
+      "symbolId": "Entry",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 494
+      },
+      "end": {
+        "line": 33,
+        "column": 1,
+        "offset": 728
+      },
+      "text": "/// An entry with its value and version.\n#[derive(Debug, Clone, PartialEq)]\n#[non_exhaustive]\npub struct Entry\u003cV\u003e {\n    /// The stored value.\n    pub value: V,\n    #[serde(default)]\n    pub(crate) version: u64,\n    created: Instant,\n}",
+      "hash": "d37f976003c9ada116f14818b03f9a435b09479a36b9550f070f64c70f664b55"
+    },
+    {
+      "id": "Version#1",
+      "kind": "symbol",
+      "symbolId": "Version",
+      "start": {
+        "line": 35,
+        "column": 0,
+        "offset": 730
+      },
+      "end": {
+        "line": 36,
+        "column": 28,
+        "offset": 778
+      },
+      "text": "/// A tuple struct.\npub struct Version(pub u64);",
+      "hash": "5180f6645326cd0ffb1e898888b2795c9c09ba6de873609288db95040587bc32"
+    },
+    {
+      "id": "Empty#1",
+      "kind": "symbol",
+      "symbolId": "Empty",
+      "start": {
+        "line": 38,
+        "column": 0,
+        "offset": 780
+      },
+      "end": {
+        "line": 39,
+        "column": 13,
+        "offset": 833
+      },
+      "text": "/// A unit struct marks an empty store.\nstruct Empty;",
+      "hash": "2a928e35536dc3bfc7a0c9cc199dbfcc01fd17ddc00e5145041fe6add5c74a9e"
+    },
+    {
+      "id": "Lookup#1",
+      "kind": "symbol",
+      "symbolId": "Lookup",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 835
+      },
+      "end": {
+        "line": 49,
+        "column": 1,
+        "offset": 1036
+      },
+      "text": "/// What a lookup found.\n#[derive(Debug)]\npub enum Lookup\u003cV\u003e {\n    /// The key holds a value.\n    Found(V),\n    /// The key was removed at this version.\n    Removed { at: u64, by: Key },\n    Missing,\n}",
+      "hash": "829c01e2ad54ca3681038b8d81ed4303ea1240d38926d92768da55059b8e60e5"
+    },
+    {
+      "id": "Raw#1",
+      "kind": "symbol",
+      "symbolId": "Raw",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 1038
+      },
+      "end": {
+        "line": 56,
+        "column": 1,
+        "offset": 1130
+      },
+      "text": "/// Raw bytes or a number.\n#[repr(C)]\npub union Raw {\n    bytes: [u8; 8],\n    number: u64,\n}",
+      "hash": "8e8e74fd3c93298cd0cd5a63d74e1b6390e0a92046415e2688b6d210874a5765"
+    },
+    {
+      "id": "Storable#1",
+      "kind": "symbol",
+      "symbolId": "Storable",
+      "start": {
+        "line": 58,
+        "column": 0,
+        "offset": 1132
+      },
+      "end": {
+        "line": 73,
+        "column": 1,
+        "offset": 1494
+      },
+      "text": "/// Anything that can be stored.\npub trait Storable: fmt::Debug + Clone {\n    /// The encoded form.\n    type Encoded;\n\n    /// The version this kind starts at.\n    const START: u64 = 1;\n\n    /// Encodes the value.\n    fn encode(\u0026self) -\u003e Self::Encoded;\n\n    /// Reports the size in bytes.\n    fn size(\u0026self) -\u003e usize {\n        std::mem::size_of_val(self)\n    }\n}",
+      "hash": "535f82244286c040c6e035bc512a485bcc0314bb597556a0caaa8d24a8123231"
+    },
+    {
+      "id": "Store#1",
+      "kind": "symbol",
+      "symbolId": "Store",
+      "start": {
+        "line": 75,
+        "column": 0,
+        "offset": 1496
+      },
+      "end": {
+        "line": 79,
+        "column": 1,
+        "offset": 1600
+      },
+      "text": "/// The store.\n#[derive(Default)]\npub struct Store\u003cV: Storable\u003e {\n    entries: HashMap\u003cKey, Entry\u003cV\u003e\u003e,\n}",
+      "hash": "8f26d0e7e30f2f836d35626e8f8f068d3b3f600f59bc53151e9f431910170d9a"
+    },
+    {
+      "id": "Store~2#1",
+      "kind": "symbol",
+      "symbolId": "Store~2",
+      "start": {
+        "line": 81,
+        "column": 0,
+        "offset": 1602
+      },
+      "end": {
+        "line": 98,
+        "column": 1,
+        "offset": 2040
+      },
+      "text": "impl\u003cV: Storable\u003e Store\u003cV\u003e {\n    /// Opens an empty store.\n    #[must_use]\n    pub fn new() -\u003e Self {\n        OPENED.fetch_add(1, Ordering::SeqCst);\n        Store { entries: HashMap::new() }\n    }\n\n    /// Looks a key up.\n    pub fn get(\u0026self, key: \u0026str) -\u003e Lookup\u003c\u0026V\u003e {\n        match self.entries.get(key) {\n            Some(e) =\u003e Lookup::Found(\u0026e.value),\n            None =\u003e Lookup::Missing,\n        }\n    }\n\n    fn bump(\u0026mut self) {}\n}",
+      "hash": "3bb10348217ddbbb5c9a34302c03403a49e14e33e983c64ea8f683a339180fda"
+    },
+    {
+      "id": "Store~3#1",
+      "kind": "symbol",
+      "symbolId": "Store~3",
+      "start": {
+        "line": 100,
+        "column": 0,
+        "offset": 2042
+      },
+      "end": {
+        "line": 104,
+        "column": 1,
+        "offset": 2210
+      },
+      "text": "impl\u003cV: Storable\u003e fmt::Display for Store\u003cV\u003e {\n    fn fmt(\u0026self, f: \u0026mut fmt::Formatter\u003c'_\u003e) -\u003e fmt::Result {\n        write!(f, \"{} entries\", self.entries.len())\n    }\n}",
+      "hash": "d5e6248105c947c5ce2aa25df44ce32c445ecacdafcb78a33e5b1726b352fe43"
+    },
+    {
+      "id": "u64#1",
+      "kind": "symbol",
+      "symbolId": "u64",
+      "start": {
+        "line": 106,
+        "column": 0,
+        "offset": 2212
+      },
+      "end": {
+        "line": 112,
+        "column": 1,
+        "offset": 2339
+      },
+      "text": "impl Storable for u64 {\n    type Encoded = [u8; 8];\n\n    fn encode(\u0026self) -\u003e Self::Encoded {\n        self.to_be_bytes()\n    }\n}",
+      "hash": "689e01e81c089c50e555865caa9623beadacf3897df8bbe00b17763d54e83a22"
+    },
+    {
+      "id": "store#1",
+      "kind": "symbol",
+      "symbolId": "store",
+      "start": {
+        "line": 114,
+        "column": 0,
+        "offset": 2341
+      },
+      "end": {
+        "line": 122,
+        "column": 1,
+        "offset": 2544
+      },
+      "text": "/// Builds a store from pairs.\n#[macro_export]\nmacro_rules! store {\n    ($($k:expr =\u003e $v:expr),* $(,)?) =\u003e {{\n        let mut s = $crate::Store::new();\n        $( s.insert($k, $v); )*\n        s\n    }};\n}",
+      "hash": "ca0e246faa5b37d4977e2a85576a922d851a806136fd30d61c6b033dd0a502ff"
+    },
+    {
+      "id": "open#1",
+      "kind": "symbol",
+      "symbolId": "open",
+      "start": {
+        "line": 124,
+        "column": 0,
+        "offset": 2546
+      },
+      "end": {
+        "line": 132,
+        "column": 1,
+        "offset": 2778
+      },
+      "text": "/// Opens a store with a capacity.\npub async fn open\u003cV\u003e(capacity: usize) -\u003e Result\u003cStore\u003cV\u003e, error::Error\u003e\nwhere\n    V: Storable + Send,\n{\n    let cap = util::clamp(capacity);\n    storage::reserve(cap).await?;\n    Ok(Store::new())\n}",
+      "hash": "c8547598b513fa6e76de7390758140b83be6d7931c3580fda682c51fc1369a76"
+    },
+    {
+      "id": "malloc_usable_size#1",
+      "kind": "symbol",
+      "symbolId": "malloc_usable_size",
+      "start": {
+        "line": 135,
+        "column": 0,
+        "offset": 2793
+      },
+      "end": {
+        "line": 136,
+        "column": 49,
+        "offset": 2885
+      },
+      "text": "    /// The C allocator's size of a block.\n    fn malloc_usable_size(ptr: *mut u8) -\u003e usize;",
+      "hash": "81b82acc6969440dde874fbe49a418b55f982d18c0e27e9af49008f19ca91c7c"
+    }
+  ]
+}

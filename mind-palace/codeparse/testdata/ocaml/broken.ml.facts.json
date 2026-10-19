@@ -1,0 +1,366 @@
+{
+  "lang": "ocaml",
+  "symbols": [
+    {
+      "id": "t",
+      "kind": "struct",
+      "name": "t",
+      "qualName": "t",
+      "signature": "t =",
+      "start": {
+        "line": 4,
+        "column": 5,
+        "offset": 153
+      },
+      "end": {
+        "line": 4,
+        "column": 38,
+        "offset": 186
+      },
+      "exported": true
+    },
+    {
+      "id": "t.name",
+      "kind": "field",
+      "name": "name",
+      "qualName": "t.name",
+      "signature": "name : string",
+      "start": {
+        "line": 4,
+        "column": 11,
+        "offset": 159
+      },
+      "end": {
+        "line": 4,
+        "column": 24,
+        "offset": 172
+      },
+      "parent": "t",
+      "exported": true
+    },
+    {
+      "id": "t.size",
+      "kind": "field",
+      "name": "size",
+      "qualName": "t.size",
+      "signature": "size : int",
+      "start": {
+        "line": 4,
+        "column": 26,
+        "offset": 174
+      },
+      "end": {
+        "line": 4,
+        "column": 36,
+        "offset": 184
+      },
+      "parent": "t",
+      "exported": true
+    },
+    {
+      "id": "make",
+      "kind": "function",
+      "name": "make",
+      "qualName": "make",
+      "signature": "make name =",
+      "start": {
+        "line": 6,
+        "column": 4,
+        "offset": 192
+      },
+      "end": {
+        "line": 6,
+        "column": 34,
+        "offset": 222
+      },
+      "exported": true
+    },
+    {
+      "id": "oops",
+      "kind": "function",
+      "name": "oops",
+      "qualName": "oops",
+      "signature": "oops x =",
+      "start": {
+        "line": 8,
+        "column": 4,
+        "offset": 228
+      },
+      "end": {
+        "line": 8,
+        "column": 49,
+        "offset": 273
+      },
+      "exported": true
+    },
+    {
+      "id": "half",
+      "kind": "struct",
+      "name": "half",
+      "qualName": "half",
+      "signature": "half =",
+      "start": {
+        "line": 10,
+        "column": 5,
+        "offset": 280
+      },
+      "end": {
+        "line": 10,
+        "column": 28,
+        "offset": 303
+      },
+      "exported": true
+    },
+    {
+      "id": "half.a",
+      "kind": "field",
+      "name": "a",
+      "qualName": "half.a",
+      "signature": "a : int",
+      "start": {
+        "line": 10,
+        "column": 14,
+        "offset": 289
+      },
+      "end": {
+        "line": 10,
+        "column": 21,
+        "offset": 296
+      },
+      "parent": "half",
+      "exported": true
+    },
+    {
+      "id": "half.b",
+      "kind": "field",
+      "name": "b",
+      "qualName": "half.b",
+      "signature": "b :",
+      "start": {
+        "line": 10,
+        "column": 23,
+        "offset": 298
+      },
+      "end": {
+        "line": 10,
+        "column": 26,
+        "offset": 301
+      },
+      "parent": "half",
+      "exported": true
+    },
+    {
+      "id": "grow",
+      "kind": "function",
+      "name": "grow",
+      "qualName": "grow",
+      "signature": "grow t n =",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 309
+      },
+      "end": {
+        "line": 12,
+        "column": 43,
+        "offset": 348
+      },
+      "exported": true
+    },
+    {
+      "id": "After",
+      "kind": "module",
+      "name": "After",
+      "qualName": "After",
+      "signature": "After =",
+      "start": {
+        "line": 14,
+        "column": 7,
+        "offset": 357
+      },
+      "end": {
+        "line": 16,
+        "column": 3,
+        "offset": 407
+      },
+      "exported": true
+    },
+    {
+      "id": "After.still_found",
+      "kind": "function",
+      "name": "still_found",
+      "qualName": "After.still_found",
+      "signature": "still_found () =",
+      "start": {
+        "line": 15,
+        "column": 6,
+        "offset": 378
+      },
+      "end": {
+        "line": 15,
+        "column": 31,
+        "offset": 403
+      },
+      "parent": "After",
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "size",
+      "kind": "value",
+      "start": {
+        "line": 12,
+        "column": 33,
+        "offset": 338
+      },
+      "enclosing": "grow"
+    },
+    {
+      "name": "make",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 23,
+        "offset": 395
+      },
+      "enclosing": "After.still_found"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 2,
+        "column": 72,
+        "offset": 146
+      },
+      "text": "(* A file with syntax errors: a stray parenthesis in a match and a record\n   field without a type. The definitions around them are still found. *)",
+      "hash": "9a403316ec8a9b1758fc3d5efda35fbe20ad1a24fac9587d2cda92cff3987ff6"
+    },
+    {
+      "id": "t#1",
+      "kind": "symbol",
+      "symbolId": "t",
+      "start": {
+        "line": 4,
+        "column": 5,
+        "offset": 153
+      },
+      "end": {
+        "line": 4,
+        "column": 38,
+        "offset": 186
+      },
+      "text": "t = { name : string; size : int }",
+      "hash": "5ec948202d15f1894811cc0dd7c9ef4441ee851ef1ebc8fe5c4d3ee2342526a7"
+    },
+    {
+      "id": "make#1",
+      "kind": "symbol",
+      "symbolId": "make",
+      "start": {
+        "line": 6,
+        "column": 4,
+        "offset": 192
+      },
+      "end": {
+        "line": 6,
+        "column": 34,
+        "offset": 222
+      },
+      "text": "make name = { name; size = 0 }",
+      "hash": "57b7ce94b58186d917b4a318b92da5d3d786318d36c7f2e92f6dc4017156ab5f"
+    },
+    {
+      "id": "oops#1",
+      "kind": "symbol",
+      "symbolId": "oops",
+      "start": {
+        "line": 8,
+        "column": 4,
+        "offset": 228
+      },
+      "end": {
+        "line": 8,
+        "column": 49,
+        "offset": 273
+      },
+      "text": "oops x = match x with | Some -\u003e ) | None -\u003e 0",
+      "hash": "725786fd22e9fb53d293d2cfda210c4497ea39b9f0a80c594fed95df6320f3cb"
+    },
+    {
+      "id": "half#1",
+      "kind": "symbol",
+      "symbolId": "half",
+      "start": {
+        "line": 10,
+        "column": 5,
+        "offset": 280
+      },
+      "end": {
+        "line": 10,
+        "column": 28,
+        "offset": 303
+      },
+      "text": "half = { a : int; b : }",
+      "hash": "5730f2fb6179c28a2d1a2728ce418b1ec714846dc176ad8c23294b82e01e609d"
+    },
+    {
+      "id": "grow#1",
+      "kind": "symbol",
+      "symbolId": "grow",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 309
+      },
+      "end": {
+        "line": 12,
+        "column": 43,
+        "offset": 348
+      },
+      "text": "grow t n = { t with size = t.size + n }",
+      "hash": "73f4e7084349634bb66877070cfac8e61ce9f0f8bf1e4d85577934eaba2346a4"
+    },
+    {
+      "id": "L14#1",
+      "kind": "window",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 350
+      },
+      "end": {
+        "line": 14,
+        "column": 21,
+        "offset": 371
+      },
+      "text": "module After = struct",
+      "hash": "335dd4021df99e41ab8be7d67ded778786aea3a81aebe2d6929b252cd4a25ca4"
+    },
+    {
+      "id": "After.still_found#1",
+      "kind": "symbol",
+      "symbolId": "After.still_found",
+      "start": {
+        "line": 15,
+        "column": 6,
+        "offset": 378
+      },
+      "end": {
+        "line": 15,
+        "column": 31,
+        "offset": 403
+      },
+      "text": "still_found () = make \"x\"",
+      "hash": "9913a0c1f9d0ca437a56ab92ed45b438f2a52e3e83bf1cc0cd5effd4a69da5fd"
+    }
+  ]
+}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/robbiebyrd/clued/mind-palace/session"
 	"github.com/robbiebyrd/clued/mind-palace/session/catchup"
+	"github.com/robbiebyrd/clued/mind-palace/session/codesync"
 	"github.com/robbiebyrd/clued/mind-palace/session/gitinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/hostinfo"
 	"github.com/robbiebyrd/clued/mind-palace/session/ingest"
@@ -47,7 +48,12 @@ func (a *App) hookRelayCmd() *cobra.Command {
 daemon does in local mode: stores it under the token's account, tracks its
 session, pushes the transcript lines and artifact files written since the
 previous hook (always, including Stop and SessionEnd), and replays the
-write-ahead log. Everything shares a 5 s budget. The command prints nothing
+write-ahead log. With codeSync on, it then syncs the worktree's source
+files to the server's code store for the events that change them
+(SessionStart, SessionEnd, PostToolUse of Write, Edit, MultiEdit,
+NotebookEdit and Bash, FileChanged, Stop, SubagentStop, CwdChanged,
+WorktreeCreate, WorktreeRemove), last and with what is left of the
+budget, at most 3 s. Everything shares a 5 s budget. The command prints nothing
 and exits 0 whatever happened: a failed insert is buffered in the WAL, a
 failed catch-up resumes from the same place next time, and every failure is
 one line in relay.log next to the config file. In local mode (no server
@@ -143,9 +149,120 @@ func (a *App) relay(parent context.Context) {
 		}
 		cancel()
 	}
+	// Code sync runs last, with what is left of the budget.
+	a.relayCodeSync(ctx, cfg, configDir, event, problems)
 	if msg := problems.String(); msg != "" {
 		log.write(fmt.Sprintf("%s session=%s: %s", name, sid, msg))
 	}
+}
+
+// relayCodeSync syncs the worktree an event changed (plan 0010, "Triggers
+// in hook relay") within what is left of the relay's budget, capped at
+// codesync.DefaultBudget. Its failures are problems of the run; it never
+// fails the hook.
+func (a *App) relayCodeSync(ctx context.Context, cfg session.Config, configDir string, event session.Doc, problems *problems) {
+	if !cfg.CodeSyncEnabled() || session.NoCapture() {
+		return
+	}
+	req, removeRoot, ok := codeSyncRequest(event)
+	if !ok {
+		return
+	}
+	budget := codesync.DefaultBudget
+	if deadline, has := ctx.Deadline(); has {
+		left := time.Until(deadline)
+		if left <= 0 {
+			return // spent: the next event picks the work up
+		}
+		budget = min(budget, left)
+	}
+	req.Budget = budget
+	req.Config = cfg
+	req.StateDir = codesync.StateDir(configDir)
+	req.Log = func(msg string) { problems.add("code sync: " + msg) }
+	if removeRoot != "" {
+		if err := codesync.Remove(ctx, req, removeRoot); err != nil {
+			problems.add("code sync: remove worktree: " + err.Error())
+		}
+		return
+	}
+	rep, err := codesync.Run(ctx, req)
+	for _, w := range rep.Warnings {
+		problems.add("code sync: " + w)
+	}
+	if err != nil {
+		problems.add("code sync: " + err.Error())
+	}
+}
+
+// codeSyncRequest maps a hook event to the code sync it triggers: the
+// request, or the worktree root a WorktreeRemove drops; ok is false for an
+// event that changes no file (PostToolUseFailure among them: nothing was
+// written).
+func codeSyncRequest(event session.Doc) (req codesync.Request, removeRoot string, ok bool) {
+	name, _ := event.String("hook_event_name")
+	req.SessionID, _ = event.String("session_id")
+	req.Cwd, _ = event.String("cwd")
+	switch name {
+	case "SessionStart":
+		// A full reconcile when the ref changed or the last one is older
+		// than 6 hours (Run decides), else the pending queue.
+		req.Touch = codesync.TouchStart
+	case "SessionEnd":
+		req.Touch = codesync.TouchEnd
+	case "PostToolUse":
+		tool, _ := event.String("tool_name")
+		switch tool {
+		case "Write", "Edit", "MultiEdit", "NotebookEdit":
+			in := event.ToolInput()
+			p, _ := in.String("file_path")
+			if p == "" {
+				p, _ = in.String("notebook_path")
+			}
+			if p == "" {
+				return req, "", false
+			}
+			// Run keeps it only when it sits inside the worktree root.
+			req.Paths = []string{p}
+		case "Bash":
+			// mv, rm, generators, checkouts, and the HEAD and upstream
+			// check after a commit, push, pull, fetch or reset.
+			req.Status = true
+		default:
+			return req, "", false
+		}
+	case "FileChanged":
+		p, _ := event.String("file_path")
+		if p == "" {
+			return req, "", false
+		}
+		req.Paths = []string{p}
+	case "Stop", "SubagentStop":
+		req.Status = true
+	case "CwdChanged":
+		if dir, _ := event.String("new_cwd"); dir != "" {
+			req.Cwd = dir
+		}
+		req.Touch = codesync.TouchStart
+	case "WorktreeCreate":
+		// The new worktree has no state yet, so its first run (here, or at
+		// the first event inside it) is a full reconcile.
+		dir, _ := event.String("worktree_path")
+		if dir == "" {
+			return req, "", false
+		}
+		req.Cwd = dir
+		req.Full = true
+	case "WorktreeRemove":
+		dir, _ := event.String("worktree_path")
+		if dir == "" || !filepath.IsAbs(dir) {
+			return req, "", false
+		}
+		return req, filepath.Clean(dir), true
+	default:
+		return req, "", false
+	}
+	return req, "", true
 }
 
 // relayLog appends one timestamped line per failed run to relay.log.

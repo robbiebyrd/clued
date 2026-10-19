@@ -1,0 +1,761 @@
+{
+  "lang": "lisp",
+  "dialect": "scheme",
+  "symbols": [
+    {
+      "id": "(data queue)",
+      "kind": "module",
+      "name": "(data queue)",
+      "qualName": "(data queue)",
+      "signature": "(define-library (data queue)",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 57
+      },
+      "end": {
+        "line": 50,
+        "column": 35,
+        "offset": 1537
+      },
+      "exported": true
+    },
+    {
+      "id": "(data queue):queue",
+      "kind": "struct",
+      "name": "queue",
+      "qualName": "(data queue):queue",
+      "signature": "(define-record-type queue",
+      "doc": "A queue is a front list and a reversed back list.",
+      "start": {
+        "line": 11,
+        "column": 4,
+        "offset": 352
+      },
+      "end": {
+        "line": 15,
+        "column": 40,
+        "offset": 488
+      },
+      "parent": "(data queue)",
+      "exported": true
+    },
+    {
+      "id": "(data queue):queue:front",
+      "kind": "field",
+      "name": "front",
+      "qualName": "(data queue):queue:front",
+      "signature": "(front queue-front)",
+      "start": {
+        "line": 14,
+        "column": 6,
+        "offset": 428
+      },
+      "end": {
+        "line": 14,
+        "column": 25,
+        "offset": 447
+      },
+      "parent": "(data queue):queue",
+      "exported": true
+    },
+    {
+      "id": "(data queue):queue:back",
+      "kind": "field",
+      "name": "back",
+      "qualName": "(data queue):queue:back",
+      "signature": "(back queue-back set-queue-back!)",
+      "start": {
+        "line": 15,
+        "column": 6,
+        "offset": 454
+      },
+      "end": {
+        "line": 15,
+        "column": 39,
+        "offset": 487
+      },
+      "parent": "(data queue):queue",
+      "exported": true
+    },
+    {
+      "id": "(data queue):empty-front",
+      "kind": "var",
+      "name": "empty-front",
+      "qualName": "(data queue):empty-front",
+      "signature": "(define empty-front '())",
+      "start": {
+        "line": 17,
+        "column": 4,
+        "offset": 494
+      },
+      "end": {
+        "line": 17,
+        "column": 28,
+        "offset": 518
+      },
+      "parent": "(data queue)",
+      "exported": true
+    },
+    {
+      "id": "(data queue):make-queue",
+      "kind": "function",
+      "name": "make-queue",
+      "qualName": "(data queue):make-queue",
+      "signature": "(define (make-queue) (%make-queue empty-front '()))",
+      "start": {
+        "line": 19,
+        "column": 4,
+        "offset": 524
+      },
+      "end": {
+        "line": 19,
+        "column": 55,
+        "offset": 575
+      },
+      "parent": "(data queue)",
+      "exported": true
+    },
+    {
+      "id": "(data queue):queue-empty?",
+      "kind": "function",
+      "name": "queue-empty?",
+      "qualName": "(data queue):queue-empty?",
+      "signature": "(define (queue-empty? q)",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 581
+      },
+      "end": {
+        "line": 22,
+        "column": 59,
+        "offset": 665
+      },
+      "parent": "(data queue)",
+      "exported": true
+    },
+    {
+      "id": "(data queue):enqueue",
+      "kind": "function",
+      "name": "enqueue",
+      "qualName": "(data queue):enqueue",
+      "signature": "(define (enqueue q x)",
+      "doc": "Adds x at the back.",
+      "start": {
+        "line": 25,
+        "column": 4,
+        "offset": 698
+      },
+      "end": {
+        "line": 26,
+        "column": 60,
+        "offset": 780
+      },
+      "parent": "(data queue)",
+      "exported": true
+    },
+    {
+      "id": "(data queue):dequeue",
+      "kind": "function",
+      "name": "dequeue",
+      "qualName": "(data queue):dequeue",
+      "signature": "(define (dequeue q)",
+      "start": {
+        "line": 28,
+        "column": 4,
+        "offset": 786
+      },
+      "end": {
+        "line": 34,
+        "column": 75,
+        "offset": 1110
+      },
+      "parent": "(data queue)",
+      "exported": true
+    },
+    {
+      "id": "(data queue):queue-\u003elist",
+      "kind": "function",
+      "name": "queue-\u003elist",
+      "qualName": "(data queue):queue-\u003elist",
+      "signature": "(define (queue-\u003elist q)",
+      "start": {
+        "line": 36,
+        "column": 4,
+        "offset": 1116
+      },
+      "end": {
+        "line": 41,
+        "column": 42,
+        "offset": 1320
+      },
+      "parent": "(data queue)",
+      "exported": true
+    },
+    {
+      "id": "(data queue):with-queue",
+      "kind": "macro",
+      "name": "with-queue",
+      "qualName": "(data queue):with-queue",
+      "signature": "(define-syntax with-queue",
+      "start": {
+        "line": 43,
+        "column": 4,
+        "offset": 1326
+      },
+      "end": {
+        "line": 47,
+        "column": 23,
+        "offset": 1480
+      },
+      "parent": "(data queue)",
+      "exported": true
+    },
+    {
+      "id": "(data queue):sum",
+      "kind": "function",
+      "name": "sum",
+      "qualName": "(data queue):sum",
+      "signature": "(define (sum q)",
+      "start": {
+        "line": 49,
+        "column": 4,
+        "offset": 1486
+      },
+      "end": {
+        "line": 50,
+        "column": 33,
+        "offset": 1535
+      },
+      "parent": "(data queue)",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "(scheme base)",
+      "kind": "import",
+      "start": {
+        "line": 5,
+        "column": 10,
+        "offset": 159
+      }
+    },
+    {
+      "spec": "(scheme write)",
+      "kind": "import",
+      "start": {
+        "line": 6,
+        "column": 10,
+        "offset": 183
+      }
+    },
+    {
+      "spec": "(srfi 1)",
+      "names": [
+        "fold",
+        "append-reverse"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 7,
+        "column": 10,
+        "offset": 208
+      }
+    },
+    {
+      "spec": "(data util)",
+      "alias": "util:",
+      "kind": "import",
+      "start": {
+        "line": 8,
+        "column": 10,
+        "offset": 254
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "%make-queue",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 26,
+        "offset": 546
+      },
+      "enclosing": "(data queue):make-queue"
+    },
+    {
+      "name": "null?",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 12,
+        "offset": 618
+      },
+      "enclosing": "(data queue):queue-empty?"
+    },
+    {
+      "name": "queue-front",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 19,
+        "offset": 625
+      },
+      "enclosing": "(data queue):queue-empty?"
+    },
+    {
+      "name": "null?",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 36,
+        "offset": 642
+      },
+      "enclosing": "(data queue):queue-empty?"
+    },
+    {
+      "name": "queue-back",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 43,
+        "offset": 649
+      },
+      "enclosing": "(data queue):queue-empty?"
+    },
+    {
+      "name": "%make-queue",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 7,
+        "offset": 727
+      },
+      "enclosing": "(data queue):enqueue"
+    },
+    {
+      "name": "queue-front",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 20,
+        "offset": 740
+      },
+      "enclosing": "(data queue):enqueue"
+    },
+    {
+      "name": "cons",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 36,
+        "offset": 756
+      },
+      "enclosing": "(data queue):enqueue"
+    },
+    {
+      "name": "queue-back",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 44,
+        "offset": 764
+      },
+      "enclosing": "(data queue):enqueue"
+    },
+    {
+      "name": "queue-empty?",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 14,
+        "offset": 820
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "error",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 31,
+        "offset": 837
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "null?",
+      "kind": "call",
+      "start": {
+        "line": 30,
+        "column": 14,
+        "offset": 884
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "queue-front",
+      "kind": "call",
+      "start": {
+        "line": 30,
+        "column": 21,
+        "offset": 891
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "dequeue",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 14,
+        "offset": 921
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "%make-queue",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 23,
+        "offset": 930
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "reverse",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 36,
+        "offset": 943
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "queue-back",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 45,
+        "offset": 952
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "values",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 14,
+        "offset": 1006
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "car",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 22,
+        "offset": 1014
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "queue-front",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 27,
+        "offset": 1019
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "%make-queue",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 22,
+        "offset": 1057
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "cdr",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 35,
+        "offset": 1070
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "queue-front",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 40,
+        "offset": 1075
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "queue-back",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 57,
+        "offset": 1092
+      },
+      "enclosing": "(data queue):dequeue"
+    },
+    {
+      "name": "queue-empty?",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 13,
+        "offset": 1187
+      },
+      "enclosing": "(data queue):queue-\u003elist"
+    },
+    {
+      "name": "reverse",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 13,
+        "offset": 1216
+      },
+      "enclosing": "(data queue):queue-\u003elist"
+    },
+    {
+      "name": "loop",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 15,
+        "offset": 1293
+      },
+      "enclosing": "(data queue):queue-\u003elist"
+    },
+    {
+      "name": "cons",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 26,
+        "offset": 1304
+      },
+      "enclosing": "(data queue):queue-\u003elist"
+    },
+    {
+      "name": "ensure-queue",
+      "qualifier": "util",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 22,
+        "offset": 1431
+      },
+      "enclosing": "(data queue):with-queue"
+    },
+    {
+      "name": "fold",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 7,
+        "offset": 1509
+      },
+      "enclosing": "(data queue):sum"
+    },
+    {
+      "name": "queue-\u003elist",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 17,
+        "offset": 1519
+      },
+      "enclosing": "(data queue):sum"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 9,
+        "column": 8,
+        "offset": 290
+      },
+      "text": ";;; queue.scm -- a functional queue as an R7RS library.\n\n(define-library (data queue)\n  (export make-queue queue-empty? enqueue dequeue queue-\u003elist)\n  (import (scheme base)\n          (scheme write)\n          (only (srfi 1) fold append-reverse)\n          (prefix (data util) util:))\n  (begin",
+      "hash": "ae8a492a74cec8b38b6e1dd1ff066a818a2a15f3e041a57207748e5a1a24a35f"
+    },
+    {
+      "id": "(data queue):queue#1",
+      "kind": "symbol",
+      "symbolId": "(data queue):queue",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 291
+      },
+      "end": {
+        "line": 15,
+        "column": 40,
+        "offset": 488
+      },
+      "text": "    ;; A queue is a front list and a reversed back list.\n    (define-record-type queue\n      (%make-queue front back)\n      queue?\n      (front queue-front)\n      (back queue-back set-queue-back!))",
+      "hash": "fdb40302a50f57721ccb71928405232f65c9891b6177c56d97cac47d37fa8f3f"
+    },
+    {
+      "id": "L17#1",
+      "kind": "window",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 490
+      },
+      "end": {
+        "line": 17,
+        "column": 28,
+        "offset": 518
+      },
+      "text": "    (define empty-front '())",
+      "hash": "ea6967c91b1e0a4e907cae901b52e273002163e029ebc31a90b52426d1406b7b"
+    },
+    {
+      "id": "(data queue):make-queue#1",
+      "kind": "symbol",
+      "symbolId": "(data queue):make-queue",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 520
+      },
+      "end": {
+        "line": 19,
+        "column": 55,
+        "offset": 575
+      },
+      "text": "    (define (make-queue) (%make-queue empty-front '()))",
+      "hash": "2ebeeadfb145fa3766f0b7b06847c328cc0e4549af1ce5563912b3fe014c2f41"
+    },
+    {
+      "id": "(data queue):queue-empty?#1",
+      "kind": "symbol",
+      "symbolId": "(data queue):queue-empty?",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 577
+      },
+      "end": {
+        "line": 22,
+        "column": 59,
+        "offset": 665
+      },
+      "text": "    (define (queue-empty? q)\n      (and (null? (queue-front q)) (null? (queue-back q))))",
+      "hash": "1c9219e0bd671da4ab437c1a99e51091e04a174635cb185695f5957a353539fd"
+    },
+    {
+      "id": "(data queue):enqueue#1",
+      "kind": "symbol",
+      "symbolId": "(data queue):enqueue",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 667
+      },
+      "end": {
+        "line": 26,
+        "column": 60,
+        "offset": 780
+      },
+      "text": "    ;; Adds x at the back.\n    (define (enqueue q x)\n      (%make-queue (queue-front q) (cons x (queue-back q))))",
+      "hash": "6ee4f33747d26f231f80358803c3dc5e263aa519637dc01bd40726d6fe9c0ba0"
+    },
+    {
+      "id": "(data queue):dequeue#1",
+      "kind": "symbol",
+      "symbolId": "(data queue):dequeue",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 782
+      },
+      "end": {
+        "line": 34,
+        "column": 75,
+        "offset": 1110
+      },
+      "text": "    (define (dequeue q)\n      (cond ((queue-empty? q) (error \"dequeue: empty queue\" q))\n            ((null? (queue-front q))\n             (dequeue (%make-queue (reverse (queue-back q)) '())))\n            (else\n             (values (car (queue-front q))\n                     (%make-queue (cdr (queue-front q)) (queue-back q))))))",
+      "hash": "02dde4199d81aeef1304c47bae3d833d9cf99e72f4e1e3097ea0ac42da8344c9"
+    },
+    {
+      "id": "(data queue):queue-\u003elist#1",
+      "kind": "symbol",
+      "symbolId": "(data queue):queue-\u003elist",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 1112
+      },
+      "end": {
+        "line": 41,
+        "column": 42,
+        "offset": 1320
+      },
+      "text": "    (define (queue-\u003elist q)\n      (let loop ((q q) (acc '()))\n        (if (queue-empty? q)\n            (reverse acc)\n            (let-values (((x rest) (dequeue q)))\n              (loop rest (cons x acc))))))",
+      "hash": "52283ac9228edea2e85c85632f6054b36f649963955c4f878dfc0b69506d6cde"
+    },
+    {
+      "id": "(data queue):with-queue#1",
+      "kind": "symbol",
+      "symbolId": "(data queue):with-queue",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 1322
+      },
+      "end": {
+        "line": 47,
+        "column": 23,
+        "offset": 1480
+      },
+      "text": "    (define-syntax with-queue\n      (syntax-rules ()\n        ((_ (name init) body ...)\n         (let ((name (util:ensure-queue init)))\n           body ...))))",
+      "hash": "feebaeb8a3d3dfb320ef0c8ad2b7824f0a279e1d73b1a4746c4e2fb4e75434fb"
+    },
+    {
+      "id": "(data queue):sum#1",
+      "kind": "symbol",
+      "symbolId": "(data queue):sum",
+      "start": {
+        "line": 49,
+        "column": 0,
+        "offset": 1482
+      },
+      "end": {
+        "line": 50,
+        "column": 33,
+        "offset": 1535
+      },
+      "text": "    (define (sum q)\n      (fold + 0 (queue-\u003elist q)))",
+      "hash": "7f2e569e4fa0fa8e8a8cde041eb0d968a9787f43844cafce1fdc5f1b4903c36e"
+    }
+  ]
+}

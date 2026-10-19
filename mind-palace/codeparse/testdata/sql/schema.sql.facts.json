@@ -1,0 +1,929 @@
+{
+  "lang": "sql",
+  "symbols": [
+    {
+      "id": "billing",
+      "kind": "schema",
+      "name": "billing",
+      "qualName": "billing",
+      "signature": "CREATE SCHEMA billing",
+      "doc": "Everything billing owns lives in its own schema.",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 166
+      },
+      "end": {
+        "line": 6,
+        "column": 21,
+        "offset": 187
+      },
+      "exported": true
+    },
+    {
+      "id": "billing.mood",
+      "kind": "enum",
+      "name": "mood",
+      "qualName": "billing.mood",
+      "signature": "CREATE TYPE billing.mood AS ENUM ('sad', 'ok', 'happy')",
+      "doc": "How a customer feels about their last invoice.",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 240
+      },
+      "end": {
+        "line": 9,
+        "column": 55,
+        "offset": 295
+      },
+      "parent": "billing",
+      "exported": true
+    },
+    {
+      "id": "money_amount",
+      "kind": "type",
+      "name": "money_amount",
+      "qualName": "money_amount",
+      "signature": "CREATE TYPE money_amount AS (amount numeric, currency char(3))",
+      "doc": "An amount with its currency.",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 330
+      },
+      "end": {
+        "line": 12,
+        "column": 62,
+        "offset": 392
+      },
+      "exported": true
+    },
+    {
+      "id": "email_address",
+      "kind": "domain",
+      "name": "email_address",
+      "qualName": "email_address",
+      "signature": "CREATE DOMAIN email_address AS text CHECK (length(VALUE) \u003e 3)",
+      "doc": "A syntactically valid e-mail address.",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 436
+      },
+      "end": {
+        "line": 15,
+        "column": 61,
+        "offset": 497
+      },
+      "exported": true
+    },
+    {
+      "id": "billing.invoice_number",
+      "kind": "sequence",
+      "name": "invoice_number",
+      "qualName": "billing.invoice_number",
+      "signature": "CREATE SEQUENCE billing.invoice_number",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 500
+      },
+      "end": {
+        "line": 17,
+        "column": 38,
+        "offset": 538
+      },
+      "parent": "billing",
+      "exported": true
+    },
+    {
+      "id": "billing.teams",
+      "kind": "table",
+      "name": "teams",
+      "qualName": "billing.teams",
+      "signature": "CREATE TABLE billing.teams (",
+      "doc": "A team pays for its members.",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 573
+      },
+      "end": {
+        "line": 23,
+        "column": 1,
+        "offset": 659
+      },
+      "parent": "billing",
+      "exported": true
+    },
+    {
+      "id": "billing.teams.id",
+      "kind": "column",
+      "name": "id",
+      "qualName": "billing.teams.id",
+      "signature": "id bigserial PRIMARY KEY",
+      "start": {
+        "line": 21,
+        "column": 2,
+        "offset": 604
+      },
+      "end": {
+        "line": 21,
+        "column": 26,
+        "offset": 628
+      },
+      "parent": "billing.teams",
+      "exported": true
+    },
+    {
+      "id": "billing.teams.name",
+      "kind": "column",
+      "name": "name",
+      "qualName": "billing.teams.name",
+      "signature": "name text NOT NULL UNIQUE",
+      "start": {
+        "line": 22,
+        "column": 2,
+        "offset": 632
+      },
+      "end": {
+        "line": 22,
+        "column": 27,
+        "offset": 657
+      },
+      "parent": "billing.teams",
+      "exported": true
+    },
+    {
+      "id": "billing.users",
+      "kind": "table",
+      "name": "users",
+      "qualName": "billing.users",
+      "signature": "CREATE TABLE billing.users (",
+      "doc": "The users of the service, one row per sign-up.",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 712
+      },
+      "end": {
+        "line": 32,
+        "column": 1,
+        "offset": 926
+      },
+      "parent": "billing",
+      "exported": true
+    },
+    {
+      "id": "billing.users.id",
+      "kind": "column",
+      "name": "id",
+      "qualName": "billing.users.id",
+      "signature": "id bigserial PRIMARY KEY",
+      "start": {
+        "line": 27,
+        "column": 2,
+        "offset": 743
+      },
+      "end": {
+        "line": 27,
+        "column": 26,
+        "offset": 767
+      },
+      "parent": "billing.users",
+      "exported": true
+    },
+    {
+      "id": "billing.users.email",
+      "kind": "column",
+      "name": "email",
+      "qualName": "billing.users.email",
+      "signature": "email email_address NOT NULL UNIQUE",
+      "start": {
+        "line": 28,
+        "column": 2,
+        "offset": 771
+      },
+      "end": {
+        "line": 28,
+        "column": 37,
+        "offset": 806
+      },
+      "parent": "billing.users",
+      "exported": true
+    },
+    {
+      "id": "billing.users.team_id",
+      "kind": "column",
+      "name": "team_id",
+      "qualName": "billing.users.team_id",
+      "signature": "team_id bigint REFERENCES billing.teams (id)",
+      "start": {
+        "line": 29,
+        "column": 2,
+        "offset": 810
+      },
+      "end": {
+        "line": 29,
+        "column": 46,
+        "offset": 854
+      },
+      "parent": "billing.users",
+      "exported": true
+    },
+    {
+      "id": "billing.users.mood",
+      "kind": "column",
+      "name": "mood",
+      "qualName": "billing.users.mood",
+      "signature": "mood billing.mood",
+      "start": {
+        "line": 30,
+        "column": 2,
+        "offset": 858
+      },
+      "end": {
+        "line": 30,
+        "column": 19,
+        "offset": 875
+      },
+      "parent": "billing.users",
+      "exported": true
+    },
+    {
+      "id": "billing.users.created_at",
+      "kind": "column",
+      "name": "created_at",
+      "qualName": "billing.users.created_at",
+      "signature": "created_at timestamptz NOT NULL DEFAULT now()",
+      "start": {
+        "line": 31,
+        "column": 2,
+        "offset": 879
+      },
+      "end": {
+        "line": 31,
+        "column": 47,
+        "offset": 924
+      },
+      "parent": "billing.users",
+      "exported": true
+    },
+    {
+      "id": "invoices",
+      "kind": "table",
+      "name": "invoices",
+      "qualName": "invoices",
+      "signature": "CREATE TABLE invoices (",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 929
+      },
+      "end": {
+        "line": 39,
+        "column": 1,
+        "offset": 1113
+      },
+      "exported": true
+    },
+    {
+      "id": "invoices.id",
+      "kind": "column",
+      "name": "id",
+      "qualName": "invoices.id",
+      "signature": "id bigserial PRIMARY KEY",
+      "start": {
+        "line": 35,
+        "column": 2,
+        "offset": 955
+      },
+      "end": {
+        "line": 35,
+        "column": 26,
+        "offset": 979
+      },
+      "parent": "invoices",
+      "exported": true
+    },
+    {
+      "id": "invoices.user_id",
+      "kind": "column",
+      "name": "user_id",
+      "qualName": "invoices.user_id",
+      "signature": "user_id bigint NOT NULL",
+      "start": {
+        "line": 36,
+        "column": 2,
+        "offset": 983
+      },
+      "end": {
+        "line": 36,
+        "column": 25,
+        "offset": 1006
+      },
+      "parent": "invoices",
+      "exported": true
+    },
+    {
+      "id": "invoices.total",
+      "kind": "column",
+      "name": "total",
+      "qualName": "invoices.total",
+      "signature": "total money_amount",
+      "start": {
+        "line": 37,
+        "column": 2,
+        "offset": 1010
+      },
+      "end": {
+        "line": 37,
+        "column": 20,
+        "offset": 1028
+      },
+      "parent": "invoices",
+      "exported": true
+    },
+    {
+      "id": "invoices.paid_at",
+      "kind": "column",
+      "name": "paid_at",
+      "qualName": "invoices.paid_at",
+      "signature": "paid_at timestamptz",
+      "start": {
+        "line": 41,
+        "column": 32,
+        "offset": 1148
+      },
+      "end": {
+        "line": 41,
+        "column": 51,
+        "offset": 1167
+      },
+      "parent": "invoices",
+      "exported": true
+    },
+    {
+      "id": "users_email_idx",
+      "kind": "index",
+      "name": "users_email_idx",
+      "qualName": "users_email_idx",
+      "signature": "CREATE UNIQUE INDEX users_email_idx ON billing.users (lower(email))",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 1170
+      },
+      "end": {
+        "line": 43,
+        "column": 67,
+        "offset": 1237
+      },
+      "exported": true
+    },
+    {
+      "id": "billing.active_users",
+      "kind": "view",
+      "name": "active_users",
+      "qualName": "billing.active_users",
+      "signature": "CREATE VIEW billing.active_users AS",
+      "doc": "Users with a team, for the admin pages.",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 1283
+      },
+      "end": {
+        "line": 49,
+        "column": 42,
+        "offset": 1423
+      },
+      "parent": "billing",
+      "exported": true
+    },
+    {
+      "id": "invoice_totals",
+      "kind": "view",
+      "name": "invoice_totals",
+      "qualName": "invoice_totals",
+      "signature": "CREATE MATERIALIZED VIEW invoice_totals AS",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 1426
+      },
+      "end": {
+        "line": 52,
+        "column": 69,
+        "offset": 1538
+      },
+      "exported": true
+    },
+    {
+      "id": "billing.user_total",
+      "kind": "function",
+      "name": "user_total",
+      "qualName": "billing.user_total",
+      "signature": "CREATE OR REPLACE FUNCTION billing.user_total(uid bigint) RETURNS numeric",
+      "doc": "The sum of a user's invoices.",
+      "start": {
+        "line": 55,
+        "column": 0,
+        "offset": 1574
+      },
+      "end": {
+        "line": 58,
+        "column": 2,
+        "offset": 1733
+      },
+      "parent": "billing",
+      "exported": true
+    },
+    {
+      "id": "touch_user",
+      "kind": "function",
+      "name": "touch_user",
+      "qualName": "touch_user",
+      "signature": "CREATE FUNCTION touch_user() RETURNS trigger LANGUAGE plpgsql AS $$",
+      "start": {
+        "line": 60,
+        "column": 0,
+        "offset": 1736
+      },
+      "end": {
+        "line": 65,
+        "column": 2,
+        "offset": 1858
+      },
+      "exported": true
+    },
+    {
+      "id": "billing.refresh_totals",
+      "kind": "procedure",
+      "name": "refresh_totals",
+      "qualName": "billing.refresh_totals",
+      "signature": "CREATE PROCEDURE billing.refresh_totals() LANGUAGE sql AS $$",
+      "doc": "Rebuilds the totals after a batch import.",
+      "start": {
+        "line": 68,
+        "column": 0,
+        "offset": 1906
+      },
+      "end": {
+        "line": 70,
+        "column": 2,
+        "offset": 2013
+      },
+      "parent": "billing",
+      "exported": true
+    },
+    {
+      "id": "billing.users.users_touch",
+      "kind": "trigger",
+      "name": "users_touch",
+      "qualName": "billing.users.users_touch",
+      "signature": "CREATE TRIGGER users_touch BEFORE INSERT ON billing.users",
+      "start": {
+        "line": 72,
+        "column": 0,
+        "offset": 2016
+      },
+      "end": {
+        "line": 73,
+        "column": 44,
+        "offset": 2118
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "pgcrypto",
+      "kind": "extension",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 72
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "email_address",
+      "kind": "type",
+      "start": {
+        "line": 28,
+        "column": 8,
+        "offset": 777
+      },
+      "enclosing": "billing.users.email"
+    },
+    {
+      "name": "teams",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 29,
+        "column": 36,
+        "offset": 844
+      },
+      "enclosing": "billing.users.team_id"
+    },
+    {
+      "name": "mood",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 30,
+        "column": 15,
+        "offset": 871
+      },
+      "enclosing": "billing.users.mood"
+    },
+    {
+      "name": "money_amount",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 8,
+        "offset": 1016
+      },
+      "enclosing": "invoices.total"
+    },
+    {
+      "name": "users",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 71,
+        "offset": 1101
+      },
+      "enclosing": "invoices"
+    },
+    {
+      "name": "invoices",
+      "kind": "type",
+      "start": {
+        "line": 41,
+        "column": 12,
+        "offset": 1128
+      }
+    },
+    {
+      "name": "users",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 43,
+        "column": 47,
+        "offset": 1217
+      },
+      "enclosing": "users_email_idx"
+    },
+    {
+      "name": "users",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 48,
+        "column": 15,
+        "offset": 1373
+      },
+      "enclosing": "billing.active_users"
+    },
+    {
+      "name": "teams",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 15,
+        "offset": 1396
+      },
+      "enclosing": "billing.active_users"
+    },
+    {
+      "name": "invoices",
+      "kind": "type",
+      "start": {
+        "line": 52,
+        "column": 44,
+        "offset": 1513
+      },
+      "enclosing": "invoice_totals"
+    },
+    {
+      "name": "users",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 72,
+        "column": 52,
+        "offset": 2068
+      },
+      "enclosing": "billing.users.users_touch"
+    },
+    {
+      "name": "touch_user",
+      "kind": "call",
+      "start": {
+        "line": 73,
+        "column": 32,
+        "offset": 2106
+      },
+      "enclosing": "billing.users.users_touch"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 40,
+        "offset": 112
+      },
+      "text": "-- Billing schema: accounts, invoices and the routines that keep them.\n\nCREATE EXTENSION IF NOT EXISTS pgcrypto;",
+      "hash": "8a61a38d9a9490ac9784d2e08d2933a30ccc861c82e5b8d0977dafb7e6c4725c"
+    },
+    {
+      "id": "billing#1",
+      "kind": "symbol",
+      "symbolId": "billing",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 114
+      },
+      "end": {
+        "line": 6,
+        "column": 21,
+        "offset": 187
+      },
+      "text": "-- Everything billing owns lives in its own schema.\nCREATE SCHEMA billing",
+      "hash": "02289dd05220d71ef80d860fe9b5fda62cf1a76ba0f9d9126d825d029e7f915e"
+    },
+    {
+      "id": "billing.mood#1",
+      "kind": "symbol",
+      "symbolId": "billing.mood",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 190
+      },
+      "end": {
+        "line": 9,
+        "column": 55,
+        "offset": 295
+      },
+      "text": "-- How a customer feels about their last invoice.\nCREATE TYPE billing.mood AS ENUM ('sad', 'ok', 'happy')",
+      "hash": "daab78266f145d75e751bbcc88de9152c4380adc896b9017b81bdad0084f2b46"
+    },
+    {
+      "id": "money_amount#1",
+      "kind": "symbol",
+      "symbolId": "money_amount",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 298
+      },
+      "end": {
+        "line": 12,
+        "column": 62,
+        "offset": 392
+      },
+      "text": "-- An amount with its currency.\nCREATE TYPE money_amount AS (amount numeric, currency char(3))",
+      "hash": "2c7b5328891bc77e022751b55aab709ba9b40cf323a3544fb8b4c0717845b7bd"
+    },
+    {
+      "id": "email_address#1",
+      "kind": "symbol",
+      "symbolId": "email_address",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 395
+      },
+      "end": {
+        "line": 15,
+        "column": 61,
+        "offset": 497
+      },
+      "text": "-- A syntactically valid e-mail address.\nCREATE DOMAIN email_address AS text CHECK (length(VALUE) \u003e 3)",
+      "hash": "dff21840c0704fcdeeb9f12c776fca943ba45af9c0ae9c636da7dab11aa0d56a"
+    },
+    {
+      "id": "billing.invoice_number#1",
+      "kind": "symbol",
+      "symbolId": "billing.invoice_number",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 500
+      },
+      "end": {
+        "line": 17,
+        "column": 38,
+        "offset": 538
+      },
+      "text": "CREATE SEQUENCE billing.invoice_number",
+      "hash": "e2d0e7ca485c8addf653ae4912e2d1986a5f1fe509a5a357b89b2d2d1d20ea5c"
+    },
+    {
+      "id": "billing.teams#1",
+      "kind": "symbol",
+      "symbolId": "billing.teams",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 541
+      },
+      "end": {
+        "line": 23,
+        "column": 1,
+        "offset": 659
+      },
+      "text": "-- A team pays for its members.\nCREATE TABLE billing.teams (\n  id bigserial PRIMARY KEY,\n  name text NOT NULL UNIQUE\n)",
+      "hash": "58ce66f59a236843ed8d6909ddeb0080de09e295359b8d6aa1d03e093f4d939c"
+    },
+    {
+      "id": "billing.users#1",
+      "kind": "symbol",
+      "symbolId": "billing.users",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 662
+      },
+      "end": {
+        "line": 32,
+        "column": 1,
+        "offset": 926
+      },
+      "text": "-- The users of the service, one row per sign-up.\nCREATE TABLE billing.users (\n  id bigserial PRIMARY KEY,\n  email email_address NOT NULL UNIQUE,\n  team_id bigint REFERENCES billing.teams (id),\n  mood billing.mood,\n  created_at timestamptz NOT NULL DEFAULT now()\n)",
+      "hash": "d013d31fa7cf95c58277fa5d0cb570703d582a8d61dcef809b6ac8c238c88552"
+    },
+    {
+      "id": "invoices#1",
+      "kind": "symbol",
+      "symbolId": "invoices",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 929
+      },
+      "end": {
+        "line": 39,
+        "column": 1,
+        "offset": 1113
+      },
+      "text": "CREATE TABLE invoices (\n  id bigserial PRIMARY KEY,\n  user_id bigint NOT NULL,\n  total money_amount,\n  CONSTRAINT invoices_user_fk FOREIGN KEY (user_id) REFERENCES billing.users (id)\n)",
+      "hash": "1cd5e687f6e9965a0fa817248e2945d00cc1cf9d377c23227630186942936b52"
+    },
+    {
+      "id": "invoices.paid_at#1",
+      "kind": "symbol",
+      "symbolId": "invoices.paid_at",
+      "start": {
+        "line": 41,
+        "column": 32,
+        "offset": 1148
+      },
+      "end": {
+        "line": 41,
+        "column": 51,
+        "offset": 1167
+      },
+      "text": "paid_at timestamptz",
+      "hash": "94b60fef8e77caedb05edc20d8851d2a8f7546762902ea1b888273c53b6be3b8"
+    },
+    {
+      "id": "users_email_idx#1",
+      "kind": "symbol",
+      "symbolId": "users_email_idx",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 1170
+      },
+      "end": {
+        "line": 43,
+        "column": 67,
+        "offset": 1237
+      },
+      "text": "CREATE UNIQUE INDEX users_email_idx ON billing.users (lower(email))",
+      "hash": "250002b84993d1f6d2c34ff615846f15c72c88e0d0f7b61fc45fe47b4ef3e6d3"
+    },
+    {
+      "id": "billing.active_users#1",
+      "kind": "symbol",
+      "symbolId": "billing.active_users",
+      "start": {
+        "line": 45,
+        "column": 0,
+        "offset": 1240
+      },
+      "end": {
+        "line": 49,
+        "column": 42,
+        "offset": 1423
+      },
+      "text": "-- Users with a team, for the admin pages.\nCREATE VIEW billing.active_users AS\n  SELECT u.id, u.email, t.name AS team\n  FROM billing.users u\n  JOIN billing.teams t ON t.id = u.team_id",
+      "hash": "0f6c89f4ca79f71375a38f21de41f4fa410fb0865ef45f5828c82a84b24bf6de"
+    },
+    {
+      "id": "invoice_totals#1",
+      "kind": "symbol",
+      "symbolId": "invoice_totals",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 1426
+      },
+      "end": {
+        "line": 52,
+        "column": 69,
+        "offset": 1538
+      },
+      "text": "CREATE MATERIALIZED VIEW invoice_totals AS\n  SELECT user_id, count(*) AS invoices FROM invoices GROUP BY user_id",
+      "hash": "5ef939f300544f43d63436479beeb336c8baf6695ceb3fdb6e070594f0363c27"
+    },
+    {
+      "id": "billing.user_total#1",
+      "kind": "symbol",
+      "symbolId": "billing.user_total",
+      "start": {
+        "line": 54,
+        "column": 0,
+        "offset": 1541
+      },
+      "end": {
+        "line": 58,
+        "column": 2,
+        "offset": 1733
+      },
+      "text": "-- The sum of a user's invoices.\nCREATE OR REPLACE FUNCTION billing.user_total(uid bigint) RETURNS numeric\nLANGUAGE sql AS $$\n  SELECT sum((total).amount) FROM invoices WHERE user_id = uid;\n$$",
+      "hash": "0f32245e06ebc25371c217d1294c558cbcc951215968574ef5b678dbf9b8065b"
+    },
+    {
+      "id": "touch_user#1",
+      "kind": "symbol",
+      "symbolId": "touch_user",
+      "start": {
+        "line": 60,
+        "column": 0,
+        "offset": 1736
+      },
+      "end": {
+        "line": 65,
+        "column": 2,
+        "offset": 1858
+      },
+      "text": "CREATE FUNCTION touch_user() RETURNS trigger LANGUAGE plpgsql AS $$\nBEGIN\n  NEW.created_at := now();\n  RETURN NEW;\nEND;\n$$",
+      "hash": "eb903cccc1df60b33029f2bc69afba1b5a1376871e08b7fa2d88264f3ed31c48"
+    },
+    {
+      "id": "billing.refresh_totals#1",
+      "kind": "symbol",
+      "symbolId": "billing.refresh_totals",
+      "start": {
+        "line": 67,
+        "column": 0,
+        "offset": 1861
+      },
+      "end": {
+        "line": 70,
+        "column": 2,
+        "offset": 2013
+      },
+      "text": "-- Rebuilds the totals after a batch import.\nCREATE PROCEDURE billing.refresh_totals() LANGUAGE sql AS $$\n  REFRESH MATERIALIZED VIEW invoice_totals;\n$$",
+      "hash": "43629f3b47a10f9bec29233f6b058239892caf21fd1fa3a54810739ff0f33d7c"
+    },
+    {
+      "id": "billing.users.users_touch#1",
+      "kind": "symbol",
+      "symbolId": "billing.users.users_touch",
+      "start": {
+        "line": 72,
+        "column": 0,
+        "offset": 2016
+      },
+      "end": {
+        "line": 73,
+        "column": 44,
+        "offset": 2118
+      },
+      "text": "CREATE TRIGGER users_touch BEFORE INSERT ON billing.users\n  FOR EACH ROW EXECUTE FUNCTION touch_user()",
+      "hash": "54aa228ae5b8efbb2e2cf9b8afaf0048bb30c54928e8ca790f1cb04e9b96fbb9"
+    }
+  ]
+}

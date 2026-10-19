@@ -3,11 +3,13 @@ id: 0069-3ka
 title: 'Code store additions for GitHub: refs, events, lookup by git blob id'
 purpose: The GitHub sync needs to drop deleted branches, record activity events and avoid re-fetching blobs it already holds.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:06:18.886Z"
-updated: "2026-10-19T18:27:42.146Z"
+updated: "2026-10-19T19:22:44.758Z"
+started: "2026-10-19T19:22:03.373Z"
+completed: "2026-10-19T19:22:44.758Z"
 tags:
   - plan-0011-gha
   - wave-4
@@ -35,13 +37,13 @@ links:
     - ["0011-gha", "included", ["2.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Code store additions for GitHub: refs, events, lookup by git blob id
@@ -74,9 +76,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./code/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./code/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./code/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./code/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -87,3 +89,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/code/codetest/codetest.go` - cases for the additions
 
 ## Work Log
+
+### 2026-10-19T19:22:39.040Z - code.Store gains RemoveRef(ctx, worktree, ref) (drops the tree and the ref, appends a ref tombstone: Ref set, Full, no upserts), AppendEvents(ctx, []Event) (validated batch, store-assigned Seq on its own sequence, At filled when zero; at least once), SHA256ForGitOID(ctx, []string) map[string]string (clean entries with content, any tree; mongo uses the code_trees git_oid index), and the read Events(ctx, afterSeq, limit). code.Event carries the plan's fields plus Worktree, Commits, Forced, BaseRef/BaseCommit, Merged/MergeCommit, Name, and the docs-sync fields of ghsync.DocsEvent (DocKind, DocID, Path, Action, Problems); Event.Validate and Event* kind constants in model.go. memcode and mongocode (code_events collection, events counter in code_counters, transactional and WithoutTransactions paths) implement them; codetest.Split forwards them. Existing method signatures unchanged. codetest: 7 new cases (33 total), passing on memcode, mongocode with transactions and WithoutTransactions (replica set); gofmt/vet/build clean, go test -race ./code/... ./ghsync/... ok. No files outside the list.

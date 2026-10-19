@@ -5,8 +5,8 @@
 # Local mode (no serverUrl): stops the daemon when one answers on its port.
 # Remote mode (serverUrl set, or CLUED_SERVER_URL): there is no daemon, so
 #          nothing is probed or stopped.
-# Always:  removes the hook relay's catch-up state (<data dir>/catchup/) and
-#          its log (<data dir>/relay.log), clued's entries in settings.json
+# Always:  removes the hook relay's catch-up and code sync state
+#          (<data dir>/catchup/, <data dir>/codesync/) and its log (<data dir>/relay.log), clued's entries in settings.json
 #          (a settings mirror) and the hook launcher (bin/clued-hook,
 #          plugin-root), the listener older clued versions installed into
 #          claude-remember (hooks/remove-remember-listener) and the memory
@@ -142,6 +142,12 @@ rm -rf "${DATA_DIR}/remember"
 if [[ -d "${DATA_DIR}/catchup" ]]; then
   rm -rf "${DATA_DIR}/catchup"
   echo "clued: removed catch-up state"
+fi
+# Code sync state holds paths and hashes of synced worktrees; the next sync
+# reconciles from scratch, and the server deduplicates blobs.
+if [[ -d "${DATA_DIR}/codesync" ]]; then
+  rm -rf "${DATA_DIR}/codesync"
+  echo "clued: removed code sync state"
 fi
 if [[ -f "${DATA_DIR}/relay.log" ]]; then
   rm -f "${DATA_DIR}/relay.log"

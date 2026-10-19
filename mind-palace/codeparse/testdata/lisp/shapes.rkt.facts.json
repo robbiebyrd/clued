@@ -1,0 +1,1046 @@
+{
+  "lang": "lisp",
+  "dialect": "racket",
+  "symbols": [
+    {
+      "id": "point",
+      "kind": "struct",
+      "name": "point",
+      "qualName": "point",
+      "signature": "(struct point (x y) #:transparent)",
+      "doc": "A point in the plane.",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 421
+      },
+      "end": {
+        "line": 17,
+        "column": 34,
+        "offset": 455
+      },
+      "exported": true
+    },
+    {
+      "id": "point:x",
+      "kind": "field",
+      "name": "x",
+      "qualName": "point:x",
+      "signature": "x",
+      "doc": "A point in the plane.",
+      "start": {
+        "line": 17,
+        "column": 15,
+        "offset": 436
+      },
+      "end": {
+        "line": 17,
+        "column": 16,
+        "offset": 437
+      },
+      "parent": "point",
+      "exported": true
+    },
+    {
+      "id": "point:y",
+      "kind": "field",
+      "name": "y",
+      "qualName": "point:y",
+      "signature": "y",
+      "doc": "A point in the plane.",
+      "start": {
+        "line": 17,
+        "column": 17,
+        "offset": 438
+      },
+      "end": {
+        "line": 17,
+        "column": 18,
+        "offset": 439
+      },
+      "parent": "point",
+      "exported": true
+    },
+    {
+      "id": "point3",
+      "kind": "struct",
+      "name": "point3",
+      "qualName": "point3",
+      "signature": "(struct point3 point (z [label #:mutable]))",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 457
+      },
+      "end": {
+        "line": 19,
+        "column": 43,
+        "offset": 500
+      },
+      "exported": true
+    },
+    {
+      "id": "point3:z",
+      "kind": "field",
+      "name": "z",
+      "qualName": "point3:z",
+      "signature": "z",
+      "start": {
+        "line": 19,
+        "column": 22,
+        "offset": 479
+      },
+      "end": {
+        "line": 19,
+        "column": 23,
+        "offset": 480
+      },
+      "parent": "point3",
+      "exported": true
+    },
+    {
+      "id": "point3:label",
+      "kind": "field",
+      "name": "label",
+      "qualName": "point3:label",
+      "signature": "[label #:mutable]",
+      "start": {
+        "line": 19,
+        "column": 24,
+        "offset": 481
+      },
+      "end": {
+        "line": 19,
+        "column": 41,
+        "offset": 498
+      },
+      "parent": "point3",
+      "exported": true
+    },
+    {
+      "id": "origin",
+      "kind": "var",
+      "name": "origin",
+      "qualName": "origin",
+      "signature": "(define origin (point 0 0))",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 502
+      },
+      "end": {
+        "line": 21,
+        "column": 27,
+        "offset": 529
+      },
+      "exported": true
+    },
+    {
+      "id": "shape\u003c%\u003e",
+      "kind": "var",
+      "name": "shape\u003c%\u003e",
+      "qualName": "shape\u003c%\u003e",
+      "signature": "(define shape\u003c%\u003e (interface () area perimeter))",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 531
+      },
+      "end": {
+        "line": 23,
+        "column": 47,
+        "offset": 578
+      },
+      "exported": true
+    },
+    {
+      "id": "shape%",
+      "kind": "var",
+      "name": "shape%",
+      "qualName": "shape%",
+      "signature": "(define shape%",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 580
+      },
+      "end": {
+        "line": 32,
+        "column": 40,
+        "offset": 806
+      },
+      "exported": true
+    },
+    {
+      "id": "shape%:area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "shape%:area",
+      "signature": "(define/public (area) 0)",
+      "start": {
+        "line": 29,
+        "column": 4,
+        "offset": 676
+      },
+      "end": {
+        "line": 29,
+        "column": 28,
+        "offset": 700
+      },
+      "parent": "shape%",
+      "exported": true
+    },
+    {
+      "id": "shape%:perimeter",
+      "kind": "method",
+      "name": "perimeter",
+      "qualName": "shape%:perimeter",
+      "signature": "(define/public (perimeter) 0)",
+      "start": {
+        "line": 30,
+        "column": 4,
+        "offset": 705
+      },
+      "end": {
+        "line": 30,
+        "column": 33,
+        "offset": 734
+      },
+      "parent": "shape%",
+      "exported": true
+    },
+    {
+      "id": "shape%:log-area",
+      "kind": "method",
+      "name": "log-area",
+      "qualName": "shape%:log-area",
+      "signature": "(define/private (log-area)",
+      "start": {
+        "line": 31,
+        "column": 4,
+        "offset": 739
+      },
+      "end": {
+        "line": 32,
+        "column": 38,
+        "offset": 804
+      },
+      "parent": "shape%",
+      "exported": true
+    },
+    {
+      "id": "circle%",
+      "kind": "var",
+      "name": "circle%",
+      "qualName": "circle%",
+      "signature": "(define circle%",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 808
+      },
+      "end": {
+        "line": 39,
+        "column": 28,
+        "offset": 952
+      },
+      "exported": true
+    },
+    {
+      "id": "circle%:area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "circle%:area",
+      "signature": "(define/override (area)",
+      "start": {
+        "line": 38,
+        "column": 4,
+        "offset": 900
+      },
+      "end": {
+        "line": 39,
+        "column": 26,
+        "offset": 950
+      },
+      "parent": "circle%",
+      "exported": true
+    },
+    {
+      "id": "area",
+      "kind": "function",
+      "name": "area",
+      "qualName": "area",
+      "signature": "(define (area s)",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 954
+      },
+      "end": {
+        "line": 45,
+        "column": 49,
+        "offset": 1129
+      },
+      "exported": true
+    },
+    {
+      "id": "distance",
+      "kind": "function",
+      "name": "distance",
+      "qualName": "distance",
+      "signature": "(define/contract (distance a b)",
+      "start": {
+        "line": 47,
+        "column": 0,
+        "offset": 1131
+      },
+      "end": {
+        "line": 50,
+        "column": 47,
+        "offset": 1282
+      },
+      "exported": true
+    },
+    {
+      "id": "with-shape",
+      "kind": "macro",
+      "name": "with-shape",
+      "qualName": "with-shape",
+      "signature": "(define-syntax-rule (with-shape (name expr) body ...)",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1284
+      },
+      "end": {
+        "line": 55,
+        "column": 14,
+        "offset": 1394
+      },
+      "exported": true
+    },
+    {
+      "id": "total-area",
+      "kind": "function",
+      "name": "total-area",
+      "qualName": "total-area",
+      "signature": "(define (total-area shapes)",
+      "start": {
+        "line": 57,
+        "column": 0,
+        "offset": 1396
+      },
+      "end": {
+        "line": 59,
+        "column": 14,
+        "offset": 1472
+      },
+      "exported": true
+    },
+    {
+      "id": "labels",
+      "kind": "function",
+      "name": "labels",
+      "qualName": "labels",
+      "signature": "(define (labels shapes)",
+      "start": {
+        "line": 61,
+        "column": 0,
+        "offset": 1474
+      },
+      "end": {
+        "line": 64,
+        "column": 60,
+        "offset": 1614
+      },
+      "exported": true
+    },
+    {
+      "id": "test",
+      "kind": "module",
+      "name": "test",
+      "qualName": "test",
+      "signature": "(module+ test",
+      "start": {
+        "line": 66,
+        "column": 0,
+        "offset": 1616
+      },
+      "end": {
+        "line": 68,
+        "column": 51,
+        "offset": 1702
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "racket/base",
+      "kind": "lang",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    },
+    {
+      "spec": "racket/class",
+      "kind": "require",
+      "start": {
+        "line": 4,
+        "column": 9,
+        "offset": 75
+      }
+    },
+    {
+      "spec": "racket/contract",
+      "kind": "require",
+      "start": {
+        "line": 5,
+        "column": 9,
+        "offset": 97
+      }
+    },
+    {
+      "spec": "racket/match",
+      "kind": "require",
+      "start": {
+        "line": 6,
+        "column": 9,
+        "offset": 122
+      }
+    },
+    {
+      "spec": "racket/list",
+      "names": [
+        "first",
+        "rest",
+        "empty?"
+      ],
+      "kind": "require",
+      "start": {
+        "line": 7,
+        "column": 9,
+        "offset": 144
+      }
+    },
+    {
+      "spec": "racket/string",
+      "alias": "str:",
+      "kind": "require",
+      "start": {
+        "line": 8,
+        "column": 9,
+        "offset": 193
+      }
+    },
+    {
+      "spec": "racket/base",
+      "kind": "require",
+      "start": {
+        "line": 9,
+        "column": 21,
+        "offset": 245
+      }
+    },
+    {
+      "spec": "syntax/parse",
+      "kind": "require",
+      "start": {
+        "line": 9,
+        "column": 33,
+        "offset": 257
+      }
+    },
+    {
+      "spec": "private/util.rkt",
+      "kind": "require",
+      "start": {
+        "line": 10,
+        "column": 9,
+        "offset": 280
+      }
+    },
+    {
+      "spec": "rackunit",
+      "kind": "require",
+      "start": {
+        "line": 67,
+        "column": 11,
+        "offset": 1641
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "-\u003e",
+      "kind": "call",
+      "start": {
+        "line": 12,
+        "column": 30,
+        "offset": 331
+      }
+    },
+    {
+      "name": "point",
+      "kind": "extends",
+      "start": {
+        "line": 19,
+        "column": 15,
+        "offset": 472
+      },
+      "enclosing": "point3"
+    },
+    {
+      "name": "point",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 16,
+        "offset": 518
+      },
+      "enclosing": "origin"
+    },
+    {
+      "name": "object%",
+      "kind": "extends",
+      "start": {
+        "line": 26,
+        "column": 10,
+        "offset": 605
+      },
+      "enclosing": "shape%"
+    },
+    {
+      "name": "shape\u003c%\u003e",
+      "kind": "implements",
+      "start": {
+        "line": 26,
+        "column": 19,
+        "offset": 614
+      },
+      "enclosing": "shape%"
+    },
+    {
+      "name": "printf",
+      "kind": "call",
+      "start": {
+        "line": 32,
+        "column": 7,
+        "offset": 773
+      },
+      "enclosing": "shape%:log-area"
+    },
+    {
+      "name": "area",
+      "kind": "call",
+      "start": {
+        "line": 32,
+        "column": 31,
+        "offset": 797
+      },
+      "enclosing": "shape%:log-area"
+    },
+    {
+      "name": "shape%",
+      "kind": "extends",
+      "start": {
+        "line": 35,
+        "column": 9,
+        "offset": 833
+      },
+      "enclosing": "circle%"
+    },
+    {
+      "name": "*",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 7,
+        "offset": 931
+      },
+      "enclosing": "circle%:area"
+    },
+    {
+      "name": "sqr",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 13,
+        "offset": 937
+      },
+      "enclosing": "circle%:area"
+    },
+    {
+      "name": "point",
+      "kind": "call",
+      "start": {
+        "line": 43,
+        "column": 6,
+        "offset": 988
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "distance",
+      "kind": "call",
+      "start": {
+        "line": 43,
+        "column": 18,
+        "offset": 1000
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "point",
+      "kind": "call",
+      "start": {
+        "line": 43,
+        "column": 35,
+        "offset": 1017
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "?",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 6,
+        "offset": 1036
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "is-a?",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 17,
+        "offset": 1047
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "send",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 36,
+        "offset": 1066
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "raise-argument-error",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 8,
+        "offset": 1088
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "-\u003e",
+      "kind": "call",
+      "start": {
+        "line": 48,
+        "column": 3,
+        "offset": 1166
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "sqrt",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 3,
+        "offset": 1193
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "+",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 9,
+        "offset": 1199
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "sqr",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 12,
+        "offset": 1202
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "-",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 17,
+        "offset": 1207
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "point-x",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 20,
+        "offset": 1210
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "point-x",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 32,
+        "offset": 1222
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "sqr",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 12,
+        "offset": 1247
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "-",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 17,
+        "offset": 1252
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "point-y",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 20,
+        "offset": 1255
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "point-y",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 32,
+        "offset": 1267
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "name",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 33,
+        "offset": 1317
+      },
+      "enclosing": "with-shape"
+    },
+    {
+      "name": "log-shape",
+      "kind": "call",
+      "start": {
+        "line": 54,
+        "column": 5,
+        "offset": 1364
+      },
+      "enclosing": "with-shape"
+    },
+    {
+      "name": "in-list",
+      "kind": "call",
+      "start": {
+        "line": 58,
+        "column": 16,
+        "offset": 1440
+      },
+      "enclosing": "total-area"
+    },
+    {
+      "name": "area",
+      "kind": "call",
+      "start": {
+        "line": 59,
+        "column": 5,
+        "offset": 1463
+      },
+      "enclosing": "total-area"
+    },
+    {
+      "name": "string-join",
+      "qualifier": "str",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 5,
+        "offset": 1559
+      },
+      "enclosing": "labels"
+    },
+    {
+      "name": "list",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 22,
+        "offset": 1576
+      },
+      "enclosing": "labels"
+    },
+    {
+      "name": "format",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 28,
+        "offset": 1582
+      },
+      "enclosing": "labels"
+    },
+    {
+      "name": "point-x",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 41,
+        "offset": 1595
+      },
+      "enclosing": "labels"
+    },
+    {
+      "name": "check-equal?",
+      "kind": "call",
+      "start": {
+        "line": 68,
+        "column": 3,
+        "offset": 1654
+      },
+      "enclosing": "test"
+    },
+    {
+      "name": "total-area",
+      "kind": "call",
+      "start": {
+        "line": 68,
+        "column": 17,
+        "offset": 1668
+      },
+      "enclosing": "test"
+    },
+    {
+      "name": "list",
+      "kind": "call",
+      "start": {
+        "line": 68,
+        "column": 29,
+        "offset": 1680
+      },
+      "enclosing": "test"
+    },
+    {
+      "name": "point",
+      "kind": "call",
+      "start": {
+        "line": 68,
+        "column": 35,
+        "offset": 1686
+      },
+      "enclosing": "test"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 14,
+        "column": 28,
+        "offset": 394
+      },
+      "text": "#lang racket/base\n;; Shapes with classes, structs and contracts.\n\n(require racket/class\n         racket/contract\n         racket/match\n         (only-in racket/list first rest empty?)\n         (prefix-in str: racket/string)\n         (for-syntax racket/base syntax/parse)\n         \"private/util.rkt\")\n\n(provide (contract-out [area (-\u003e shape? real?)])\n         shape%\n         (struct-out point))",
+      "hash": "b62eddb396894f6e35b2a7673d83863c9054eb9fb5510c55db42f8a997ba9d60"
+    },
+    {
+      "id": "point#1",
+      "kind": "symbol",
+      "symbolId": "point",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 396
+      },
+      "end": {
+        "line": 17,
+        "column": 34,
+        "offset": 455
+      },
+      "text": ";; A point in the plane.\n(struct point (x y) #:transparent)",
+      "hash": "3535d1d6635faa74da4897decc0ba61ea60f31d3dbe6b4a57e87a97671482150"
+    },
+    {
+      "id": "point3#1",
+      "kind": "symbol",
+      "symbolId": "point3",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 457
+      },
+      "end": {
+        "line": 19,
+        "column": 43,
+        "offset": 500
+      },
+      "text": "(struct point3 point (z [label #:mutable]))",
+      "hash": "726e450c07b96b268a487f7198ab7e07694f85827db3d7cc6b1b05ded7b9111e"
+    },
+    {
+      "id": "L21#1",
+      "kind": "window",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 502
+      },
+      "end": {
+        "line": 39,
+        "column": 28,
+        "offset": 952
+      },
+      "text": "(define origin (point 0 0))\n\n(define shape\u003c%\u003e (interface () area perimeter))\n\n(define shape%\n  (class* object% (shape\u003c%\u003e)\n    (init-field [name \"shape\"])\n    (super-new)\n    (define/public (area) 0)\n    (define/public (perimeter) 0)\n    (define/private (log-area)\n      (printf \"~a: ~a\\n\" name (area)))))\n\n(define circle%\n  (class shape%\n    (init-field radius)\n    (super-new [name \"circle\"])\n    (define/override (area)\n      (* pi (sqr radius)))))",
+      "hash": "d71c64c467e2d65949144d50f1ca474d0623e54d4cc6f141ba66148169d7e0b5"
+    },
+    {
+      "id": "area#1",
+      "kind": "symbol",
+      "symbolId": "area",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 954
+      },
+      "end": {
+        "line": 45,
+        "column": 49,
+        "offset": 1129
+      },
+      "text": "(define (area s)\n  (match s\n    [(point x y) (distance origin (point x y))]\n    [(? (λ (v) (is-a? v shape%))) (send s area)]\n    [_ (raise-argument-error 'area \"shape?\" s)]))",
+      "hash": "823b064812d959fc667c5696cbb93de2bf00b0180f440acacf21f43dcefd509b"
+    },
+    {
+      "id": "distance#1",
+      "kind": "symbol",
+      "symbolId": "distance",
+      "start": {
+        "line": 47,
+        "column": 0,
+        "offset": 1131
+      },
+      "end": {
+        "line": 50,
+        "column": 47,
+        "offset": 1282
+      },
+      "text": "(define/contract (distance a b)\n  (-\u003e point? point? real?)\n  (sqrt (+ (sqr (- (point-x a) (point-x b)))\n           (sqr (- (point-y a) (point-y b))))))",
+      "hash": "b02cc94b85091ab1a429a2c4a301dacc911ecbc543f686d55bda3cfc37f3844f"
+    },
+    {
+      "id": "with-shape#1",
+      "kind": "symbol",
+      "symbolId": "with-shape",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1284
+      },
+      "end": {
+        "line": 55,
+        "column": 14,
+        "offset": 1394
+      },
+      "text": "(define-syntax-rule (with-shape (name expr) body ...)\n  (let ([name expr])\n    (log-shape name)\n    body ...))",
+      "hash": "181cd21d5ff963c43709d22f817236c49c6012a1f39d91fb0904fe495be4ae13"
+    },
+    {
+      "id": "total-area#1",
+      "kind": "symbol",
+      "symbolId": "total-area",
+      "start": {
+        "line": 57,
+        "column": 0,
+        "offset": 1396
+      },
+      "end": {
+        "line": 59,
+        "column": 14,
+        "offset": 1472
+      },
+      "text": "(define (total-area shapes)\n  (for/sum ([s (in-list shapes)])\n    (area s)))",
+      "hash": "35c0efa8150644bca05df80ba8755f9c2d646efbafa3596dfd222c4cb91a3228"
+    },
+    {
+      "id": "labels#1",
+      "kind": "symbol",
+      "symbolId": "labels",
+      "start": {
+        "line": 61,
+        "column": 0,
+        "offset": 1474
+      },
+      "end": {
+        "line": 64,
+        "column": 60,
+        "offset": 1614
+      },
+      "text": "(define (labels shapes)\n  (for/list ([s shapes]\n             #:when (point? s))\n    (str:string-join (list (format \"~a\" (point-x s))) \",\")))",
+      "hash": "753af825fe55c048b114cc663fdd84e52a8085d6033e8b2d35a040bbf4473e9d"
+    },
+    {
+      "id": "L66#1",
+      "kind": "window",
+      "start": {
+        "line": 66,
+        "column": 0,
+        "offset": 1616
+      },
+      "end": {
+        "line": 68,
+        "column": 51,
+        "offset": 1702
+      },
+      "text": "(module+ test\n  (require rackunit)\n  (check-equal? (total-area (list (point 3 4))) 5))",
+      "hash": "6ebcb5802c3e7f0d878fb1760965908ff237fb57ff5d9ebeedb455340309f53e"
+    }
+  ]
+}

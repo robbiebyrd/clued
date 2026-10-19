@@ -1,0 +1,18 @@
+# Objective-C: one global scope as in C (no package or namespace form);
+# files reach each other through #import / #include (resolved like C
+# headers, by path relative to the file, then the include directories) and
+# @import of a framework module (resolved by module name). Methods and
+# message sends are named by their whole selector (initWithName:sides:).
+name: Objective-C
+family: cfamily
+extensions: [.m, .mm, .h]
+query: tags.scm
+kinds:
+  definition.category: category
+scope:
+  separators: ["."]
+  packageBy: none
+  exported: all
+  options:
+    includeKinds: import,import_system,include,include_system
+    moduleKinds: module

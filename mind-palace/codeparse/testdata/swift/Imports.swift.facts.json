@@ -1,0 +1,268 @@
+{
+  "lang": "swift",
+  "symbols": [
+    {
+      "id": "PlatformColor",
+      "kind": "type",
+      "name": "PlatformColor",
+      "qualName": "PlatformColor",
+      "signature": "typealias PlatformColor = UIColor",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 237
+      },
+      "end": {
+        "line": 13,
+        "column": 33,
+        "offset": 270
+      }
+    },
+    {
+      "id": "PlatformColor~2",
+      "kind": "type",
+      "name": "PlatformColor",
+      "qualName": "PlatformColor",
+      "signature": "typealias PlatformColor = NSColor",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 312
+      },
+      "end": {
+        "line": 17,
+        "column": 33,
+        "offset": 345
+      }
+    },
+    {
+      "id": "logger",
+      "kind": "const",
+      "name": "logger",
+      "qualName": "logger",
+      "signature": "let logger = Logger(subsystem: \"com.example.shapes\", category: \"draw\")",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 354
+      },
+      "end": {
+        "line": 20,
+        "column": 70,
+        "offset": 424
+      }
+    }
+  ],
+  "imports": [
+    {
+      "spec": "Foundation",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    },
+    {
+      "spec": "os.log",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 18
+      }
+    },
+    {
+      "spec": "ShapeKit",
+      "kind": "testable",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 32
+      }
+    },
+    {
+      "spec": "Combine",
+      "kind": "reexport",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 58
+      }
+    },
+    {
+      "spec": "Swift",
+      "names": [
+        "Array"
+      ],
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 84
+      }
+    },
+    {
+      "spec": "UIKit",
+      "names": [
+        "UIViewController"
+      ],
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 110
+      }
+    },
+    {
+      "spec": "Darwin",
+      "names": [
+        "sqrt"
+      ],
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 146
+      }
+    },
+    {
+      "spec": "ShapeKit",
+      "names": [
+        "Shape"
+      ],
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 170
+      }
+    },
+    {
+      "spec": "UIKit",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 223
+      }
+    },
+    {
+      "spec": "AppKit",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 297
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "UIColor",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 26,
+        "offset": 263
+      },
+      "enclosing": "PlatformColor"
+    },
+    {
+      "name": "NSColor",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 26,
+        "offset": 338
+      },
+      "enclosing": "PlatformColor~2"
+    },
+    {
+      "name": "Logger",
+      "kind": "call",
+      "start": {
+        "line": 20,
+        "column": 13,
+        "offset": 367
+      },
+      "enclosing": "logger"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 11,
+        "column": 12,
+        "offset": 235
+      },
+      "text": "import Foundation\nimport os.log\n@testable import ShapeKit\n@_exported import Combine\nimport struct Swift.Array\nimport class UIKit.UIViewController\nimport func Darwin.sqrt\nimport protocol ShapeKit.Shape\n\n#if canImport(UIKit)\nimport UIKit",
+      "hash": "7c5423aae4c6ebd693161ae6e38a83cb17f0d83bbe5f3bc77b8c10e42978e91c"
+    },
+    {
+      "id": "PlatformColor#1",
+      "kind": "symbol",
+      "symbolId": "PlatformColor",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 237
+      },
+      "end": {
+        "line": 13,
+        "column": 33,
+        "offset": 270
+      },
+      "text": "typealias PlatformColor = UIColor",
+      "hash": "61a720459d48e5e8df9651d24de9a7a448d0a338094eaf96b6856478a4866e8e"
+    },
+    {
+      "id": "L14#1",
+      "kind": "window",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 271
+      },
+      "end": {
+        "line": 15,
+        "column": 13,
+        "offset": 310
+      },
+      "text": "#elseif canImport(AppKit)\nimport AppKit",
+      "hash": "a0b0437367fd0f214404ac2d74a4f985294a225043f69af5ffc01d01955017b0"
+    },
+    {
+      "id": "PlatformColor~2#1",
+      "kind": "symbol",
+      "symbolId": "PlatformColor~2",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 312
+      },
+      "end": {
+        "line": 17,
+        "column": 33,
+        "offset": 345
+      },
+      "text": "typealias PlatformColor = NSColor",
+      "hash": "4b51403b92eb3c46c68ec97181e5ab62e25040304834b1b0a3408697d7ba0305"
+    },
+    {
+      "id": "L18#1",
+      "kind": "window",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 346
+      },
+      "end": {
+        "line": 20,
+        "column": 70,
+        "offset": 424
+      },
+      "text": "#endif\n\nlet logger = Logger(subsystem: \"com.example.shapes\", category: \"draw\")",
+      "hash": "1c67c4293c517e91da5bfbab89fa43da7d9461959f785c227d5f4081614eb102"
+    }
+  ]
+}

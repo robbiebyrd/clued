@@ -1,0 +1,194 @@
+{
+  "lang": "ruby",
+  "symbols": [
+    {
+      "id": "Inventory",
+      "kind": "module",
+      "name": "Inventory",
+      "qualName": "Inventory",
+      "signature": "module Inventory",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 16
+      },
+      "end": {
+        "line": 20,
+        "column": 3,
+        "offset": 277
+      },
+      "exported": true
+    },
+    {
+      "id": "Inventory::Warehouse",
+      "kind": "class",
+      "name": "Warehouse",
+      "qualName": "Inventory::Warehouse",
+      "signature": "class Warehouse",
+      "doc": "A warehouse with stock.",
+      "start": {
+        "line": 5,
+        "column": 2,
+        "offset": 63
+      },
+      "end": {
+        "line": 17,
+        "column": 5,
+        "offset": 256
+      },
+      "parent": "Inventory",
+      "exported": true
+    },
+    {
+      "id": "Inventory::Warehouse::initialize",
+      "kind": "method",
+      "name": "initialize",
+      "qualName": "Inventory::Warehouse::initialize",
+      "signature": "def initialize(name)",
+      "start": {
+        "line": 6,
+        "column": 4,
+        "offset": 83
+      },
+      "end": {
+        "line": 8,
+        "column": 7,
+        "offset": 130
+      },
+      "parent": "Inventory::Warehouse",
+      "exported": true
+    },
+    {
+      "id": "Inventory::Warehouse::stock",
+      "kind": "method",
+      "name": "stock",
+      "qualName": "Inventory::Warehouse::stock",
+      "signature": "def stock(sku",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 136
+      },
+      "end": {
+        "line": 12,
+        "column": 7,
+        "offset": 185
+      },
+      "parent": "Inventory::Warehouse",
+      "exported": true
+    },
+    {
+      "id": "Inventory::Warehouse::restock",
+      "kind": "method",
+      "name": "restock",
+      "qualName": "Inventory::Warehouse::restock",
+      "signature": "def restock(sku, count)",
+      "start": {
+        "line": 14,
+        "column": 4,
+        "offset": 191
+      },
+      "end": {
+        "line": 16,
+        "column": 7,
+        "offset": 250
+      },
+      "parent": "Inventory::Warehouse",
+      "exported": true
+    },
+    {
+      "id": "Inventory::LOW_WATER",
+      "kind": "const",
+      "name": "LOW_WATER",
+      "qualName": "Inventory::LOW_WATER",
+      "signature": "LOW_WATER = 5",
+      "start": {
+        "line": 19,
+        "column": 2,
+        "offset": 260
+      },
+      "end": {
+        "line": 19,
+        "column": 15,
+        "offset": 273
+      },
+      "parent": "Inventory",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "json",
+      "kind": "require",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "fetch",
+      "qualifier": "@levels",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 14,
+        "offset": 164
+      },
+      "enclosing": "Inventory::Warehouse::stock"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 16,
+        "offset": 32
+      },
+      "text": "require \"json\"\n\nmodule Inventory",
+      "hash": "3d686ad0d58c15f3334ef021739d2d935fa3288724c6007797db283aedb2c15b"
+    },
+    {
+      "id": "Inventory::Warehouse#1",
+      "kind": "symbol",
+      "symbolId": "Inventory::Warehouse",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 33
+      },
+      "end": {
+        "line": 17,
+        "column": 5,
+        "offset": 256
+      },
+      "text": "  # A warehouse with stock.\n  class Warehouse\n    def initialize(name)\n      @name = name\n    end\n\n    def stock(sku\n      @levels.fetch(sku, 0)\n    end\n\n    def restock(sku, count)\n      @levels[sku] += count\n    end\n  end",
+      "hash": "886f024fba5845be9c301aeecdac8cd536b8b15f2e8c58c94c6b5e2c8079682c"
+    },
+    {
+      "id": "L19#1",
+      "kind": "window",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 258
+      },
+      "end": {
+        "line": 20,
+        "column": 3,
+        "offset": 277
+      },
+      "text": "  LOW_WATER = 5\nend",
+      "hash": "9052a2fa9128d21a42bda8d8513653e0c6722cb623ce120f9c50dd7be701452a"
+    }
+  ]
+}

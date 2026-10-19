@@ -1,0 +1,1434 @@
+{
+  "lang": "cpp",
+  "symbols": [
+    {
+      "id": "GEOMETRY_VERSION",
+      "kind": "macro",
+      "name": "GEOMETRY_VERSION",
+      "qualName": "GEOMETRY_VERSION",
+      "signature": "#define GEOMETRY_VERSION 3",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 156
+      },
+      "end": {
+        "line": 10,
+        "column": 0,
+        "offset": 183
+      },
+      "exported": true
+    },
+    {
+      "id": "GEOMETRY_SQUARE",
+      "kind": "macro",
+      "name": "GEOMETRY_SQUARE",
+      "qualName": "GEOMETRY_SQUARE",
+      "signature": "#define GEOMETRY_SQUARE(x) ((x) * (x))",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 183
+      },
+      "end": {
+        "line": 11,
+        "column": 0,
+        "offset": 222
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry",
+      "kind": "namespace",
+      "name": "geometry",
+      "qualName": "geometry",
+      "signature": "namespace geometry",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 223
+      },
+      "end": {
+        "line": 106,
+        "column": 1,
+        "offset": 2129
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry::kPi",
+      "kind": "const",
+      "name": "kPi",
+      "qualName": "geometry::kPi",
+      "signature": "constexpr double kPi = 3.14159265358979;",
+      "doc": "Pi, to the precision the shapes need.",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 287
+      },
+      "end": {
+        "line": 15,
+        "column": 40,
+        "offset": 327
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::shapeCount",
+      "kind": "var",
+      "name": "shapeCount",
+      "qualName": "geometry::shapeCount",
+      "signature": "extern int shapeCount;",
+      "doc": "The number of shapes created so far.",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 370
+      },
+      "end": {
+        "line": 18,
+        "column": 22,
+        "offset": 392
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Unit",
+      "kind": "enum",
+      "name": "Unit",
+      "qualName": "geometry::Unit",
+      "signature": "enum class Unit",
+      "doc": "Unit is the unit a length is measured in.",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 440
+      },
+      "end": {
+        "line": 21,
+        "column": 37,
+        "offset": 477
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Unit::Millimetre",
+      "kind": "const",
+      "name": "Millimetre",
+      "qualName": "geometry::Unit::Millimetre",
+      "signature": "Millimetre",
+      "doc": "Unit is the unit a length is measured in.",
+      "start": {
+        "line": 21,
+        "column": 18,
+        "offset": 458
+      },
+      "end": {
+        "line": 21,
+        "column": 28,
+        "offset": 468
+      },
+      "parent": "geometry::Unit",
+      "exported": true
+    },
+    {
+      "id": "geometry::Unit::Metre",
+      "kind": "const",
+      "name": "Metre",
+      "qualName": "geometry::Unit::Metre",
+      "signature": "Metre",
+      "doc": "Unit is the unit a length is measured in.",
+      "start": {
+        "line": 21,
+        "column": 30,
+        "offset": 470
+      },
+      "end": {
+        "line": 21,
+        "column": 35,
+        "offset": 475
+      },
+      "parent": "geometry::Unit",
+      "exported": true
+    },
+    {
+      "id": "geometry::Colour",
+      "kind": "enum",
+      "name": "Colour",
+      "qualName": "geometry::Colour",
+      "signature": "enum Colour",
+      "doc": "Colour is a shape's fill.",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 510
+      },
+      "end": {
+        "line": 28,
+        "column": 1,
+        "offset": 553
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Colour::Red",
+      "kind": "const",
+      "name": "Red",
+      "qualName": "geometry::Colour::Red",
+      "signature": "Red",
+      "start": {
+        "line": 25,
+        "column": 2,
+        "offset": 526
+      },
+      "end": {
+        "line": 25,
+        "column": 5,
+        "offset": 529
+      },
+      "parent": "geometry::Colour",
+      "exported": true
+    },
+    {
+      "id": "geometry::Colour::Green",
+      "kind": "const",
+      "name": "Green",
+      "qualName": "geometry::Colour::Green",
+      "signature": "Green = 2",
+      "start": {
+        "line": 26,
+        "column": 2,
+        "offset": 533
+      },
+      "end": {
+        "line": 26,
+        "column": 11,
+        "offset": 542
+      },
+      "parent": "geometry::Colour",
+      "exported": true
+    },
+    {
+      "id": "geometry::Colour::Blue",
+      "kind": "const",
+      "name": "Blue",
+      "qualName": "geometry::Colour::Blue",
+      "signature": "Blue",
+      "start": {
+        "line": 27,
+        "column": 2,
+        "offset": 546
+      },
+      "end": {
+        "line": 27,
+        "column": 6,
+        "offset": 550
+      },
+      "parent": "geometry::Colour",
+      "exported": true
+    },
+    {
+      "id": "geometry::Length",
+      "kind": "type",
+      "name": "Length",
+      "qualName": "geometry::Length",
+      "signature": "using Length = double;",
+      "doc": "Length is a distance in metres.",
+      "start": {
+        "line": 31,
+        "column": 0,
+        "offset": 592
+      },
+      "end": {
+        "line": 31,
+        "column": 22,
+        "offset": 614
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Callback",
+      "kind": "type",
+      "name": "Callback",
+      "qualName": "geometry::Callback",
+      "signature": "typedef void (*Callback)(int id);",
+      "doc": "Callback is called when a shape changes.",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 661
+      },
+      "end": {
+        "line": 34,
+        "column": 33,
+        "offset": 694
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape",
+      "kind": "class",
+      "name": "Shape",
+      "qualName": "geometry::Shape",
+      "signature": "class Shape",
+      "doc": "Shape is the base of every shape.",
+      "start": {
+        "line": 39,
+        "column": 0,
+        "offset": 741
+      },
+      "end": {
+        "line": 58,
+        "column": 1,
+        "offset": 1177
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::Shape",
+      "kind": "method",
+      "name": "Shape",
+      "qualName": "geometry::Shape::Shape",
+      "signature": "explicit Shape(std::string name);",
+      "doc": "Shape creates a shape with a name.",
+      "start": {
+        "line": 42,
+        "column": 2,
+        "offset": 807
+      },
+      "end": {
+        "line": 42,
+        "column": 35,
+        "offset": 840
+      },
+      "parent": "geometry::Shape",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::~Shape",
+      "kind": "method",
+      "name": "~Shape",
+      "qualName": "geometry::Shape::~Shape",
+      "signature": "virtual ~Shape() = default;",
+      "start": {
+        "line": 43,
+        "column": 2,
+        "offset": 843
+      },
+      "end": {
+        "line": 43,
+        "column": 29,
+        "offset": 870
+      },
+      "parent": "geometry::Shape",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "geometry::Shape::area",
+      "signature": "virtual double area() const = 0;",
+      "doc": "Area is the shape's area in square units.",
+      "start": {
+        "line": 46,
+        "column": 2,
+        "offset": 922
+      },
+      "end": {
+        "line": 46,
+        "column": 34,
+        "offset": 954
+      },
+      "parent": "geometry::Shape",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::name",
+      "kind": "method",
+      "name": "name",
+      "qualName": "geometry::Shape::name",
+      "signature": "const std::string\u0026 name() const",
+      "doc": "Name returns the shape's name.",
+      "start": {
+        "line": 49,
+        "column": 2,
+        "offset": 995
+      },
+      "end": {
+        "line": 49,
+        "column": 51,
+        "offset": 1044
+      },
+      "parent": "geometry::Shape",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::operator==",
+      "kind": "method",
+      "name": "operator==",
+      "qualName": "geometry::Shape::operator==",
+      "signature": "bool operator==(const Shape\u0026 other) const;",
+      "start": {
+        "line": 51,
+        "column": 2,
+        "offset": 1048
+      },
+      "end": {
+        "line": 51,
+        "column": 44,
+        "offset": 1090
+      },
+      "parent": "geometry::Shape",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::count",
+      "kind": "method",
+      "name": "count",
+      "qualName": "geometry::Shape::count",
+      "signature": "static int count();",
+      "start": {
+        "line": 53,
+        "column": 2,
+        "offset": 1094
+      },
+      "end": {
+        "line": 53,
+        "column": 21,
+        "offset": 1113
+      },
+      "parent": "geometry::Shape",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::name_",
+      "kind": "field",
+      "name": "name_",
+      "qualName": "geometry::Shape::name_",
+      "signature": "std::string name_;",
+      "start": {
+        "line": 56,
+        "column": 2,
+        "offset": 1129
+      },
+      "end": {
+        "line": 56,
+        "column": 20,
+        "offset": 1147
+      },
+      "parent": "geometry::Shape",
+      "exported": true
+    },
+    {
+      "id": "geometry::Shape::unit_",
+      "kind": "field",
+      "name": "unit_",
+      "qualName": "geometry::Shape::unit_",
+      "signature": "Unit unit_ = Unit::Metre;",
+      "start": {
+        "line": 57,
+        "column": 2,
+        "offset": 1150
+      },
+      "end": {
+        "line": 57,
+        "column": 27,
+        "offset": 1175
+      },
+      "parent": "geometry::Shape",
+      "exported": true
+    },
+    {
+      "id": "geometry::Circle",
+      "kind": "class",
+      "name": "Circle",
+      "qualName": "geometry::Circle",
+      "signature": "class Circle final : public Shape",
+      "doc": "Circle is a round shape.",
+      "start": {
+        "line": 61,
+        "column": 0,
+        "offset": 1209
+      },
+      "end": {
+        "line": 69,
+        "column": 1,
+        "offset": 1372
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Circle::Circle",
+      "kind": "method",
+      "name": "Circle",
+      "qualName": "geometry::Circle::Circle",
+      "signature": "Circle(Point centre, Length radius);",
+      "start": {
+        "line": 63,
+        "column": 2,
+        "offset": 1256
+      },
+      "end": {
+        "line": 63,
+        "column": 38,
+        "offset": 1292
+      },
+      "parent": "geometry::Circle",
+      "exported": true
+    },
+    {
+      "id": "geometry::Circle::area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "geometry::Circle::area",
+      "signature": "double area() const override;",
+      "start": {
+        "line": 64,
+        "column": 2,
+        "offset": 1295
+      },
+      "end": {
+        "line": 64,
+        "column": 31,
+        "offset": 1324
+      },
+      "parent": "geometry::Circle",
+      "exported": true
+    },
+    {
+      "id": "geometry::Circle::centre_",
+      "kind": "field",
+      "name": "centre_",
+      "qualName": "geometry::Circle::centre_",
+      "signature": "Point centre_;",
+      "start": {
+        "line": 67,
+        "column": 2,
+        "offset": 1338
+      },
+      "end": {
+        "line": 67,
+        "column": 16,
+        "offset": 1352
+      },
+      "parent": "geometry::Circle",
+      "exported": true
+    },
+    {
+      "id": "geometry::Circle::radius_",
+      "kind": "field",
+      "name": "radius_",
+      "qualName": "geometry::Circle::radius_",
+      "signature": "Length radius_;",
+      "start": {
+        "line": 68,
+        "column": 2,
+        "offset": 1355
+      },
+      "end": {
+        "line": 68,
+        "column": 17,
+        "offset": 1370
+      },
+      "parent": "geometry::Circle",
+      "exported": true
+    },
+    {
+      "id": "geometry::Bounds",
+      "kind": "struct",
+      "name": "Bounds",
+      "qualName": "geometry::Bounds",
+      "signature": "struct Bounds",
+      "doc": "Bounds is an axis-aligned box.",
+      "start": {
+        "line": 72,
+        "column": 0,
+        "offset": 1410
+      },
+      "end": {
+        "line": 78,
+        "column": 1,
+        "offset": 1539
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Bounds::min",
+      "kind": "field",
+      "name": "min",
+      "qualName": "geometry::Bounds::min",
+      "signature": "Point min;",
+      "start": {
+        "line": 73,
+        "column": 2,
+        "offset": 1428
+      },
+      "end": {
+        "line": 73,
+        "column": 12,
+        "offset": 1438
+      },
+      "parent": "geometry::Bounds",
+      "exported": true
+    },
+    {
+      "id": "geometry::Bounds::max",
+      "kind": "field",
+      "name": "max",
+      "qualName": "geometry::Bounds::max",
+      "signature": "Point max;",
+      "start": {
+        "line": 74,
+        "column": 2,
+        "offset": 1441
+      },
+      "end": {
+        "line": 74,
+        "column": 12,
+        "offset": 1451
+      },
+      "parent": "geometry::Bounds",
+      "exported": true
+    },
+    {
+      "id": "geometry::Bounds::contains",
+      "kind": "method",
+      "name": "contains",
+      "qualName": "geometry::Bounds::contains",
+      "signature": "bool contains(const Point\u0026 p) const;",
+      "doc": "Contains reports whether p lies inside.",
+      "start": {
+        "line": 77,
+        "column": 2,
+        "offset": 1501
+      },
+      "end": {
+        "line": 77,
+        "column": 38,
+        "offset": 1537
+      },
+      "parent": "geometry::Bounds",
+      "exported": true
+    },
+    {
+      "id": "geometry::Value",
+      "kind": "union",
+      "name": "Value",
+      "qualName": "geometry::Value",
+      "signature": "union Value",
+      "doc": "Value holds one of two representations.",
+      "start": {
+        "line": 81,
+        "column": 0,
+        "offset": 1586
+      },
+      "end": {
+        "line": 84,
+        "column": 1,
+        "offset": 1631
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Value::asInt",
+      "kind": "field",
+      "name": "asInt",
+      "qualName": "geometry::Value::asInt",
+      "signature": "int asInt;",
+      "start": {
+        "line": 82,
+        "column": 2,
+        "offset": 1602
+      },
+      "end": {
+        "line": 82,
+        "column": 12,
+        "offset": 1612
+      },
+      "parent": "geometry::Value",
+      "exported": true
+    },
+    {
+      "id": "geometry::Value::asFloat",
+      "kind": "field",
+      "name": "asFloat",
+      "qualName": "geometry::Value::asFloat",
+      "signature": "float asFloat;",
+      "start": {
+        "line": 83,
+        "column": 2,
+        "offset": 1615
+      },
+      "end": {
+        "line": 83,
+        "column": 16,
+        "offset": 1629
+      },
+      "parent": "geometry::Value",
+      "exported": true
+    },
+    {
+      "id": "geometry::Registry",
+      "kind": "class",
+      "name": "Registry",
+      "qualName": "geometry::Registry",
+      "signature": "class Registry",
+      "doc": "Registry owns shapes of one kind.",
+      "start": {
+        "line": 88,
+        "column": 0,
+        "offset": 1694
+      },
+      "end": {
+        "line": 97,
+        "column": 1,
+        "offset": 1922
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Registry::add",
+      "kind": "method",
+      "name": "add",
+      "qualName": "geometry::Registry::add",
+      "signature": "std::size_t add(std::unique_ptr\u003cT\u003e shape);",
+      "doc": "Add stores a shape and returns its index.",
+      "start": {
+        "line": 91,
+        "column": 2,
+        "offset": 1770
+      },
+      "end": {
+        "line": 91,
+        "column": 44,
+        "offset": 1812
+      },
+      "parent": "geometry::Registry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Registry::at",
+      "kind": "method",
+      "name": "at",
+      "qualName": "geometry::Registry::at",
+      "signature": "T* at(std::size_t i)",
+      "start": {
+        "line": 93,
+        "column": 2,
+        "offset": 1816
+      },
+      "end": {
+        "line": 93,
+        "column": 53,
+        "offset": 1867
+      },
+      "parent": "geometry::Registry",
+      "exported": true
+    },
+    {
+      "id": "geometry::Registry::items_",
+      "kind": "field",
+      "name": "items_",
+      "qualName": "geometry::Registry::items_",
+      "signature": "std::vector\u003cstd::unique_ptr\u003cT\u003e\u003e items_;",
+      "start": {
+        "line": 96,
+        "column": 2,
+        "offset": 1881
+      },
+      "end": {
+        "line": 96,
+        "column": 41,
+        "offset": 1920
+      },
+      "parent": "geometry::Registry",
+      "exported": true
+    },
+    {
+      "id": "geometry::largest",
+      "kind": "function",
+      "name": "largest",
+      "qualName": "geometry::largest",
+      "signature": "T* largest(const std::vector\u003cT*\u003e\u0026 shapes);",
+      "doc": "largest returns the shape with the largest area.",
+      "start": {
+        "line": 101,
+        "column": 0,
+        "offset": 2000
+      },
+      "end": {
+        "line": 101,
+        "column": 42,
+        "offset": 2042
+      },
+      "parent": "geometry",
+      "exported": true
+    },
+    {
+      "id": "geometry::totalArea",
+      "kind": "function",
+      "name": "totalArea",
+      "qualName": "geometry::totalArea",
+      "signature": "double totalArea(const std::vector\u003cShape*\u003e\u0026 shapes);",
+      "doc": "totalArea sums the areas.",
+      "start": {
+        "line": 104,
+        "column": 0,
+        "offset": 2074
+      },
+      "end": {
+        "line": 104,
+        "column": 52,
+        "offset": 2126
+      },
+      "parent": "geometry",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "memory",
+      "kind": "include_system",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 71
+      }
+    },
+    {
+      "spec": "string",
+      "kind": "include_system",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 89
+      }
+    },
+    {
+      "spec": "vector",
+      "kind": "include_system",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 107
+      }
+    },
+    {
+      "spec": "geometry/point.hpp",
+      "kind": "include",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 125
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "string",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 42,
+        "column": 22,
+        "offset": 827
+      },
+      "enclosing": "geometry::Shape::Shape"
+    },
+    {
+      "name": "string",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 13,
+        "offset": 1006
+      },
+      "enclosing": "geometry::Shape::name"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 24,
+        "offset": 1070
+      },
+      "enclosing": "geometry::Shape::operator=="
+    },
+    {
+      "name": "string",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 7,
+        "offset": 1134
+      },
+      "enclosing": "geometry::Shape::name_"
+    },
+    {
+      "name": "Unit",
+      "kind": "type",
+      "start": {
+        "line": 57,
+        "column": 2,
+        "offset": 1150
+      },
+      "enclosing": "geometry::Shape::unit_"
+    },
+    {
+      "name": "Shape",
+      "kind": "extends",
+      "start": {
+        "line": 61,
+        "column": 28,
+        "offset": 1237
+      },
+      "enclosing": "geometry::Circle"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 61,
+        "column": 28,
+        "offset": 1237
+      },
+      "enclosing": "geometry::Circle"
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 63,
+        "column": 9,
+        "offset": 1263
+      },
+      "enclosing": "geometry::Circle::Circle"
+    },
+    {
+      "name": "Length",
+      "kind": "type",
+      "start": {
+        "line": 63,
+        "column": 23,
+        "offset": 1277
+      },
+      "enclosing": "geometry::Circle::Circle"
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 67,
+        "column": 2,
+        "offset": 1338
+      },
+      "enclosing": "geometry::Circle::centre_"
+    },
+    {
+      "name": "Length",
+      "kind": "type",
+      "start": {
+        "line": 68,
+        "column": 2,
+        "offset": 1355
+      },
+      "enclosing": "geometry::Circle::radius_"
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 73,
+        "column": 2,
+        "offset": 1428
+      },
+      "enclosing": "geometry::Bounds::min"
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 74,
+        "column": 2,
+        "offset": 1441
+      },
+      "enclosing": "geometry::Bounds::max"
+    },
+    {
+      "name": "Point",
+      "kind": "type",
+      "start": {
+        "line": 77,
+        "column": 22,
+        "offset": 1521
+      },
+      "enclosing": "geometry::Bounds::contains"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 87,
+        "column": 19,
+        "offset": 1691
+      },
+      "enclosing": "geometry"
+    },
+    {
+      "name": "size_t",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 91,
+        "column": 7,
+        "offset": 1775
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "unique_ptr",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 91,
+        "column": 23,
+        "offset": 1791
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 91,
+        "column": 34,
+        "offset": 1802
+      },
+      "enclosing": "geometry::Registry::add"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 93,
+        "column": 2,
+        "offset": 1816
+      },
+      "enclosing": "geometry::Registry::at"
+    },
+    {
+      "name": "size_t",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 93,
+        "column": 13,
+        "offset": 1827
+      },
+      "enclosing": "geometry::Registry::at"
+    },
+    {
+      "name": "at",
+      "qualifier": "items_",
+      "kind": "call",
+      "start": {
+        "line": 93,
+        "column": 39,
+        "offset": 1853
+      },
+      "enclosing": "geometry::Registry::at"
+    },
+    {
+      "name": "get",
+      "qualifier": "items_.at(i)",
+      "kind": "call",
+      "start": {
+        "line": 93,
+        "column": 45,
+        "offset": 1859
+      },
+      "enclosing": "geometry::Registry::at"
+    },
+    {
+      "name": "vector",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 96,
+        "column": 7,
+        "offset": 1886
+      },
+      "enclosing": "geometry::Registry::items_"
+    },
+    {
+      "name": "unique_ptr",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 96,
+        "column": 19,
+        "offset": 1898
+      },
+      "enclosing": "geometry::Registry::items_"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 96,
+        "column": 30,
+        "offset": 1909
+      },
+      "enclosing": "geometry::Registry::items_"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 100,
+        "column": 19,
+        "offset": 1997
+      },
+      "enclosing": "geometry"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 101,
+        "column": 0,
+        "offset": 2000
+      },
+      "enclosing": "geometry::largest"
+    },
+    {
+      "name": "vector",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 101,
+        "column": 22,
+        "offset": 2022
+      },
+      "enclosing": "geometry::largest"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 101,
+        "column": 29,
+        "offset": 2029
+      },
+      "enclosing": "geometry::largest"
+    },
+    {
+      "name": "vector",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 104,
+        "column": 28,
+        "offset": 2102
+      },
+      "enclosing": "geometry::totalArea"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 104,
+        "column": 35,
+        "offset": 2109
+      },
+      "enclosing": "geometry::totalArea"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 7,
+        "column": 29,
+        "offset": 154
+      },
+      "text": "// geometry.hpp: shapes and the registry that owns them.\n#pragma once\n\n#include \u003cmemory\u003e\n#include \u003cstring\u003e\n#include \u003cvector\u003e\n#include \"geometry/point.hpp\"",
+      "hash": "8b65f856b3931f989759cf78c1df15062456b8c614409863169ac15b423cdafa"
+    },
+    {
+      "id": "GEOMETRY_VERSION#1",
+      "kind": "symbol",
+      "symbolId": "GEOMETRY_VERSION",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 156
+      },
+      "end": {
+        "line": 10,
+        "column": 0,
+        "offset": 183
+      },
+      "text": "#define GEOMETRY_VERSION 3\n",
+      "hash": "fabe1b85593cc46e32afc98c1a8dc632f1bbd8958f47095c702a87f13cb37380"
+    },
+    {
+      "id": "GEOMETRY_SQUARE#1",
+      "kind": "symbol",
+      "symbolId": "GEOMETRY_SQUARE",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 183
+      },
+      "end": {
+        "line": 11,
+        "column": 0,
+        "offset": 222
+      },
+      "text": "#define GEOMETRY_SQUARE(x) ((x) * (x))\n",
+      "hash": "35c149763654ad00a2e31bb4e03c67ea183430bfffc44ef93985b572b76f9163"
+    },
+    {
+      "id": "L12#1",
+      "kind": "window",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 223
+      },
+      "end": {
+        "line": 18,
+        "column": 22,
+        "offset": 392
+      },
+      "text": "namespace geometry {\n\n/// Pi, to the precision the shapes need.\nconstexpr double kPi = 3.14159265358979;\n\n/// The number of shapes created so far.\nextern int shapeCount;",
+      "hash": "c9db938530653bde655432de98fd5c8345fc215ef42d25c3f84901167d0afff3"
+    },
+    {
+      "id": "geometry::Unit#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Unit",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 394
+      },
+      "end": {
+        "line": 21,
+        "column": 37,
+        "offset": 477
+      },
+      "text": "/// Unit is the unit a length is measured in.\nenum class Unit { Millimetre, Metre }",
+      "hash": "1c94d2db9896cd652d3f671ccbe35f8d3137b7af3086a459be0245c3556675d8"
+    },
+    {
+      "id": "geometry::Colour#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Colour",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 480
+      },
+      "end": {
+        "line": 28,
+        "column": 1,
+        "offset": 553
+      },
+      "text": "/// Colour is a shape's fill.\nenum Colour {\n  Red,\n  Green = 2,\n  Blue,\n}",
+      "hash": "e17b16bdd0dba30384396233993f869765be2a1b8f16fb370b709b2e7e533be8"
+    },
+    {
+      "id": "geometry::Length#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Length",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 556
+      },
+      "end": {
+        "line": 31,
+        "column": 22,
+        "offset": 614
+      },
+      "text": "/// Length is a distance in metres.\nusing Length = double;",
+      "hash": "454b0d79520ddf23622e4c1d88e07080451ebb94aa382e232eb93b3aaf26c627"
+    },
+    {
+      "id": "geometry::Callback#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Callback",
+      "start": {
+        "line": 33,
+        "column": 0,
+        "offset": 616
+      },
+      "end": {
+        "line": 34,
+        "column": 33,
+        "offset": 694
+      },
+      "text": "/// Callback is called when a shape changes.\ntypedef void (*Callback)(int id);",
+      "hash": "5d7bd542adbce2adb8380b6f1bac543a86a3e076af467accd64bea1afb1baf10"
+    },
+    {
+      "id": "geometry::Shape#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Shape",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 696
+      },
+      "end": {
+        "line": 58,
+        "column": 1,
+        "offset": 1177
+      },
+      "text": "/**\n * Shape is the base of every shape.\n */\nclass Shape {\n public:\n  /// Shape creates a shape with a name.\n  explicit Shape(std::string name);\n  virtual ~Shape() = default;\n\n  /// Area is the shape's area in square units.\n  virtual double area() const = 0;\n\n  /// Name returns the shape's name.\n  const std::string\u0026 name() const { return name_; }\n\n  bool operator==(const Shape\u0026 other) const;\n\n  static int count();\n\n protected:\n  std::string name_;\n  Unit unit_ = Unit::Metre;\n}",
+      "hash": "ab164299b7b438362fe3357165e2e98c542852ad154615f099bb83bf631aeeda"
+    },
+    {
+      "id": "geometry::Circle#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Circle",
+      "start": {
+        "line": 60,
+        "column": 0,
+        "offset": 1180
+      },
+      "end": {
+        "line": 69,
+        "column": 1,
+        "offset": 1372
+      },
+      "text": "/// Circle is a round shape.\nclass Circle final : public Shape {\n public:\n  Circle(Point centre, Length radius);\n  double area() const override;\n\n private:\n  Point centre_;\n  Length radius_;\n}",
+      "hash": "f629ef698d28190646737626194bdf4e835df9e38af420fb1e669c8bb27ebfdc"
+    },
+    {
+      "id": "geometry::Bounds#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Bounds",
+      "start": {
+        "line": 71,
+        "column": 0,
+        "offset": 1375
+      },
+      "end": {
+        "line": 78,
+        "column": 1,
+        "offset": 1539
+      },
+      "text": "/// Bounds is an axis-aligned box.\nstruct Bounds {\n  Point min;\n  Point max;\n\n  /// Contains reports whether p lies inside.\n  bool contains(const Point\u0026 p) const;\n}",
+      "hash": "0508c03c777007a20778690a462efb3c4ffddc719d3733eba46accccb7919e6e"
+    },
+    {
+      "id": "geometry::Value#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Value",
+      "start": {
+        "line": 80,
+        "column": 0,
+        "offset": 1542
+      },
+      "end": {
+        "line": 84,
+        "column": 1,
+        "offset": 1631
+      },
+      "text": "/// Value holds one of two representations.\nunion Value {\n  int asInt;\n  float asFloat;\n}",
+      "hash": "bdbade4c774f907017e0a0002a03d86914dc5f7feeae686f53a30387b75d7877"
+    },
+    {
+      "id": "geometry::Registry#1",
+      "kind": "symbol",
+      "symbolId": "geometry::Registry",
+      "start": {
+        "line": 86,
+        "column": 0,
+        "offset": 1634
+      },
+      "end": {
+        "line": 97,
+        "column": 1,
+        "offset": 1922
+      },
+      "text": "/// Registry owns shapes of one kind.\ntemplate \u003ctypename T\u003e\nclass Registry {\n public:\n  /// Add stores a shape and returns its index.\n  std::size_t add(std::unique_ptr\u003cT\u003e shape);\n\n  T* at(std::size_t i) { return items_.at(i).get(); }\n\n private:\n  std::vector\u003cstd::unique_ptr\u003cT\u003e\u003e items_;\n}",
+      "hash": "ca20f0ae314eed33ce5eb8596c8b0831bdbf7470d411d89467077c274e6c4b7e"
+    },
+    {
+      "id": "geometry::largest#1",
+      "kind": "symbol",
+      "symbolId": "geometry::largest",
+      "start": {
+        "line": 99,
+        "column": 0,
+        "offset": 1925
+      },
+      "end": {
+        "line": 101,
+        "column": 42,
+        "offset": 2042
+      },
+      "text": "/// largest returns the shape with the largest area.\ntemplate \u003ctypename T\u003e\nT* largest(const std::vector\u003cT*\u003e\u0026 shapes);",
+      "hash": "a240eda30300bc4dab43264a223b5ef3c8d38fe97e57174bf4fc2a17e510df31"
+    },
+    {
+      "id": "geometry::totalArea#1",
+      "kind": "symbol",
+      "symbolId": "geometry::totalArea",
+      "start": {
+        "line": 103,
+        "column": 0,
+        "offset": 2044
+      },
+      "end": {
+        "line": 104,
+        "column": 52,
+        "offset": 2126
+      },
+      "text": "/// totalArea sums the areas.\ndouble totalArea(const std::vector\u003cShape*\u003e\u0026 shapes);",
+      "hash": "34a58052b7603764699711b467723ab01bfee05a659a707e4f93845b6366fddc"
+    },
+    {
+      "id": "L106#1",
+      "kind": "window",
+      "start": {
+        "line": 106,
+        "column": 0,
+        "offset": 2128
+      },
+      "end": {
+        "line": 106,
+        "column": 24,
+        "offset": 2152
+      },
+      "text": "}  // namespace geometry",
+      "hash": "99d3f0ceda003e9179e0a8b82103629ce44792ea1ae8c468bc13ce07a616ae4b"
+    }
+  ]
+}

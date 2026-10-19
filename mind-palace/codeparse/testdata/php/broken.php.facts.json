@@ -1,0 +1,180 @@
+{
+  "lang": "php",
+  "package": "App\\Broken",
+  "symbols": [
+    {
+      "id": "App\\Broken\\good",
+      "kind": "function",
+      "name": "good",
+      "qualName": "App\\Broken\\good",
+      "signature": "function good(): int",
+      "doc": "Parsed despite the error below.",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 73
+      },
+      "end": {
+        "line": 11,
+        "column": 1,
+        "offset": 111
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Broken\\Broken",
+      "kind": "class",
+      "name": "Broken",
+      "qualName": "App\\Broken\\Broken",
+      "signature": "class Broken",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 113
+      },
+      "end": {
+        "line": 24,
+        "column": 1,
+        "offset": 261
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Broken\\Broken\\bad",
+      "kind": "method",
+      "name": "bad",
+      "qualName": "App\\Broken\\Broken\\bad",
+      "signature": "public function bad(: void",
+      "start": {
+        "line": 15,
+        "column": 4,
+        "offset": 132
+      },
+      "end": {
+        "line": 18,
+        "column": 5,
+        "offset": 185
+      },
+      "parent": "App\\Broken\\Broken",
+      "exported": true
+    },
+    {
+      "id": "App\\Broken\\Broken\\after",
+      "kind": "method",
+      "name": "after",
+      "qualName": "App\\Broken\\Broken\\after",
+      "signature": "public function after(): string",
+      "start": {
+        "line": 20,
+        "column": 4,
+        "offset": 191
+      },
+      "end": {
+        "line": 23,
+        "column": 5,
+        "offset": 259
+      },
+      "parent": "App\\Broken\\Broken",
+      "exported": true
+    },
+    {
+      "id": "App\\Broken\\later",
+      "kind": "function",
+      "name": "later",
+      "qualName": "App\\Broken\\later",
+      "signature": "function later(): void",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 263
+      },
+      "end": {
+        "line": 28,
+        "column": 1,
+        "offset": 289
+      },
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "helper",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 15,
+        "offset": 244
+      },
+      "enclosing": "App\\Broken\\Broken\\after"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 21,
+        "offset": 28
+      },
+      "text": "\u003c?php\n\nnamespace App\\Broken;",
+      "hash": "f72d22e83ae5127b6fa818441ab2dceacdb1af2408f3c280bd2bf51e8197dc07"
+    },
+    {
+      "id": "App\\Broken\\good#1",
+      "kind": "symbol",
+      "symbolId": "App\\Broken\\good",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 30
+      },
+      "end": {
+        "line": 11,
+        "column": 1,
+        "offset": 111
+      },
+      "text": "/**\n * Parsed despite the error below.\n */\nfunction good(): int\n{\n    return 1;\n}",
+      "hash": "4be3e6b12aceffa73dd468c810d5c02f870856a2314f13bce079e74ab674e7be"
+    },
+    {
+      "id": "App\\Broken\\Broken#1",
+      "kind": "symbol",
+      "symbolId": "App\\Broken\\Broken",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 113
+      },
+      "end": {
+        "line": 24,
+        "column": 1,
+        "offset": 261
+      },
+      "text": "class Broken\n{\n    public function bad(: void\n    {\n        return\n    }\n\n    public function after(): string\n    {\n        return helper();\n    }\n}",
+      "hash": "661de24545fb63c28222a198966367f44907d74adaf75303e5d98ed0332ca5a2"
+    },
+    {
+      "id": "App\\Broken\\later#1",
+      "kind": "symbol",
+      "symbolId": "App\\Broken\\later",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 263
+      },
+      "end": {
+        "line": 28,
+        "column": 1,
+        "offset": 289
+      },
+      "text": "function later(): void\n{\n}",
+      "hash": "a8564de3d90df7891f982d2f4774cb1e1630f6da4a7f8824d62c49576f1b255b"
+    }
+  ]
+}

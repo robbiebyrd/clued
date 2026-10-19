@@ -1,0 +1,339 @@
+{
+  "lang": "perl",
+  "symbols": [
+    {
+      "id": "Zoo::Animal",
+      "kind": "package",
+      "name": "Zoo::Animal",
+      "qualName": "Zoo::Animal",
+      "signature": "package Zoo::Animal",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 38
+      },
+      "end": {
+        "line": 18,
+        "column": 1,
+        "offset": 424
+      },
+      "exported": true
+    },
+    {
+      "id": "Zoo::Animal::name",
+      "kind": "field",
+      "name": "name",
+      "qualName": "Zoo::Animal::name",
+      "signature": "has 'name' =\u003e (is =\u003e 'ro', isa =\u003e 'Str')",
+      "start": {
+        "line": 9,
+        "column": 4,
+        "offset": 153
+      },
+      "end": {
+        "line": 9,
+        "column": 44,
+        "offset": 193
+      },
+      "parent": "Zoo::Animal",
+      "exported": true
+    },
+    {
+      "id": "Zoo::Animal::legs",
+      "kind": "field",
+      "name": "legs",
+      "qualName": "Zoo::Animal::legs",
+      "signature": "has legs =\u003e (is =\u003e 'rw', default =\u003e 4)",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 199
+      },
+      "end": {
+        "line": 10,
+        "column": 42,
+        "offset": 237
+      },
+      "parent": "Zoo::Animal",
+      "exported": true
+    },
+    {
+      "id": "Zoo::Animal::greet",
+      "kind": "function",
+      "name": "greet",
+      "qualName": "Zoo::Animal::greet",
+      "signature": "sub greet ($self, $whom = 'world')",
+      "doc": "Says hello, with a signature.",
+      "start": {
+        "line": 13,
+        "column": 4,
+        "offset": 280
+      },
+      "end": {
+        "line": 15,
+        "column": 5,
+        "offset": 382
+      },
+      "parent": "Zoo::Animal",
+      "exported": true
+    },
+    {
+      "id": "Zoo::Point",
+      "kind": "class",
+      "name": "Zoo::Point",
+      "qualName": "Zoo::Point",
+      "signature": "class Zoo::Point 1.0 :isa(Zoo::Shape)",
+      "doc": "=head2 Zoo::Point\n\nA point, written with the 5.38 class syntax.\n\n=cut",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 497
+      },
+      "end": {
+        "line": 35,
+        "column": 1,
+        "offset": 709
+      },
+      "exported": true
+    },
+    {
+      "id": "Zoo::Point::x",
+      "kind": "field",
+      "name": "x",
+      "qualName": "Zoo::Point::x",
+      "signature": "field $x :param = 0",
+      "start": {
+        "line": 27,
+        "column": 4,
+        "offset": 541
+      },
+      "end": {
+        "line": 27,
+        "column": 23,
+        "offset": 560
+      },
+      "parent": "Zoo::Point",
+      "exported": true
+    },
+    {
+      "id": "Zoo::Point::history",
+      "kind": "field",
+      "name": "history",
+      "qualName": "Zoo::Point::history",
+      "signature": "field @history",
+      "start": {
+        "line": 28,
+        "column": 4,
+        "offset": 566
+      },
+      "end": {
+        "line": 28,
+        "column": 18,
+        "offset": 580
+      },
+      "parent": "Zoo::Point",
+      "exported": true
+    },
+    {
+      "id": "Zoo::Point::norm",
+      "kind": "method",
+      "name": "norm",
+      "qualName": "Zoo::Point::norm",
+      "signature": "method norm",
+      "start": {
+        "line": 30,
+        "column": 4,
+        "offset": 587
+      },
+      "end": {
+        "line": 32,
+        "column": 5,
+        "offset": 636
+      },
+      "parent": "Zoo::Point",
+      "exported": true
+    },
+    {
+      "id": "Zoo::Point::move",
+      "kind": "method",
+      "name": "move",
+      "qualName": "Zoo::Point::move",
+      "signature": "method move ($dx)",
+      "start": {
+        "line": 34,
+        "column": 4,
+        "offset": 642
+      },
+      "end": {
+        "line": 34,
+        "column": 69,
+        "offset": 707
+      },
+      "parent": "Zoo::Point",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "experimental",
+      "kind": "pragma",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 11
+      }
+    },
+    {
+      "spec": "Moose",
+      "kind": "use",
+      "start": {
+        "line": 5,
+        "column": 4,
+        "offset": 64
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Zoo::Base",
+      "kind": "extends",
+      "start": {
+        "line": 6,
+        "column": 13,
+        "offset": 88
+      },
+      "enclosing": "Zoo::Animal"
+    },
+    {
+      "name": "Zoo::Role::Walks",
+      "kind": "extends",
+      "start": {
+        "line": 7,
+        "column": 10,
+        "offset": 110
+      },
+      "enclosing": "Zoo::Animal"
+    },
+    {
+      "name": "Zoo::Role::Eats",
+      "kind": "extends",
+      "start": {
+        "line": 7,
+        "column": 30,
+        "offset": 130
+      },
+      "enclosing": "Zoo::Animal"
+    },
+    {
+      "name": "name",
+      "qualifier": "$self",
+      "kind": "call",
+      "start": {
+        "line": 14,
+        "column": 46,
+        "offset": 363
+      },
+      "enclosing": "Zoo::Animal::greet"
+    },
+    {
+      "name": "meta",
+      "qualifier": "__PACKAGE__",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 17,
+        "offset": 401
+      },
+      "enclosing": "Zoo::Animal"
+    },
+    {
+      "name": "make_immutable",
+      "qualifier": "__PACKAGE__-\u003emeta",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 23,
+        "offset": 407
+      },
+      "enclosing": "Zoo::Animal"
+    },
+    {
+      "name": "Zoo::Shape",
+      "kind": "extends",
+      "start": {
+        "line": 26,
+        "column": 26,
+        "offset": 523
+      },
+      "enclosing": "Zoo::Point"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 10,
+        "column": 43,
+        "offset": 238
+      },
+      "text": "use v5.38;\nuse experimental 'class';\n\npackage Zoo::Animal {\n    use Moose;\n    extends 'Zoo::Base';\n    with 'Zoo::Role::Walks', 'Zoo::Role::Eats';\n\n    has 'name' =\u003e (is =\u003e 'ro', isa =\u003e 'Str');\n    has legs =\u003e (is =\u003e 'rw', default =\u003e 4);",
+      "hash": "40554b9ba96555a701a6d250efde5118daf91ee5813e1a09794fe04634cf05e7"
+    },
+    {
+      "id": "Zoo::Animal::greet#1",
+      "kind": "symbol",
+      "symbolId": "Zoo::Animal::greet",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 240
+      },
+      "end": {
+        "line": 15,
+        "column": 5,
+        "offset": 382
+      },
+      "text": "    # Says hello, with a signature.\n    sub greet ($self, $whom = 'world') {\n        return sprintf('%s greets %s', $self-\u003ename, $whom);\n    }",
+      "hash": "76c28849ccaf160e79a548f916c4b46a0c602138ec71ac77abe359361c2ed553"
+    },
+    {
+      "id": "L17#1",
+      "kind": "window",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 384
+      },
+      "end": {
+        "line": 18,
+        "column": 1,
+        "offset": 424
+      },
+      "text": "    __PACKAGE__-\u003emeta-\u003emake_immutable;\n}",
+      "hash": "4b08ce0e90e38e2fc877ea10c46d4119719573c7e95b8f43a463b0c4ca1e1b24"
+    },
+    {
+      "id": "Zoo::Point#1",
+      "kind": "symbol",
+      "symbolId": "Zoo::Point",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 426
+      },
+      "end": {
+        "line": 35,
+        "column": 1,
+        "offset": 709
+      },
+      "text": "=head2 Zoo::Point\n\nA point, written with the 5.38 class syntax.\n\n=cut\n\nclass Zoo::Point 1.0 :isa(Zoo::Shape) {\n    field $x :param = 0;\n    field @history;\n\n    method norm {\n        return sqrt($x * $x);\n    }\n\n    method move ($dx) { $x += $dx; push @history, $dx; return $self }\n}",
+      "hash": "b37db555c7b7939d5d87ac6a76b2eced5fdc2720bb6820ae7b73fbf4c6808127"
+    }
+  ]
+}

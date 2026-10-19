@@ -1,0 +1,236 @@
+{
+  "lang": "python",
+  "symbols": [
+    {
+      "id": "good",
+      "kind": "function",
+      "name": "good",
+      "qualName": "good",
+      "signature": "def good(x: int) -\u003e int:",
+      "doc": "Doubles x.",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 61
+      },
+      "end": {
+        "line": 7,
+        "column": 16,
+        "offset": 123
+      },
+      "exported": true
+    },
+    {
+      "id": "bad",
+      "kind": "function",
+      "name": "bad",
+      "qualName": "bad",
+      "signature": "def bad(x):",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 126
+      },
+      "end": {
+        "line": 12,
+        "column": 16,
+        "offset": 184
+      },
+      "exported": true
+    },
+    {
+      "id": "StillHere",
+      "kind": "class",
+      "name": "StillHere",
+      "qualName": "StillHere",
+      "signature": "class StillHere(Base):",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 187
+      },
+      "end": {
+        "line": 17,
+        "column": 22,
+        "offset": 264
+      },
+      "exported": true
+    },
+    {
+      "id": "StillHere.method",
+      "kind": "method",
+      "name": "method",
+      "qualName": "StillHere.method",
+      "signature": "def method(self) -\u003e Result:",
+      "start": {
+        "line": 16,
+        "column": 4,
+        "offset": 214
+      },
+      "end": {
+        "line": 17,
+        "column": 22,
+        "offset": 264
+      },
+      "parent": "StillHere",
+      "exported": true
+    },
+    {
+      "id": "AFTER",
+      "kind": "const",
+      "name": "AFTER",
+      "qualName": "AFTER",
+      "signature": "AFTER = 1",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 267
+      },
+      "end": {
+        "line": 20,
+        "column": 9,
+        "offset": 276
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "os",
+      "kind": "import",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 49
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "join",
+      "qualifier": "os.path",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 22,
+        "offset": 160
+      },
+      "enclosing": "bad"
+    },
+    {
+      "name": "Base",
+      "kind": "extends",
+      "start": {
+        "line": 15,
+        "column": 16,
+        "offset": 203
+      },
+      "enclosing": "StillHere"
+    },
+    {
+      "name": "Result",
+      "kind": "type",
+      "start": {
+        "line": 16,
+        "column": 24,
+        "offset": 234
+      },
+      "enclosing": "StillHere.method"
+    },
+    {
+      "name": "good",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 15,
+        "offset": 257
+      },
+      "enclosing": "StillHere.method"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 2,
+        "column": 9,
+        "offset": 58
+      },
+      "text": "\"\"\"A module with syntax errors in the middle.\"\"\"\nimport os",
+      "hash": "e8a317f6592216292176c1d4e1b7e8402df41ec5f23808750a63fc70513290a2"
+    },
+    {
+      "id": "good#1",
+      "kind": "symbol",
+      "symbolId": "good",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 61
+      },
+      "end": {
+        "line": 7,
+        "column": 16,
+        "offset": 123
+      },
+      "text": "def good(x: int) -\u003e int:\n    \"\"\"Doubles x.\"\"\"\n    return x * 2",
+      "hash": "5f04e56ef769349fccd922deb5391333158dc686b77115ed28d1bb5ea120ca09"
+    },
+    {
+      "id": "bad#1",
+      "kind": "symbol",
+      "symbolId": "bad",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 126
+      },
+      "end": {
+        "line": 12,
+        "column": 16,
+        "offset": 184
+      },
+      "text": "def bad(x):\n    total = = os.path.join(x)\n    return total",
+      "hash": "cd84cc4ca4c15927ced3b90bfced71a3fe62356d2d6df0c5721f366cb88a627a"
+    },
+    {
+      "id": "StillHere#1",
+      "kind": "symbol",
+      "symbolId": "StillHere",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 187
+      },
+      "end": {
+        "line": 17,
+        "column": 22,
+        "offset": 264
+      },
+      "text": "class StillHere(Base):\n    def method(self) -\u003e Result:\n        return good(1)",
+      "hash": "5c0359fb4414707e0a947183ddd4fca0182ba460fcf616b06ebe6c3cb91c203a"
+    },
+    {
+      "id": "L20#1",
+      "kind": "window",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 267
+      },
+      "end": {
+        "line": 23,
+        "column": 20,
+        "offset": 299
+      },
+      "text": "AFTER = 1\n\n\nregister(StillHere, ",
+      "hash": "851ed23fc9b15964ee58b7db5460806facdd0e831754173703f0359e56421497"
+    }
+  ]
+}

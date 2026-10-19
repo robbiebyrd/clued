@@ -15,11 +15,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/robbiebyrd/clued/mind-palace/code"
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/events"
 	"github.com/robbiebyrd/clued/mind-palace/model"
 	"github.com/robbiebyrd/clued/mind-palace/ops"
 	"github.com/robbiebyrd/clued/mind-palace/server/auth"
+	"github.com/robbiebyrd/clued/mind-palace/server/codeapi"
 	"github.com/robbiebyrd/clued/mind-palace/server/device"
 	"github.com/robbiebyrd/clued/mind-palace/server/httpapi"
 	"github.com/robbiebyrd/clued/mind-palace/server/mcpserver"
@@ -144,6 +146,44 @@ type CluedOptions struct {
 	// linked machine applies with `session config-pull` (config.json keys
 	// such as enabledEnrichers) and when they last changed.
 	ClientConfig func() (map[string]any, time.Time)
+	// Code, when set, serves the write-only code transport (server/codeapi)
+	// under storeapi.Prefix/{project}/code/: it returns the code store of
+	// the key NamespaceCtx (or Namespace) derives for the request's
+	// principal and project, exactly as Open does for plans and stories.
+	// Nil leaves the code routes unserved: every one answers 404 not_found,
+	// which a client takes as "this server collects no code".
+	Code func(ctx context.Context, project string) (code.Store, error)
+	// BeforeCodeWrite, when set, is codeapi.Options.BeforeWrite: it runs
+	// before every write of the code transport with the namespaced key
+	// Code opens and the bytes the write adds (a new blob's size, else 0),
+	// and refuses the write by returning an error wrapping
+	// codeapi.ErrRefused (403 forbidden: no entitlement), codeapi.ErrQuota
+	// (413 quota: the account's code storage is full) or a
+	// *httpapi.StatusError (its own status); any other error is 403
+	// forbidden. The context carries the principal (auth.FromContext), the
+	// project slug the request named (codeapi.Project) and the write
+	// (codeapi.Operation).
+	BeforeCodeWrite func(ctx context.Context, project string, bytes int64) error
+	// GitHubBacked, when set, is codeapi.Options.GitHubBacked: it reports
+	// whether the project of the namespaced key Code opens gets its pushed
+	// code from GitHub (a claimed, active installation of the GitHub App).
+	// The capabilities route then answers "github": true, and the code
+	// transport accepts clean, pushed entries without content (sha256 "")
+	// for that project. The context carries the principal and the project
+	// slug (codeapi.Project). Nil: no project is GitHub-backed.
+	GitHubBacked func(ctx context.Context, project string) bool
+	// CodeMaxFileBytes caps one blob of the code transport
+	// (codeapi.DefaultMaxFileBytes when zero); clients read it from the
+	// capabilities route.
+	CodeMaxFileBytes int64
+	// Graph, when set with Code, serves the typed, token-capped graph read
+	// routes (codeapi.MountGraph) under
+	// storeapi.Prefix/{project}/code/graph/: search, symbol, neighbors,
+	// outline and context over the project's code graph (Graph.Graphs,
+	// opened under the same namespaced key as Code), each answering for the
+	// caller's own view. Nil (or no Code) leaves them unserved (404), as
+	// `server run` does without --graph.
+	Graph *codeapi.GraphOptions
 	// Semantic, when set, offers search_semantic on the MCP endpoint.
 	// The enrichment that stores the vectors is one of Enrichers
 	// (enrichers.Embedding over the same Embedder).
@@ -176,7 +216,9 @@ type Clued struct {
 // transport under sessionapi.Prefix, Claude Code's OTLP/HTTP logs and
 // metrics at otlp.PathLogs and otlp.PathMetrics (stored under the token's
 // account for the sessions it holds), the store transport under
-// storeapi.Prefix, and, for the project each request names (see
+// storeapi.Prefix, the code transport under storeapi.Prefix/{project}/code/
+// when Code is set (codeapi: write-only, plus the graph read routes when
+// Graph is set too), and, for the project each request names (see
 // RequestProject), the service API under httpapi.Prefix, the WebSocket at
 // PathWS and the MCP endpoint at PathMCP. The MCP endpoint serves the plan
 // and story tools plus the session tools that need no local disk
@@ -269,6 +311,34 @@ func NewClued(opts CluedOptions) *Clued {
 		},
 		BeforePut: opts.BeforePut,
 	}))
+	// The code prefix answers 404 in the envelope on its own, so a server
+	// without Code, or a route the code transport does not have (its only
+	// reads are the graph routes, served with Graph), never falls through
+	// to storeapi.
+	protected.HandleFunc(codeapi.Pattern, codeapi.NotFound)
+	if opts.Code != nil {
+		codeOpts := codeapi.Options{
+			Open: opts.Code,
+			Namespace: func(ctx context.Context, project string) (string, error) {
+				p, ok := auth.FromContext(ctx)
+				if !ok {
+					return "", fmt.Errorf("%w: %q", ErrProjectForbidden, project)
+				}
+				return opts.NamespaceCtx(ctx, p, project)
+			},
+			Allow: func(r *http.Request, project string) bool {
+				p, ok := auth.FromContext(r.Context())
+				return ok && auth.AllowProject(p, project)
+			},
+			BeforeWrite:  opts.BeforeCodeWrite,
+			GitHubBacked: opts.GitHubBacked,
+			MaxFileBytes: opts.CodeMaxFileBytes,
+		}
+		codeapi.Mount(protected, codeOpts)
+		if opts.Graph != nil && opts.Graph.Graphs != nil {
+			codeapi.MountGraph(protected, codeOpts, *opts.Graph)
+		}
+	}
 	protected.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusNotFound, "not_found", fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))
 	})

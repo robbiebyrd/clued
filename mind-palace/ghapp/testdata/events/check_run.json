@@ -1,0 +1,78 @@
+{
+  "action": "completed",
+  "check_run": {
+    "id": 40000001,
+    "name": "test",
+    "node_id": "CR_kwDO",
+    "head_sha": "2222222222222222222222222222222222222222",
+    "external_id": "x",
+    "url": "https://api.github.com/repos/robbiebyrd/clued/check-runs/40000001",
+    "html_url": "https://github.com/robbiebyrd/clued/actions/runs/1/job/40000001",
+    "details_url": "https://github.com/robbiebyrd/clued/actions/runs/1/job/40000001",
+    "status": "completed",
+    "conclusion": "failure",
+    "started_at": "2026-10-19T12:00:20Z",
+    "completed_at": "2026-10-19T12:03:00Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 0
+    },
+    "check_suite": {
+      "id": 30000001,
+      "head_branch": "main",
+      "head_sha": "2222222222222222222222222222222222222222",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    "app": {
+      "id": 15368,
+      "slug": "github-actions",
+      "name": "GitHub Actions"
+    },
+    "pull_requests": []
+  },
+  "repository": {
+    "id": 812345678,
+    "node_id": "R_kgDOMG1abc",
+    "name": "clued",
+    "full_name": "robbiebyrd/clued",
+    "private": true,
+    "owner": {
+      "name": "robbiebyrd",
+      "email": "me@example.com",
+      "login": "robbiebyrd",
+      "id": 1234567,
+      "node_id": "MDQ6VXNlcjEyMzQ1Njc=",
+      "type": "User",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/robbiebyrd/clued",
+    "description": "A test repository",
+    "fork": false,
+    "url": "https://api.github.com/repos/robbiebyrd/clued",
+    "created_at": "2026-01-02T03:04:05Z",
+    "updated_at": "2026-10-19T12:00:00Z",
+    "pushed_at": "2026-10-19T12:00:00Z",
+    "size": 2048,
+    "stargazers_count": 3,
+    "language": "Go",
+    "archived": false,
+    "disabled": false,
+    "visibility": "private",
+    "default_branch": "main"
+  },
+  "sender": {
+    "login": "robbiebyrd",
+    "id": 1234567,
+    "node_id": "MDQ6VXNlcjEyMzQ1Njc=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/1234567?v=4",
+    "type": "User",
+    "site_admin": false
+  },
+  "installation": {
+    "id": 55501234,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uNTU1MDEyMzQ="
+  }
+}

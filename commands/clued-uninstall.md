@@ -17,6 +17,7 @@ Run these checks to discover what exists on this machine:
 !`test -d ~/.claude/plugins/data/clued && echo "config dir: present" || echo "config dir: absent"`
 !`test -d ~/.claude/plugins/data/clued/bin && echo "binary dir: present" || echo "binary dir: absent"`
 !`test -d ~/.claude/plugins/data/clued/catchup && echo "catch-up state: present" || echo "catch-up state: absent"`
+!`test -d ~/.claude/plugins/data/clued/codesync && echo "code sync state: present" || echo "code sync state: absent"`
 !`test -f ~/.claude/plugins/data/clued/relay.log && echo "relay log: present" || echo "relay log: absent"`
 !`test -d ~/mongodb && echo "mongodb tarball: present at ~/mongodb" || echo "mongodb tarball: absent"`
 !`docker ps -a --filter name=transcripts-mongo --format '{{.Names}} {{.Status}}' 2>/dev/null | grep -q . && echo "docker mongodb: container present" || echo "docker mongodb: absent"`
@@ -32,7 +33,7 @@ Use AskUserQuestion to confirm scope before touching anything. Example options:
 - **Services** (only if the daemon is running; in clued server mode nothing runs on this machine): stop the daemon (port 8085); the MCP server is started by Claude Code and ends with the session
 - **launchd plist** (macOS, only if plist is present): unload and remove `~/Library/LaunchAgents/org.mongodb.mongod.plist`
 - **Config** (only if present): remove `~/.claude/plugins/data/clued/` (includes `bin/`, which holds the downloaded release binary, and in server mode the token in `config.json`, the WAL of events the server has not received yet, the catch-up state and the relay log) and remove any legacy `mcpServers.clued` entry from `~/.claude/settings.json`
-- **Relay state** (clued server mode, when the user keeps the config): remove `~/.claude/plugins/data/clued/catchup/` (per-session transcript offsets and lock files) and `~/.claude/plugins/data/clued/relay.log`; the next hook resumes from the start of each transcript, which the server deduplicates
+- **Relay state** (clued server mode, when the user keeps the config): remove `~/.claude/plugins/data/clued/catchup/` (per-session transcript offsets and lock files), `~/.claude/plugins/data/clued/codesync/` (per-worktree code sync state: paths and hashes, never content) and `~/.claude/plugins/data/clued/relay.log`; the next hook resumes from the start of each transcript, which the server deduplicates
 - **MongoDB binaries** (only if `~/mongodb/` is present): remove the tarball install at `~/mongodb/`
   - Note: MongoDB data at `~/data/db/` contains session transcripts — offer to keep or remove separately
 - **MongoDB data** (only if `~/data/db/` exists): remove `~/data/db/` — warn that this deletes all captured session transcripts
@@ -76,11 +77,12 @@ echo "config and binary dirs removed"
 If the user keeps the config but asked for the relay state to go:
 ```bash
 rm -rf ~/.claude/plugins/data/clued/catchup
+rm -rf ~/.claude/plugins/data/clued/codesync
 rm -f ~/.claude/plugins/data/clued/relay.log
 echo "catch-up state and relay log removed"
 ```
 
-The non-interactive `hooks/uninstall` does the same: it stops the daemon only in local mode and only when one answers, stops the server stack when `~/.clued-server/docker-compose.yml` or `down.sh` exists (unless `--keep-server`; `--purge-server` also removes its volume and directory, after `server trust --remove`, printing the commands that still need root and keeping the CA as `~/clued-server-ca.pem` for them), removes the plist only when present, always removes `catchup/` and `relay.log`, and removes the config directory unless `--keep-config` is given.
+The non-interactive `hooks/uninstall` does the same: it stops the daemon only in local mode and only when one answers, stops the server stack when `~/.clued-server/docker-compose.yml` or `down.sh` exists (unless `--keep-server`; `--purge-server` also removes its volume and directory, after `server trust --remove`, printing the commands that still need root and keeping the CA as `~/clued-server-ca.pem` for them), removes the plist only when present, always removes `catchup/`, `codesync/` and `relay.log`, and removes the config directory unless `--keep-config` is given.
 
 ## Step 6 — Remove MongoDB binaries (if confirmed)
 

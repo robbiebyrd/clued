@@ -16,6 +16,20 @@ How it fits together:
   `docs/stories` as the primary store; the server is appended as a secondary
   store (`clued-server`) and receives every write through the fan-out. After
   an outage `mind-palace sync --from file --to clued-server` reconciles.
+- **Code** (opt-in on each client, `codeSync`) is mirrored into the server's
+  code store: in remote mode the relay uploads the source of the
+  repositories Claude Code works in, content-addressed, per worktree and
+  branch, through a write-only API that serves none of it back. See
+  [Collected code](#collected-code). Clued Cloud can also take a
+  repository's pushed code, plans and stories straight from GitHub through
+  the clued GitHub App ([github-app.md](github-app.md)); a self-hosted
+  server does not run the app.
+- **The code graph** (`--graph`, on in the `server init` stack) is built
+  on the server from that collected code: a FalkorDB graph per project with
+  the symbols, imports and calls of every file, read by agents through the
+  `code_search`, `code_symbol`, `code_neighbors`, `code_outline` and
+  `code_context` tools for their own working tree. See
+  [The code graph](#the-code-graph) and [code-graph.md](code-graph.md).
 - **MCP** stays available through the plugin's stdio servers, which in remote
   mode read and write through the server, and additionally over HTTPS at
   `/mcp` for clients that want no local process at all.
@@ -52,6 +66,8 @@ be configured without arguments:
 | `--tokens` | `CLUED_SERVER_TOKENS` | `~/.clued-server/tokens.json` | The token file (shared with `server token`) |
 | `--config` | `MIND_PALACE_CONFIG` | `mind-palace.config.yaml` in the working directory | Plan and story storage, see below |
 | `--session-config` | | `~/.claude/plugins/data/clued/config.json` | Session storage and enrichers; `CLUED_MONGO_URL` and `CLUED_DB_NAME` override its `mongoUrl` and `dbName` |
+| `--code-store` | `CLUED_SERVER_CODE_STORE` | `mongo` (`memory` with `--store memory`) | Where collected code goes: `mongo`, `memory` or `off`; see [Collected code](#collected-code) |
+| `--graph` | `CLUED_SERVER_GRAPH` | off | The code graph: a FalkorDB URL (`redis://[user:password@]host:port`, `rediss://` for TLS) or `memory`; runs the indexer and serves the graph read routes. Needs a code store; see [The code graph](#the-code-graph) |
 | `--version` | | the build's version | Reported by `/health` and `/api/v1/whoami` |
 
 Sessions always live in MongoDB: set `CLUED_MONGO_URL` (for example
@@ -124,7 +140,7 @@ The directory holds everything the stack needs and is the server's home:
 | File | What it is |
 |---|---|
 | `stack.json` | Which runtime runs the stack, the proxy, the port, the server URL and the `up`, `down` and `logs` commands |
-| `docker-compose.yml` | Runtime `compose`. Three services: `nginx` (publishes `--port`, 8443 by default, over HTTPS and forwards to the server), `clued-server` (plain HTTP inside the compose network, `CLUED_SERVER_BEHIND_PROXY=true`, runs as your uid so it can read the token file) and `mongo` (`mongo:8` on the named volume `clued_mongo_data`, not published). The server image is the release of the plugin that ran `init` (`ghcr.io/robbiebyrd/clued-server:v<version>`, `:latest` from a bare binary; `--image` overrides it). Every value is literal, with no `${VAR:-default}` interpolation (Apple's compose plugin, among others, does not support it): change one by rerunning `init` with the matching flag |
+| `docker-compose.yml` | Runtime `compose`. Four services: `nginx` (publishes `--port`, 8443 by default, over HTTPS and forwards to the server), `clued-server` (plain HTTP inside the compose network, `CLUED_SERVER_BEHIND_PROXY=true`, runs as your uid so it can read the token file, the code store and the code graph on), `mongo` (`mongo:8` on the named volume `clued_mongo_data`, not published) and `falkordb` (the code graph, `falkordb/falkordb:v4.22.1` by default, `--falkordb-image` to change it: not published, no browser, no volume; the server starts once it is healthy). The server image is the release of the plugin that ran `init` (`ghcr.io/robbiebyrd/clued-server:v<version>`, `:latest` from a bare binary; `--image` overrides it). Every value is literal, with no `${VAR:-default}` interpolation (Apple's compose plugin, among others, does not support it): change one by rerunning `init` with the matching flag |
 | `up.sh`, `down.sh` | Runtime `apple`. `up.sh` starts `container system` when needed, creates the `clued_mongo_data` volume, starts `clued-mongo`, waits for it with `mongosh`, starts `clued-server` with the MongoDB address from `container inspect` (container names do not resolve inside Apple containers without a DNS domain set up with sudo) and, with nginx, renders `run/nginx/clued.conf` with the server's address and starts `clued-nginx` publishing `--port` on every interface. It is a no-op while the containers run (`up.sh --recreate` replaces them, which a rerun of `init` needs) and installs the launchd agent. The server container runs as root because bind-mounted files appear root-owned inside Apple containers. `down.sh` removes the containers and the agent; `down.sh --volumes` deletes the data too |
 | `launchd/com.robbiebyrd.clued-server.plist` | Runtime `apple`: the agent `up.sh` copies into `~/Library/LaunchAgents` so the stack starts at login (Apple Containers have no restart policy); it logs to `launchd/up.log` |
 | `run/` | Runtime `apple`: the storage and nginx configs rendered with the addresses of the current start |
@@ -133,9 +149,12 @@ The directory holds everything the stack needs and is the server's home:
 | `tls/ca.pem`, `tls/ca-key.pem` | A private CA, valid ten years and name-constrained to the hosts below (it can sign for this server and nothing else); clients put `ca.pem` in `serverCaFile`, or this machine trusts it with [`server trust`](#trusting-the-ca-on-this-machine) |
 | `tls/cert.pem`, `tls/key.pem` | The server certificate signed by that CA, valid two years, covering `localhost`, `127.0.0.1`, `::1`, this host's name and every `--host` |
 | `tokens.json` | The token file; `init` mints one token named after the host (`--name`, `--project`, `--account` as for `server token create`) and `mind-palace server token …` finds the file here by default |
+| `falkordb.password` | FalkorDB's password (0600): 32 random bytes as hex, generated by the first `init` and kept by every rerun, so a running FalkorDB keeps accepting the server. One of your own must be 16 or more letters and digits; delete the file to have a new one generated |
+| `falkordb.env` | FalkorDB's environment (0600): `REDIS_ARGS=--requirepass … --save --appendonly no` (persistence off) and `REDISCLI_AUTH` so the health check authenticates without the password on its command line; regenerated by each `init` |
+| `graph.env` | The server's environment (0600): `CLUED_SERVER_GRAPH=redis://default:…@falkordb:6379`, the `--graph` of `server run`; regenerated by each `init` (runtime `apple` renders `run/graph.env` with FalkorDB's address at each start) |
 
-`init` is safe to rerun: the runtime's files and the nginx and storage files
-are regenerated (so a plugin upgrade re-pins the image with another `init`,
+`init` is safe to rerun: the runtime's files and the nginx, storage and env
+files are regenerated (so a plugin upgrade re-pins the image with another `init`,
 followed by the `up` command again: `docker compose … up -d`, or `up.sh
 --recreate`), `tls/` and `tokens.json` are kept, and a token whose name
 exists is not minted again (`notes` says so). `--force` reissues the server
@@ -146,7 +165,8 @@ new CA, and `--new-ca` asks for one outright. Either way `notes` says when
 the CA changed, and every machine that trusted the old one must trust the
 new one (`server trust` again here, a new `ca.pem` in `serverCaFile`
 elsewhere). The result names the CA file and its SHA-256 fingerprint (`ca`,
-`ca_fingerprint`):
+`ca_fingerprint`), and says whether FalkorDB's password was `generated` or
+`kept` (`graph`; the password itself is never printed):
 
 ```bash
 mind-palace server init --host clued.home.arpa --host 192.168.1.20 --force --no-token
@@ -430,6 +450,120 @@ with the generated compose file, mount a `config.json` holding them into
 `clued-server` and add `--session-config /etc/clued/config.json` through
 `command:`.
 
+### Collected code
+
+Clients that turn on `codeSync` upload the source of the repositories
+Claude Code works in to the code transport under
+`/api/v1/projects/{project}/code/` (PROTOCOL.md section 7.12). The server
+keeps it per namespaced project: each file's content once by SHA-256, a
+tree per worktree and branch, and an ordered change log. No route of the
+code transport serves the code back; only the [code graph](#the-code-graph)
+reads it, for the caller's own view.
+
+| `--code-store` | What it does |
+|---|---|
+| `mongo` | The default. The session MongoDB (`CLUED_MONGO_URL`, `CLUED_DB_NAME`) holds it, in collections prefixed with the project key: `<project>_code_blobs`, `_code_trees`, `_code_worktrees`, `_code_changes`, `_code_events`, `_code_counters`. A replica set lets each commit run in a transaction; a standalone server works too, with writes ordered so a retry is harmless |
+| `memory` | In the process, lost on restart; the default with `--store memory`, for tests |
+| `off` | No code routes: every one answers 404, and clients back off for 24 hours |
+
+The stack `server init` generates sets `CLUED_SERVER_CODE_STORE=mongo` in
+both runtimes (compose file and `up.sh`), so collected code lives in the
+stack's `mongo:8` beside the sessions; no other container is needed. To
+turn it off in a stack, set the variable to `off` in the compose file (or
+`up.sh`) and restart the server. Blobs are capped at 1 MiB (a client sends
+larger files as path and size only) and batches at 5,000 entries, under
+the 16 MiB body limit of the generated nginx; a front-end of your own needs
+the same body limit (`client_max_body_size 16m`).
+
+Nothing on the server turns collection on: each client decides with
+`codeSync` in its `config.json` (or `CLUED_CODE_SYNC`), off by default, and
+a repository can opt out with `codeSync: false` in its
+`mind-palace.config.yaml`. Writes are stamped with the token's account, so
+the account that created a worktree is the only one that can write to it.
+An embedding server (Clued Cloud) can refuse writes per account with
+`CluedOptions.BeforeCodeWrite` (403 `forbidden`, 413 `quota`); the
+self-hosted server accepts every write a token's projects cover.
+
+#### GitHub-backed projects
+
+Clued Cloud runs the clued GitHub App: a claimed installation writes each
+repository's pushed branches into the project's code store as a worktree
+of its own (`gh_<repository id>`, source `github`), mirrors the plans and
+stories of the default branch, and records the repository's activity
+(pushes, branches, pull requests, CI) in `<project>_code_events`. On such a
+project `GET …/code/capabilities` answers `"github": true`
+(`CluedOptions.GitHubBacked`), and clients send clean, pushed files as
+entries without content, uploading only what is not on GitHub yet. The
+self-hosted server sets no `GitHubBacked` (`github` is always false) and
+does not serve the webhook; the packages it would need (`ghapp`, `ghsync`)
+are in the public module. Permissions, what is stored, the branch policy
+and how to remove it are in [github-app.md](github-app.md).
+
+### The code graph
+
+With `--graph` the server turns the collected code into a code graph and
+serves the first routes that read code back: typed, token-capped queries
+under `/api/v1/projects/{project}/code/graph/` (`search`, `symbol`,
+`neighbors`, `outline`, `context`; PROTOCOL.md section 7.14), each answering
+for the caller's own view (the base, a branch, or the caller's own session
+overlay; never another account's). The plugin's `clued` MCP server offers
+them to agents as `code_search`, `code_symbol`, `code_neighbors`,
+`code_outline` and `code_context` once the project is indexed. What the
+graph holds, the layers and views, privacy and the languages understood
+are in [code-graph.md](code-graph.md).
+
+| `--graph` | What it does |
+|---|---|
+| `redis://[user:password@]host:port[/db]`, `rediss://…` | FalkorDB, one graph per project keyed by its namespace. The URL is not dialled at start: while FalkorDB is unreachable the indexer backs off (up to 5 minutes) without losing its place and the read routes answer 503 `unavailable`, so agents fall back to grep |
+| `memory` | In the process, lost on restart; for tests and trials |
+| unset or `off` | No indexer, no graph routes (404), and the plugin lists no code tools |
+
+The graph needs a code store (`--graph` with `--code-store off` is refused).
+The server runs the indexer in the process: it replays each project's change
+log in batches under a lease and a cursor, kept in the session MongoDB's
+`code_index_cursors` with `--code-store mongo` (in memory otherwise), is
+woken by every commit, polls every 2 seconds, parses each new file version
+once (tree-sitter, pure Go; the facts are cached in the session MongoDB's
+`code_parses` for 30 days with `--code-store mongo`, in memory otherwise)
+and checks every project
+against its trees once an hour, repairing drift. The graph is a cache:
+FalkorDB needs no persistence and no backup, since everything in it can be
+written again from MongoDB.
+
+The stack of `server init` runs FalkorDB as its fourth container with a
+generated password and persistence off, and points the server at it through
+`graph.env`; FalkorDB is published on no port. To run without the graph in
+a stack, remove `graph.env` from the server's `env_file` (or its
+`--env-file` in `up.sh`) and restart it. With the binary, start a FalkorDB
+of your own with a password and no published port beyond what the server
+needs:
+
+```bash
+docker run -d --name falkordb -p 127.0.0.1:6379:6379 -e BROWSER=0 \
+  -e REDIS_ARGS="--requirepass $(cat ~/.clued-server/falkordb.password) --save --appendonly no" falkordb/falkordb:v4.22.1
+CLUED_SERVER_GRAPH="redis://default:$(cat ~/.clued-server/falkordb.password)@127.0.0.1:6379" \
+  mind-palace server run …
+```
+
+Rebuild, status and the consistency check run beside the server, against
+the same MongoDB and FalkorDB (they take the project's lease, so they never
+write while the server's indexer does; `--code-store mongo` only):
+
+```bash
+export CLUED_SERVER_GRAPH="redis://default:<password>@127.0.0.1:6379"   # the stack's is in graph.env
+mind-palace server graph status github.com__owner__repo                  # cursor, pending changes, lease, layers
+mind-palace server graph status github.com__owner__repo --check --repair # compare with the code store, fix drift
+mind-palace server graph rebuild github.com__owner__repo                 # drop the graph and rebuild it
+```
+
+The stack publishes no FalkorDB port, so run these inside the stack's
+network (`docker compose -f ~/.clued-server/docker-compose.yml exec
+clued-server mind-palace server graph …` with the server's own environment)
+or against a FalkorDB you published yourself. `rebuild` is the answer to a
+parser or schema upgrade, a graph that drifted and a FalkorDB that was
+restarted empty (the server's hourly check repairs those too, within the
+hour). Output and exit codes are in PROTOCOL.md section 9.
+
 ## Client setup
 
 ### `config.json`
@@ -444,6 +578,7 @@ so write it with mode 0600.
 | `serverToken` | `CLUED_SERVER_TOKEN` | The raw token `server token create` printed, or the one `session login` received |
 | `serverCaFile` | `CLUED_SERVER_CA_FILE` | Optional PEM bundle trusted in addition to the system roots (a private CA) |
 | `serverInsecure` | `CLUED_SERVER_INSECURE` | `true` allows a plain `http://` URL off loopback; never for a real deployment |
+| `codeSync` | `CLUED_CODE_SYNC` | `true` uploads the source of every repository Claude Code works in to the code store (off by default; see [What runs on the client](#what-runs-on-the-client)) |
 
 ```json
 {
@@ -504,8 +639,9 @@ the cloud (the host name by default); `--wait` bounds the wait (15 minutes).
 - `session config-pull` fetches the account's client settings
   (`GET /api/v1/me/config`: `enabledEnrichers`, `disabledEnrichers`,
   `projectsDir`, `fileHistoryDir`, `redactAtCapture`, `redactPatterns`,
-  `excludePaths`, and the `captureContent` hint, removed again when the
-  server stops sending it) into `config.json`; a key a workspace policy
+  `excludePaths`, `codeSync`, `codeSyncMaxFileBytes`, `codeSyncExclude`,
+  and the `captureContent` hint, removed again when the server stops
+  sending it) into `config.json`; a key a workspace policy
   manages (`managed`) replaces a local edit, with a note on stderr; `session-start` runs
   it with `--quiet` in remote mode, so settings changed in the cloud's web
   app reach every linked machine at its next session. Against a plain clued
@@ -536,6 +672,21 @@ Nothing stays resident. In remote mode:
   lines are not buffered, they are re-read from the file by offset. A failed
   catch-up leaves the offset unchanged, so the next hook retries from the
   same place.
+- With `codeSync` on, the relay then syncs the worktree the event changed
+  (an edit, a Bash command, `Stop`, `SessionStart`, …) to the code store,
+  last and with what is left of the budget, at most 3 s and 8 MiB of
+  changed content; the rest stays queued for the next hook. It sends what
+  `git ls-files -co --exclude-standard` lists (so `.gitignore` holds),
+  minus a built-in deny list of secret files (`.env*`, keys, `.npmrc`,
+  `credentials*.json`, …), `excludePaths` and `codeSyncExclude`, with the
+  capture redaction applied before hashing; binaries and files over 1 MiB
+  go as path and size only. Repositories without an origin (or
+  `remote.project`) are not synced. State lives under
+  `~/.claude/plugins/data/clued/codesync/` (paths and hashes, never
+  content); `scripts/clued session code-sync --full` does a first import
+  of a large repository in one go, and `session code-sync status` shows
+  each worktree's state. A server without a code store answers 404 and the
+  client stays quiet for 24 hours.
 - Sessions that ran before remote mode was configured are loaded by `session
   backfill` on the next session start, which walks `projectsDir` and upserts
   them through the server, exactly as it does for MongoDB.
@@ -577,7 +728,10 @@ mind-palace sync --from file --to clued-server --on-conflict overwrite   # the f
 `sync` copies plans, stories and templates between two configured stores
 and reports, per kind, the ids it copied, left unchanged, overwrote and
 the conflicts it refused (`--on-conflict error`, the default, fails on the
-first one; `skip` leaves them); the `sync` MCP tool does the same.
+first one; `skip` leaves them; `overwrite` replaces them; `newer` replaces
+a document only when the source copy's `updated` timestamp is the same or
+later and reports the others, the mode the GitHub App sync uses); the
+`sync` MCP tool does the same (`onConflict`).
 
 ### Project slugs
 

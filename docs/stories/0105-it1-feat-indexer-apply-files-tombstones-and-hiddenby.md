@@ -3,11 +3,13 @@ id: 0105-it1
 title: 'Indexer: apply files, tombstones and `hiddenBy`'
 purpose: Writes each changed file into its layer and keeps views correct.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:59.821Z"
-updated: "2026-10-19T18:31:34.192Z"
+updated: "2026-10-19T19:39:22.201Z"
+started: "2026-10-19T19:33:12.770Z"
+completed: "2026-10-19T19:39:22.201Z"
 tags:
   - plan-0012-cgi
   - wave-5
@@ -31,13 +33,13 @@ links:
     - ["0012-cgi", "included", ["3.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Indexer: apply files, tombstones and `hiddenBy`
@@ -70,9 +72,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -80,3 +82,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/apply_test.go` - three-layer tests
 
 ## Work Log
+
+### 2026-10-19T19:39:10.429Z - Added codeindex/apply.go: FileApplier (Applier) with ParseTimeout (DefaultParseTimeout 2s). Per batch it recomputes hiddenBy from the selection (a file is hidden by every layer above it through Parent holding its path) for the put/removed paths in every layer below them, before and after the batch, and for every path of a layer whose parent chain changed; SetHidden runs first for files that stay, then RemoveFile and ApplyFile (lower layers first) with the computed hiddenBy, so an interrupted batch is finished by the next turn. Facts come from the Service's parse cache (parse on miss); no parser, a parse error, invalid facts, a panic or a timeout index the file as text (parse_error, 60-line windows with 10 overlap, TextFacts); parse errors are cached, timeouts and no-parser are not. Exported: FileApplier, GraphFacts, TextFacts, SymbolNodeID/ChunkNodeID (path#local id), PackageKind, DefaultParseTimeout, MaxChunksPerFile (1000), TextWindowLines/Overlap. Tests (apply_test.go, fake parser since 0080 is not merged): three layers through the Service (base/branch/two overlays, revert, base moving under a branch), plan-driven hiddenBy (content-less files, overlay re-parented, branch layer dropped, new lower file under an existing upper one), interrupted batch, text fallback and caching, no parser, TextFacts, GraphFacts, PackageKind; each graph test runs on memgraph and FalkorDB (all pass with MIND_PALACE_TEST_FALKORDB_URL). go test -race ./codeindex/... 26 top-level tests pass; gofmt/vet/build clean. Deviations: started and completed with --force because 0080-6sk is not merged (parser injected through Options.Parse). FileApplier is not wired as the default Apply in New (service.go is not in this story's files): callers pass Options{Apply: FileApplier{}}. Only the two listed files changed.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/kind"
 	"github.com/robbiebyrd/clued/mind-palace/model"
@@ -22,6 +23,12 @@ const (
 	ConflictSkip ConflictMode = "skip"
 	// ConflictOverwrite replaces the target copy with the source copy.
 	ConflictOverwrite ConflictMode = "overwrite"
+	// ConflictNewer replaces the target copy when the source copy's updated
+	// timestamp is the same or later, and otherwise leaves the target copy
+	// alone and reports the conflict. A copy whose timestamp is missing or
+	// unparsable is never taken to be the later one, so the conflict is
+	// reported.
+	ConflictNewer ConflictMode = "newer"
 )
 
 // ParseConflictMode accepts the mode names and a few aliases.
@@ -33,8 +40,10 @@ func ParseConflictMode(s string) (ConflictMode, error) {
 		return ConflictSkip, nil
 	case "overwrite", "force", "source":
 		return ConflictOverwrite, nil
+	case "newer", "latest":
+		return ConflictNewer, nil
 	}
-	return "", fmt.Errorf("unknown conflict mode %q (error, skip, overwrite)", s)
+	return "", fmt.Errorf("unknown conflict mode %q (error, skip, overwrite, newer)", s)
 }
 
 // KindSync summarises the documents of one kind in a Sync run.
@@ -116,8 +125,12 @@ func syncDocuments(ctx context.Context, from, to Store, mode ConflictMode, k str
 		case DocumentsEqual(existing, d):
 			ks.Unchanged = append(ks.Unchanged, d.ID())
 		default:
+			if mode == ConflictNewer && !sourceIsNewer(d.FrontMatter.Updated, existing.FrontMatter.Updated) {
+				ks.Conflicts = append(ks.Conflicts, d.ID())
+				continue
+			}
 			switch mode {
-			case ConflictOverwrite:
+			case ConflictOverwrite, ConflictNewer:
 				if err := to.Put(ctx, d.Clone()); err != nil {
 					return fmt.Errorf("overwrite %s %s in %q: %w", k, d.ID(), to.Name(), err)
 				}
@@ -152,8 +165,12 @@ func syncTemplates(ctx context.Context, from, to Store, mode ConflictMode, k str
 			return err
 		case existing.Content == t.Content:
 		default:
+			if mode == ConflictNewer && !sourceIsNewer(t.Updated, existing.Updated) {
+				rep.TemplateConfl = append(rep.TemplateConfl, label)
+				continue
+			}
 			switch mode {
-			case ConflictOverwrite:
+			case ConflictOverwrite, ConflictNewer:
 				c := *t
 				if err := to.PutTemplate(ctx, &c); err != nil {
 					return err
@@ -168,6 +185,33 @@ func syncTemplates(ctx context.Context, from, to Store, mode ConflictMode, k str
 		}
 	}
 	return nil
+}
+
+// sourceIsNewer reports whether the source copy's updated timestamp is the
+// same as or later than the target copy's. Both must parse (any form
+// model.NormalizeTimestamp accepts); otherwise the answer is false.
+func sourceIsNewer(source, target string) bool {
+	s, ok := parseUpdated(source)
+	if !ok {
+		return false
+	}
+	t, ok := parseUpdated(target)
+	if !ok {
+		return false
+	}
+	return !s.Before(t)
+}
+
+func parseUpdated(v string) (time.Time, bool) {
+	if v == "" {
+		return time.Time{}, false
+	}
+	n, err := model.NormalizeTimestamp(v)
+	if err != nil {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(model.TimestampLayout, n)
+	return t, err == nil
 }
 
 // DocumentsEqual compares kind, path, front matter and content.

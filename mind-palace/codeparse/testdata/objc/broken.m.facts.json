@@ -1,0 +1,218 @@
+{
+  "lang": "objc",
+  "symbols": [
+    {
+      "id": "Broken",
+      "kind": "class",
+      "name": "Broken",
+      "qualName": "Broken",
+      "signature": "@interface Broken : NSObject",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 20
+      },
+      "end": {
+        "line": 5,
+        "column": 4,
+        "offset": 65
+      },
+      "exported": true
+    },
+    {
+      "id": "Broken.ok",
+      "kind": "method",
+      "name": "ok",
+      "qualName": "Broken.ok",
+      "signature": "- (void)ok;",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 49
+      },
+      "end": {
+        "line": 4,
+        "column": 11,
+        "offset": 60
+      },
+      "parent": "Broken",
+      "exported": true
+    },
+    {
+      "id": "Broken~2",
+      "kind": "impl",
+      "name": "Broken",
+      "qualName": "Broken",
+      "signature": "@implementation Broken",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 67
+      },
+      "end": {
+        "line": 17,
+        "column": 4,
+        "offset": 184
+      },
+      "exported": true
+    },
+    {
+      "id": "Broken.ok~2",
+      "kind": "method",
+      "name": "ok",
+      "qualName": "Broken.ok",
+      "signature": "- (void)ok",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 91
+      },
+      "end": {
+        "line": 11,
+        "column": 1,
+        "offset": 123
+      },
+      "parent": "Broken~2",
+      "exported": true
+    },
+    {
+      "id": "Broken.helper:",
+      "kind": "method",
+      "name": "helper:",
+      "qualName": "Broken.helper:",
+      "signature": "- (void)helper:(id)value",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 125
+      },
+      "end": {
+        "line": 15,
+        "column": 1,
+        "offset": 178
+      },
+      "parent": "Broken~2",
+      "exported": true
+    },
+    {
+      "id": "BrokenAfter",
+      "kind": "function",
+      "name": "BrokenAfter",
+      "qualName": "BrokenAfter",
+      "signature": "int BrokenAfter(int x)",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 186
+      },
+      "end": {
+        "line": 21,
+        "column": 1,
+        "offset": 230
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "Shapes.h",
+      "kind": "import",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "NSObject",
+      "kind": "extends",
+      "start": {
+        "line": 3,
+        "column": 20,
+        "offset": 40
+      },
+      "enclosing": "Broken"
+    },
+    {
+      "name": "NSLog",
+      "kind": "call",
+      "start": {
+        "line": 14,
+        "column": 4,
+        "offset": 156
+      },
+      "enclosing": "Broken.helper:"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 1,
+        "column": 18,
+        "offset": 18
+      },
+      "text": "#import \"Shapes.h\"",
+      "hash": "cb54d0fca8418263e8284f6269775a32afc70e604d20cf0c840ca9d6d33acb31"
+    },
+    {
+      "id": "Broken#1",
+      "kind": "symbol",
+      "symbolId": "Broken",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 20
+      },
+      "end": {
+        "line": 5,
+        "column": 4,
+        "offset": 65
+      },
+      "text": "@interface Broken : NSObject\n- (void)ok;\n@end",
+      "hash": "d711743b82fc2f74df7a6e827eab83e39a4a07e8840ba9767f4c953f8b263805"
+    },
+    {
+      "id": "Broken~2#1",
+      "kind": "symbol",
+      "symbolId": "Broken~2",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 67
+      },
+      "end": {
+        "line": 17,
+        "column": 4,
+        "offset": 184
+      },
+      "text": "@implementation Broken\n\n- (void)ok {\n    [self helper:\n}\n\n- (void)helper:(id)value {\n    NSLog(@\"%@\", value);\n}\n\n@end",
+      "hash": "69cb107c03cbf73f258785beb0e02a3122e25ddcf55579fb5aba1e317cffe722"
+    },
+    {
+      "id": "BrokenAfter#1",
+      "kind": "symbol",
+      "symbolId": "BrokenAfter",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 186
+      },
+      "end": {
+        "line": 21,
+        "column": 1,
+        "offset": 230
+      },
+      "text": "int BrokenAfter(int x) {\n    return x + 1;\n}",
+      "hash": "c34920d31104aa7b80c23c04698e29da1090241c79400454f366ebf59f07ed06"
+    }
+  ]
+}

@@ -1,0 +1,1084 @@
+{
+  "lang": "ocaml",
+  "dialect": "interface",
+  "symbols": [
+    {
+      "id": "point",
+      "kind": "struct",
+      "name": "point",
+      "qualName": "point",
+      "signature": "point =",
+      "doc": "A point in the plane.",
+      "start": {
+        "line": 6,
+        "column": 5,
+        "offset": 89
+      },
+      "end": {
+        "line": 6,
+        "column": 45,
+        "offset": 129
+      },
+      "exported": true
+    },
+    {
+      "id": "point.x",
+      "kind": "field",
+      "name": "x",
+      "qualName": "point.x",
+      "signature": "x : float",
+      "doc": "A point in the plane.",
+      "start": {
+        "line": 6,
+        "column": 15,
+        "offset": 99
+      },
+      "end": {
+        "line": 6,
+        "column": 24,
+        "offset": 108
+      },
+      "parent": "point",
+      "exported": true
+    },
+    {
+      "id": "point.y",
+      "kind": "field",
+      "name": "y",
+      "qualName": "point.y",
+      "signature": "mutable y : float",
+      "doc": "A point in the plane.",
+      "start": {
+        "line": 6,
+        "column": 26,
+        "offset": 110
+      },
+      "end": {
+        "line": 6,
+        "column": 43,
+        "offset": 127
+      },
+      "parent": "point",
+      "exported": true
+    },
+    {
+      "id": "shape",
+      "kind": "enum",
+      "name": "shape",
+      "qualName": "shape",
+      "signature": "shape =",
+      "start": {
+        "line": 8,
+        "column": 5,
+        "offset": 136
+      },
+      "end": {
+        "line": 11,
+        "column": 25,
+        "offset": 223
+      },
+      "exported": true
+    },
+    {
+      "id": "shape.Circle",
+      "kind": "variant",
+      "name": "Circle",
+      "qualName": "shape.Circle",
+      "signature": "Circle of point * float",
+      "start": {
+        "line": 9,
+        "column": 4,
+        "offset": 148
+      },
+      "end": {
+        "line": 9,
+        "column": 27,
+        "offset": 171
+      },
+      "parent": "shape",
+      "exported": true
+    },
+    {
+      "id": "shape.Rect",
+      "kind": "variant",
+      "name": "Rect",
+      "qualName": "shape.Rect",
+      "signature": "Rect of point * point",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 176
+      },
+      "end": {
+        "line": 10,
+        "column": 25,
+        "offset": 197
+      },
+      "parent": "shape",
+      "exported": true
+    },
+    {
+      "id": "shape.Polygon",
+      "kind": "variant",
+      "name": "Polygon",
+      "qualName": "shape.Polygon",
+      "signature": "Polygon of point list",
+      "start": {
+        "line": 11,
+        "column": 4,
+        "offset": 202
+      },
+      "end": {
+        "line": 11,
+        "column": 25,
+        "offset": 223
+      },
+      "parent": "shape",
+      "exported": true
+    },
+    {
+      "id": "t",
+      "kind": "type",
+      "name": "t",
+      "qualName": "t",
+      "signature": "t",
+      "doc": "An abstract handle.",
+      "start": {
+        "line": 14,
+        "column": 5,
+        "offset": 257
+      },
+      "end": {
+        "line": 14,
+        "column": 6,
+        "offset": 258
+      },
+      "exported": true
+    },
+    {
+      "id": "labelled",
+      "kind": "type",
+      "name": "labelled",
+      "qualName": "labelled",
+      "signature": "'a labelled = private",
+      "start": {
+        "line": 16,
+        "column": 5,
+        "offset": 265
+      },
+      "end": {
+        "line": 16,
+        "column": 38,
+        "offset": 298
+      },
+      "exported": true
+    },
+    {
+      "id": "Degenerate",
+      "kind": "exception",
+      "name": "Degenerate",
+      "qualName": "Degenerate",
+      "signature": "exception Degenerate of string",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 300
+      },
+      "end": {
+        "line": 18,
+        "column": 30,
+        "offset": 330
+      },
+      "exported": true
+    },
+    {
+      "id": "pi",
+      "kind": "var",
+      "name": "pi",
+      "qualName": "pi",
+      "signature": "val pi : float",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 332
+      },
+      "end": {
+        "line": 20,
+        "column": 14,
+        "offset": 346
+      },
+      "exported": true
+    },
+    {
+      "id": "area",
+      "kind": "function",
+      "name": "area",
+      "qualName": "area",
+      "signature": "val area : shape -\u003e float",
+      "doc": "[area s] is the area of [s].",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 384
+      },
+      "end": {
+        "line": 23,
+        "column": 25,
+        "offset": 409
+      },
+      "exported": true
+    },
+    {
+      "id": "translate",
+      "kind": "function",
+      "name": "translate",
+      "qualName": "translate",
+      "signature": "val translate : float -\u003e float -\u003e point -\u003e point",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 411
+      },
+      "end": {
+        "line": 25,
+        "column": 48,
+        "offset": 459
+      },
+      "exported": true
+    },
+    {
+      "id": "( +| )",
+      "kind": "function",
+      "name": "( +| )",
+      "qualName": "( +| )",
+      "signature": "val ( +| ) : point -\u003e point -\u003e point",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 461
+      },
+      "end": {
+        "line": 27,
+        "column": 36,
+        "offset": 497
+      },
+      "exported": true
+    },
+    {
+      "id": "describe",
+      "kind": "function",
+      "name": "describe",
+      "qualName": "describe",
+      "signature": "val describe : shape -\u003e string",
+      "start": {
+        "line": 29,
+        "column": 0,
+        "offset": 499
+      },
+      "end": {
+        "line": 29,
+        "column": 30,
+        "offset": 529
+      },
+      "exported": true
+    },
+    {
+      "id": "origins",
+      "kind": "var",
+      "name": "origins",
+      "qualName": "origins",
+      "signature": "val origins : point list",
+      "start": {
+        "line": 31,
+        "column": 0,
+        "offset": 531
+      },
+      "end": {
+        "line": 31,
+        "column": 24,
+        "offset": 555
+      },
+      "exported": true
+    },
+    {
+      "id": "hypot",
+      "kind": "function",
+      "name": "hypot",
+      "qualName": "hypot",
+      "signature": "external hypot : float -\u003e float -\u003e float = \"caml_hypot_float\" \"caml_hypot\"",
+      "start": {
+        "line": 33,
+        "column": 0,
+        "offset": 557
+      },
+      "end": {
+        "line": 33,
+        "column": 74,
+        "offset": 631
+      },
+      "exported": true
+    },
+    {
+      "id": "ORDERED",
+      "kind": "interface",
+      "name": "ORDERED",
+      "qualName": "ORDERED",
+      "signature": "module type ORDERED =",
+      "doc": "Ordered collections of shapes.",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 671
+      },
+      "end": {
+        "line": 39,
+        "column": 3,
+        "offset": 739
+      },
+      "exported": true
+    },
+    {
+      "id": "ORDERED.t",
+      "kind": "type",
+      "name": "t",
+      "qualName": "ORDERED.t",
+      "signature": "t",
+      "start": {
+        "line": 37,
+        "column": 7,
+        "offset": 704
+      },
+      "end": {
+        "line": 37,
+        "column": 8,
+        "offset": 705
+      },
+      "parent": "ORDERED",
+      "exported": true
+    },
+    {
+      "id": "ORDERED.compare",
+      "kind": "function",
+      "name": "compare",
+      "qualName": "ORDERED.compare",
+      "signature": "val compare : t -\u003e t -\u003e int",
+      "start": {
+        "line": 38,
+        "column": 2,
+        "offset": 708
+      },
+      "end": {
+        "line": 38,
+        "column": 29,
+        "offset": 735
+      },
+      "parent": "ORDERED",
+      "exported": true
+    },
+    {
+      "id": "Sorted",
+      "kind": "functor",
+      "name": "Sorted",
+      "qualName": "Sorted",
+      "signature": "Sorted (O : ORDERED) : sig",
+      "start": {
+        "line": 41,
+        "column": 7,
+        "offset": 748
+      },
+      "end": {
+        "line": 44,
+        "column": 3,
+        "offset": 829
+      },
+      "exported": true
+    },
+    {
+      "id": "Sorted.elt",
+      "kind": "type",
+      "name": "elt",
+      "qualName": "Sorted.elt",
+      "signature": "elt =",
+      "start": {
+        "line": 42,
+        "column": 7,
+        "offset": 782
+      },
+      "end": {
+        "line": 42,
+        "column": 16,
+        "offset": 791
+      },
+      "parent": "Sorted",
+      "exported": true
+    },
+    {
+      "id": "Sorted.sort",
+      "kind": "function",
+      "name": "sort",
+      "qualName": "Sorted.sort",
+      "signature": "val sort : elt list -\u003e elt list",
+      "start": {
+        "line": 43,
+        "column": 2,
+        "offset": 794
+      },
+      "end": {
+        "line": 43,
+        "column": 33,
+        "offset": 825
+      },
+      "parent": "Sorted",
+      "exported": true
+    },
+    {
+      "id": "Units",
+      "kind": "module",
+      "name": "Units",
+      "qualName": "Units",
+      "signature": "Units : sig",
+      "start": {
+        "line": 46,
+        "column": 7,
+        "offset": 838
+      },
+      "end": {
+        "line": 48,
+        "column": 3,
+        "offset": 879
+      },
+      "exported": true
+    },
+    {
+      "id": "Units.cm",
+      "kind": "function",
+      "name": "cm",
+      "qualName": "Units.cm",
+      "signature": "val cm : float -\u003e float",
+      "start": {
+        "line": 47,
+        "column": 2,
+        "offset": 852
+      },
+      "end": {
+        "line": 47,
+        "column": 25,
+        "offset": 875
+      },
+      "parent": "Units",
+      "exported": true
+    },
+    {
+      "id": "canvas",
+      "kind": "class",
+      "name": "canvas",
+      "qualName": "canvas",
+      "signature": "canvas : int -\u003e int -\u003e object",
+      "start": {
+        "line": 50,
+        "column": 6,
+        "offset": 887
+      },
+      "end": {
+        "line": 53,
+        "column": 3,
+        "offset": 976
+      },
+      "exported": true
+    },
+    {
+      "id": "canvas.draw",
+      "kind": "method",
+      "name": "draw",
+      "qualName": "canvas.draw",
+      "signature": "method draw : shape -\u003e unit",
+      "start": {
+        "line": 51,
+        "column": 2,
+        "offset": 919
+      },
+      "end": {
+        "line": 51,
+        "column": 29,
+        "offset": 946
+      },
+      "parent": "canvas",
+      "exported": true
+    },
+    {
+      "id": "canvas.size",
+      "kind": "method",
+      "name": "size",
+      "qualName": "canvas.size",
+      "signature": "method size : int * int",
+      "start": {
+        "line": 52,
+        "column": 2,
+        "offset": 949
+      },
+      "end": {
+        "line": 52,
+        "column": 25,
+        "offset": 972
+      },
+      "parent": "canvas",
+      "exported": true
+    },
+    {
+      "id": "drawable",
+      "kind": "interface",
+      "name": "drawable",
+      "qualName": "drawable",
+      "signature": "drawable =",
+      "start": {
+        "line": 55,
+        "column": 11,
+        "offset": 989
+      },
+      "end": {
+        "line": 57,
+        "column": 3,
+        "offset": 1041
+      },
+      "exported": true
+    },
+    {
+      "id": "drawable.draw",
+      "kind": "method",
+      "name": "draw",
+      "qualName": "drawable.draw",
+      "signature": "method draw : canvas -\u003e unit",
+      "start": {
+        "line": 56,
+        "column": 2,
+        "offset": 1009
+      },
+      "end": {
+        "line": 56,
+        "column": 30,
+        "offset": 1037
+      },
+      "parent": "drawable",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "Printf",
+      "kind": "open",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 42
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 9,
+        "column": 14,
+        "offset": 158
+      },
+      "enclosing": "shape.Circle"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 10,
+        "column": 12,
+        "offset": 184
+      },
+      "enclosing": "shape.Rect"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 10,
+        "column": 20,
+        "offset": 192
+      },
+      "enclosing": "shape.Rect"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 15,
+        "offset": 213
+      },
+      "enclosing": "shape.Polygon"
+    },
+    {
+      "name": "shape",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 11,
+        "offset": 395
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 25,
+        "column": 34,
+        "offset": 445
+      },
+      "enclosing": "translate"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 25,
+        "column": 43,
+        "offset": 454
+      },
+      "enclosing": "translate"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 13,
+        "offset": 474
+      },
+      "enclosing": "( +| )"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 22,
+        "offset": 483
+      },
+      "enclosing": "( +| )"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 31,
+        "offset": 492
+      },
+      "enclosing": "( +| )"
+    },
+    {
+      "name": "shape",
+      "kind": "type",
+      "start": {
+        "line": 29,
+        "column": 15,
+        "offset": 514
+      },
+      "enclosing": "describe"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 31,
+        "column": 14,
+        "offset": 545
+      },
+      "enclosing": "origins"
+    },
+    {
+      "name": "t",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 16,
+        "offset": 722
+      },
+      "enclosing": "ORDERED.compare"
+    },
+    {
+      "name": "t",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 21,
+        "offset": 727
+      },
+      "enclosing": "ORDERED.compare"
+    },
+    {
+      "name": "ORDERED",
+      "kind": "type",
+      "start": {
+        "line": 41,
+        "column": 19,
+        "offset": 760
+      },
+      "enclosing": "Sorted"
+    },
+    {
+      "name": "t",
+      "qualifier": "O",
+      "kind": "type",
+      "start": {
+        "line": 42,
+        "column": 15,
+        "offset": 790
+      },
+      "enclosing": "Sorted.elt"
+    },
+    {
+      "name": "elt",
+      "kind": "type",
+      "start": {
+        "line": 43,
+        "column": 13,
+        "offset": 805
+      },
+      "enclosing": "Sorted.sort"
+    },
+    {
+      "name": "elt",
+      "kind": "type",
+      "start": {
+        "line": 43,
+        "column": 25,
+        "offset": 817
+      },
+      "enclosing": "Sorted.sort"
+    },
+    {
+      "name": "shape",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 16,
+        "offset": 933
+      },
+      "enclosing": "canvas.draw"
+    },
+    {
+      "name": "canvas",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 16,
+        "offset": 1023
+      },
+      "enclosing": "drawable.draw"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 11,
+        "offset": 53
+      },
+      "text": "(** Geometric shapes and their areas. *)\n\nopen Printf",
+      "hash": "701fa15d2f11b3b2d11e6f67189fb77a30727821e9db80c2a25939e8f5cb6e73"
+    },
+    {
+      "id": "point#1",
+      "kind": "symbol",
+      "symbolId": "point",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 55
+      },
+      "end": {
+        "line": 6,
+        "column": 45,
+        "offset": 129
+      },
+      "text": "(** A point in the plane. *)\ntype point = { x : float; mutable y : float }",
+      "hash": "012b830298d676f5f48c44a9c1bfb6da8d1242ae4b215dc04c1085a4c1938ab8"
+    },
+    {
+      "id": "shape#1",
+      "kind": "symbol",
+      "symbolId": "shape",
+      "start": {
+        "line": 8,
+        "column": 5,
+        "offset": 136
+      },
+      "end": {
+        "line": 11,
+        "column": 25,
+        "offset": 223
+      },
+      "text": "shape =\n  | Circle of point * float\n  | Rect of point * point\n  | Polygon of point list",
+      "hash": "af75ab6e342826a9903eafdbbc077f76f9dc6423daf747564160589a5b879d4b"
+    },
+    {
+      "id": "t#1",
+      "kind": "symbol",
+      "symbolId": "t",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 225
+      },
+      "end": {
+        "line": 14,
+        "column": 6,
+        "offset": 258
+      },
+      "text": "(** An abstract handle. *)\ntype t",
+      "hash": "9d0b37c9b95e300e30634d830aff8e9d6241bcee019666ea2ad5ab2932e55a5a"
+    },
+    {
+      "id": "labelled#1",
+      "kind": "symbol",
+      "symbolId": "labelled",
+      "start": {
+        "line": 16,
+        "column": 5,
+        "offset": 265
+      },
+      "end": {
+        "line": 16,
+        "column": 38,
+        "offset": 298
+      },
+      "text": "'a labelled = private string * 'a",
+      "hash": "b774805df784de89071df27e55959c766b5fd8ebcb99149c4a35f1ec7c006092"
+    },
+    {
+      "id": "Degenerate#1",
+      "kind": "symbol",
+      "symbolId": "Degenerate",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 300
+      },
+      "end": {
+        "line": 18,
+        "column": 30,
+        "offset": 330
+      },
+      "text": "exception Degenerate of string",
+      "hash": "948295211650700d1735b7ccc99bb86dcdc4f260c810d77a8581776b9eb0da72"
+    },
+    {
+      "id": "area#1",
+      "kind": "symbol",
+      "symbolId": "area",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 348
+      },
+      "end": {
+        "line": 23,
+        "column": 25,
+        "offset": 409
+      },
+      "text": "(** [area s] is the area of [s]. *)\nval area : shape -\u003e float",
+      "hash": "be49c7ffd8f6d444bb49d7422c7b5c5ade4f0679b882b1701f5b9c4aaa176f3a"
+    },
+    {
+      "id": "translate#1",
+      "kind": "symbol",
+      "symbolId": "translate",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 411
+      },
+      "end": {
+        "line": 25,
+        "column": 48,
+        "offset": 459
+      },
+      "text": "val translate : float -\u003e float -\u003e point -\u003e point",
+      "hash": "b94c8f74b0b8fa2501bf754cb419039b254d793350d4f392d2c4a649d8113280"
+    },
+    {
+      "id": "( +| )#1",
+      "kind": "symbol",
+      "symbolId": "( +| )",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 461
+      },
+      "end": {
+        "line": 27,
+        "column": 36,
+        "offset": 497
+      },
+      "text": "val ( +| ) : point -\u003e point -\u003e point",
+      "hash": "e5c9bb59147b6c8b1a8fa3b030308187f7aa79f76cdf0a05daf34cea3887a5af"
+    },
+    {
+      "id": "describe#1",
+      "kind": "symbol",
+      "symbolId": "describe",
+      "start": {
+        "line": 29,
+        "column": 0,
+        "offset": 499
+      },
+      "end": {
+        "line": 29,
+        "column": 30,
+        "offset": 529
+      },
+      "text": "val describe : shape -\u003e string",
+      "hash": "965ee66eae0bdf718c9a21fe88c723e6f2c4412f084a51cdf7b1553eb7e26f9e"
+    },
+    {
+      "id": "L31#1",
+      "kind": "window",
+      "start": {
+        "line": 31,
+        "column": 0,
+        "offset": 531
+      },
+      "end": {
+        "line": 31,
+        "column": 24,
+        "offset": 555
+      },
+      "text": "val origins : point list",
+      "hash": "97173ae0a2287102dc04e7f1ab3243a287a6675a26023dac5792dceec965319b"
+    },
+    {
+      "id": "hypot#1",
+      "kind": "symbol",
+      "symbolId": "hypot",
+      "start": {
+        "line": 33,
+        "column": 0,
+        "offset": 557
+      },
+      "end": {
+        "line": 33,
+        "column": 74,
+        "offset": 631
+      },
+      "text": "external hypot : float -\u003e float -\u003e float = \"caml_hypot_float\" \"caml_hypot\"",
+      "hash": "9557bbcd4bb9c58d97ca1f1aa4696dbab81d7e6b1509b34c9e7b52233bbdf71f"
+    },
+    {
+      "id": "ORDERED#1",
+      "kind": "symbol",
+      "symbolId": "ORDERED",
+      "start": {
+        "line": 35,
+        "column": 0,
+        "offset": 633
+      },
+      "end": {
+        "line": 39,
+        "column": 3,
+        "offset": 739
+      },
+      "text": "(** Ordered collections of shapes. *)\nmodule type ORDERED = sig\n  type t\n  val compare : t -\u003e t -\u003e int\nend",
+      "hash": "c00a71a653a378e77b78e872b0306c4710f094418d8d2419ef0306f6fa3bca9c"
+    },
+    {
+      "id": "Sorted#1",
+      "kind": "symbol",
+      "symbolId": "Sorted",
+      "start": {
+        "line": 41,
+        "column": 7,
+        "offset": 748
+      },
+      "end": {
+        "line": 44,
+        "column": 3,
+        "offset": 829
+      },
+      "text": "Sorted (O : ORDERED) : sig\n  type elt = O.t\n  val sort : elt list -\u003e elt list\nend",
+      "hash": "d1c1ef6d6ca5b3f72c33c94406776e753d2c4f35783fbb35b0a4b050e194171c"
+    },
+    {
+      "id": "L46#1",
+      "kind": "window",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 831
+      },
+      "end": {
+        "line": 46,
+        "column": 18,
+        "offset": 849
+      },
+      "text": "module Units : sig",
+      "hash": "b943ab7acc805d3fe32ed5459d2a7f0d067387bfc807110254e68d86ae1055fc"
+    },
+    {
+      "id": "Units.cm#1",
+      "kind": "symbol",
+      "symbolId": "Units.cm",
+      "start": {
+        "line": 47,
+        "column": 0,
+        "offset": 850
+      },
+      "end": {
+        "line": 47,
+        "column": 25,
+        "offset": 875
+      },
+      "text": "  val cm : float -\u003e float",
+      "hash": "6322e8663cfaca73bd77421957b54b55a3f32ca641546e79827449c67ae8aeaa"
+    },
+    {
+      "id": "canvas#1",
+      "kind": "symbol",
+      "symbolId": "canvas",
+      "start": {
+        "line": 50,
+        "column": 6,
+        "offset": 887
+      },
+      "end": {
+        "line": 53,
+        "column": 3,
+        "offset": 976
+      },
+      "text": "canvas : int -\u003e int -\u003e object\n  method draw : shape -\u003e unit\n  method size : int * int\nend",
+      "hash": "8926c54abe90637321fd29192ac3ca2cb83597cede81bf0742f8ba3d23a3913f"
+    },
+    {
+      "id": "drawable#1",
+      "kind": "symbol",
+      "symbolId": "drawable",
+      "start": {
+        "line": 55,
+        "column": 11,
+        "offset": 989
+      },
+      "end": {
+        "line": 57,
+        "column": 3,
+        "offset": 1041
+      },
+      "text": "drawable = object\n  method draw : canvas -\u003e unit\nend",
+      "hash": "3fcca409d8b09c29b7f9ada8636ad072dac21a39a9cd35aea3ffcc8b53bf1c18"
+    }
+  ]
+}

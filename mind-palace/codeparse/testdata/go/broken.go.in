@@ -1,0 +1,16 @@
+package broken
+
+import "fmt"
+
+// Good is parsed despite the error below.
+func Good() {
+	fmt.Println("ok")
+}
+
+func Bad( {
+	fmt.Println("never closed"
+}
+
+type After struct {
+	Field int
+}

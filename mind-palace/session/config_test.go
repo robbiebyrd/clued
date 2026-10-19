@@ -1,6 +1,7 @@
 package session
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,7 +14,7 @@ var configEnvKeys = []string{
 	"CLUED_MONGO_URL", "CLUED_DB_NAME", "CLUED_PORT", "CLUED_PROJECTS_DIR",
 	"CLUED_FILE_HISTORY_DIR", "CLUED_CLAUDE_APP_CONFIG_PATH", "CLUED_WAL_PATH",
 	"CLUED_SERVER_URL", "CLUED_SERVER_TOKEN", "CLUED_SERVER_CA_FILE", "CLUED_SERVER_INSECURE",
-	"CLUED_SERVER_KEY", "CLUED_CAPTURE_CONTENT",
+	"CLUED_SERVER_KEY", "CLUED_CAPTURE_CONTENT", "CLUED_CODE_SYNC", "CLUED_CODE_SYNC_MAX_FILE_BYTES",
 	"CLUED_MEMORY_ENGINE", "CLUED_MEMORY_BUDGET",
 }
 
@@ -327,7 +328,8 @@ func TestLoadConfigOldKeysOnlyLoadsIdentically(t *testing.T) {
 		WalPath:             filepath.Join(dir, "events.wal"),
 		TokenCache:          filepath.Join(dir, "server-token.json"),
 		// Keys added later take their defaults.
-		Memory: MemoryConfig{Engine: "extract", Model: "haiku", MaxRunsPerDay: 20, MinPrompts: 2, BudgetTokens: 1500},
+		CodeSyncMaxFileBytes: DefaultCodeSyncMaxFileBytes,
+		Memory:               MemoryConfig{Engine: "extract", Model: "haiku", MaxRunsPerDay: 20, MinPrompts: 2, BudgetTokens: 1500},
 	}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("LoadConfig = %+v\nwant        %+v", cfg, want)
@@ -362,6 +364,143 @@ func TestLoadConfigCaptureContent(t *testing.T) {
 	t.Setenv("CLUED_CAPTURE_CONTENT", "true")
 	if cfg := LoadConfig(off); !cfg.CapturesContent() {
 		t.Error("CLUED_CAPTURE_CONTENT=true did not override the file")
+	}
+}
+
+func TestLoadConfigCodeSyncDefaults(t *testing.T) {
+	cleanEnv(t)
+	dir := t.TempDir()
+	cfg := LoadConfig(writeConfig(t, dir, "config.json", `{"serverUrl": "https://clued.example"}`))
+	if cfg.CodeSync != nil || cfg.CodeSyncEnabled() {
+		t.Errorf("unset codeSync: %v, enabled %v; want nil and off", cfg.CodeSync, cfg.CodeSyncEnabled())
+	}
+	if cfg.CodeSyncMaxFileBytes != DefaultCodeSyncMaxFileBytes || DefaultCodeSyncMaxFileBytes != 1048576 {
+		t.Errorf("codeSyncMaxFileBytes = %d, want 1048576", cfg.CodeSyncMaxFileBytes)
+	}
+	if cfg.CodeSyncExclude != nil {
+		t.Errorf("codeSyncExclude = %v, want none", cfg.CodeSyncExclude)
+	}
+	// A non-positive cap in the file means the default.
+	cfg = LoadConfig(writeConfig(t, dir, "zero.json", `{"codeSyncMaxFileBytes": -5}`))
+	if cfg.CodeSyncMaxFileBytes != DefaultCodeSyncMaxFileBytes {
+		t.Errorf("negative cap loaded as %d", cfg.CodeSyncMaxFileBytes)
+	}
+}
+
+func TestLoadConfigCodeSyncFromFile(t *testing.T) {
+	cleanEnv(t)
+	dir := t.TempDir()
+	p := writeConfig(t, dir, "config.json", `{
+		"serverUrl": "https://clued.example",
+		"codeSync": true,
+		"codeSyncMaxFileBytes": 2048,
+		"codeSyncExclude": ["gen/**", "*.pb.go"]
+	}`)
+	cfg := LoadConfig(p)
+	if !cfg.CodeSyncEnabled() {
+		t.Error("codeSync true in remote mode: not enabled")
+	}
+	if cfg.CodeSyncMaxFileBytes != 2048 {
+		t.Errorf("codeSyncMaxFileBytes = %d, want 2048", cfg.CodeSyncMaxFileBytes)
+	}
+	if !reflect.DeepEqual(cfg.CodeSyncExclude, []string{"gen/**", "*.pb.go"}) {
+		t.Errorf("codeSyncExclude = %v", cfg.CodeSyncExclude)
+	}
+	off := LoadConfig(writeConfig(t, dir, "off.json", `{"serverUrl": "https://clued.example", "codeSync": false}`))
+	if off.CodeSync == nil || off.CodeSyncEnabled() {
+		t.Error("codeSync false: enabled")
+	}
+}
+
+func TestLoadConfigCodeSyncEnv(t *testing.T) {
+	cleanEnv(t)
+	dir := t.TempDir()
+	p := writeConfig(t, dir, "config.json", `{"serverUrl": "https://clued.example", "codeSync": false, "codeSyncMaxFileBytes": 2048}`)
+	t.Setenv("CLUED_CODE_SYNC", "true")
+	t.Setenv("CLUED_CODE_SYNC_MAX_FILE_BYTES", "4096")
+	cfg := LoadConfig(p)
+	if !cfg.CodeSyncEnabled() || cfg.CodeSyncMaxFileBytes != 4096 {
+		t.Errorf("env overrides: enabled %v, cap %d; want true and 4096", cfg.CodeSyncEnabled(), cfg.CodeSyncMaxFileBytes)
+	}
+	t.Setenv("CLUED_CODE_SYNC", "0")
+	if cfg := LoadConfig(p); cfg.CodeSyncEnabled() {
+		t.Error("CLUED_CODE_SYNC=0 did not turn code sync off")
+	}
+	// Unparsable values are ignored, as for the other overrides.
+	t.Setenv("CLUED_CODE_SYNC", "maybe")
+	t.Setenv("CLUED_CODE_SYNC_MAX_FILE_BYTES", "-1")
+	if cfg := LoadConfig(p); cfg.CodeSyncEnabled() || cfg.CodeSyncMaxFileBytes != 2048 {
+		t.Errorf("bad env values: enabled %v, cap %d; want the file's false and 2048", cfg.CodeSyncEnabled(), cfg.CodeSyncMaxFileBytes)
+	}
+}
+
+func TestCodeSyncEnabled(t *testing.T) {
+	on, off := true, false
+	for _, tc := range []struct {
+		name string
+		cfg  Config
+		want bool
+	}{
+		{"unset", Config{ServerURL: "https://x"}, false},
+		{"off", Config{ServerURL: "https://x", CodeSync: &off}, false},
+		{"on", Config{ServerURL: "https://x", CodeSync: &on}, true},
+		{"on, captureContent unset", Config{ServerURL: "https://x", CodeSync: &on, CaptureContent: nil}, true},
+		{"on, captureContent true", Config{ServerURL: "https://x", CodeSync: &on, CaptureContent: &on}, true},
+		{"on, captureContent false", Config{ServerURL: "https://x", CodeSync: &on, CaptureContent: &off}, false},
+		{"on, local mode", Config{CodeSync: &on}, false},
+	} {
+		if got := tc.cfg.CodeSyncEnabled(); got != tc.want {
+			t.Errorf("%s: CodeSyncEnabled() = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestLoadConfigCaptureContentFalseTurnsCodeSyncOff(t *testing.T) {
+	cleanEnv(t)
+	p := writeConfig(t, t.TempDir(), "config.json", `{"serverUrl": "https://clued.example", "codeSync": true, "captureContent": false}`)
+	if cfg := LoadConfig(p); cfg.CodeSyncEnabled() {
+		t.Error("captureContent false left code sync on")
+	}
+	t.Setenv("CLUED_CAPTURE_CONTENT", "true")
+	if cfg := LoadConfig(p); !cfg.CodeSyncEnabled() {
+		t.Error("CLUED_CAPTURE_CONTENT=true: code sync still off")
+	}
+}
+
+func TestValidPulledValue(t *testing.T) {
+	for _, tc := range []struct {
+		key  string
+		v    any
+		want bool
+	}{
+		{"captureContent", false, true},
+		{"captureContent", "no", false},
+		{"codeSync", true, true},
+		{"codeSync", "yes", false},
+		{"codeSync", 1.0, false},
+		{"codeSyncMaxFileBytes", 2048.0, true},
+		{"codeSyncMaxFileBytes", json.Number("2048"), true},
+		{"codeSyncMaxFileBytes", 0.0, false},
+		{"codeSyncMaxFileBytes", -1.0, false},
+		{"codeSyncMaxFileBytes", 1.5, false},
+		{"codeSyncMaxFileBytes", "2048", false},
+		{"codeSyncMaxFileBytes", json.Number("1.5"), false},
+		{"codeSyncExclude", []any{"gen/**", "*.pb.go"}, true},
+		{"codeSyncExclude", []any{}, true},
+		{"codeSyncExclude", []any{"gen/**", 3.0}, false},
+		{"codeSyncExclude", "gen/**", false},
+		{"excludePaths", "anything", true},
+	} {
+		if got := ValidPulledValue(tc.key, tc.v); got != tc.want {
+			t.Errorf("ValidPulledValue(%q, %#v) = %v, want %v", tc.key, tc.v, got, tc.want)
+		}
+	}
+	// What a valid pull writes loads back.
+	doc, _ := json.Marshal(map[string]any{"codeSync": true, "codeSyncMaxFileBytes": 2048.0, "codeSyncExclude": []any{"gen/**"}})
+	cleanEnv(t)
+	cfg := LoadConfig(writeConfig(t, t.TempDir(), "config.json", string(doc)))
+	if cfg.CodeSync == nil || !*cfg.CodeSync || cfg.CodeSyncMaxFileBytes != 2048 || len(cfg.CodeSyncExclude) != 1 {
+		t.Errorf("pulled values loaded as %v %d %v", cfg.CodeSync, cfg.CodeSyncMaxFileBytes, cfg.CodeSyncExclude)
 	}
 }
 

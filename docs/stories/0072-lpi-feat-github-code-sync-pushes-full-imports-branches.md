@@ -3,11 +3,13 @@ id: 0072-lpi
 title: 'GitHub code sync: pushes, full imports, branches'
 purpose: Keeps the GitHub-backed worktree (base and branch layers) current from pushes.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-19T18:06:33.866Z"
-updated: "2026-10-19T18:28:01.273Z"
+updated: "2026-10-19T19:40:41.948Z"
+started: "2026-10-19T19:26:20.295Z"
+completed: "2026-10-19T19:40:41.948Z"
 tags:
   - plan-0011-gha
   - wave-5
@@ -33,17 +35,17 @@ links:
     - ["0011-gha", "included", ["2.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # GitHub code sync: pushes, full imports, branches
@@ -84,9 +86,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./ghsync/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./ghsync/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./ghsync/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./ghsync/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -94,3 +96,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/ghsync/code_test.go` - against `ghapptest.Fake` and `memcode`
 
 ## Work Log
+
+### 2026-10-19T19:40:15.859Z - GitHub code sync (plan 0011 §2.2). ghsync/code.go: StateStore port + MemState (per-target repo state: stored heads, last pushes, OpenPRs set from events.go, config/slug/docs dirs, docs commit; heads re-seeded from the code store's change log when state is lost); push via compare with GitHub blob ids (renames = delete+upsert, modes/sizes from directory tree listings), before-tip rule with full-import fallback on force push, zero before, stale/unknown head, non-ahead or truncated compare; full import from recursive trees with subtree walk when truncated (Full: true, submodules as 160000 without content); branch policy via EffectivePolicy/Select with OpenPRs.Mark (inactive branches keep their tree, deleted branches RemoveRef, daily sweep); filters: codefilter.Decide (deny list, size cap, binary), built-in + account redaction (Options.Redact), repository codeSync: false / claim CodeSync false / an unparseable config keep code out; remote.project picks the slug. Extra assignments (authorised by the coordinator): (1) ghsync.go: GitHubApp = *ghapp.App, CodeStore = code.Store, new Options Redact, State, MaxFileBytes, Lease, PollInterval (no Activity hook: after 0073 merged, Handle calls AppendActivity and SyncDocs uses ActivityDocsRecorder directly). (2) ghsync/service.go (+service_test.go): Handle (push/create/delete/pull_request/repository → code; default-branch pushes touching docs → SyncDocs through ClientFetcher, a ghapp-backed DocFetcher; installation created / repositories added → import jobs; activity via AppendActivity), Work/RunPending/RunOne (Done; Pause on ghapp.RetryAfter; Retry with Backoff; drop unclaimed/404/bad deliveries/invalid), Reconcile (reconcile + sweep jobs for each claimed repo of each installation; reconcile re-imports drifted refs, drops deleted ones, re-syncs docs), EnqueueImport for the host after a claim. (3) config/config.go(+test): optional github: section (branches, activeDays, maxBranches) validated, so a repository with github: keys loads under KnownFields. Deviations: branches never pushed while installed have no LastPush (ghapp.Branch carries no date), so an import under 'active' selects only the default branch and branches with open PRs; monorepo imports are not split into jobs per directory. Tests: ghsync 53 tests pass with -race (coverage 85.4%), config passes; gofmt/vet/build and go test -race ./... clean.

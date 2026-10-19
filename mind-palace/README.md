@@ -370,10 +370,13 @@ mind-palace session backfill
 mind-palace session daemon [--addr host:port]   # POST /event, GET /health; default 127.0.0.1:8085
 mind-palace session mcp                         # session tools only, over stdio
 mind-palace session whoami                      # remote mode: the token's name, account and projects
-mind-palace hook relay                          # remote mode, run by the hooks: store one event, push the transcript delta
-mind-palace server run [--addr] [--tls-cert --tls-key | --behind-proxy]   # the clued server
+mind-palace hook relay                          # remote mode, run by the hooks: store one event, push the transcript delta, sync the code (codeSync)
+mind-palace session code-sync [--full] [--dry-run] [--path DIR]   # remote mode: sync a worktree's code now, no budget
+mind-palace session code-sync status [--path DIR]                 # the local code sync state per worktree
+mind-palace server run [--addr] [--tls-cert --tls-key | --behind-proxy] [--code-store mongo|memory|off] [--graph redis://…|memory]   # the clued server
+mind-palace server graph rebuild|status <project>… [--check [--repair]]  # the code graphs of a running server's projects
 mind-palace server token create|list|revoke|grant                        # its bearer tokens
-mind-palace server init [--runtime] [--host] [--force] [--new-ca]        # the container stack under ~/.clued-server
+mind-palace server init [--runtime] [--host] [--force] [--new-ca] [--falkordb-image]   # the container stack under ~/.clued-server
 mind-palace server trust [--remove] [--dry-run]                          # trust the stack's CA on this machine
 ```
 
@@ -382,12 +385,15 @@ mind-palace server trust [--remove] [--dry-run]                          # trust
 `serverInsecure`), the client keeps no MongoDB and runs no daemon: the
 session store is `session/remotesession` over a clued server, each hook runs
 `hook relay` (`session/ingest` plus `session/catchup`, state under
-`<config dir>/catchup/`, failures in `relay.log`), and the plan and story
+`<config dir>/catchup/`, failures in `relay.log`) and, with `codeSync` on,
+`session/codesync` (state under `<config dir>/codesync/`), and the plan and story
 services opened through `clientcfg` add the server as the `clued-server`
 store (secondary, or primary for a project a clued cloud workspace shares,
 listed by `GET /api/v1/me/workspaces`: reads, `If-Match` writes and claim
-leases then go to the server). `server run` serves `server/sessionapi`, `server/storeapi` and
-`/api/v1/whoami` behind `server/auth`. The repository README's "Remote mode"
+leases then go to the server). `server run` serves `server/sessionapi`, `server/storeapi`,
+`server/codeapi` (with a code store, `--code-store`; its graph read routes
+and the `codeindex` indexer with `--graph`) and `/api/v1/whoami` behind
+`server/auth`. The repository README's "Remote mode"
 section and `docs/server.md` describe setting it up.
 
 The daemon stores each `POST /event` (store writes happen off the request
@@ -417,7 +423,11 @@ order may differ from the original file.
 plus `search_semantic` when the tools are given an embedder
 (`sessionmcp.Tools.Embedder`, `server.CluedOptions.Semantic`): the port is
 `session.Embedder`, `session/embed/voyage` the Voyage AI adapter and
-`enrichers.Embedding` the enricher that stores the vectors.
+`enrichers.Embedding` the enricher that stores the vectors. In remote mode,
+when the server indexes the project, `code_search`, `code_symbol`,
+`code_neighbors`, `code_outline` and `code_context` are listed too
+(`session/sessionmcp/code_tools.go` over `code/remotecode`; see
+`docs/code-graph.md`).
 `session mcp` serves just these; `mind-palace mcp` and `mind-palace serve`
 expose them next to the plan and story tools.
 
@@ -448,12 +458,28 @@ the tools use, the port has hourly aggregates for analytics
 | `store`, `store/*` | Kind-aware store interface, fan-out, sync, plugins |
 | `store/remotestore` | The `clued` storage plugin: plans and stories on a clued server, one project per store instance, over `remote` against `server/storeapi` |
 | `events` | In-process event bus (filter by kind and id) |
+| `code` | Collected code: the model (`Blob`, `Entry`, `Worktree`, `Change`, `SessionSeen`), the `code.Store` port (writes, plus the reads only tests and the indexer use), the validators (`ValidPath`, `ValidSHA256`, `ValidGitOID`, `ValidWorktreeID`, `ValidRef`) and the `Canonical*` copies stores put into query filters |
+| `code/codetest` | The conformance suite every `code.Store` passes (`codetest.Run`) |
+| `code/memcode`, `code/mongocode` | The in-memory and MongoDB code stores (`<prefix>code_blobs`, `code_trees`, `code_worktrees`, `code_changes`, `code_events`, `code_counters`; transactional commits on a replica set, idempotent ordered writes otherwise) |
+| `code/remotecode` | `code.Store` over a clued server's `server/codeapi` routes for the collector, with typed refusals (`ErrUnsupported`, `ErrForbidden`, `ErrConflict`, `ErrTooLarge`, `ErrQuota`) and `Capabilities`; the client of the graph read routes (`Search`, `Symbol`, `Neighbors`, `Outline`, `Context`; `ErrUnavailable`, `ErrUnknownSession`) |
+| `codefilter` | What of a repository may leave for the code store, file by file (`Decide`: skip, metadata only, content): `codeSyncExclude`, `excludePaths`, the built-in deny list of secret files (`Denied`), the size cap and binary detection; shared by the client collector and the server-side GitHub sync |
+| `codeparse` | One file version to its facts (`Facts`: symbols, imports, unresolved references, chunks): `Detect` (extension, filename, `.h` by content and neighbours), the tree-sitter `Engine` on gotreesitter (pure Go, no cgo) with one `queries/<lang>/profile.yaml` and `tags.scm` per language and its grammars registered in `grammars/` (`queries/README.md` lists the captures and the files a language adds), structural chunks (≤ 1,500 tokens, signature repeated), `MarkdownFacts` and `TextFacts` (60-line windows), the 2 s parse timeout, the `Cache` port keyed by SHA-256 and facts version (`Cached`, `NewMemoryCache`) |
+| `codeparse/mongocache` | The MongoDB parse cache (`code_parses`, facts stored as their JSON, lazy invalidation by version, optional TTL) |
+| `codegraph` | The code graph port: `Opener`, `Graph` (`ApplyFile`, `RemoveFile`, `SetHidden`, `PutEdges`, `DropLayer`, `Drop`, and the reads `FindSymbols`, `Symbol`, `Neighbors`, `Outline`, `SearchText` over a `View`), the schema (labels, edge types, confidences, indexes), layer ids and `hiddenBy` visibility |
+| `codegraph/memgraph`, `codegraph/falkor` | The in-memory graph and FalkorDB over the Redis protocol (own client, standard library, constant Cypher with parameters, one graph per namespaced key); both pass `codegraph/codegraphtest` (FalkorDB with `MIND_PALACE_TEST_FALKORDB_URL`) |
+| `codeindex` | The indexer `Service`: replays each project's `code.Store` change log in batches under a lease and cursor (`MemCursors`, `MongoCursors`: `code_index_cursors`), selects the base, branch layers and session overlays (`Select`, `Diff`), writes files through an `Applier` (`FileApplier`, `NewResolver`), drops idle overlays, `Rebuild`, `Purge`, `Status`, `Check`/`RunChecks` |
+| `codeindex/resolvers` | One rule set per language family (`Resolver`: package keys, import scopes, visibility), registered from `<family>.go`; the engine in `codeindex/resolve.go` walks the scopes and writes edges with a confidence |
+| `eval/codesearch` | The evaluation of the code graph tools: tasks and ground truth (`tasks.yaml`), the pinned corpus (`corpus.yaml`), the three arms, the runner reading tokens, turns and tool calls from clued's capture, scoring and the report; `scripts/eval-codesearch.sh` runs it (`CLUED_EVAL=1`) |
+| `ghapp` | GitHub App plumbing on the standard library: `App` (RS256 JWT, `InstallationToken` cached until five minutes before expiry, `InstallationClient`, `AppClient`), `Verify`/`Sign` for `X-Hub-Signature-256` (HMAC-SHA256, `hmac.Equal`, `MaxWebhookBody` 25 MiB), a read-only REST `Client` (installations, repositories, branches, open pulls, compare, trees, blobs, contents) with retries, `RateLimitError` and `RetryAfter`, and typed webhook events (`ParseEvent`); never logs a key, token or payload |
+| `ghapp/ghapptest` | An in-process fake GitHub over `httptest` with real git object ids: installations and tokens, repositories, branches, truncated trees, blobs, compare, contents, open pulls, injected failures and signed webhook deliveries |
+| `ghsync` | The GitHub App sync: `Service` (`Handle`, `Work`, `RunOne`, `Reconcile`, `EnqueueImport`, `SyncDocs`) over the `Claims`, `Jobs` (`NewMemJobs`) and `StateStore` (`NewMemState`) ports; pushes, full imports, branch deletes and the nightly reconcile into the GitHub-backed worktree `gh_<repository id>` (clean, pushed entries with GitHub's blob ids, `codefilter` and redaction on the server), the branch policy (`BranchPolicy`, `EffectivePolicy`, `ParseRepoConfig` for `github.*`), plans and stories from the default branch (`store.ConflictNewer`, archive on delete) and the activity log (`ActivityEvents`, `AppendActivity`); see `docs/github-app.md` |
 | `server/*` | HTTP, WebSocket and MCP entrypoints, and the clued server (`server/clued.go`, `mind-palace server run`) |
 | `server/auth` | Bearer tokens for the clued server: hashed token file managed by `server token`, constant-time compare, mtime reload, 401/403 in the httpapi envelope |
 | `server/sessionapi` | The `session.Store` port over HTTP (`/api/v1/session/…`), every route scoped to the token's account |
 | `server/storeapi` | The `store.Store` port over HTTP (`/api/v1/projects/{project}/store/…`); the raw document transport behind `store/remotestore`, with `ETag`/`If-Match` preconditions (412), an optional `BeforePut` hook and the 30 s document lease (`…/{id}/lock`, `…/unlock`) |
+| `server/codeapi` | The write-only code transport under `/api/v1/projects/{project}/code/` (`manifest`, `blobs/{sha256}`, `worktrees/{id}`, `…/changes`, `…/sessions/{session_id}`, `capabilities`): hash verification, inline validation, owner and session stamped from the token, another account's worktree answered as unknown (404), and the composer's `BeforeWrite` refusals (403 `forbidden`, 413 `quota`); and the graph read routes under `…/code/graph/` (`MountGraph`: `search`, `symbol`, `neighbors`, `outline`, `context`), resolving the caller's own view, token-capped, `ready`/`indexing`/`empty`, 503 `unavailable` |
 | `server/projects` | Project slugs derived from a git origin and one `store.Store` per project built from the server's storage definitions |
-| `server/stack` | The container stack `mind-palace server init` generates (nginx front-end, clued server, MongoDB) as a Docker Compose file or, for Apple Containers, as start and stop scripts with a launchd agent; its nginx and storage configs, a private name-constrained CA with a server certificate, the first token, and the trust-store plan behind `server trust` |
+| `server/stack` | The container stack `mind-palace server init` generates (nginx front-end, clued server, MongoDB, FalkorDB with its generated password in 0600 `falkordb.password`, `falkordb.env` and `graph.env`) as a Docker Compose file or, for Apple Containers, as start and stop scripts with a launchd agent; its nginx and storage configs, a private name-constrained CA with a server certificate, the first token, and the trust-store plan behind `server trust` |
 | `remote` | The HTTP client the remote adapters share: base URL, bearer token, CA file, the plain-`http://`-off-loopback refusal, envelope decoding into typed errors |
 | `clientcfg` | Opens the plan and story services as the client does: the repository's config plus, in remote mode, the `clued-server` store as a secondary store, or as the primary for a shared project (`Remote.Shared`, from `GET /api/v1/me/workspaces`); resolves the project slug (`remote.project`, git origin, directory name) |
 | `session`, `session/*` | Claude Code session capture: config (local and remote mode), MongoDB and in-memory stores, daemon, transcript tailing, backfill, enrichers, queries, restore and the session MCP tools |
@@ -465,6 +491,7 @@ the tools use, the port has hourly aggregates for analytics
 | `session/export` | `session export` / `export_session` (Markdown, HTML, JSONL, zip; redacted by default) and `session import` |
 | `session/redact` | Capture-time redaction (`redactAtCapture`, `redactPatterns`), exclusion (`excludePaths`) and metadata-only capture (`captureContent: false`, `session.WithoutContent`) as a `session.Store` decorator every client store is wrapped in, so no write path stores a secret |
 | `session/ingest` | Hook-event bookkeeping shared by the daemon and `hook relay`: session tracking, stamping, store write, WAL fallback |
+| `session/codesync` | Code sync, run by `hook relay` and `session code-sync`: resolves the worktree (id, ref, HEAD, upstream, default branch, project), enumerates with git, filters through `codefilter`, redacts and hashes changed files, uploads missing blobs and commits the change through `code/remotecode` within a budget, with state and lock files per worktree under `<config dir>/codesync/` and 24-hour back-offs on refusals |
 | `session/catchup` | One-shot replacement for the tailers: pushes a session's transcript delta and changed artifact files, with state and lock files per session |
 | `session/embed/voyage` | The Voyage AI `session.Embedder` (int8 output at the configured dimension, plain `net/http`; no error carries the key) for the `embedding` enricher and `search_semantic` |
 | `session/remotesession` | `session.Store` over a clued server (one HTTP call per port method to `server/sessionapi`); the query service, restore, backfill and the MCP tools run unchanged on it |

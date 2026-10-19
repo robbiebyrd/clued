@@ -1,0 +1,1087 @@
+{
+  "lang": "lisp",
+  "dialect": "elisp",
+  "symbols": [
+    {
+      "id": "tidy",
+      "kind": "var",
+      "name": "tidy",
+      "qualName": "tidy",
+      "signature": "(defgroup tidy nil",
+      "doc": "Keep buffers tidy.",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 268
+      },
+      "end": {
+        "line": 16,
+        "column": 18,
+        "offset": 328
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-ignored-modes",
+      "kind": "var",
+      "name": "tidy-ignored-modes",
+      "qualName": "tidy-ignored-modes",
+      "signature": "(defcustom tidy-ignored-modes '(markdown-mode)",
+      "doc": "Major modes `tidy-mode' leaves alone.",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 330
+      },
+      "end": {
+        "line": 20,
+        "column": 25,
+        "offset": 444
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy--changes",
+      "kind": "var",
+      "name": "tidy--changes",
+      "qualName": "tidy--changes",
+      "signature": "(defvar tidy--changes 0",
+      "doc": "How many lines the last run changed.",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 446
+      },
+      "end": {
+        "line": 23,
+        "column": 41,
+        "offset": 511
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy--last-run",
+      "kind": "var",
+      "name": "tidy--last-run",
+      "qualName": "tidy--last-run",
+      "signature": "(defvar-local tidy--last-run nil \"When this buffer was last tidied.\")",
+      "doc": "When this buffer was last tidied.",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 513
+      },
+      "end": {
+        "line": 25,
+        "column": 69,
+        "offset": 582
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-version",
+      "kind": "const",
+      "name": "tidy-version",
+      "qualName": "tidy-version",
+      "signature": "(defconst tidy-version \"1.2.0\")",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 584
+      },
+      "end": {
+        "line": 27,
+        "column": 31,
+        "offset": 615
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-highlight",
+      "kind": "var",
+      "name": "tidy-highlight",
+      "qualName": "tidy-highlight",
+      "signature": "(defface tidy-highlight '((t :inherit warning))",
+      "doc": "Face of the lines tidy changed.",
+      "start": {
+        "line": 29,
+        "column": 0,
+        "offset": 617
+      },
+      "end": {
+        "line": 30,
+        "column": 36,
+        "offset": 701
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-error",
+      "kind": "class",
+      "name": "tidy-error",
+      "qualName": "tidy-error",
+      "signature": "(define-error 'tidy-error \"Tidy failed\" 'user-error)",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 703
+      },
+      "end": {
+        "line": 32,
+        "column": 52,
+        "offset": 755
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-report",
+      "kind": "struct",
+      "name": "tidy-report",
+      "qualName": "tidy-report",
+      "signature": "(cl-defstruct (tidy-report (:include tidy-base) (:constructor tidy-report-create))",
+      "doc": "What one run changed.",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 757
+      },
+      "end": {
+        "line": 37,
+        "column": 16,
+        "offset": 890
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-report:lines",
+      "kind": "field",
+      "name": "lines",
+      "qualName": "tidy-report:lines",
+      "signature": "lines",
+      "start": {
+        "line": 36,
+        "column": 2,
+        "offset": 868
+      },
+      "end": {
+        "line": 36,
+        "column": 7,
+        "offset": 873
+      },
+      "parent": "tidy-report",
+      "exported": true
+    },
+    {
+      "id": "tidy-report:seconds",
+      "kind": "field",
+      "name": "seconds",
+      "qualName": "tidy-report:seconds",
+      "signature": "(seconds 0.0)",
+      "start": {
+        "line": 37,
+        "column": 2,
+        "offset": 876
+      },
+      "end": {
+        "line": 37,
+        "column": 15,
+        "offset": 889
+      },
+      "parent": "tidy-report",
+      "exported": true
+    },
+    {
+      "id": "tidy-rule",
+      "kind": "class",
+      "name": "tidy-rule",
+      "qualName": "tidy-rule",
+      "signature": "(defclass tidy-rule (eieio-named tidy-base)",
+      "doc": "One clean-up rule.",
+      "start": {
+        "line": 39,
+        "column": 0,
+        "offset": 892
+      },
+      "end": {
+        "line": 41,
+        "column": 23,
+        "offset": 1004
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-rule:pattern",
+      "kind": "field",
+      "name": "pattern",
+      "qualName": "tidy-rule:pattern",
+      "signature": "(pattern :initarg :pattern :type string)",
+      "start": {
+        "line": 40,
+        "column": 3,
+        "offset": 939
+      },
+      "end": {
+        "line": 40,
+        "column": 43,
+        "offset": 979
+      },
+      "parent": "tidy-rule",
+      "exported": true
+    },
+    {
+      "id": "tidy-apply",
+      "kind": "function",
+      "name": "tidy-apply",
+      "qualName": "tidy-apply",
+      "signature": "(cl-defgeneric tidy-apply (rule)",
+      "doc": "Apply RULE to the current buffer.",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 1006
+      },
+      "end": {
+        "line": 44,
+        "column": 38,
+        "offset": 1077
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-apply~2",
+      "kind": "method",
+      "name": "tidy-apply",
+      "qualName": "tidy-apply",
+      "signature": "(cl-defmethod tidy-apply ((rule tidy-rule))",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 1079
+      },
+      "end": {
+        "line": 50,
+        "column": 27,
+        "offset": 1253
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-trim-buffer",
+      "kind": "function",
+      "name": "tidy-trim-buffer",
+      "qualName": "tidy-trim-buffer",
+      "signature": "(defun tidy-trim-buffer ()",
+      "doc": "Trims trailing white space; returns the number of lines changed.",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1323
+      },
+      "end": {
+        "line": 63,
+        "column": 32,
+        "offset": 1616
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy--trim-line",
+      "kind": "function",
+      "name": "tidy--trim-line",
+      "qualName": "tidy--trim-line",
+      "signature": "(defsubst tidy--trim-line ()",
+      "doc": "Delete the white space at the end of the line.",
+      "start": {
+        "line": 65,
+        "column": 0,
+        "offset": 1618
+      },
+      "end": {
+        "line": 67,
+        "column": 77,
+        "offset": 1775
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-with-report",
+      "kind": "macro",
+      "name": "tidy-with-report",
+      "qualName": "tidy-with-report",
+      "signature": "(defmacro tidy-with-report (\u0026rest body)",
+      "doc": "Run BODY and message what changed.",
+      "start": {
+        "line": 69,
+        "column": 0,
+        "offset": 1777
+      },
+      "end": {
+        "line": 73,
+        "column": 44,
+        "offset": 1943
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy--report",
+      "kind": "function",
+      "name": "tidy--report",
+      "qualName": "tidy--report",
+      "signature": "(cl-defun tidy--report (seconds \u0026key (verbose t))",
+      "doc": "Report SECONDS spent.",
+      "start": {
+        "line": 75,
+        "column": 0,
+        "offset": 1945
+      },
+      "end": {
+        "line": 78,
+        "column": 63,
+        "offset": 2100
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy--maybe-run",
+      "kind": "function",
+      "name": "tidy--maybe-run",
+      "qualName": "tidy--maybe-run",
+      "signature": "(defun tidy--maybe-run ()",
+      "start": {
+        "line": 80,
+        "column": 0,
+        "offset": 2102
+      },
+      "end": {
+        "line": 83,
+        "column": 37,
+        "offset": 2284
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-mode",
+      "kind": "function",
+      "name": "tidy-mode",
+      "qualName": "tidy-mode",
+      "signature": "(define-minor-mode tidy-mode",
+      "doc": "Tidy the buffer before saving.",
+      "start": {
+        "line": 85,
+        "column": 0,
+        "offset": 2286
+      },
+      "end": {
+        "line": 90,
+        "column": 57,
+        "offset": 2501
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy-log-mode",
+      "kind": "function",
+      "name": "tidy-log-mode",
+      "qualName": "tidy-log-mode",
+      "signature": "(define-derived-mode tidy-log-mode special-mode \"Tidy-Log\"",
+      "doc": "Mode of the tidy log buffer.",
+      "start": {
+        "line": 92,
+        "column": 0,
+        "offset": 2503
+      },
+      "end": {
+        "line": 93,
+        "column": 33,
+        "offset": 2595
+      },
+      "exported": true
+    },
+    {
+      "id": "tidy~2",
+      "kind": "function",
+      "name": "tidy",
+      "qualName": "tidy",
+      "signature": "(defalias 'tidy #'tidy-mode)",
+      "start": {
+        "line": 95,
+        "column": 0,
+        "offset": 2597
+      },
+      "end": {
+        "line": 95,
+        "column": 28,
+        "offset": 2625
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "cl-lib",
+      "kind": "require",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 163
+      }
+    },
+    {
+      "spec": "subr-x",
+      "kind": "require",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 181
+      }
+    },
+    {
+      "spec": "rx",
+      "kind": "require",
+      "start": {
+        "line": 10,
+        "column": 19,
+        "offset": 218
+      }
+    },
+    {
+      "spec": "magit",
+      "names": [
+        "magit-status"
+      ],
+      "kind": "autoload",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 234
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "user-error",
+      "kind": "extends",
+      "start": {
+        "line": 32,
+        "column": 41,
+        "offset": 744
+      },
+      "enclosing": "tidy-error"
+    },
+    {
+      "name": "tidy-base",
+      "kind": "extends",
+      "start": {
+        "line": 34,
+        "column": 37,
+        "offset": 794
+      },
+      "enclosing": "tidy-report"
+    },
+    {
+      "name": "eieio-named",
+      "kind": "extends",
+      "start": {
+        "line": 39,
+        "column": 21,
+        "offset": 913
+      },
+      "enclosing": "tidy-rule"
+    },
+    {
+      "name": "tidy-base",
+      "kind": "extends",
+      "start": {
+        "line": 39,
+        "column": 33,
+        "offset": 925
+      },
+      "enclosing": "tidy-rule"
+    },
+    {
+      "name": "tidy-rule",
+      "kind": "type",
+      "start": {
+        "line": 46,
+        "column": 32,
+        "offset": 1111
+      },
+      "enclosing": "tidy-apply~2"
+    },
+    {
+      "name": "goto-char",
+      "kind": "call",
+      "start": {
+        "line": 48,
+        "column": 5,
+        "offset": 1146
+      },
+      "enclosing": "tidy-apply~2"
+    },
+    {
+      "name": "point-min",
+      "kind": "call",
+      "start": {
+        "line": 48,
+        "column": 16,
+        "offset": 1157
+      },
+      "enclosing": "tidy-apply~2"
+    },
+    {
+      "name": "re-search-forward",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 12,
+        "offset": 1181
+      },
+      "enclosing": "tidy-apply~2"
+    },
+    {
+      "name": "oref",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 31,
+        "offset": 1200
+      },
+      "enclosing": "tidy-apply~2"
+    },
+    {
+      "name": "replace-match",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 7,
+        "offset": 1233
+      },
+      "enclosing": "tidy-apply~2"
+    },
+    {
+      "name": "goto-char",
+      "kind": "call",
+      "start": {
+        "line": 57,
+        "column": 7,
+        "offset": 1412
+      },
+      "enclosing": "tidy-trim-buffer"
+    },
+    {
+      "name": "point-min",
+      "kind": "call",
+      "start": {
+        "line": 57,
+        "column": 18,
+        "offset": 1423
+      },
+      "enclosing": "tidy-trim-buffer"
+    },
+    {
+      "name": "not",
+      "kind": "call",
+      "start": {
+        "line": 58,
+        "column": 14,
+        "offset": 1449
+      },
+      "enclosing": "tidy-trim-buffer"
+    },
+    {
+      "name": "eobp",
+      "kind": "call",
+      "start": {
+        "line": 58,
+        "column": 19,
+        "offset": 1454
+      },
+      "enclosing": "tidy-trim-buffer"
+    },
+    {
+      "name": "looking-at-p",
+      "kind": "call",
+      "start": {
+        "line": 59,
+        "column": 15,
+        "offset": 1476
+      },
+      "enclosing": "tidy-trim-buffer"
+    },
+    {
+      "name": "tidy--trim-line",
+      "kind": "call",
+      "start": {
+        "line": 61,
+        "column": 11,
+        "offset": 1539
+      },
+      "enclosing": "tidy-trim-buffer"
+    },
+    {
+      "name": "forward-line",
+      "kind": "call",
+      "start": {
+        "line": 62,
+        "column": 9,
+        "offset": 1566
+      },
+      "enclosing": "tidy-trim-buffer"
+    },
+    {
+      "name": "delete-trailing-whitespace",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 3,
+        "offset": 1701
+      },
+      "enclosing": "tidy--trim-line"
+    },
+    {
+      "name": "line-beginning-position",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 31,
+        "offset": 1729
+      },
+      "enclosing": "tidy--trim-line"
+    },
+    {
+      "name": "line-end-position",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 57,
+        "offset": 1755
+      },
+      "enclosing": "tidy--trim-line"
+    },
+    {
+      "name": "float-time",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 17,
+        "offset": 1873
+      },
+      "enclosing": "tidy-with-report"
+    },
+    {
+      "name": "tidy--report",
+      "kind": "call",
+      "start": {
+        "line": 73,
+        "column": 6,
+        "offset": 1905
+      },
+      "enclosing": "tidy-with-report"
+    },
+    {
+      "name": "-",
+      "kind": "call",
+      "start": {
+        "line": 73,
+        "column": 20,
+        "offset": 1919
+      },
+      "enclosing": "tidy-with-report"
+    },
+    {
+      "name": "float-time",
+      "kind": "call",
+      "start": {
+        "line": 73,
+        "column": 23,
+        "offset": 1922
+      },
+      "enclosing": "tidy-with-report"
+    },
+    {
+      "name": "verbose",
+      "kind": "call",
+      "start": {
+        "line": 75,
+        "column": 38,
+        "offset": 1983
+      },
+      "enclosing": "tidy--report"
+    },
+    {
+      "name": "message",
+      "kind": "call",
+      "start": {
+        "line": 78,
+        "column": 5,
+        "offset": 2042
+      },
+      "enclosing": "tidy--report"
+    },
+    {
+      "name": "memq",
+      "kind": "call",
+      "start": {
+        "line": 81,
+        "column": 10,
+        "offset": 2138
+      },
+      "enclosing": "tidy--maybe-run"
+    },
+    {
+      "name": "buffer-modified-p",
+      "kind": "call",
+      "start": {
+        "line": 82,
+        "column": 10,
+        "offset": 2189
+      },
+      "enclosing": "tidy--maybe-run"
+    },
+    {
+      "name": "tidy-with-report",
+      "kind": "call",
+      "start": {
+        "line": 82,
+        "column": 30,
+        "offset": 2209
+      },
+      "enclosing": "tidy--maybe-run"
+    },
+    {
+      "name": "tidy-trim-buffer",
+      "kind": "call",
+      "start": {
+        "line": 82,
+        "column": 48,
+        "offset": 2227
+      },
+      "enclosing": "tidy--maybe-run"
+    },
+    {
+      "name": "tidy--log",
+      "kind": "call",
+      "start": {
+        "line": 83,
+        "column": 12,
+        "offset": 2259
+      },
+      "enclosing": "tidy--maybe-run"
+    },
+    {
+      "name": "add-hook",
+      "kind": "call",
+      "start": {
+        "line": 89,
+        "column": 7,
+        "offset": 2392
+      },
+      "enclosing": "tidy-mode"
+    },
+    {
+      "name": "tidy--maybe-run",
+      "kind": "call",
+      "start": {
+        "line": 89,
+        "column": 36,
+        "offset": 2421
+      },
+      "enclosing": "tidy-mode"
+    },
+    {
+      "name": "remove-hook",
+      "kind": "call",
+      "start": {
+        "line": 90,
+        "column": 5,
+        "offset": 2449
+      },
+      "enclosing": "tidy-mode"
+    },
+    {
+      "name": "tidy--maybe-run",
+      "kind": "call",
+      "start": {
+        "line": 90,
+        "column": 37,
+        "offset": 2481
+      },
+      "enclosing": "tidy-mode"
+    },
+    {
+      "name": "special-mode",
+      "kind": "extends",
+      "start": {
+        "line": 92,
+        "column": 35,
+        "offset": 2538
+      },
+      "enclosing": "tidy-log-mode"
+    },
+    {
+      "name": "tidy-mode",
+      "kind": "call",
+      "start": {
+        "line": 95,
+        "column": 18,
+        "offset": 2615
+      },
+      "enclosing": "tidy~2"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 30,
+        "column": 36,
+        "offset": 701
+      },
+      "text": ";;; tidy-mode.el --- Keep buffers tidy  -*- lexical-binding: t -*-\n\n;;; Commentary:\n;; A minor mode that trims whitespace and reports what it changed.\n\n;;; Code:\n\n(require 'cl-lib)\n(require 'subr-x)\n(eval-when-compile (require 'rx))\n\n(autoload 'magit-status \"magit\")\n\n(defgroup tidy nil\n  \"Keep buffers tidy.\"\n  :group 'editing)\n\n(defcustom tidy-ignored-modes '(markdown-mode)\n  \"Major modes `tidy-mode' leaves alone.\"\n  :type '(repeat symbol))\n\n(defvar tidy--changes 0\n  \"How many lines the last run changed.\")\n\n(defvar-local tidy--last-run nil \"When this buffer was last tidied.\")\n\n(defconst tidy-version \"1.2.0\")\n\n(defface tidy-highlight '((t :inherit warning))\n  \"Face of the lines tidy changed.\")",
+      "hash": "9ca9a50da54c89302f5f6864632ef15784e6e0e5b293cf4028282ba448efc3e4"
+    },
+    {
+      "id": "tidy-error#1",
+      "kind": "symbol",
+      "symbolId": "tidy-error",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 703
+      },
+      "end": {
+        "line": 32,
+        "column": 52,
+        "offset": 755
+      },
+      "text": "(define-error 'tidy-error \"Tidy failed\" 'user-error)",
+      "hash": "61ae3c076f2d56a1b7993d746dbda8080a0167af9f71ce07440f5b7d1d7438f7"
+    },
+    {
+      "id": "tidy-report#1",
+      "kind": "symbol",
+      "symbolId": "tidy-report",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 757
+      },
+      "end": {
+        "line": 37,
+        "column": 16,
+        "offset": 890
+      },
+      "text": "(cl-defstruct (tidy-report (:include tidy-base) (:constructor tidy-report-create))\n  \"What one run changed.\"\n  lines\n  (seconds 0.0))",
+      "hash": "e11be5ace6b483f1fbfc1576f535ebd8efbac5296dfa559e494a28d12bd65a2a"
+    },
+    {
+      "id": "tidy-rule#1",
+      "kind": "symbol",
+      "symbolId": "tidy-rule",
+      "start": {
+        "line": 39,
+        "column": 0,
+        "offset": 892
+      },
+      "end": {
+        "line": 41,
+        "column": 23,
+        "offset": 1004
+      },
+      "text": "(defclass tidy-rule (eieio-named tidy-base)\n  ((pattern :initarg :pattern :type string))\n  \"One clean-up rule.\")",
+      "hash": "02f97abf5d0795dfe33fe489fb569f3b14f0b8cc0f980567afcd62f33d87cc02"
+    },
+    {
+      "id": "tidy-apply#1",
+      "kind": "symbol",
+      "symbolId": "tidy-apply",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 1006
+      },
+      "end": {
+        "line": 44,
+        "column": 38,
+        "offset": 1077
+      },
+      "text": "(cl-defgeneric tidy-apply (rule)\n  \"Apply RULE to the current buffer.\")",
+      "hash": "796d65f9e92015d8c0673d1d2099d9397430b0e0ce396d73490955888c580c81"
+    },
+    {
+      "id": "tidy-apply~2#1",
+      "kind": "symbol",
+      "symbolId": "tidy-apply~2",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 1079
+      },
+      "end": {
+        "line": 50,
+        "column": 27,
+        "offset": 1253
+      },
+      "text": "(cl-defmethod tidy-apply ((rule tidy-rule))\n  (save-excursion\n    (goto-char (point-min))\n    (while (re-search-forward (oref rule pattern) nil t)\n      (replace-match \"\"))))",
+      "hash": "3acb007ed4ec11699b1ca067c3181a2b1e069508c22dba632b772359cf6ec569"
+    },
+    {
+      "id": "tidy-trim-buffer#1",
+      "kind": "symbol",
+      "symbolId": "tidy-trim-buffer",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1255
+      },
+      "end": {
+        "line": 63,
+        "column": 32,
+        "offset": 1616
+      },
+      "text": ";; Trims trailing white space; returns the number of lines changed.\n(defun tidy-trim-buffer ()\n  (interactive)\n  (let ((count 0))\n    (save-excursion\n      (goto-char (point-min))\n      (while (not (eobp))\n        (when (looking-at-p \".*[ \\t]+$\")\n          (cl-incf count)\n          (tidy--trim-line))\n        (forward-line 1)))\n    (setq tidy--changes count)))",
+      "hash": "99a62d8a65e6d35e9eb830940ac84eca8c47d42f5824e70679ea06aacc50f60c"
+    },
+    {
+      "id": "tidy--trim-line#1",
+      "kind": "symbol",
+      "symbolId": "tidy--trim-line",
+      "start": {
+        "line": 65,
+        "column": 0,
+        "offset": 1618
+      },
+      "end": {
+        "line": 67,
+        "column": 77,
+        "offset": 1775
+      },
+      "text": "(defsubst tidy--trim-line ()\n  \"Delete the white space at the end of the line.\"\n  (delete-trailing-whitespace (line-beginning-position) (line-end-position)))",
+      "hash": "16da3a320e96779635c96c1414df5c0c9459171ae67a2b2dc32ae5492400cf6f"
+    },
+    {
+      "id": "tidy-with-report#1",
+      "kind": "symbol",
+      "symbolId": "tidy-with-report",
+      "start": {
+        "line": 69,
+        "column": 0,
+        "offset": 1777
+      },
+      "end": {
+        "line": 73,
+        "column": 44,
+        "offset": 1943
+      },
+      "text": "(defmacro tidy-with-report (\u0026rest body)\n  \"Run BODY and message what changed.\"\n  `(let ((start (float-time)))\n     ,@body\n     (tidy--report (- (float-time) start))))",
+      "hash": "5cd4f7b1f46e9fa9344d80da4ce9e2b8dfd42953362b3f85aa2d6f3d5b2d22ad"
+    },
+    {
+      "id": "tidy--report#1",
+      "kind": "symbol",
+      "symbolId": "tidy--report",
+      "start": {
+        "line": 75,
+        "column": 0,
+        "offset": 1945
+      },
+      "end": {
+        "line": 78,
+        "column": 63,
+        "offset": 2100
+      },
+      "text": "(cl-defun tidy--report (seconds \u0026key (verbose t))\n  \"Report SECONDS spent.\"\n  (when verbose\n    (message \"tidy: %d lines in %.2fs\" tidy--changes seconds)))",
+      "hash": "2509542e5f8eab80dd2bc71e616eb5cb5cca43a05aa315263862b26658dce2e1"
+    },
+    {
+      "id": "tidy--maybe-run#1",
+      "kind": "symbol",
+      "symbolId": "tidy--maybe-run",
+      "start": {
+        "line": 80,
+        "column": 0,
+        "offset": 2102
+      },
+      "end": {
+        "line": 83,
+        "column": 37,
+        "offset": 2284
+      },
+      "text": "(defun tidy--maybe-run ()\n  (cond ((memq major-mode tidy-ignored-modes) nil)\n        ((buffer-modified-p) (tidy-with-report (tidy-trim-buffer)))\n        (t (tidy--log \"unchanged\"))))",
+      "hash": "f03f96175ddeb591fc5d6fb963b497721c2dee285be0603a3381924e94b9e837"
+    },
+    {
+      "id": "tidy-mode#1",
+      "kind": "symbol",
+      "symbolId": "tidy-mode",
+      "start": {
+        "line": 85,
+        "column": 0,
+        "offset": 2286
+      },
+      "end": {
+        "line": 90,
+        "column": 57,
+        "offset": 2501
+      },
+      "text": "(define-minor-mode tidy-mode\n  \"Tidy the buffer before saving.\"\n  :lighter \" Tidy\"\n  (if tidy-mode\n      (add-hook 'before-save-hook #'tidy--maybe-run nil t)\n    (remove-hook 'before-save-hook #'tidy--maybe-run t)))",
+      "hash": "6e1fd35e85ec615f669335007284b1465f92bc2c4e26d0e82f52b3807d186ce9"
+    },
+    {
+      "id": "tidy-log-mode#1",
+      "kind": "symbol",
+      "symbolId": "tidy-log-mode",
+      "start": {
+        "line": 92,
+        "column": 0,
+        "offset": 2503
+      },
+      "end": {
+        "line": 93,
+        "column": 33,
+        "offset": 2595
+      },
+      "text": "(define-derived-mode tidy-log-mode special-mode \"Tidy-Log\"\n  \"Mode of the tidy log buffer.\")",
+      "hash": "605924dbac4cc6f82de4cb79fb3d66db929914a12082100fd4faebddd9b563b0"
+    },
+    {
+      "id": "tidy~2#1",
+      "kind": "symbol",
+      "symbolId": "tidy~2",
+      "start": {
+        "line": 95,
+        "column": 0,
+        "offset": 2597
+      },
+      "end": {
+        "line": 95,
+        "column": 28,
+        "offset": 2625
+      },
+      "text": "(defalias 'tidy #'tidy-mode)",
+      "hash": "39aec511def8b083f9dde5b272774eb3e7a971a4ddcf69a04c649b265fe75d18"
+    },
+    {
+      "id": "L97#1",
+      "kind": "window",
+      "start": {
+        "line": 97,
+        "column": 0,
+        "offset": 2627
+      },
+      "end": {
+        "line": 98,
+        "column": 26,
+        "offset": 2674
+      },
+      "text": "(provide 'tidy-mode)\n;;; tidy-mode.el ends here",
+      "hash": "a9cd34dddbbbd08e2022f02d152f334a9f48fdaace36565d0a949d9097738a24"
+    }
+  ]
+}

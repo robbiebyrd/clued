@@ -1,10 +1,13 @@
 // Package stack prepares the directory a container deployment of the clued
-// server runs from: the clued server, its MongoDB and, by default, an nginx
-// front-end that terminates TLS, as a Docker Compose file (RuntimeCompose)
+// server runs from: the clued server, its MongoDB, a FalkorDB for the code
+// graph and, by default, an nginx front-end that terminates TLS, as a Docker Compose file (RuntimeCompose)
 // or as start and stop scripts with a launchd agent for Apple Containers
 // (RuntimeApple, apple.go); the nginx configuration; the server's plan and
-// story storage; a private CA with a certificate for the host; and a first
-// bearer token. It is the business logic behind `mind-palace server init`,
+// story storage, with the code store turned on in the same MongoDB; the
+// FalkorDB password, generated once and kept in a 0600 file with the 0600
+// environment files that hand it to FalkorDB and to the server's --graph
+// URL; a private CA with a certificate for the host; and a first bearer
+// token. It is the business logic behind `mind-palace server init`,
 // which /clued-setup runs to host the server on the user's own machine.
 //
 // The clued server itself always serves plain HTTP inside the container
@@ -15,6 +18,8 @@
 package stack
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
@@ -50,6 +55,13 @@ const (
 	DefaultServerImage = "ghcr.io/robbiebyrd/clued-server"
 	DefaultNginxImage  = "nginx:stable-alpine"
 	DefaultMongoImage  = "mongo:8"
+	// DefaultFalkorDBImage is the code graph's FalkorDB, pinned to the
+	// version CI tests the graph against.
+	DefaultFalkorDBImage = "falkordb/falkordb:v4.22.1"
+	// CodeStore is the server's code store in every generated stack
+	// (CLUED_SERVER_CODE_STORE): collected code lives in the stack's
+	// MongoDB beside the sessions, so the stack needs no other container.
+	CodeStore = "mongo"
 	// DefaultDirName is the stack directory under the home directory; it is
 	// also where `mind-palace server token` looks for tokens.json by default.
 	DefaultDirName = ".clued-server"
@@ -74,7 +86,19 @@ const (
 	DownScript   = "down.sh"
 	LaunchdLabel = "com.robbiebyrd.clued-server"
 	LaunchdPlist = "launchd/" + LaunchdLabel + ".plist"
+	// The code graph's secrets, all 0600: GraphPasswordFile is FalkorDB's
+	// password, generated once and kept on reruns; FalkorDBEnvFile hands it
+	// to FalkorDB (REDIS_ARGS, REDISCLI_AUTH for the health check) and
+	// GraphEnvFile to the server as CLUED_SERVER_GRAPH (`server run
+	// --graph`). Neither ever appears in the compose file or a command line.
+	GraphPasswordFile = "falkordb.password"
+	FalkorDBEnvFile   = "falkordb.env"
+	GraphEnvFile      = "graph.env"
 )
+
+// graphHost is FalkorDB's address in the stack's network (the compose
+// service name; up.sh replaces it with the container's address).
+const graphHost = "falkordb:6379"
 
 // Options configures Init. Zero values take the defaults above.
 type Options struct {
@@ -114,7 +138,7 @@ type Options struct {
 	Account string
 	// Images override the defaults; ServerImage is a full reference with
 	// its tag.
-	ServerImage, NginxImage, MongoImage string
+	ServerImage, NginxImage, MongoImage, FalkorDBImage string
 	// UID and GID are the user the clued-server container runs as, so it
 	// can read the 0600 token file; -1 (or both 0) means the current user
 	// when known and the compose default otherwise.
@@ -166,6 +190,9 @@ type Result struct {
 	Logs string `json:"logs"`
 	// Health is a command that checks the stack answers.
 	Health string `json:"health"`
+	// Graph says what happened to FalkorDB's password: "generated" or
+	// "kept". The password itself is never in the result.
+	Graph string `json:"graph"`
 	// Written and Kept list the files Init wrote and left as they were.
 	Written []string `json:"written"`
 	Kept    []string `json:"kept,omitempty"`
@@ -266,10 +293,24 @@ func Init(opts Options) (Result, error) {
 		res.ServerURL = fmt.Sprintf("http://127.0.0.1:%d", opts.Port)
 		res.Health = fmt.Sprintf("curl %s/health", res.ServerURL)
 	}
+	// FalkorDB's password is kept across reruns so a running FalkorDB keeps
+	// accepting the server; the environment files carrying it are 0600.
+	password, generated, err := graphPassword(opts.Dir)
+	if err != nil {
+		return Result{}, err
+	}
+	if generated {
+		res.Graph = GraphGenerated
+		res.Written = append(res.Written, filepath.Join(opts.Dir, GraphPasswordFile))
+	} else {
+		res.Graph = GraphKept
+		res.Kept = append(res.Kept, filepath.Join(opts.Dir, GraphPasswordFile))
+	}
+
 	// Only the runtime's own files are written; the other runtime's are
 	// removed so the directory says which one runs the stack.
-	files := map[string]string{ConfigFile: configYAML()}
-	modes := map[string]os.FileMode{}
+	files := map[string]string{ConfigFile: configYAML(), FalkorDBEnvFile: falkorDBEnv(password), GraphEnvFile: graphEnv(password)}
+	modes := map[string]os.FileMode{FalkorDBEnvFile: 0o600, GraphEnvFile: 0o600}
 	var stale []string
 	switch opts.Runtime {
 	case RuntimeApple:
@@ -304,6 +345,10 @@ func Init(opts Options) (Result, error) {
 		mode := modes[name]
 		if mode == 0 {
 			mode = 0o644
+		}
+		// Narrow an existing file before writing a secret into it.
+		if err := os.Chmod(path, mode); err != nil && !os.IsNotExist(err) {
+			return Result{}, err
 		}
 		if err := os.WriteFile(path, []byte(body), mode); err != nil {
 			return Result{}, err
@@ -341,6 +386,79 @@ func Init(opts Options) (Result, error) {
 	}
 
 	return res, nil
+}
+
+// Graph password outcomes.
+const (
+	GraphGenerated = "generated"
+	GraphKept      = "kept"
+)
+
+// graphPassword returns FalkorDB's password from GraphPasswordFile, or
+// generates one (32 random bytes, hex) into it with mode 0600 when there is
+// none; generated says which. A password goes into the redis:// URL and
+// REDIS_ARGS unescaped, so a kept one must be 16 or more letters and digits.
+// No error carries the password.
+func graphPassword(dir string) (password string, generated bool, err error) {
+	path := filepath.Join(dir, GraphPasswordFile)
+	raw, err := os.ReadFile(path)
+	switch {
+	case err == nil:
+		password = strings.TrimSpace(string(raw))
+		if !validGraphPassword(password) {
+			return "", false, fmt.Errorf("stack: %s must hold one password of 16 or more letters and digits; delete it to generate one", path)
+		}
+		// Keep it private even when it was created by hand.
+		if err := os.Chmod(path, 0o600); err != nil {
+			return "", false, err
+		}
+		return password, false, nil
+	case !os.IsNotExist(err):
+		return "", false, err
+	}
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", false, fmt.Errorf("stack: generating the FalkorDB password: %w", err)
+	}
+	password = hex.EncodeToString(buf)
+	if err := os.WriteFile(path, []byte(password+"\n"), 0o600); err != nil {
+		return "", false, err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return "", false, err
+	}
+	return password, true, nil
+}
+
+func validGraphPassword(p string) bool {
+	if len(p) < 16 {
+		return false
+	}
+	for _, r := range p {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
+// falkorDBEnv is FalkorDB's environment file: the password, persistence off
+// (no RDB snapshots, no append-only file: the indexer rebuilds the graph
+// from the code store) and REDISCLI_AUTH so the health check's redis-cli
+// authenticates without the password on its command line.
+func falkorDBEnv(password string) string {
+	return "# FalkorDB's password and settings, generated by `mind-palace server init`\n" +
+		"# from " + GraphPasswordFile + ". Keep this file private (0600).\n" +
+		"REDIS_ARGS=--requirepass " + password + " --save --appendonly no\n" +
+		"REDISCLI_AUTH=" + password + "\n"
+}
+
+// graphEnv is the server's environment file: the code graph's URL for
+// `server run --graph`.
+func graphEnv(password string) string {
+	return "# The clued server's code graph (server run --graph), generated by\n" +
+		"# `mind-palace server init` from " + GraphPasswordFile + ". Keep this file private (0600).\n" +
+		"CLUED_SERVER_GRAPH=redis://default:" + password + "@" + graphHost + "\n"
 }
 
 // DetectRuntime picks the runtime for a machine: RuntimeCompose when
@@ -413,6 +531,9 @@ func withDefaults(opts Options) (Options, error) {
 	}
 	if opts.MongoImage == "" {
 		opts.MongoImage = DefaultMongoImage
+	}
+	if opts.FalkorDBImage == "" {
+		opts.FalkorDBImage = DefaultFalkorDBImage
 	}
 	if opts.UID <= 0 && opts.GID <= 0 {
 		opts.UID, opts.GID = os.Getuid(), os.Getgid()

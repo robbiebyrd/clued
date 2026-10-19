@@ -1,0 +1,567 @@
+{
+  "lang": "lua",
+  "symbols": [
+    {
+      "id": "strutil",
+      "kind": "module",
+      "name": "strutil",
+      "qualName": "strutil",
+      "signature": "local strutil =",
+      "doc": "A small string utility module.\n@module strutil",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 116
+      },
+      "end": {
+        "line": 13,
+        "column": 1,
+        "offset": 319
+      },
+      "exported": true
+    },
+    {
+      "id": "strutil.VERSION",
+      "kind": "field",
+      "name": "VERSION",
+      "qualName": "strutil.VERSION",
+      "signature": "VERSION = \"1.2.0\"",
+      "doc": "The module's version.",
+      "start": {
+        "line": 7,
+        "column": 2,
+        "offset": 164
+      },
+      "end": {
+        "line": 7,
+        "column": 19,
+        "offset": 181
+      },
+      "parent": "strutil",
+      "exported": true
+    },
+    {
+      "id": "strutil.sep",
+      "kind": "field",
+      "name": "sep",
+      "qualName": "strutil.sep",
+      "signature": "sep = \",\"",
+      "start": {
+        "line": 8,
+        "column": 2,
+        "offset": 185
+      },
+      "end": {
+        "line": 8,
+        "column": 11,
+        "offset": 194
+      },
+      "parent": "strutil",
+      "exported": true
+    },
+    {
+      "id": "strutil.trim",
+      "kind": "function",
+      "name": "trim",
+      "qualName": "strutil.trim",
+      "signature": "trim = function(s)",
+      "doc": "Trims white space from both ends of s.",
+      "start": {
+        "line": 10,
+        "column": 2,
+        "offset": 243
+      },
+      "end": {
+        "line": 12,
+        "column": 5,
+        "offset": 316
+      },
+      "parent": "strutil",
+      "exported": true
+    },
+    {
+      "id": "strutil.defaults",
+      "kind": "field",
+      "name": "defaults",
+      "qualName": "strutil.defaults",
+      "signature": "strutil.defaults = { strict = false }",
+      "doc": "The default options.",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 346
+      },
+      "end": {
+        "line": 16,
+        "column": 37,
+        "offset": 383
+      },
+      "parent": "strutil",
+      "exported": true
+    },
+    {
+      "id": "strutil.MAX",
+      "kind": "field",
+      "name": "MAX",
+      "qualName": "strutil.MAX",
+      "signature": "strutil.MAX = 64",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 384
+      },
+      "end": {
+        "line": 17,
+        "column": 16,
+        "offset": 400
+      },
+      "parent": "strutil",
+      "exported": true
+    },
+    {
+      "id": "cache",
+      "kind": "module",
+      "name": "cache",
+      "qualName": "cache",
+      "signature": "local cache = {}",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 402
+      },
+      "end": {
+        "line": 19,
+        "column": 16,
+        "offset": 418
+      }
+    },
+    {
+      "id": "strutil.split",
+      "kind": "function",
+      "name": "split",
+      "qualName": "strutil.split",
+      "signature": "function strutil.split(s, sep)",
+      "doc": "Splits s at sep (strutil.sep by default).\n@param s string\n@param sep? string\n@return string[]",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 527
+      },
+      "end": {
+        "line": 32,
+        "column": 3,
+        "offset": 722
+      },
+      "parent": "strutil",
+      "exported": true
+    },
+    {
+      "id": "strutil.join",
+      "kind": "function",
+      "name": "join",
+      "qualName": "strutil.join",
+      "signature": "function strutil.join(parts, sep)",
+      "doc": "Joins the parts with sep.",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 760
+      },
+      "end": {
+        "line": 39,
+        "column": 3,
+        "offset": 846
+      },
+      "parent": "strutil",
+      "exported": true
+    },
+    {
+      "id": "memo",
+      "kind": "function",
+      "name": "memo",
+      "qualName": "memo",
+      "signature": "local function memo(f)",
+      "doc": "memo caches f's results by its first argument.",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 898
+      },
+      "end": {
+        "line": 49,
+        "column": 3,
+        "offset": 1029
+      }
+    },
+    {
+      "id": "strutil.startswith",
+      "kind": "function",
+      "name": "startswith",
+      "qualName": "strutil.startswith",
+      "signature": "strutil.startswith = function(s, prefix)",
+      "doc": "Reports whether s starts with prefix.",
+      "start": {
+        "line": 54,
+        "column": 0,
+        "offset": 1109
+      },
+      "end": {
+        "line": 56,
+        "column": 3,
+        "offset": 1190
+      },
+      "parent": "strutil",
+      "exported": true
+    },
+    {
+      "id": "count",
+      "kind": "function",
+      "name": "count",
+      "qualName": "count",
+      "signature": "local count = function(s, pattern)",
+      "start": {
+        "line": 58,
+        "column": 0,
+        "offset": 1192
+      },
+      "end": {
+        "line": 60,
+        "column": 3,
+        "offset": 1270
+      }
+    },
+    {
+      "id": "strutil.words",
+      "kind": "function",
+      "name": "words",
+      "qualName": "strutil.words",
+      "signature": "function strutil.words(s)",
+      "doc": "Counts the words in s.",
+      "start": {
+        "line": 63,
+        "column": 0,
+        "offset": 1299
+      },
+      "end": {
+        "line": 65,
+        "column": 3,
+        "offset": 1353
+      },
+      "parent": "strutil",
+      "exported": true
+    },
+    {
+      "id": "strutil_debug",
+      "kind": "function",
+      "name": "strutil_debug",
+      "qualName": "strutil_debug",
+      "signature": "function strutil_debug(...)",
+      "doc": "A global helper, visible to every chunk.",
+      "start": {
+        "line": 68,
+        "column": 0,
+        "offset": 1399
+      },
+      "end": {
+        "line": 70,
+        "column": 3,
+        "offset": 1454
+      },
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "gsub",
+      "qualifier": "s",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 14,
+        "offset": 276
+      },
+      "enclosing": "strutil.trim"
+    },
+    {
+      "name": "gsub",
+      "qualifier": "s:gsub(\"^%s+\", \"\")",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 31,
+        "offset": 293
+      },
+      "enclosing": "strutil.trim"
+    },
+    {
+      "name": "gmatch",
+      "qualifier": "string",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 22,
+        "offset": 624
+      },
+      "enclosing": "strutil.split"
+    },
+    {
+      "name": "trim",
+      "qualifier": "strutil",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 28,
+        "offset": 688
+      },
+      "enclosing": "strutil.split"
+    },
+    {
+      "name": "concat",
+      "qualifier": "table",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 15,
+        "offset": 809
+      },
+      "enclosing": "strutil.join"
+    },
+    {
+      "name": "f",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 17,
+        "offset": 987
+      },
+      "enclosing": "memo"
+    },
+    {
+      "name": "memo",
+      "kind": "call",
+      "start": {
+        "line": 51,
+        "column": 16,
+        "offset": 1047
+      }
+    },
+    {
+      "name": "sub",
+      "qualifier": "s",
+      "kind": "call",
+      "start": {
+        "line": 55,
+        "column": 11,
+        "offset": 1161
+      },
+      "enclosing": "strutil.startswith"
+    },
+    {
+      "name": "gsub",
+      "qualifier": "s",
+      "kind": "call",
+      "start": {
+        "line": 59,
+        "column": 21,
+        "offset": 1248
+      },
+      "enclosing": "count"
+    },
+    {
+      "name": "count",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 9,
+        "offset": 1334
+      },
+      "enclosing": "strutil.words"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 8,
+        "column": 12,
+        "offset": 195
+      },
+      "text": "-- Copyright 2026 Example. A file header, not a doc comment.\n\n--- A small string utility module.\n-- @module strutil\nlocal strutil = {\n  --- The module's version.\n  VERSION = \"1.2.0\",\n  sep = \",\",",
+      "hash": "85074f5423847c31cfe8895a3cfc9465a6ec5a603e96c30a2bdba183f292ce4c"
+    },
+    {
+      "id": "strutil.trim#1",
+      "kind": "symbol",
+      "symbolId": "strutil.trim",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 196
+      },
+      "end": {
+        "line": 12,
+        "column": 5,
+        "offset": 316
+      },
+      "text": "  --- Trims white space from both ends of s.\n  trim = function(s)\n    return (s:gsub(\"^%s+\", \"\"):gsub(\"%s+$\", \"\"))\n  end",
+      "hash": "451e57ff02f973a8cd6b72f2ca50763b9bf9623313c09604599dbdb00a7b2fdf"
+    },
+    {
+      "id": "L13#1",
+      "kind": "window",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 318
+      },
+      "end": {
+        "line": 19,
+        "column": 16,
+        "offset": 418
+      },
+      "text": "}\n\n--- The default options.\nstrutil.defaults = { strict = false }\nstrutil.MAX = 64\n\nlocal cache = {}",
+      "hash": "6c1c77e5c7da1885a64bab4f8f6371016a77705070ac4652005cb717d2929166"
+    },
+    {
+      "id": "strutil.split#1",
+      "kind": "symbol",
+      "symbolId": "strutil.split",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 420
+      },
+      "end": {
+        "line": 32,
+        "column": 3,
+        "offset": 722
+      },
+      "text": "--- Splits s at sep (strutil.sep by default).\n---@param s string\n---@param sep? string\n---@return string[]\nfunction strutil.split(s, sep)\n  sep = sep or strutil.sep\n  local out = {}\n  for piece in string.gmatch(s, \"([^\" .. sep .. \"]+)\") do\n    out[#out + 1] = strutil.trim(piece)\n  end\n  return out\nend",
+      "hash": "24b92f358233e3ee46bef16ef0ded775d89418ffb68d1f3bd9762df5c3fff2cd"
+    },
+    {
+      "id": "strutil.join#1",
+      "kind": "symbol",
+      "symbolId": "strutil.join",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 724
+      },
+      "end": {
+        "line": 39,
+        "column": 3,
+        "offset": 846
+      },
+      "text": "--[[\n  Joins the parts with sep.\n]]\nfunction strutil.join(parts, sep)\n  return table.concat(parts, sep or strutil.sep)\nend",
+      "hash": "c1f057595c16f6d519907393d31ab0ec2238e9b9ade32dc904a9da9c97fe8c28"
+    },
+    {
+      "id": "memo#1",
+      "kind": "symbol",
+      "symbolId": "memo",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 848
+      },
+      "end": {
+        "line": 49,
+        "column": 3,
+        "offset": 1029
+      },
+      "text": "-- memo caches f's results by its first argument.\nlocal function memo(f)\n  return function(x)\n    if cache[x] == nil then\n      cache[x] = f(x)\n    end\n    return cache[x]\n  end\nend",
+      "hash": "0305b3a839de5a463231e21f114543845912958021695557f9176bd91b55e4d8"
+    },
+    {
+      "id": "L51#1",
+      "kind": "window",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 1031
+      },
+      "end": {
+        "line": 51,
+        "column": 34,
+        "offset": 1065
+      },
+      "text": "strutil.upper = memo(string.upper)",
+      "hash": "3cae15ffb10aca335cd90b34736d2e5bfaf7da2d94be04fec1f02fd1ca2146b6"
+    },
+    {
+      "id": "strutil.startswith#1",
+      "kind": "symbol",
+      "symbolId": "strutil.startswith",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1067
+      },
+      "end": {
+        "line": 56,
+        "column": 3,
+        "offset": 1190
+      },
+      "text": "--- Reports whether s starts with prefix.\nstrutil.startswith = function(s, prefix)\n  return s:sub(1, #prefix) == prefix\nend",
+      "hash": "d8b577f376b2458569727fd879cc0a19232ad129474adc190a4d0e2470d95bec"
+    },
+    {
+      "id": "count#1",
+      "kind": "symbol",
+      "symbolId": "count",
+      "start": {
+        "line": 58,
+        "column": 0,
+        "offset": 1192
+      },
+      "end": {
+        "line": 60,
+        "column": 3,
+        "offset": 1270
+      },
+      "text": "local count = function(s, pattern)\n  return select(2, s:gsub(pattern, \"\"))\nend",
+      "hash": "740a5ef84788e2aeeaae7ed5c496196cad560d7bdc8cf191a58d52533b545574"
+    },
+    {
+      "id": "strutil.words#1",
+      "kind": "symbol",
+      "symbolId": "strutil.words",
+      "start": {
+        "line": 62,
+        "column": 0,
+        "offset": 1272
+      },
+      "end": {
+        "line": 65,
+        "column": 3,
+        "offset": 1353
+      },
+      "text": "--- Counts the words in s.\nfunction strutil.words(s)\n  return count(s, \"%S+\")\nend",
+      "hash": "dea595a05b5291a842268d1b106839132e4b8a1d8088e4b602d5492835c9a4e3"
+    },
+    {
+      "id": "strutil_debug#1",
+      "kind": "symbol",
+      "symbolId": "strutil_debug",
+      "start": {
+        "line": 67,
+        "column": 0,
+        "offset": 1355
+      },
+      "end": {
+        "line": 70,
+        "column": 3,
+        "offset": 1454
+      },
+      "text": "-- A global helper, visible to every chunk.\nfunction strutil_debug(...)\n  print(\"strutil\", ...)\nend",
+      "hash": "a82b13a02e5f243fba96be76f59c556d822a1d8b0e5de36ee8e9e1021a261223"
+    }
+  ]
+}

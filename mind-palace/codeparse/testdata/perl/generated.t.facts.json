@@ -1,0 +1,278 @@
+{
+  "lang": "perl",
+  "package": "Fixture::One",
+  "symbols": [
+    {
+      "id": "Fixture::One::build",
+      "kind": "function",
+      "name": "build",
+      "qualName": "Fixture::One::build",
+      "signature": "sub build",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 300
+      },
+      "end": {
+        "line": 10,
+        "column": 36,
+        "offset": 336
+      },
+      "exported": true
+    },
+    {
+      "id": "Fixture::Two::ISA",
+      "kind": "var",
+      "name": "ISA",
+      "qualName": "Fixture::Two::ISA",
+      "signature": "our @ISA = ('Fixture::One')",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 360
+      },
+      "end": {
+        "line": 13,
+        "column": 27,
+        "offset": 387
+      },
+      "exported": true
+    },
+    {
+      "id": "Fixture::Two::build",
+      "kind": "function",
+      "name": "build",
+      "qualName": "Fixture::Two::build",
+      "signature": "sub build",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 389
+      },
+      "end": {
+        "line": 14,
+        "column": 73,
+        "offset": 462
+      },
+      "exported": true
+    },
+    {
+      "id": "main::later",
+      "kind": "function",
+      "name": "later",
+      "qualName": "main::later",
+      "signature": "sub later",
+      "start": {
+        "line": 33,
+        "column": 0,
+        "offset": 807
+      },
+      "end": {
+        "line": 33,
+        "column": 10,
+        "offset": 817
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "strict",
+      "kind": "pragma",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 224
+      }
+    },
+    {
+      "spec": "warnings",
+      "kind": "pragma",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 236
+      }
+    },
+    {
+      "spec": "Test::More",
+      "kind": "use",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 250
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Fixture::One",
+      "kind": "extends",
+      "start": {
+        "line": 13,
+        "column": 13,
+        "offset": 373
+      },
+      "enclosing": "Fixture::Two::ISA"
+    },
+    {
+      "name": "build",
+      "qualifier": "Fixture::One",
+      "kind": "call",
+      "start": {
+        "line": 14,
+        "column": 23,
+        "offset": 412
+      },
+      "enclosing": "Fixture::Two::build"
+    },
+    {
+      "name": "ok",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 0,
+        "offset": 666
+      }
+    },
+    {
+      "name": "build",
+      "qualifier": "Fixture::Two",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 17,
+        "offset": 683
+      }
+    },
+    {
+      "name": "is",
+      "kind": "call",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 712
+      }
+    },
+    {
+      "name": "alpha",
+      "qualifier": "Fixture::One",
+      "kind": "call",
+      "start": {
+        "line": 30,
+        "column": 17,
+        "offset": 729
+      }
+    },
+    {
+      "name": "like",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 0,
+        "offset": 759
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 9,
+        "column": 21,
+        "offset": 299
+      },
+      "text": "#!/usr/bin/perl\n# A test with several statement packages, generated subs, a heredoc and a\n# forward declaration: each package statement qualifies what follows it,\n# up to the next one, though the grammar does not nest them.\nuse strict;\nuse warnings;\nuse Test::More tests =\u003e 3;\n\npackage Fixture::One;",
+      "hash": "f2554e25b0f649cbf4707b1c244104a762d1c2e28ebd0355ca2147a811666084"
+    },
+    {
+      "id": "Fixture::One::build#1",
+      "kind": "symbol",
+      "symbolId": "Fixture::One::build",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 300
+      },
+      "end": {
+        "line": 10,
+        "column": 36,
+        "offset": 336
+      },
+      "text": "sub build { return bless {}, shift }",
+      "hash": "b95862ec07c2677d466ab2daddffe05950ee772a016ea8ccd7f38ab4abda6c9d"
+    },
+    {
+      "id": "L12#1",
+      "kind": "window",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 338
+      },
+      "end": {
+        "line": 13,
+        "column": 28,
+        "offset": 388
+      },
+      "text": "package Fixture::Two;\nour @ISA = ('Fixture::One');",
+      "hash": "b8488c076dae5fb26c8ee8c40f8b07eacd5b4196df6a8d6b5b9c07bb1aa3240e"
+    },
+    {
+      "id": "Fixture::Two::build#1",
+      "kind": "symbol",
+      "symbolId": "Fixture::Two::build",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 389
+      },
+      "end": {
+        "line": 14,
+        "column": 73,
+        "offset": 462
+      },
+      "text": "sub build { my $self = Fixture::One::build(@_); $self-\u003e{two} = 1; $self }",
+      "hash": "ee9302f4506f155c5a7f6262bd12ba790a05d9692bf095cfd4a862b58b1273b6"
+    },
+    {
+      "id": "L16#1",
+      "kind": "window",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 464
+      },
+      "end": {
+        "line": 31,
+        "column": 46,
+        "offset": 805
+      },
+      "text": "package main;\n\nfor my $name (qw(alpha beta)) {\n    no strict 'refs';\n    *{\"Fixture::One::$name\"} = sub { return $name };\n}\n\nmy $text = \u003c\u003c\"END\";\nsub not_a_sub { 1 }\nEND\n\neval \"sub from_string { 42 }\";\n\nok(Fixture::Two-\u003ebuild-\u003e{two}, 'two builds');\nis(Fixture::One-\u003ealpha, 'alpha', 'generated');\nlike($text, qr/not_a_sub/, 'heredoc is text');",
+      "hash": "1e81838782b0d0ac44eab6db7767eda0d9c072ac995648238f6ac7dff988b42a"
+    },
+    {
+      "id": "main::later#1",
+      "kind": "symbol",
+      "symbolId": "main::later",
+      "start": {
+        "line": 33,
+        "column": 0,
+        "offset": 807
+      },
+      "end": {
+        "line": 33,
+        "column": 10,
+        "offset": 817
+      },
+      "text": "sub later;",
+      "hash": "df2b33c4ebecb4e1a6edc3d07025b8a24099251b62a77de1db94364ef30a8f9c"
+    }
+  ]
+}

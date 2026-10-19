@@ -1,0 +1,316 @@
+{
+  "lang": "objc",
+  "symbols": [
+    {
+      "id": "MeshBridge",
+      "kind": "class",
+      "name": "MeshBridge",
+      "qualName": "MeshBridge",
+      "signature": "@interface MeshBridge : NSObject",
+      "doc": "Wraps a C++ mesh for Objective-C callers.",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 522
+      },
+      "end": {
+        "line": 25,
+        "column": 4,
+        "offset": 627
+      },
+      "exported": true
+    },
+    {
+      "id": "MeshBridge.initWithVertices:",
+      "kind": "method",
+      "name": "initWithVertices:",
+      "qualName": "MeshBridge.initWithVertices:",
+      "signature": "- (instancetype)initWithVertices:(int)vertices;",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 555
+      },
+      "end": {
+        "line": 23,
+        "column": 47,
+        "offset": 602
+      },
+      "parent": "MeshBridge",
+      "exported": true
+    },
+    {
+      "id": "MeshBridge.vertexCount",
+      "kind": "method",
+      "name": "vertexCount",
+      "qualName": "MeshBridge.vertexCount",
+      "signature": "- (int)vertexCount;",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 603
+      },
+      "end": {
+        "line": 24,
+        "column": 19,
+        "offset": 622
+      },
+      "parent": "MeshBridge",
+      "exported": true
+    },
+    {
+      "id": "MeshBridge~2",
+      "kind": "impl",
+      "name": "MeshBridge",
+      "qualName": "MeshBridge",
+      "signature": "@implementation MeshBridge",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 629
+      },
+      "end": {
+        "line": 46,
+        "column": 4,
+        "offset": 942
+      },
+      "exported": true
+    },
+    {
+      "id": "MeshBridge.initWithVertices:~2",
+      "kind": "method",
+      "name": "initWithVertices:",
+      "qualName": "MeshBridge.initWithVertices:",
+      "signature": "- (instancetype)initWithVertices:(int)vertices",
+      "start": {
+        "line": 31,
+        "column": 0,
+        "offset": 688
+      },
+      "end": {
+        "line": 36,
+        "column": 1,
+        "offset": 840
+      },
+      "parent": "MeshBridge~2",
+      "exported": true
+    },
+    {
+      "id": "MeshBridge.vertexCount~2",
+      "kind": "method",
+      "name": "vertexCount",
+      "qualName": "MeshBridge.vertexCount",
+      "signature": "- (int)vertexCount",
+      "start": {
+        "line": 38,
+        "column": 0,
+        "offset": 842
+      },
+      "end": {
+        "line": 40,
+        "column": 1,
+        "offset": 897
+      },
+      "parent": "MeshBridge~2",
+      "exported": true
+    },
+    {
+      "id": "MeshBridge.dealloc",
+      "kind": "method",
+      "name": "dealloc",
+      "qualName": "MeshBridge.dealloc",
+      "signature": "- (void)dealloc",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 899
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 936
+      },
+      "parent": "MeshBridge~2",
+      "exported": true
+    },
+    {
+      "id": "BridgeCount",
+      "kind": "function",
+      "name": "BridgeCount",
+      "qualName": "BridgeCount",
+      "signature": "static int BridgeCount(void)",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 944
+      },
+      "end": {
+        "line": 50,
+        "column": 1,
+        "offset": 990
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "Bridge.h",
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 212
+      }
+    },
+    {
+      "spec": "vector",
+      "kind": "include_system",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 231
+      }
+    },
+    {
+      "spec": "string",
+      "kind": "include_system",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 249
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "vertices",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 44,
+        "offset": 355
+      }
+    },
+    {
+      "name": "NSObject",
+      "kind": "extends",
+      "start": {
+        "line": 22,
+        "column": 24,
+        "offset": 546
+      },
+      "enclosing": "MeshBridge"
+    },
+    {
+      "name": "geometry",
+      "kind": "type",
+      "start": {
+        "line": 28,
+        "column": 4,
+        "offset": 662
+      },
+      "enclosing": "MeshBridge~2"
+    },
+    {
+      "name": "init",
+      "qualifier": "super",
+      "kind": "call",
+      "start": {
+        "line": 32,
+        "column": 23,
+        "offset": 760
+      },
+      "enclosing": "MeshBridge.initWithVertices:~2"
+    },
+    {
+      "name": "Mesh",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 30,
+        "offset": 800
+      },
+      "enclosing": "MeshBridge.initWithVertices:~2"
+    },
+    {
+      "name": "vertexCount",
+      "qualifier": "_mesh",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 18,
+        "offset": 881
+      },
+      "enclosing": "MeshBridge.vertexCount~2"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 19,
+        "column": 23,
+        "offset": 474
+      },
+      "text": "// Objective-C++: a C++ namespace and class next to an Objective-C class.\n// The Objective-C grammar does not know C++, so the C++ parts parse with\n// error nodes; the Objective-C parts still give their symbols.\n#import \"Bridge.h\"\n#include \u003cvector\u003e\n#include \u003cstring\u003e\n\nnamespace geometry {\n\nclass Mesh {\npublic:\n    explicit Mesh(int vertices) : vertices_(vertices) {}\n    int vertexCount() const { return vertices_; }\n\nprivate:\n    int vertices_;\n};\n\n} // namespace geometry",
+      "hash": "910d860173939f09a6ab67190d625748c8bb6188d9a9d68d5f065a3918c4a0d4"
+    },
+    {
+      "id": "MeshBridge#1",
+      "kind": "symbol",
+      "symbolId": "MeshBridge",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 476
+      },
+      "end": {
+        "line": 25,
+        "column": 4,
+        "offset": 627
+      },
+      "text": "/// Wraps a C++ mesh for Objective-C callers.\n@interface MeshBridge : NSObject\n- (instancetype)initWithVertices:(int)vertices;\n- (int)vertexCount;\n@end",
+      "hash": "cfbeb414f8f385ac5303b4865a0ea9f13db2482cc6ae8c87592b98d18d923803"
+    },
+    {
+      "id": "MeshBridge~2#1",
+      "kind": "symbol",
+      "symbolId": "MeshBridge~2",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 629
+      },
+      "end": {
+        "line": 46,
+        "column": 4,
+        "offset": 942
+      },
+      "text": "@implementation MeshBridge {\n    geometry::Mesh *_mesh;\n}\n\n- (instancetype)initWithVertices:(int)vertices {\n    if ((self = [super init])) {\n        _mesh = new geometry::Mesh(vertices);\n    }\n    return self;\n}\n\n- (int)vertexCount {\n    return _mesh-\u003evertexCount();\n}\n\n- (void)dealloc {\n    delete _mesh;\n}\n\n@end",
+      "hash": "21bff487174c4740ab15daff68b1a1383ca14e80c67f01f574615af720ebe983"
+    },
+    {
+      "id": "BridgeCount#1",
+      "kind": "symbol",
+      "symbolId": "BridgeCount",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 944
+      },
+      "end": {
+        "line": 50,
+        "column": 1,
+        "offset": 990
+      },
+      "text": "static int BridgeCount(void) {\n    return 1;\n}",
+      "hash": "d5b1260a656ceede58eeb2ba2e71859668d227db492d329a49104e558c415e03"
+    }
+  ]
+}

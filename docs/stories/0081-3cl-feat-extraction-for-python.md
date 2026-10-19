@@ -3,11 +3,13 @@ id: 0081-3cl
 title: Extraction for Python
 purpose: 'Adds Python to the indexer: files .py, .pyi.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:07:21.431Z"
-updated: "2026-10-19T18:28:58.841Z"
+updated: "2026-10-19T20:54:18.460Z"
+started: "2026-10-19T20:44:55.258Z"
+completed: "2026-10-19T20:54:18.460Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for Python
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/python'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/python'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/python'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/python'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/python.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:54:12.332Z - Added grammars/python.go (gotreesitter grammars/python, no go.mod change), queries/python/{profile.yaml,tags.scm} (family python, packageBy file, exported noUnderscore) and 6 goldens under testdata/python (models.py, imports.py, service.py, nested.py, stubs.pyi, broken.py); TestGolden/python: 6/6 pass, go test -race ./codeparse/... ok, gofmt/vet/build clean. Captures: functions (module, nested, conditional, decorated), methods (defs directly in a class body), classes, class attributes as fields, module variables and UPPER_CASE constants (also under module-level if/try, tuple targets), PEP 695 type aliases, docstrings via (block . (string)), every import form (import/as, from/names, relative, aliased names as their own import, wildcard as name *, __future__; kind import|from), call refs (builtins, self, cls left out), decorator calls, extends (bases incl. qualified and subscripted), type refs (annotations, except clauses). Deviations: no @package (a Python file is its own module); a decorated definition's node is the def/class itself so its decorators fall into a window chunk; defs under an if in a class body are functions, not methods; gotreesitter quirk: an alternation over nodes with repeated children yields one match with all captures, so those forms are separate patterns. Only the story's three paths changed.

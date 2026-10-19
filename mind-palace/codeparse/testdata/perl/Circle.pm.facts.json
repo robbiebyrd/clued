@@ -1,0 +1,560 @@
+{
+  "lang": "perl",
+  "package": "My::Shape::Circle",
+  "symbols": [
+    {
+      "id": "My::Shape::Circle::PI",
+      "kind": "const",
+      "name": "PI",
+      "qualName": "My::Shape::Circle::PI",
+      "signature": "use constant PI =\u003e 3.14159;",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 249
+      },
+      "end": {
+        "line": 12,
+        "column": 27,
+        "offset": 276
+      },
+      "exported": true
+    },
+    {
+      "id": "My::Shape::Circle::E",
+      "kind": "const",
+      "name": "E",
+      "qualName": "My::Shape::Circle::E",
+      "signature": "use constant { E =\u003e 2.718, ZERO =\u003e 0 };",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 277
+      },
+      "end": {
+        "line": 13,
+        "column": 39,
+        "offset": 316
+      },
+      "exported": true
+    },
+    {
+      "id": "My::Shape::Circle::ZERO",
+      "kind": "const",
+      "name": "ZERO",
+      "qualName": "My::Shape::Circle::ZERO",
+      "signature": "use constant { E =\u003e 2.718, ZERO =\u003e 0 };",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 277
+      },
+      "end": {
+        "line": 13,
+        "column": 39,
+        "offset": 316
+      },
+      "exported": true
+    },
+    {
+      "id": "My::Shape::Circle::ISA",
+      "kind": "var",
+      "name": "ISA",
+      "qualName": "My::Shape::Circle::ISA",
+      "signature": "our @ISA = ('My::Base')",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 360
+      },
+      "end": {
+        "line": 17,
+        "column": 23,
+        "offset": 383
+      },
+      "exported": true
+    },
+    {
+      "id": "My::Shape::Circle::VERSION",
+      "kind": "var",
+      "name": "VERSION",
+      "qualName": "My::Shape::Circle::VERSION",
+      "signature": "our $VERSION = '1.02'",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 385
+      },
+      "end": {
+        "line": 18,
+        "column": 21,
+        "offset": 406
+      },
+      "exported": true
+    },
+    {
+      "id": "My::Shape::Circle::EXPORT_OK",
+      "kind": "var",
+      "name": "EXPORT_OK",
+      "qualName": "My::Shape::Circle::EXPORT_OK",
+      "signature": "our @EXPORT_OK = qw(area)",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 408
+      },
+      "end": {
+        "line": 19,
+        "column": 25,
+        "offset": 433
+      },
+      "exported": true
+    },
+    {
+      "id": "My::Shape::Circle::_registry",
+      "kind": "var",
+      "name": "_registry",
+      "qualName": "My::Shape::Circle::_registry",
+      "signature": "our ($_registry, %cache)",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 435
+      },
+      "end": {
+        "line": 20,
+        "column": 24,
+        "offset": 459
+      }
+    },
+    {
+      "id": "My::Shape::Circle::cache",
+      "kind": "var",
+      "name": "cache",
+      "qualName": "My::Shape::Circle::cache",
+      "signature": "our ($_registry, %cache)",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 435
+      },
+      "end": {
+        "line": 20,
+        "column": 24,
+        "offset": 459
+      },
+      "exported": true
+    },
+    {
+      "id": "My::Shape::Circle::new",
+      "kind": "function",
+      "name": "new",
+      "qualName": "My::Shape::Circle::new",
+      "signature": "sub new",
+      "doc": "Creates a new circle.\nTakes a radius.",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 519
+      },
+      "end": {
+        "line": 30,
+        "column": 1,
+        "offset": 639
+      },
+      "exported": true
+    },
+    {
+      "id": "My::Shape::Circle::area",
+      "kind": "function",
+      "name": "area",
+      "qualName": "My::Shape::Circle::area",
+      "signature": "sub area :lvalue",
+      "doc": "=head2 area\n\nReturns the area.\n\n=cut",
+      "start": {
+        "line": 38,
+        "column": 0,
+        "offset": 679
+      },
+      "end": {
+        "line": 41,
+        "column": 1,
+        "offset": 754
+      },
+      "exported": true
+    },
+    {
+      "id": "My::Shape::Circle::_scale",
+      "kind": "function",
+      "name": "_scale",
+      "qualName": "My::Shape::Circle::_scale",
+      "signature": "sub _scale($$)",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 756
+      },
+      "end": {
+        "line": 43,
+        "column": 39,
+        "offset": 795
+      }
+    },
+    {
+      "id": "My::Shape::Registry::register",
+      "kind": "function",
+      "name": "register",
+      "qualName": "My::Shape::Registry::register",
+      "signature": "sub My::Shape::Registry::register",
+      "doc": "Defined into another package from here.",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 839
+      },
+      "end": {
+        "line": 46,
+        "column": 74,
+        "offset": 913
+      },
+      "exported": true
+    },
+    {
+      "id": "My::Shape::Circle::describe",
+      "kind": "function",
+      "name": "describe",
+      "qualName": "My::Shape::Circle::describe",
+      "signature": "sub describe",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 915
+      },
+      "end": {
+        "line": 54,
+        "column": 1,
+        "offset": 1094
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "strict",
+      "kind": "pragma",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 96
+      }
+    },
+    {
+      "spec": "warnings",
+      "kind": "pragma",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 108
+      }
+    },
+    {
+      "spec": "parent",
+      "kind": "pragma",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 122
+      }
+    },
+    {
+      "spec": "base",
+      "kind": "pragma",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 158
+      }
+    },
+    {
+      "spec": "POSIX",
+      "names": [
+        "floor"
+      ],
+      "kind": "use",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 181
+      }
+    },
+    {
+      "spec": "Scalar::Util",
+      "names": [
+        "blessed"
+      ],
+      "kind": "use",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 202
+      }
+    },
+    {
+      "spec": "List::Util",
+      "kind": "use",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 230
+      }
+    },
+    {
+      "spec": "constant",
+      "kind": "pragma",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 249
+      }
+    },
+    {
+      "spec": "constant",
+      "kind": "pragma",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 277
+      }
+    },
+    {
+      "spec": "Carp",
+      "kind": "require",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 317
+      }
+    },
+    {
+      "spec": "shapes/config.pl",
+      "kind": "require",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 331
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "My::Shape",
+      "kind": "extends",
+      "start": {
+        "line": 7,
+        "column": 24,
+        "offset": 146
+      }
+    },
+    {
+      "name": "Exporter",
+      "kind": "extends",
+      "start": {
+        "line": 8,
+        "column": 12,
+        "offset": 170
+      }
+    },
+    {
+      "name": "My::Base",
+      "kind": "extends",
+      "start": {
+        "line": 17,
+        "column": 13,
+        "offset": 373
+      },
+      "enclosing": "My::Shape::Circle::ISA"
+    },
+    {
+      "name": "PI",
+      "kind": "call",
+      "start": {
+        "line": 40,
+        "column": 11,
+        "offset": 731
+      },
+      "enclosing": "My::Shape::Circle::area"
+    },
+    {
+      "name": "croak",
+      "qualifier": "Carp",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 36,
+        "offset": 875
+      },
+      "enclosing": "My::Shape::Registry::register"
+    },
+    {
+      "name": "area",
+      "qualifier": "$self",
+      "kind": "call",
+      "start": {
+        "line": 51,
+        "column": 22,
+        "offset": 990
+      },
+      "enclosing": "My::Shape::Circle::describe"
+    },
+    {
+      "name": "floor",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 19,
+        "offset": 1017
+      },
+      "enclosing": "My::Shape::Circle::describe"
+    },
+    {
+      "name": "blessed",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 11,
+        "offset": 1043
+      },
+      "enclosing": "My::Shape::Circle::describe"
+    },
+    {
+      "name": "describe",
+      "qualifier": "$self",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 42,
+        "offset": 1074
+      },
+      "enclosing": "My::Shape::Circle::describe"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 21,
+        "column": 14,
+        "offset": 475
+      },
+      "text": "package My::Shape::Circle;\n\n# A circle with a radius; the classic one-package-per-file module.\n\nuse strict;\nuse warnings;\nuse parent -norequire, 'My::Shape';\nuse base qw(Exporter);\nuse POSIX qw(floor);\nuse Scalar::Util 'blessed';\nuse List::Util ();\nuse constant PI =\u003e 3.14159;\nuse constant { E =\u003e 2.718, ZERO =\u003e 0 };\nrequire Carp;\nrequire \"shapes/config.pl\";\n\nour @ISA = ('My::Base');\nour $VERSION = '1.02';\nour @EXPORT_OK = qw(area);\nour ($_registry, %cache);\nmy $count = 0;",
+      "hash": "c0cea5295f3ec19fd402cdd1eafdf564f82f66df0ab342e9367ef9e6661c99b1"
+    },
+    {
+      "id": "My::Shape::Circle::new#1",
+      "kind": "symbol",
+      "symbolId": "My::Shape::Circle::new",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 477
+      },
+      "end": {
+        "line": 30,
+        "column": 1,
+        "offset": 639
+      },
+      "text": "# Creates a new circle.\n# Takes a radius.\nsub new {\n    my ($class, %args) = @_;\n    my $self = bless { r =\u003e $args{r} }, $class;\n    $count++;\n    return $self;\n}",
+      "hash": "fff819bde3c75cf95b419897a807fdc80469ed77c2ae9f161dba126d7790956c"
+    },
+    {
+      "id": "My::Shape::Circle::area#1",
+      "kind": "symbol",
+      "symbolId": "My::Shape::Circle::area",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 641
+      },
+      "end": {
+        "line": 41,
+        "column": 1,
+        "offset": 754
+      },
+      "text": "=head2 area\n\nReturns the area.\n\n=cut\n\nsub area :lvalue {\n    my $self = shift;\n    return PI * $self-\u003e{r} ** 2;\n}",
+      "hash": "39de7e63f2b2e005de9fd37d2f867874cc8bfeaeab3f7464f29666a058477eea"
+    },
+    {
+      "id": "My::Shape::Circle::_scale#1",
+      "kind": "symbol",
+      "symbolId": "My::Shape::Circle::_scale",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 756
+      },
+      "end": {
+        "line": 43,
+        "column": 39,
+        "offset": 795
+      },
+      "text": "sub _scale($$) { return $_[0] * $_[1] }",
+      "hash": "d6eb382d8cc759678b47d33976f492d1428a41447cbe8f08b7aab143461cef28"
+    },
+    {
+      "id": "My::Shape::Registry::register#1",
+      "kind": "symbol",
+      "symbolId": "My::Shape::Registry::register",
+      "start": {
+        "line": 45,
+        "column": 0,
+        "offset": 797
+      },
+      "end": {
+        "line": 46,
+        "column": 74,
+        "offset": 913
+      },
+      "text": "# Defined into another package from here.\nsub My::Shape::Registry::register { Carp::croak(\"no registry\") unless @_ }",
+      "hash": "4061308676e99f0a70b97894ae8b716ff76063ac6ac93e9fc3ba7921b81f9dcc"
+    },
+    {
+      "id": "My::Shape::Circle::describe#1",
+      "kind": "symbol",
+      "symbolId": "My::Shape::Circle::describe",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 915
+      },
+      "end": {
+        "line": 54,
+        "column": 1,
+        "offset": 1094
+      },
+      "text": "sub describe {\n    my $self = shift;\n    our $calls;\n    my $area = $self-\u003earea();\n    printf(\"%s\\n\", floor($area));\n    return blessed($self) . ': ' . $self-\u003eSUPER::describe();\n}",
+      "hash": "47a5819c9f0720d94b11dbc07df78e306df25a9d8e5c95f0f240f019b616e8d5"
+    },
+    {
+      "id": "L56#1",
+      "kind": "window",
+      "start": {
+        "line": 56,
+        "column": 0,
+        "offset": 1096
+      },
+      "end": {
+        "line": 61,
+        "column": 28,
+        "offset": 1149
+      },
+      "text": "1;\n__END__\n\n=head1 NAME\n\nMy::Shape::Circle - a circle",
+      "hash": "ef63e7afc4787c870b69fc0a6132c86e786ed273c8a01674081c8e39f5b37d19"
+    }
+  ]
+}

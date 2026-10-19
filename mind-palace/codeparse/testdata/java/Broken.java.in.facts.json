@@ -1,0 +1,224 @@
+{
+  "lang": "java",
+  "package": "com.example.broken",
+  "symbols": [
+    {
+      "id": "com.example.broken.Parser",
+      "kind": "class",
+      "name": "Parser",
+      "qualName": "com.example.broken.Parser",
+      "signature": "public class Parser",
+      "doc": "Parser reads tokens.",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 81
+      },
+      "end": {
+        "line": 22,
+        "column": 1,
+        "offset": 416
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.broken.Parser.tokens",
+      "kind": "field",
+      "name": "tokens",
+      "qualName": "com.example.broken.Parser.tokens",
+      "signature": "private List\u003cString\u003e tokens;",
+      "start": {
+        "line": 7,
+        "column": 4,
+        "offset": 107
+      },
+      "end": {
+        "line": 7,
+        "column": 32,
+        "offset": 135
+      },
+      "parent": "com.example.broken.Parser"
+    },
+    {
+      "id": "com.example.broken.Parser.next",
+      "kind": "method",
+      "name": "next",
+      "qualName": "com.example.broken.Parser.next",
+      "signature": "public String next()",
+      "doc": "Reads the next token.",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 174
+      },
+      "end": {
+        "line": 12,
+        "column": 5,
+        "offset": 234
+      },
+      "parent": "com.example.broken.Parser",
+      "exported": true
+    },
+    {
+      "id": "com.example.broken.Parser.skip",
+      "kind": "method",
+      "name": "skip",
+      "qualName": "com.example.broken.Parser.skip",
+      "signature": "public void skip(int n",
+      "start": {
+        "line": 14,
+        "column": 4,
+        "offset": 240
+      },
+      "end": {
+        "line": 16,
+        "column": 5,
+        "offset": 314
+      },
+      "parent": "com.example.broken.Parser",
+      "exported": true
+    },
+    {
+      "id": "com.example.broken.Parser.peek",
+      "kind": "method",
+      "name": "peek",
+      "qualName": "com.example.broken.Parser.peek",
+      "signature": "public String peek()",
+      "doc": "Peeks without consuming.",
+      "start": {
+        "line": 19,
+        "column": 4,
+        "offset": 356
+      },
+      "end": {
+        "line": 21,
+        "column": 5,
+        "offset": 414
+      },
+      "parent": "com.example.broken.Parser",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "java.util.List",
+      "names": [
+        "List"
+      ],
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 29
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 7,
+        "column": 12,
+        "offset": 115
+      },
+      "enclosing": "com.example.broken.Parser.tokens"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 7,
+        "column": 17,
+        "offset": 120
+      },
+      "enclosing": "com.example.broken.Parser.tokens"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 10,
+        "column": 11,
+        "offset": 181
+      },
+      "enclosing": "com.example.broken.Parser.next"
+    },
+    {
+      "name": "remove",
+      "qualifier": "tokens",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 22,
+        "offset": 219
+      },
+      "enclosing": "com.example.broken.Parser.next"
+    },
+    {
+      "name": "next",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 36,
+        "offset": 301
+      },
+      "enclosing": "com.example.broken.Parser.skip"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 11,
+        "offset": 363
+      },
+      "enclosing": "com.example.broken.Parser.peek"
+    },
+    {
+      "name": "get",
+      "qualifier": "tokens",
+      "kind": "call",
+      "start": {
+        "line": 20,
+        "column": 22,
+        "offset": 401
+      },
+      "enclosing": "com.example.broken.Parser.peek"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 22,
+        "offset": 51
+      },
+      "text": "package com.example.broken;\n\nimport java.util.List;",
+      "hash": "b353256f906d6262ec5157aa567071dad9bbc29ab880b92b84f83a25bb3a0629"
+    },
+    {
+      "id": "com.example.broken.Parser#1",
+      "kind": "symbol",
+      "symbolId": "com.example.broken.Parser",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 53
+      },
+      "end": {
+        "line": 22,
+        "column": 1,
+        "offset": 416
+      },
+      "text": "/** Parser reads tokens. */\npublic class Parser {\n    private List\u003cString\u003e tokens;\n\n    /** Reads the next token. */\n    public String next() {\n        return tokens.remove(0)\n    }\n\n    public void skip(int n {\n        for (int i = 0; i \u003c n; i++) next();\n    }\n\n    /** Peeks without consuming. */\n    public String peek() {\n        return tokens.get(0);\n    }\n}",
+      "hash": "92523dfdb950ca30629a572ec1cdc454847878896c66a6159724c7d9358eb83c"
+    }
+  ]
+}

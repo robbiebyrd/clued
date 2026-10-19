@@ -56,6 +56,8 @@ Wait for the answer. For Clued Cloud, pick the region first ("Clued Cloud region
 
    (`CLUED_SERVER_URL=https://eu.clued.cloud` for the EU region, or the server's URL.)
 
+   Ask the code sync question of Step 6 ("Code sync") here too, with the same plain statement that the source of every repository Claude works in will be uploaded; on yes, add `CLUED_CODE_SYNC=true` to the same variables.
+
    (`CLUED_SERVER_TOKEN=<the token>` instead of the key for a server without the exchange, and `CLUED_SERVER_CA_FILE=<path in the checkout>` for a private CA). **Never ask for the key or a token in the chat** and never write either into a file or a command line here: they belong only in the environment's settings, which every new session of this environment reads at its start. The hooks, the relay and both MCP servers take these variables over `config.json`, so no config file is needed; the exchanged token is cached in `~/.claude/plugins/data/clued/server-token.json` (mode 0600), which goes with the container.
 
 4. **Start a new session** in this environment: the variables are read when a session starts, so this one does not see them yet. In the new session `check-setup` probes the server with `session whoami` and reports nothing when the link works; running `/clued-setup` there again only verifies it ("Already linked by the environment" above).
@@ -479,6 +481,31 @@ TMP=$(mktemp) && jq --arg engine "<extract|claude|hosted|off>" --argjson exclude
 
 In a Claude Code cloud container (no config file) the engine is the environment variable `CLUED_MEMORY_ENGINE` in the environment's settings, next to `CLUED_SERVER_URL`. `mind-palace session memory status` shows the engine, the records per layer, the runs used today and what the notes cost this month.
 
+### Code sync — ask (clued server and clued cloud only)
+
+Skip this for local MongoDB: code sync runs only in remote mode. In both server modes (and in a cloud container) ask, with AskUserQuestion, and **say plainly what leaves the machine** — do not soften it:
+
+> "clued can also upload your code to the server, for a code graph built there. **If you turn this on, the source of every git repository Claude works in on this machine will be uploaded to <the server URL or Clued Cloud>** and kept up to date as files change: every file git tracks or would track (`.gitignore` is respected), with paths, branches and commit ids. Secret files (`.env*`, `*.pem`, `*.key`, SSH keys, `.npmrc`, `.netrc`, `credentials*.json`, …) are never sent, binaries and files over 1 MiB go as name and size only, and the redaction rules mask keys and tokens in the content first. The server offers no way to read the code back yet. Any repository can opt out with `codeSync: false` in its `mind-palace.config.yaml`. Turn on code sync? (yes / no — no is the default)"
+
+On **no** (or no answer), write nothing: code sync stays off. On **yes**, ask whether any directories should stay out (globs relative to each repository's root, such as `["vendor", "*.gen.go", "web/dist"]`; empty by default), then set the keys, keeping every other key and the mode `0600`:
+
+```bash
+CFG=~/.claude/plugins/data/clued/config.json
+TMP=$(mktemp) && jq --argjson exclude '<["vendor"] or []>' \
+  '.codeSync = true | .codeSyncExclude = $exclude' "$CFG" > "$TMP" && chmod 600 "$TMP" && mv "$TMP" "$CFG"
+```
+
+The content is redacted only while `redactAtCapture` is on (the config above writes it); code sync is off whenever `captureContent` is `false`. In a Claude Code cloud container (no config file) the switch is the environment variable `CLUED_CODE_SYNC=true` in the environment's settings, next to `CLUED_SERVER_URL`; it applies to new sessions. A clued cloud may also set `codeSync` for the account; `session config-pull` writes it at each session start.
+
+Nothing is sent until the next hook event. For a large repository the user may run the first import once, with no time limit, from inside it, after Step 8 has checked the server:
+
+```bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" session code-sync --dry-run   # what would be sent
+"${CLAUDE_PLUGIN_ROOT}/scripts/clued" session code-sync --full      # send it
+```
+
+A result with `"skipped": "repository opted out (codeSync: false)"`, `"… (directory-name slug)"` (no git origin) or `"not in a git repository"` is expected for such a directory; `"backed_off": "unsupported"` means the server has no code store (`server run --code-store off`) and the client stays quiet for 24 hours.
+
 ## Step 7 — MCP servers (no action needed)
 
 The plugin ships its own `.mcp.json`, so Claude Code launches both MCP servers
@@ -587,5 +614,6 @@ back to `false` and registering again puts the previous command back.
 - macOS tarball: launchd plist at `~/Library/LaunchAgents/org.mongodb.mongod.plist` auto-restarts mongod at login
 - Hooks registered once, by the plugin's `hooks/hooks.json` (Claude Code loads it from the installed plugin; `scripts/verify-prime.sh` checks the prime report arrives) — no settings edit needed: `register-hooks` keeps only the status line in `~/.claude/settings.json` and removes the mirror older clued versions wrote there, since a hook registered in both places runs twice ([anthropics/claude-code#16538](https://github.com/anthropics/claude-code/issues/16538) was why the mirror existed). `register-hooks --settings` mirrors them into settings through the launcher `~/.claude/plugins/data/clued/bin/clued-hook` only where the plugin's hooks are not loaded. Three of them run the binary directly: `scripts/clued hook write-guard` on PreToolUse (plans and stories change only through mind-palace), `scripts/clued hook stop-guard` on Stop and `scripts/clued hook status-review` on SessionStart and (every 30 minutes) UserPromptSubmit; in server mode `hooks/event-relay` runs `scripts/clued hook relay` for every other event
 - Native memory with the chosen engine (`memory.engine`): a note of each session at SessionEnd, a checkpoint at PreCompact, day, recent and monthly archive roll-ups, injected as the prime report's MEMORY section; `/clued-remember` writes a handoff for the next session, `search_memory` searches it all (with the records claude-remember wrote before, which stay searchable). If an older clued installed a listener into claude-remember, `session-start` removed it once; clued writes nothing into claude-remember
+- Code sync (server modes): on or off as chosen. When on, say again that the source of every git repository Claude works in on this machine is uploaded to the server (minus the deny list of secret files, `excludePaths` and `codeSyncExclude`, redacted, binaries and large files as name and size only), that `codeSync: false` in a repository's `mind-palace.config.yaml` keeps that repository out, that `scripts/clued session code-sync status` shows what was synced, and that removing `codeSync` from `config.json` (or `CLUED_CODE_SYNC`) turns it off
 - Capture-time redaction is on (`"redactAtCapture": true`): API keys, AWS access key ids, JWTs, GitHub and Slack tokens, PEM private keys and `<private>…</private>` spans are masked before anything is written to MongoDB or sent to the server. Add regular expressions to `redactPatterns` to mask more (e-mail addresses, internal host names), and globs to `excludePaths` (`["~/work/client-*"]`) to keep whole directories out; `mind-palace session forget --session <id>` (or `--project <re>`, `--before <day>`) deletes what was captured, and `retentionDays` lets MongoDB expire it.
 - To enable the privacy-redact enricher (off by default): add `"privacy-redact"` to `enabledEnrichers` in `config.json` and restart the daemon (local MongoDB; in server mode enrichers run on the server and are configured there). It stores a masked copy of each transcript line (`sk-` API keys, e-mail addresses, AWS access key ids, JWTs) under `enrichments.privacy-redact`, and of each memory record (native records are redacted before they are stored anyway; claude-remember records captured before native memory) under `enrichments.privacy-redact-memory`; the raw text is still stored. `disabledEnrichers` only switches enrichers off.

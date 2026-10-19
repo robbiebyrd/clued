@@ -2,11 +2,12 @@
 id: 0011-gha
 title: A GitHub App that keeps code, plans and stories in sync and records repository activity
 type: dsgn
-status: pending
+status: complete
 priority: "3"
 effort: XL
 created: "2026-10-19T17:30:17.235Z"
-updated: "2026-10-19T17:34:00.360Z"
+updated: "2026-10-19T22:24:22.718Z"
+completed: "2026-10-19T22:24:22.718Z"
 tags:
   - github
   - code-graph

@@ -1,0 +1,478 @@
+{
+  "lang": "rust",
+  "symbols": [
+    {
+      "id": "outer",
+      "kind": "module",
+      "name": "outer",
+      "qualName": "outer",
+      "signature": "pub mod outer",
+      "doc": "Nested modules, items inside functions and macro-generated code.",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 144
+      },
+      "end": {
+        "line": 21,
+        "column": 1,
+        "offset": 540
+      },
+      "exported": true
+    },
+    {
+      "id": "outer::inner",
+      "kind": "module",
+      "name": "inner",
+      "qualName": "outer::inner",
+      "signature": "pub mod inner",
+      "start": {
+        "line": 6,
+        "column": 4,
+        "offset": 164
+      },
+      "end": {
+        "line": 18,
+        "column": 5,
+        "offset": 499
+      },
+      "parent": "outer",
+      "exported": true
+    },
+    {
+      "id": "outer::inner::deep",
+      "kind": "function",
+      "name": "deep",
+      "qualName": "outer::inner::deep",
+      "signature": "pub fn deep() -\u003e u32",
+      "doc": "The deepest function.",
+      "start": {
+        "line": 9,
+        "column": 8,
+        "offset": 248
+      },
+      "end": {
+        "line": 17,
+        "column": 9,
+        "offset": 493
+      },
+      "parent": "outer::inner",
+      "exported": true
+    },
+    {
+      "id": "outer::inner::deep::helper",
+      "kind": "function",
+      "name": "helper",
+      "qualName": "outer::inner::deep::helper",
+      "signature": "fn helper() -\u003e u32",
+      "doc": "A helper only `deep` sees.",
+      "start": {
+        "line": 11,
+        "column": 12,
+        "offset": 326
+      },
+      "end": {
+        "line": 15,
+        "column": 13,
+        "offset": 462
+      },
+      "parent": "outer::inner::deep"
+    },
+    {
+      "id": "outer::inner::deep::helper::Local",
+      "kind": "struct",
+      "name": "Local",
+      "qualName": "outer::inner::deep::helper::Local",
+      "signature": "struct Local",
+      "start": {
+        "line": 12,
+        "column": 16,
+        "offset": 363
+      },
+      "end": {
+        "line": 12,
+        "column": 34,
+        "offset": 381
+      },
+      "parent": "outer::inner::deep::helper"
+    },
+    {
+      "id": "outer::inner::deep::helper::SEED",
+      "kind": "const",
+      "name": "SEED",
+      "qualName": "outer::inner::deep::helper::SEED",
+      "signature": "const SEED: u32 = 7;",
+      "start": {
+        "line": 13,
+        "column": 16,
+        "offset": 398
+      },
+      "end": {
+        "line": 13,
+        "column": 36,
+        "offset": 418
+      },
+      "parent": "outer::inner::deep::helper"
+    },
+    {
+      "id": "getters",
+      "kind": "macro",
+      "name": "getters",
+      "qualName": "getters",
+      "signature": "macro_rules! getters",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 542
+      },
+      "end": {
+        "line": 29,
+        "column": 1,
+        "offset": 719
+      }
+    },
+    {
+      "id": "Config",
+      "kind": "struct",
+      "name": "Config",
+      "qualName": "Config",
+      "signature": "pub struct Config",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 738
+      },
+      "end": {
+        "line": 35,
+        "column": 1,
+        "offset": 794
+      },
+      "exported": true
+    },
+    {
+      "id": "Config::r#type",
+      "kind": "field",
+      "name": "r#type",
+      "qualName": "Config::r#type",
+      "signature": "r#type: String",
+      "start": {
+        "line": 33,
+        "column": 4,
+        "offset": 762
+      },
+      "end": {
+        "line": 33,
+        "column": 18,
+        "offset": 776
+      },
+      "parent": "Config"
+    },
+    {
+      "id": "Config::port",
+      "kind": "field",
+      "name": "port",
+      "qualName": "Config::port",
+      "signature": "port: u16",
+      "start": {
+        "line": 34,
+        "column": 4,
+        "offset": 782
+      },
+      "end": {
+        "line": 34,
+        "column": 13,
+        "offset": 791
+      },
+      "parent": "Config"
+    },
+    {
+      "id": "tests",
+      "kind": "module",
+      "name": "tests",
+      "qualName": "tests",
+      "signature": "mod tests",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 858
+      },
+      "end": {
+        "line": 55,
+        "column": 1,
+        "offset": 1143
+      }
+    },
+    {
+      "id": "tests::deep_is_seven",
+      "kind": "function",
+      "name": "deep_is_seven",
+      "qualName": "tests::deep_is_seven",
+      "signature": "fn deep_is_seven()",
+      "start": {
+        "line": 44,
+        "column": 4,
+        "offset": 905
+      },
+      "end": {
+        "line": 46,
+        "column": 5,
+        "offset": 976
+      },
+      "parent": "tests"
+    },
+    {
+      "id": "tests::port",
+      "kind": "function",
+      "name": "port",
+      "qualName": "tests::port",
+      "signature": "fn port()",
+      "doc": "Ports are kept.",
+      "start": {
+        "line": 51,
+        "column": 4,
+        "offset": 1032
+      },
+      "end": {
+        "line": 54,
+        "column": 5,
+        "offset": 1141
+      },
+      "parent": "tests"
+    }
+  ],
+  "imports": [
+    {
+      "spec": "self::inner",
+      "names": [
+        "deep"
+      ],
+      "start": {
+        "line": 20,
+        "column": 4,
+        "offset": 505
+      }
+    },
+    {
+      "spec": "super",
+      "kind": "glob",
+      "start": {
+        "line": 41,
+        "column": 4,
+        "offset": 874
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Local",
+      "kind": "call",
+      "start": {
+        "line": 14,
+        "column": 16,
+        "offset": 435
+      },
+      "enclosing": "outer::inner::deep::helper"
+    },
+    {
+      "name": "helper",
+      "kind": "call",
+      "start": {
+        "line": 16,
+        "column": 12,
+        "offset": 475
+      },
+      "enclosing": "outer::inner::deep"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 33,
+        "column": 12,
+        "offset": 770
+      },
+      "enclosing": "Config::r#type"
+    },
+    {
+      "name": "getters",
+      "kind": "call",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 796
+      }
+    },
+    {
+      "name": "Config",
+      "kind": "type",
+      "start": {
+        "line": 52,
+        "column": 16,
+        "offset": 1060
+      },
+      "enclosing": "tests::port"
+    },
+    {
+      "name": "into",
+      "qualifier": "\"x\"",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 37,
+        "offset": 1081
+      },
+      "enclosing": "tests::port"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 6,
+        "column": 19,
+        "offset": 179
+      },
+      "text": "// @generated by build.rs: do not edit.\n#![allow(dead_code, clippy::all)]\n\n/// Nested modules, items inside functions and macro-generated code.\npub mod outer {\n    pub mod inner {",
+      "hash": "d25b267e2bd39389edac62f66704bb7b06835b9ed21d35b8bacf35e66bde5d0f"
+    },
+    {
+      "id": "outer::inner::deep#1",
+      "kind": "symbol",
+      "symbolId": "outer::inner::deep",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 180
+      },
+      "end": {
+        "line": 17,
+        "column": 9,
+        "offset": 493
+      },
+      "text": "        /// The deepest function.\n        #[inline(always)]\n        pub fn deep() -\u003e u32 {\n            /// A helper only `deep` sees.\n            fn helper() -\u003e u32 {\n                struct Local(u32);\n                const SEED: u32 = 7;\n                Local(SEED).0\n            }\n            helper()\n        }",
+      "hash": "aaf585c423773e36ae29e613d14f4f0797f1446b68ab180be8bdccb97e4591ef"
+    },
+    {
+      "id": "L18#1",
+      "kind": "window",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 494
+      },
+      "end": {
+        "line": 21,
+        "column": 1,
+        "offset": 540
+      },
+      "text": "    }\n\n    pub(super) use self::inner::deep;\n}",
+      "hash": "0f603939ff748e42c942f265102c06515c82795ed836a73cdd2d410fbc47eaa5"
+    },
+    {
+      "id": "getters#1",
+      "kind": "symbol",
+      "symbolId": "getters",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 542
+      },
+      "end": {
+        "line": 29,
+        "column": 1,
+        "offset": 719
+      },
+      "text": "macro_rules! getters {\n    ($name:ident { $($field:ident: $ty:ty),* }) =\u003e {\n        impl $name {\n            $(pub fn $field(\u0026self) -\u003e \u0026$ty { \u0026self.$field })*\n        }\n    };\n}",
+      "hash": "45d4008de6d2cd0b1d840a88b6e7a20cee21eb6d17a2de880dc31059056f125f"
+    },
+    {
+      "id": "L31#1",
+      "kind": "window",
+      "start": {
+        "line": 31,
+        "column": 0,
+        "offset": 721
+      },
+      "end": {
+        "line": 31,
+        "column": 16,
+        "offset": 737
+      },
+      "text": "#[derive(Clone)]",
+      "hash": "7c6e0d8c1f1b393eb5cc91fb4fcca9004d349a321263c63500eb212366aef236"
+    },
+    {
+      "id": "Config#1",
+      "kind": "symbol",
+      "symbolId": "Config",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 738
+      },
+      "end": {
+        "line": 35,
+        "column": 1,
+        "offset": 794
+      },
+      "text": "pub struct Config {\n    r#type: String,\n    port: u16,\n}",
+      "hash": "cba181ea142901f98fafba6095c5f968bbe71f11c6dced81bf1cbc6b406faa99"
+    },
+    {
+      "id": "L37#1",
+      "kind": "window",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 796
+      },
+      "end": {
+        "line": 43,
+        "column": 11,
+        "offset": 900
+      },
+      "text": "getters!(Config { r#type: String, port: u16 });\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]",
+      "hash": "b0fadb5f4203a84e6ad6d22245b6fdf46d75d7a9947b5cd24747fe9573157e04"
+    },
+    {
+      "id": "tests::deep_is_seven#1",
+      "kind": "symbol",
+      "symbolId": "tests::deep_is_seven",
+      "start": {
+        "line": 44,
+        "column": 0,
+        "offset": 901
+      },
+      "end": {
+        "line": 46,
+        "column": 5,
+        "offset": 976
+      },
+      "text": "    fn deep_is_seven() {\n        assert_eq!(outer::inner::deep(), 7);\n    }",
+      "hash": "642014140c3e89cba5c271e040400aee3f27800593f58e3ba33f00fb181172e2"
+    },
+    {
+      "id": "tests::port#1",
+      "kind": "symbol",
+      "symbolId": "tests::port",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 978
+      },
+      "end": {
+        "line": 54,
+        "column": 5,
+        "offset": 1141
+      },
+      "text": "    /// Ports are kept.\n    #[test]\n    #[ignore]\n    fn port() {\n        let c = Config { r#type: \"x\".into(), port: 80 };\n        assert_eq!(*c.port(), 80);\n    }",
+      "hash": "f3ca95eb878d207b3bd3471b92c80bb2b24c6dcda9a311e5ccce3499fbbe1aa0"
+    }
+  ]
+}

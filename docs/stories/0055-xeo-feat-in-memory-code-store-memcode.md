@@ -3,11 +3,13 @@ id: 0055-xeo
 title: In-memory code store (`memcode`)
 purpose: Tests everywhere (transport, client, indexer) and `server run --store memory` need a code store with no database.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:08.895Z"
-updated: "2026-10-19T18:26:11.962Z"
+updated: "2026-10-19T19:13:07.797Z"
+started: "2026-10-19T19:10:41.852Z"
+completed: "2026-10-19T19:13:07.797Z"
 tags:
   - plan-0010-awy
   - wave-3
@@ -30,13 +32,13 @@ links:
     - ["0010-awy", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # In-memory code store (`memcode`)
@@ -69,9 +71,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./code/memcode/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./code/memcode/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./code/memcode/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./code/memcode/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -79,3 +81,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/code/memcode/memcode_test.go` - runs `codetest.Run`
 
 ## Work Log
+
+### 2026-10-19T19:13:01.788Z - Added code/memcode: memcode.New() returns an in-memory code.Store (maps behind one mutex; blobs, (worktree, ref) trees, worktrees, dense change log). Validates its own input (worktree id, ref, head/upstream, entry path/sha256/git oid, delete paths, blob hash and size) before the not-found and missing-blob checks; copies slices in and out; RemoveWorktree drops the worktree's trees and appends a tombstone; Commit adds the ref and touches the session. memcode_test.go runs codetest.Run: 26/26 subtests pass under -race; gofmt, go vet ./..., go build ./... clean. Only the two listed files changed.

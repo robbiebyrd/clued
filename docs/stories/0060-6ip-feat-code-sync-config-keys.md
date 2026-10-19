@@ -3,11 +3,13 @@ id: 0060-6ip
 title: Code sync config keys
 purpose: The client needs an opt-in switch (off by default) and limits before it uploads anything.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:33.909Z"
-updated: "2026-10-19T18:26:44.539Z"
+updated: "2026-10-19T19:08:54.891Z"
+started: "2026-10-19T18:57:30.462Z"
+completed: "2026-10-19T19:08:54.891Z"
 tags:
   - plan-0010-awy
   - wave-1
@@ -31,15 +33,15 @@ links:
     - ["0010-awy", "included", ["3.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Code sync config keys
@@ -76,9 +78,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/ ./cli/ ./config/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/ ./cli/ ./config/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./session/ ./cli/ ./config/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/ ./cli/ ./config/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -89,3 +91,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/config/config_test.go` - parsing
 
 ## Work Log
+
+### 2026-10-19T19:08:30.576Z - Added codeSync (*bool), codeSyncMaxFileBytes (default 1 MiB, DefaultCodeSyncMaxFileBytes) and codeSyncExclude to session.Config with CLUED_CODE_SYNC / CLUED_CODE_SYNC_MAX_FILE_BYTES overrides and Config.CodeSyncEnabled() (set and true, remote mode, captureContent not false). session.ValidPulledValue type-checks pulled values (captureContent/codeSync bool, positive whole cap, string list) so config-pull never writes a value that would make config.json unparsable; cli/session_login.go adds the three keys to pulledConfigKeys and uses it (code sync keys are not removed when the server sends none, unlike captureContent). config.Config.CodeSync + CodeSyncAllowed(): codeSync: false in mind-palace.config.yaml opts the repository out. Tests: 6 new session tests, 1 new config test, existing compat test updated for the default cap; go test -race ./session/ ./cli/ ./config/... ok (195 PASS lines with -v), go test ./... whole module ok, gofmt/vet/build clean. No files outside the list; this repo's own mind-palace.config.yaml was not changed (not in Files).

@@ -2,11 +2,12 @@
 id: 0010-awy
 title: Continuous code collection on the clued server for the code graph
 type: dsgn
-status: pending
+status: complete
 priority: "3"
 effort: XL
 created: "2026-10-16T19:52:58.427Z"
-updated: "2026-10-19T17:50:00.756Z"
+updated: "2026-10-19T22:24:09.484Z"
+completed: "2026-10-19T22:24:09.484Z"
 tags:
   - code-graph
   - server

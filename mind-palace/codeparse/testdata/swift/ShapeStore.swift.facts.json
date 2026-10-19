@@ -1,0 +1,930 @@
+{
+  "lang": "swift",
+  "symbols": [
+    {
+      "id": "StoreError",
+      "kind": "enum",
+      "name": "StoreError",
+      "qualName": "StoreError",
+      "signature": "enum StoreError: Error",
+      "doc": "Errors the store reports.",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 80
+      },
+      "end": {
+        "line": 9,
+        "column": 1,
+        "offset": 159
+      }
+    },
+    {
+      "id": "StoreError.notFound",
+      "kind": "const",
+      "name": "notFound",
+      "qualName": "StoreError.notFound",
+      "signature": "case notFound(id: UUID)",
+      "start": {
+        "line": 7,
+        "column": 4,
+        "offset": 109
+      },
+      "end": {
+        "line": 7,
+        "column": 27,
+        "offset": 132
+      },
+      "parent": "StoreError"
+    },
+    {
+      "id": "StoreError.invalid",
+      "kind": "const",
+      "name": "invalid",
+      "qualName": "StoreError.invalid",
+      "signature": "case invalid(String)",
+      "start": {
+        "line": 8,
+        "column": 4,
+        "offset": 137
+      },
+      "end": {
+        "line": 8,
+        "column": 24,
+        "offset": 157
+      },
+      "parent": "StoreError"
+    },
+    {
+      "id": "ShapeRepository",
+      "kind": "protocol",
+      "name": "ShapeRepository",
+      "qualName": "ShapeRepository",
+      "signature": "protocol ShapeRepository",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 161
+      },
+      "end": {
+        "line": 14,
+        "column": 1,
+        "offset": 280
+      }
+    },
+    {
+      "id": "ShapeRepository.load",
+      "kind": "method",
+      "name": "load",
+      "qualName": "ShapeRepository.load",
+      "signature": "func load(id: UUID) async throws -\u003e Circle",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 192
+      },
+      "end": {
+        "line": 12,
+        "column": 46,
+        "offset": 234
+      },
+      "parent": "ShapeRepository"
+    },
+    {
+      "id": "ShapeRepository.save",
+      "kind": "method",
+      "name": "save",
+      "qualName": "ShapeRepository.save",
+      "signature": "func save(_ shape: Circle) async throws",
+      "start": {
+        "line": 13,
+        "column": 4,
+        "offset": 239
+      },
+      "end": {
+        "line": 13,
+        "column": 43,
+        "offset": 278
+      },
+      "parent": "ShapeRepository"
+    },
+    {
+      "id": "ShapeStore",
+      "kind": "class",
+      "name": "ShapeStore",
+      "qualName": "ShapeStore",
+      "signature": "final class ShapeStore: ObservableObject, ShapeRepository",
+      "doc": "Loads and caches shapes for the editor.",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 326
+      },
+      "end": {
+        "line": 57,
+        "column": 1,
+        "offset": 1595
+      }
+    },
+    {
+      "id": "ShapeStore.shapes",
+      "kind": "property",
+      "name": "shapes",
+      "qualName": "ShapeStore.shapes",
+      "signature": "@Published private(set) var shapes: [UUID: Circle] = [:]",
+      "start": {
+        "line": 19,
+        "column": 4,
+        "offset": 401
+      },
+      "end": {
+        "line": 19,
+        "column": 60,
+        "offset": 457
+      },
+      "parent": "ShapeStore"
+    },
+    {
+      "id": "ShapeStore.backend",
+      "kind": "property",
+      "name": "backend",
+      "qualName": "ShapeStore.backend",
+      "signature": "private let backend: Backend",
+      "start": {
+        "line": 20,
+        "column": 4,
+        "offset": 462
+      },
+      "end": {
+        "line": 20,
+        "column": 32,
+        "offset": 490
+      },
+      "parent": "ShapeStore"
+    },
+    {
+      "id": "ShapeStore.cancellables",
+      "kind": "property",
+      "name": "cancellables",
+      "qualName": "ShapeStore.cancellables",
+      "signature": "private var cancellables = Set\u003cAnyCancellable\u003e()",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 495
+      },
+      "end": {
+        "line": 21,
+        "column": 52,
+        "offset": 543
+      },
+      "parent": "ShapeStore"
+    },
+    {
+      "id": "ShapeStore.init",
+      "kind": "method",
+      "name": "init",
+      "qualName": "ShapeStore.init",
+      "signature": "init(backend: Backend = .live)",
+      "start": {
+        "line": 23,
+        "column": 4,
+        "offset": 549
+      },
+      "end": {
+        "line": 29,
+        "column": 5,
+        "offset": 789
+      },
+      "parent": "ShapeStore"
+    },
+    {
+      "id": "ShapeStore.load",
+      "kind": "method",
+      "name": "load",
+      "qualName": "ShapeStore.load",
+      "signature": "func load(id: UUID) async throws -\u003e Circle",
+      "start": {
+        "line": 31,
+        "column": 4,
+        "offset": 795
+      },
+      "end": {
+        "line": 41,
+        "column": 5,
+        "offset": 1155
+      },
+      "parent": "ShapeStore"
+    },
+    {
+      "id": "ShapeStore.save",
+      "kind": "method",
+      "name": "save",
+      "qualName": "ShapeStore.save",
+      "signature": "func save(_ shape: Circle) async throws",
+      "start": {
+        "line": 43,
+        "column": 4,
+        "offset": 1161
+      },
+      "end": {
+        "line": 47,
+        "column": 5,
+        "offset": 1353
+      },
+      "parent": "ShapeStore"
+    },
+    {
+      "id": "ShapeStore.apply",
+      "kind": "method",
+      "name": "apply",
+      "qualName": "ShapeStore.apply",
+      "signature": "private func apply(_ change: Backend.Change)",
+      "start": {
+        "line": 49,
+        "column": 4,
+        "offset": 1359
+      },
+      "end": {
+        "line": 56,
+        "column": 5,
+        "offset": 1593
+      },
+      "parent": "ShapeStore"
+    },
+    {
+      "id": "CachingStore",
+      "kind": "class",
+      "name": "CachingStore",
+      "qualName": "CachingStore",
+      "signature": "final class CachingStore\u003cKey: Hashable, Value\u003e: Cache\u003cKey, Value\u003e, Sendable",
+      "start": {
+        "line": 59,
+        "column": 0,
+        "offset": 1597
+      },
+      "end": {
+        "line": 63,
+        "column": 1,
+        "offset": 1779
+      }
+    },
+    {
+      "id": "CachingStore.value",
+      "kind": "method",
+      "name": "value",
+      "qualName": "CachingStore.value",
+      "signature": "override func value(for key: Key) -\u003e Value?",
+      "start": {
+        "line": 60,
+        "column": 4,
+        "offset": 1679
+      },
+      "end": {
+        "line": 62,
+        "column": 5,
+        "offset": 1777
+      },
+      "parent": "CachingStore"
+    },
+    {
+      "id": "notify",
+      "kind": "function",
+      "name": "notify",
+      "qualName": "notify",
+      "signature": "func notify(_ event: ShapeEvent)",
+      "start": {
+        "line": 65,
+        "column": 0,
+        "offset": 1781
+      },
+      "end": {
+        "line": 68,
+        "column": 1,
+        "offset": 1919
+      }
+    }
+  ],
+  "imports": [
+    {
+      "spec": "Combine",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    },
+    {
+      "spec": "Foundation",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 15
+      }
+    },
+    {
+      "spec": "ShapeKit",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 33
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "UUID",
+      "kind": "type",
+      "start": {
+        "line": 7,
+        "column": 22,
+        "offset": 127
+      },
+      "enclosing": "StoreError.notFound"
+    },
+    {
+      "name": "UUID",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 18,
+        "offset": 206
+      },
+      "enclosing": "ShapeRepository.load"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 40,
+        "offset": 228
+      },
+      "enclosing": "ShapeRepository.load"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 23,
+        "offset": 258
+      },
+      "enclosing": "ShapeRepository.save"
+    },
+    {
+      "name": "MainActor",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 1,
+        "offset": 327
+      },
+      "enclosing": "ShapeStore"
+    },
+    {
+      "name": "ObservableObject",
+      "kind": "extends",
+      "start": {
+        "line": 18,
+        "column": 24,
+        "offset": 361
+      },
+      "enclosing": "ShapeStore"
+    },
+    {
+      "name": "ObservableObject",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 24,
+        "offset": 361
+      },
+      "enclosing": "ShapeStore"
+    },
+    {
+      "name": "ShapeRepository",
+      "kind": "implements",
+      "start": {
+        "line": 18,
+        "column": 42,
+        "offset": 379
+      },
+      "enclosing": "ShapeStore"
+    },
+    {
+      "name": "ShapeRepository",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 42,
+        "offset": 379
+      },
+      "enclosing": "ShapeStore"
+    },
+    {
+      "name": "Published",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 5,
+        "offset": 402
+      },
+      "enclosing": "ShapeStore.shapes"
+    },
+    {
+      "name": "UUID",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 41,
+        "offset": 438
+      },
+      "enclosing": "ShapeStore.shapes"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 47,
+        "offset": 444
+      },
+      "enclosing": "ShapeStore.shapes"
+    },
+    {
+      "name": "Backend",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 25,
+        "offset": 483
+      },
+      "enclosing": "ShapeStore.backend"
+    },
+    {
+      "name": "AnyCancellable",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 35,
+        "offset": 526
+      },
+      "enclosing": "ShapeStore.cancellables"
+    },
+    {
+      "name": "Backend",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 18,
+        "offset": 563
+      },
+      "enclosing": "ShapeStore.init"
+    },
+    {
+      "name": "receive",
+      "qualifier": "backend.changes",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 13,
+        "offset": 650
+      },
+      "enclosing": "ShapeStore.init"
+    },
+    {
+      "name": "sink",
+      "kind": "call",
+      "start": {
+        "line": 27,
+        "column": 13,
+        "offset": 695
+      },
+      "enclosing": "ShapeStore.init"
+    },
+    {
+      "name": "apply",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 27,
+        "column": 48,
+        "offset": 730
+      },
+      "enclosing": "ShapeStore.init"
+    },
+    {
+      "name": "store",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 13,
+        "offset": 759
+      },
+      "enclosing": "ShapeStore.init"
+    },
+    {
+      "name": "UUID",
+      "kind": "type",
+      "start": {
+        "line": 31,
+        "column": 18,
+        "offset": 809
+      },
+      "enclosing": "ShapeStore.load"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 31,
+        "column": 40,
+        "offset": 831
+      },
+      "enclosing": "ShapeStore.load"
+    },
+    {
+      "name": "fetch",
+      "qualifier": "backend",
+      "kind": "call",
+      "start": {
+        "line": 35,
+        "column": 43,
+        "offset": 956
+      },
+      "enclosing": "ShapeStore.load"
+    },
+    {
+      "name": "notFound",
+      "qualifier": "StoreError",
+      "kind": "call",
+      "start": {
+        "line": 36,
+        "column": 29,
+        "offset": 1002
+      },
+      "enclosing": "ShapeStore.load"
+    },
+    {
+      "name": "JSONDecoder",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 25,
+        "offset": 1054
+      },
+      "enclosing": "ShapeStore.load"
+    },
+    {
+      "name": "decode",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 39,
+        "offset": 1068
+      },
+      "enclosing": "ShapeStore.load"
+    },
+    {
+      "name": "Circle",
+      "kind": "type",
+      "start": {
+        "line": 43,
+        "column": 23,
+        "offset": 1180
+      },
+      "enclosing": "ShapeStore.save"
+    },
+    {
+      "name": "JSONEncoder",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 23,
+        "offset": 1226
+      },
+      "enclosing": "ShapeStore.save"
+    },
+    {
+      "name": "encode",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 37,
+        "offset": 1240
+      },
+      "enclosing": "ShapeStore.save"
+    },
+    {
+      "name": "put",
+      "qualifier": "backend",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 26,
+        "offset": 1280
+      },
+      "enclosing": "ShapeStore.save"
+    },
+    {
+      "name": "notify",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 8,
+        "offset": 1313
+      },
+      "enclosing": "ShapeStore.save"
+    },
+    {
+      "name": "saved",
+      "qualifier": "ShapeEvent",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 26,
+        "offset": 1331
+      },
+      "enclosing": "ShapeStore.save"
+    },
+    {
+      "name": "Backend",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 33,
+        "offset": 1388
+      },
+      "enclosing": "ShapeStore.apply"
+    },
+    {
+      "name": "Change",
+      "qualifier": "Backend",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 41,
+        "offset": 1396
+      },
+      "enclosing": "ShapeStore.apply"
+    },
+    {
+      "name": "removeValue",
+      "qualifier": "shapes",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 19,
+        "offset": 1480
+      },
+      "enclosing": "ShapeStore.apply"
+    },
+    {
+      "name": "Hashable",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 30,
+        "offset": 1627
+      },
+      "enclosing": "CachingStore"
+    },
+    {
+      "name": "Cache",
+      "kind": "extends",
+      "start": {
+        "line": 59,
+        "column": 48,
+        "offset": 1645
+      },
+      "enclosing": "CachingStore"
+    },
+    {
+      "name": "Cache",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 48,
+        "offset": 1645
+      },
+      "enclosing": "CachingStore"
+    },
+    {
+      "name": "Key",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 54,
+        "offset": 1651
+      },
+      "enclosing": "CachingStore"
+    },
+    {
+      "name": "Value",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 59,
+        "offset": 1656
+      },
+      "enclosing": "CachingStore"
+    },
+    {
+      "name": "Sendable",
+      "kind": "implements",
+      "start": {
+        "line": 59,
+        "column": 67,
+        "offset": 1664
+      },
+      "enclosing": "CachingStore"
+    },
+    {
+      "name": "Sendable",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 67,
+        "offset": 1664
+      },
+      "enclosing": "CachingStore"
+    },
+    {
+      "name": "Key",
+      "kind": "type",
+      "start": {
+        "line": 60,
+        "column": 33,
+        "offset": 1708
+      },
+      "enclosing": "CachingStore.value"
+    },
+    {
+      "name": "Value",
+      "kind": "type",
+      "start": {
+        "line": 60,
+        "column": 41,
+        "offset": 1716
+      },
+      "enclosing": "CachingStore.value"
+    },
+    {
+      "name": "value",
+      "qualifier": "super",
+      "kind": "call",
+      "start": {
+        "line": 61,
+        "column": 14,
+        "offset": 1739
+      },
+      "enclosing": "CachingStore.value"
+    },
+    {
+      "name": "fallback",
+      "kind": "call",
+      "start": {
+        "line": 61,
+        "column": 33,
+        "offset": 1758
+      },
+      "enclosing": "CachingStore.value"
+    },
+    {
+      "name": "ShapeEvent",
+      "kind": "type",
+      "start": {
+        "line": 65,
+        "column": 21,
+        "offset": 1802
+      },
+      "enclosing": "notify"
+    },
+    {
+      "name": "post",
+      "qualifier": "NotificationCenter.default",
+      "kind": "call",
+      "start": {
+        "line": 66,
+        "column": 31,
+        "offset": 1847
+      },
+      "enclosing": "notify"
+    },
+    {
+      "name": "track",
+      "qualifier": "Analytics",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 14,
+        "offset": 1900
+      },
+      "enclosing": "notify"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 15,
+        "offset": 48
+      },
+      "text": "import Combine\nimport Foundation\nimport ShapeKit",
+      "hash": "4b56ce18bb34c2f40de1b2852a98f7f19b24eb34404c03f2095231e4ca8f79bf"
+    },
+    {
+      "id": "StoreError#1",
+      "kind": "symbol",
+      "symbolId": "StoreError",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 50
+      },
+      "end": {
+        "line": 9,
+        "column": 1,
+        "offset": 159
+      },
+      "text": "/// Errors the store reports.\nenum StoreError: Error {\n    case notFound(id: UUID)\n    case invalid(String)\n}",
+      "hash": "97047c40c2d8b29ea09389b56a06ea523e8361e037fc3358032fd7797d8c4921"
+    },
+    {
+      "id": "ShapeRepository#1",
+      "kind": "symbol",
+      "symbolId": "ShapeRepository",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 161
+      },
+      "end": {
+        "line": 14,
+        "column": 1,
+        "offset": 280
+      },
+      "text": "protocol ShapeRepository {\n    func load(id: UUID) async throws -\u003e Circle\n    func save(_ shape: Circle) async throws\n}",
+      "hash": "78fd2510be025b2f1c9deefdd6b720960ccfbabb32c6f92613b4e5af7c31bc5d"
+    },
+    {
+      "id": "ShapeStore#1",
+      "kind": "symbol",
+      "symbolId": "ShapeStore",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 282
+      },
+      "end": {
+        "line": 57,
+        "column": 1,
+        "offset": 1595
+      },
+      "text": "/// Loads and caches shapes for the editor.\n@MainActor\nfinal class ShapeStore: ObservableObject, ShapeRepository {\n    @Published private(set) var shapes: [UUID: Circle] = [:]\n    private let backend: Backend\n    private var cancellables = Set\u003cAnyCancellable\u003e()\n\n    init(backend: Backend = .live) {\n        self.backend = backend\n        backend.changes\n            .receive(on: DispatchQueue.main)\n            .sink { [weak self] change in self?.apply(change) }\n            .store(in: \u0026cancellables)\n    }\n\n    func load(id: UUID) async throws -\u003e Circle {\n        if let cached = shapes[id] {\n            return cached\n        }\n        guard let data = try await backend.fetch(id) else {\n            throw StoreError.notFound(id: id)\n        }\n        let circle = try JSONDecoder().decode(Circle.self, from: data)\n        shapes[id] = circle\n        return circle\n    }\n\n    func save(_ shape: Circle) async throws {\n        let data = try JSONEncoder().encode(shape)\n        try await backend.put(data, for: shape.id)\n        notify(ShapeEvent.saved(shape.id))\n    }\n\n    private func apply(_ change: Backend.Change) {\n        switch change {\n        case .removed(let id):\n            shapes.removeValue(forKey: id)\n        case .updated(let circle):\n            shapes[circle.id] = circle\n        }\n    }\n}",
+      "hash": "114803dc9e9631fcfe7ab3e341387b82e44e072cb0299c9952505077544603cc"
+    },
+    {
+      "id": "CachingStore#1",
+      "kind": "symbol",
+      "symbolId": "CachingStore",
+      "start": {
+        "line": 59,
+        "column": 0,
+        "offset": 1597
+      },
+      "end": {
+        "line": 63,
+        "column": 1,
+        "offset": 1779
+      },
+      "text": "final class CachingStore\u003cKey: Hashable, Value\u003e: Cache\u003cKey, Value\u003e, Sendable {\n    override func value(for key: Key) -\u003e Value? {\n        super.value(for: key) ?? fallback(key)\n    }\n}",
+      "hash": "c31b115b285c3b71e594eee04c01db7c590b7971e2d62ed451d4b43dc5d4723d"
+    },
+    {
+      "id": "notify#1",
+      "kind": "symbol",
+      "symbolId": "notify",
+      "start": {
+        "line": 65,
+        "column": 0,
+        "offset": 1781
+      },
+      "end": {
+        "line": 68,
+        "column": 1,
+        "offset": 1919
+      },
+      "text": "func notify(_ event: ShapeEvent) {\n    NotificationCenter.default.post(name: .shapeEvent, object: event)\n    Analytics.track(event.name)\n}",
+      "hash": "5280eb94b9213a85f014a3238ddfd8f85b645a86d043fea1edc72fb7bcb0082e"
+    }
+  ]
+}

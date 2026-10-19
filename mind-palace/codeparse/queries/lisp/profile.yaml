@@ -1,0 +1,126 @@
+# Lisp: one language, five dialects, each with its own grammar and query
+# file (the Languages table picks the dialect by extension). Definitions are
+# ordinary forms: the queries capture a form whose head looks like a definer
+# (starts with "def", and the dialect's own: define-, cl-def, struct,
+# module, library) as a @definition.form, and definingForms below decides
+# which heads define what; a head not listed is a call reference.
+name: Lisp
+family: lisp
+extensions: [.lisp, .lsp, .cl, .asd, .el, .clj, .cljs, .cljc, .edn, .scm, .ss, .rkt]
+# The language's own grammar and query, for a Lisp file without a dialect.
+grammar: commonlisp
+query: tags.scm
+dialects:
+  commonlisp: { grammar: commonlisp, query: tags.scm }
+  elisp: { grammar: elisp, query: elisp.scm }
+  clojure: { grammar: clojure, query: clojure.scm }
+  scheme: { grammar: scheme, query: scheme.scm }
+  racket: { grammar: racket, query: racket.scm }
+definingForms:
+  # Common Lisp. defun, defmacro, defmethod and defgeneric are nodes of the
+  # grammar (tags.scm); the upper-case spellings the grammar does not know
+  # come through here.
+  - { form: defvar, kind: var, dialect: commonlisp }
+  - { form: defparameter, kind: var, dialect: commonlisp }
+  - { form: defconstant, kind: const, dialect: commonlisp }
+  - { form: define-symbol-macro, kind: macro, dialect: commonlisp }
+  - { form: define-compiler-macro, kind: macro, dialect: commonlisp }
+  - { form: define-modify-macro, kind: macro, dialect: commonlisp }
+  - { form: defsetf, kind: function, dialect: commonlisp }
+  - { form: defclass, kind: class, dialect: commonlisp }
+  - { form: define-condition, kind: class, dialect: commonlisp }
+  - { form: defstruct, kind: struct, dialect: commonlisp }
+  - { form: deftype, kind: type, dialect: commonlisp }
+  - { form: defpackage, kind: package, dialect: commonlisp }
+  - { form: define-package, kind: package, dialect: commonlisp }
+  - { form: defsystem, kind: module, dialect: commonlisp }
+  - { form: DEFUN, kind: function, dialect: commonlisp }
+  - { form: DEFMACRO, kind: macro, dialect: commonlisp }
+  - { form: DEFGENERIC, kind: function, dialect: commonlisp }
+  - { form: DEFMETHOD, kind: method, dialect: commonlisp }
+  - { form: DEFVAR, kind: var, dialect: commonlisp }
+  - { form: DEFPARAMETER, kind: var, dialect: commonlisp }
+  - { form: DEFCONSTANT, kind: const, dialect: commonlisp }
+  - { form: DEFCLASS, kind: class, dialect: commonlisp }
+  - { form: DEFSTRUCT, kind: struct, dialect: commonlisp }
+  - { form: DEFPACKAGE, kind: package, dialect: commonlisp }
+  # Emacs Lisp. defun, defmacro, defsubst, defvar and defconst are nodes of
+  # the grammar (elisp.scm).
+  - { form: defcustom, kind: var, dialect: elisp }
+  - { form: defvar-local, kind: var, dialect: elisp }
+  - { form: defface, kind: var, dialect: elisp }
+  - { form: defgroup, kind: var, dialect: elisp }
+  - { form: defalias, kind: function, dialect: elisp }
+  - { form: defvaralias, kind: var, dialect: elisp }
+  - { form: define-inline, kind: function, dialect: elisp }
+  - { form: cl-defun, kind: function, dialect: elisp }
+  - { form: cl-defsubst, kind: function, dialect: elisp }
+  - { form: cl-defmacro, kind: macro, dialect: elisp }
+  - { form: cl-defgeneric, kind: function, dialect: elisp }
+  - { form: cl-defmethod, kind: method, dialect: elisp }
+  - { form: cl-defstruct, kind: struct, dialect: elisp }
+  - { form: defclass, kind: class, dialect: elisp }
+  - { form: define-minor-mode, kind: function, dialect: elisp }
+  - { form: define-globalized-minor-mode, kind: function, dialect: elisp }
+  - { form: define-derived-mode, kind: function, dialect: elisp }
+  - { form: define-error, kind: class, dialect: elisp }
+  # Clojure.
+  - { form: def, kind: var, dialect: clojure }
+  - { form: defonce, kind: var, dialect: clojure }
+  - { form: defn, kind: function, dialect: clojure }
+  - { form: defn-, kind: function, dialect: clojure }
+  - { form: defmacro, kind: macro, dialect: clojure }
+  - { form: defmulti, kind: function, dialect: clojure }
+  - { form: defmethod, kind: method, dialect: clojure }
+  - { form: defprotocol, kind: protocol, dialect: clojure }
+  - { form: definterface, kind: interface, dialect: clojure }
+  - { form: defrecord, kind: class, dialect: clojure }
+  - { form: deftype, kind: class, dialect: clojure }
+  - { form: defstruct, kind: struct, dialect: clojure }
+  # Scheme (R7RS, R6RS, Guile, Chicken) and Racket. define is matched by the
+  # queries themselves: a function when its name is a list, else a variable.
+  - { form: define-syntax, kind: macro, dialect: scheme }
+  - { form: define-record-type, kind: struct, dialect: scheme }
+  - { form: define-library, kind: module, dialect: scheme }
+  - { form: define-module, kind: module, dialect: scheme }
+  - { form: library, kind: module, dialect: scheme }
+  - { form: define-syntax, kind: macro, dialect: racket }
+  - { form: define-syntax-rule, kind: macro, dialect: racket }
+  - { form: define-record-type, kind: struct, dialect: racket }
+  - { form: struct, kind: struct, dialect: racket }
+  - { form: define-struct, kind: struct, dialect: racket }
+  - { form: module, kind: module, dialect: racket }
+  - { form: module+, kind: module, dialect: racket }
+  - { form: module*, kind: module, dialect: racket }
+  - { form: define/public, kind: method, dialect: racket }
+  - { form: define/private, kind: method, dialect: racket }
+  - { form: define/override, kind: method, dialect: racket }
+  - { form: define/augment, kind: method, dialect: racket }
+  - { form: define/pubment, kind: method, dialect: racket }
+  - { form: define/contract, kind: function, dialect: racket }
+scope:
+  # A Common Lisp symbol is package:name (package::name when internal); a
+  # Clojure one namespace/name. QualName joins the file's package (in-package,
+  # ns) and the name with the first separator.
+  separators: [":", "::", "/"]
+  packageBy: declaration
+  exported: all
+  # Only Common Lisp reads symbols without case (caseInsensitiveDialects).
+  caseInsensitive: false
+  # A Racket or Scheme prefix (prefix-in str:, (prefix (lib) util:)) is part
+  # of the symbol to the grammar: the extractor cuts str:string-join into
+  # the qualifier str and the name string-join.
+  splitQualifiers: { racket: ":", scheme: ":" }
+  options:
+    # Dialects whose symbols compare without case.
+    caseInsensitiveDialects: commonlisp
+    # The forms that set the package of the definitions after them, per
+    # dialect (the query captures them as @package).
+    packageForms: "commonlisp=in-package clojure=ns"
+    # Dialects in which a file is its own module (Racket's #lang, R7RS and
+    # Guile libraries); Emacs Lisp has one global namespace.
+    fileModuleDialects: "racket,scheme"
+    globalDialects: elisp
+    # The separator between a qualified reference's Qualifier and its name
+    # in the source, per dialect (pkg:name or pkg::name, ns/name).
+    qualifierSeparators: "commonlisp=: clojure=/ racket=: scheme=:"

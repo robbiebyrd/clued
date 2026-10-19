@@ -1,0 +1,558 @@
+{
+  "lang": "javascript",
+  "symbols": [
+    {
+      "id": "Greeting",
+      "kind": "function",
+      "name": "Greeting",
+      "qualName": "Greeting",
+      "signature": "function Greeting({ name })",
+      "doc": "Greeting renders a name in a heading.",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 235
+      },
+      "end": {
+        "line": 10,
+        "column": 1,
+        "offset": 321
+      }
+    },
+    {
+      "id": "TodoList",
+      "kind": "function",
+      "name": "TodoList",
+      "qualName": "TodoList",
+      "signature": "TodoList = ({ items, onAdd }) =\u003e (",
+      "doc": "TodoList shows the items and a button that adds one.",
+      "start": {
+        "line": 15,
+        "column": 13,
+        "offset": 457
+      },
+      "end": {
+        "line": 24,
+        "column": 1,
+        "offset": 700
+      },
+      "exported": true
+    },
+    {
+      "id": "TodoItem",
+      "kind": "const",
+      "name": "TodoItem",
+      "qualName": "TodoItem",
+      "signature": "TodoItem = React.memo(function TodoItem({ title, done })",
+      "start": {
+        "line": 26,
+        "column": 6,
+        "offset": 709
+      },
+      "end": {
+        "line": 28,
+        "column": 2,
+        "offset": 828
+      }
+    },
+    {
+      "id": "App",
+      "kind": "function",
+      "name": "App",
+      "qualName": "App",
+      "signature": "function App()",
+      "start": {
+        "line": 30,
+        "column": 15,
+        "offset": 846
+      },
+      "end": {
+        "line": 42,
+        "column": 1,
+        "offset": 1183
+      },
+      "exported": true
+    },
+    {
+      "id": "ErrorBoundary",
+      "kind": "class",
+      "name": "ErrorBoundary",
+      "qualName": "ErrorBoundary",
+      "signature": "class ErrorBoundary extends React.Component",
+      "start": {
+        "line": 44,
+        "column": 0,
+        "offset": 1185
+      },
+      "end": {
+        "line": 54,
+        "column": 1,
+        "offset": 1429
+      }
+    },
+    {
+      "id": "ErrorBoundary.state",
+      "kind": "field",
+      "name": "state",
+      "qualName": "ErrorBoundary.state",
+      "signature": "state = { failed: false }",
+      "start": {
+        "line": 45,
+        "column": 2,
+        "offset": 1233
+      },
+      "end": {
+        "line": 45,
+        "column": 27,
+        "offset": 1258
+      },
+      "parent": "ErrorBoundary"
+    },
+    {
+      "id": "ErrorBoundary.getDerivedStateFromError",
+      "kind": "method",
+      "name": "getDerivedStateFromError",
+      "qualName": "ErrorBoundary.getDerivedStateFromError",
+      "signature": "static getDerivedStateFromError()",
+      "start": {
+        "line": 47,
+        "column": 2,
+        "offset": 1263
+      },
+      "end": {
+        "line": 49,
+        "column": 3,
+        "offset": 1331
+      },
+      "parent": "ErrorBoundary"
+    },
+    {
+      "id": "ErrorBoundary.render",
+      "kind": "method",
+      "name": "render",
+      "qualName": "ErrorBoundary.render",
+      "signature": "render()",
+      "start": {
+        "line": 51,
+        "column": 2,
+        "offset": 1335
+      },
+      "end": {
+        "line": 53,
+        "column": 3,
+        "offset": 1427
+      },
+      "parent": "ErrorBoundary"
+    },
+    {
+      "id": "loadItems",
+      "kind": "function",
+      "name": "loadItems",
+      "qualName": "loadItems",
+      "signature": "async function loadItems()",
+      "start": {
+        "line": 56,
+        "column": 0,
+        "offset": 1431
+      },
+      "end": {
+        "line": 59,
+        "column": 1,
+        "offset": 1535
+      }
+    }
+  ],
+  "imports": [
+    {
+      "spec": "react",
+      "alias": "React",
+      "names": [
+        "useState",
+        "useEffect as useMountEffect"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    },
+    {
+      "spec": "prop-types",
+      "alias": "PropTypes",
+      "kind": "import",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 70
+      }
+    },
+    {
+      "spec": "./ui",
+      "alias": "UI",
+      "kind": "import",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 106
+      }
+    },
+    {
+      "spec": "./Button.jsx",
+      "alias": "Button",
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 134
+      }
+    },
+    {
+      "spec": "./App.css",
+      "kind": "import",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 169
+      }
+    },
+    {
+      "spec": "./api.js",
+      "kind": "dynamic",
+      "start": {
+        "line": 57,
+        "column": 31,
+        "offset": 1491
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Panel",
+      "qualifier": "UI",
+      "kind": "call",
+      "start": {
+        "line": 16,
+        "column": 6,
+        "offset": 498
+      },
+      "enclosing": "TodoList"
+    },
+    {
+      "name": "map",
+      "qualifier": "items",
+      "kind": "call",
+      "start": {
+        "line": 18,
+        "column": 13,
+        "offset": 540
+      },
+      "enclosing": "TodoList"
+    },
+    {
+      "name": "TodoItem",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 9,
+        "offset": 565
+      },
+      "enclosing": "TodoList"
+    },
+    {
+      "name": "Button",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 5,
+        "offset": 626
+      },
+      "enclosing": "TodoList"
+    },
+    {
+      "name": "onAdd",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 27,
+        "offset": 648
+      },
+      "enclosing": "TodoList"
+    },
+    {
+      "name": "prompt",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 33,
+        "offset": 654
+      },
+      "enclosing": "TodoList"
+    },
+    {
+      "name": "memo",
+      "qualifier": "React",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 23,
+        "offset": 726
+      },
+      "enclosing": "TodoItem"
+    },
+    {
+      "name": "useState",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 28,
+        "offset": 891
+      },
+      "enclosing": "App"
+    },
+    {
+      "name": "useMountEffect",
+      "kind": "call",
+      "start": {
+        "line": 32,
+        "column": 2,
+        "offset": 907
+      },
+      "enclosing": "App"
+    },
+    {
+      "name": "loadItems",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 4,
+        "offset": 934
+      },
+      "enclosing": "App"
+    },
+    {
+      "name": "then",
+      "qualifier": "loadItems()",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 16,
+        "offset": 946
+      },
+      "enclosing": "App"
+    },
+    {
+      "name": "setItems",
+      "kind": "call",
+      "start": {
+        "line": 35,
+        "column": 25,
+        "offset": 997
+      },
+      "enclosing": "App"
+    },
+    {
+      "name": "Fragment",
+      "qualifier": "React",
+      "kind": "call",
+      "start": {
+        "line": 37,
+        "column": 11,
+        "offset": 1070
+      },
+      "enclosing": "App"
+    },
+    {
+      "name": "Greeting",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 7,
+        "offset": 1087
+      },
+      "enclosing": "App"
+    },
+    {
+      "name": "TodoList",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 7,
+        "offset": 1117
+      },
+      "enclosing": "App"
+    },
+    {
+      "name": "Component",
+      "qualifier": "React",
+      "kind": "extends",
+      "start": {
+        "line": 44,
+        "column": 34,
+        "offset": 1219
+      },
+      "enclosing": "ErrorBoundary"
+    },
+    {
+      "name": "fetchItems",
+      "kind": "call",
+      "start": {
+        "line": 58,
+        "column": 9,
+        "offset": 1520
+      },
+      "enclosing": "loadItems"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 5,
+        "column": 19,
+        "offset": 188
+      },
+      "text": "import React, { useState, useEffect as useMountEffect } from 'react';\nimport PropTypes from 'prop-types';\nimport * as UI from './ui';\nimport Button from './Button.jsx';\nimport './App.css';",
+      "hash": "605221574194485f56a7653e1e9bf49b71cdae88e78d9e03f44d6eddd8a8ec6a"
+    },
+    {
+      "id": "Greeting#1",
+      "kind": "symbol",
+      "symbolId": "Greeting",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 190
+      },
+      "end": {
+        "line": 10,
+        "column": 1,
+        "offset": 321
+      },
+      "text": "/** Greeting renders a name in a heading. */\nfunction Greeting({ name }) {\n  return \u003ch1 className=\"greeting\"\u003eHello, {name}!\u003c/h1\u003e;\n}",
+      "hash": "e5e842cd83facaca566f422812a1d3ffbac0f38bef7441e986552b6bb57a88bd"
+    },
+    {
+      "id": "L12#1",
+      "kind": "window",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 323
+      },
+      "end": {
+        "line": 12,
+        "column": 59,
+        "offset": 382
+      },
+      "text": "Greeting.propTypes = { name: PropTypes.string.isRequired };",
+      "hash": "312f6df297154e43716ffc59f3413bab808ada352772944769207d1f5f9cc936"
+    },
+    {
+      "id": "TodoList#1",
+      "kind": "symbol",
+      "symbolId": "TodoList",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 384
+      },
+      "end": {
+        "line": 24,
+        "column": 1,
+        "offset": 700
+      },
+      "text": "/** TodoList shows the items and a button that adds one. */\nexport const TodoList = ({ items, onAdd }) =\u003e (\n  \u003cUI.Panel title=\"Todo\"\u003e\n    \u003cul\u003e\n      {items.map((item) =\u003e (\n        \u003cTodoItem key={item.id} {...item} /\u003e\n      ))}\n    \u003c/ul\u003e\n    \u003cButton onClick={() =\u003e onAdd(prompt('What?'))}\u003eAdd\u003c/Button\u003e\n  \u003c/UI.Panel\u003e\n)",
+      "hash": "e437f73a7a02191c0f2ce133528a074a6ea5a906dbec5c88d0585dfc8248022d"
+    },
+    {
+      "id": "L26#1",
+      "kind": "window",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 703
+      },
+      "end": {
+        "line": 28,
+        "column": 3,
+        "offset": 829
+      },
+      "text": "const TodoItem = React.memo(function TodoItem({ title, done }) {\n  return \u003cli className={done ? 'done' : ''}\u003e{title}\u003c/li\u003e;\n});",
+      "hash": "4b1a55bc42c80e549068236e9ac0a179cd2dd5f26c8215335dc6473a3b0ee20f"
+    },
+    {
+      "id": "App#1",
+      "kind": "symbol",
+      "symbolId": "App",
+      "start": {
+        "line": 30,
+        "column": 15,
+        "offset": 846
+      },
+      "end": {
+        "line": 42,
+        "column": 1,
+        "offset": 1183
+      },
+      "text": "function App() {\n  const [items, setItems] = useState([]);\n  useMountEffect(() =\u003e {\n    loadItems().then(setItems);\n  }, []);\n  const add = (title) =\u003e setItems([...items, { id: items.length, title }]);\n  return (\n    \u003cReact.Fragment\u003e\n      \u003cGreeting name=\"you\" /\u003e\n      \u003cTodoList items={items} onAdd={add} /\u003e\n    \u003c/React.Fragment\u003e\n  );\n}",
+      "hash": "6ba5b2d0ed3d6f7716a060817730f33ac94e12a1fc51467c358bd57c63a6451e"
+    },
+    {
+      "id": "ErrorBoundary#1",
+      "kind": "symbol",
+      "symbolId": "ErrorBoundary",
+      "start": {
+        "line": 44,
+        "column": 0,
+        "offset": 1185
+      },
+      "end": {
+        "line": 54,
+        "column": 1,
+        "offset": 1429
+      },
+      "text": "class ErrorBoundary extends React.Component {\n  state = { failed: false };\n\n  static getDerivedStateFromError() {\n    return { failed: true };\n  }\n\n  render() {\n    return this.state.failed ? \u003cp\u003eSomething broke.\u003c/p\u003e : this.props.children;\n  }\n}",
+      "hash": "64c1ca6c29c467b3e5095845f025126beec7d7054816ed8a625bca82d07cd3fd"
+    },
+    {
+      "id": "loadItems#1",
+      "kind": "symbol",
+      "symbolId": "loadItems",
+      "start": {
+        "line": 56,
+        "column": 0,
+        "offset": 1431
+      },
+      "end": {
+        "line": 59,
+        "column": 1,
+        "offset": 1535
+      },
+      "text": "async function loadItems() {\n  const { fetchItems } = await import('./api.js');\n  return fetchItems();\n}",
+      "hash": "2452c01c92ffc87755448d28c34253cd83c564d201f32b42d52bbb3e1c01480c"
+    },
+    {
+      "id": "L61#1",
+      "kind": "window",
+      "start": {
+        "line": 61,
+        "column": 0,
+        "offset": 1537
+      },
+      "end": {
+        "line": 61,
+        "column": 25,
+        "offset": 1562
+      },
+      "text": "export { ErrorBoundary };",
+      "hash": "ea9d63065b42697f353e8531b0c03039017fbeebb65e5ed291c61bfbbb5fc88c"
+    }
+  ]
+}

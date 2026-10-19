@@ -1,0 +1,909 @@
+{
+  "lang": "ocaml",
+  "symbols": [
+    {
+      "id": "point",
+      "kind": "struct",
+      "name": "point",
+      "qualName": "point",
+      "signature": "point =",
+      "doc": "A point in the plane.",
+      "start": {
+        "line": 6,
+        "column": 5,
+        "offset": 89
+      },
+      "end": {
+        "line": 6,
+        "column": 45,
+        "offset": 129
+      },
+      "exported": true
+    },
+    {
+      "id": "point.x",
+      "kind": "field",
+      "name": "x",
+      "qualName": "point.x",
+      "signature": "x : float",
+      "doc": "A point in the plane.",
+      "start": {
+        "line": 6,
+        "column": 15,
+        "offset": 99
+      },
+      "end": {
+        "line": 6,
+        "column": 24,
+        "offset": 108
+      },
+      "parent": "point",
+      "exported": true
+    },
+    {
+      "id": "point.y",
+      "kind": "field",
+      "name": "y",
+      "qualName": "point.y",
+      "signature": "mutable y : float",
+      "doc": "A point in the plane.",
+      "start": {
+        "line": 6,
+        "column": 26,
+        "offset": 110
+      },
+      "end": {
+        "line": 6,
+        "column": 43,
+        "offset": 127
+      },
+      "parent": "point",
+      "exported": true
+    },
+    {
+      "id": "shape",
+      "kind": "enum",
+      "name": "shape",
+      "qualName": "shape",
+      "signature": "shape =",
+      "doc": "The shapes this module knows.",
+      "start": {
+        "line": 9,
+        "column": 5,
+        "offset": 173
+      },
+      "end": {
+        "line": 12,
+        "column": 25,
+        "offset": 260
+      },
+      "exported": true
+    },
+    {
+      "id": "shape.Circle",
+      "kind": "variant",
+      "name": "Circle",
+      "qualName": "shape.Circle",
+      "signature": "Circle of point * float",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 185
+      },
+      "end": {
+        "line": 10,
+        "column": 27,
+        "offset": 208
+      },
+      "parent": "shape",
+      "exported": true
+    },
+    {
+      "id": "shape.Rect",
+      "kind": "variant",
+      "name": "Rect",
+      "qualName": "shape.Rect",
+      "signature": "Rect of point * point",
+      "start": {
+        "line": 11,
+        "column": 4,
+        "offset": 213
+      },
+      "end": {
+        "line": 11,
+        "column": 25,
+        "offset": 234
+      },
+      "parent": "shape",
+      "exported": true
+    },
+    {
+      "id": "shape.Polygon",
+      "kind": "variant",
+      "name": "Polygon",
+      "qualName": "shape.Polygon",
+      "signature": "Polygon of point list",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 239
+      },
+      "end": {
+        "line": 12,
+        "column": 25,
+        "offset": 260
+      },
+      "parent": "shape",
+      "exported": true
+    },
+    {
+      "id": "labelled",
+      "kind": "type",
+      "name": "labelled",
+      "qualName": "labelled",
+      "signature": "'a labelled =",
+      "start": {
+        "line": 14,
+        "column": 5,
+        "offset": 267
+      },
+      "end": {
+        "line": 14,
+        "column": 30,
+        "offset": 292
+      },
+      "exported": true
+    },
+    {
+      "id": "Degenerate",
+      "kind": "exception",
+      "name": "Degenerate",
+      "qualName": "Degenerate",
+      "signature": "exception Degenerate of string",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 294
+      },
+      "end": {
+        "line": 16,
+        "column": 30,
+        "offset": 324
+      },
+      "exported": true
+    },
+    {
+      "id": "pi",
+      "kind": "var",
+      "name": "pi",
+      "qualName": "pi",
+      "signature": "pi =",
+      "start": {
+        "line": 18,
+        "column": 4,
+        "offset": 330
+      },
+      "end": {
+        "line": 18,
+        "column": 24,
+        "offset": 350
+      },
+      "exported": true
+    },
+    {
+      "id": "area",
+      "kind": "function",
+      "name": "area",
+      "qualName": "area",
+      "signature": "area =",
+      "doc": "[area s] is the area of [s].",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 392
+      },
+      "end": {
+        "line": 25,
+        "column": 20,
+        "offset": 575
+      },
+      "exported": true
+    },
+    {
+      "id": "perimeter_of_points",
+      "kind": "function",
+      "name": "perimeter_of_points",
+      "qualName": "perimeter_of_points",
+      "signature": "perimeter_of_points acc =",
+      "start": {
+        "line": 27,
+        "column": 8,
+        "offset": 585
+      },
+      "end": {
+        "line": 29,
+        "column": 12,
+        "offset": 708
+      },
+      "exported": true
+    },
+    {
+      "id": "distance",
+      "kind": "function",
+      "name": "distance",
+      "qualName": "distance",
+      "signature": "distance a b =",
+      "start": {
+        "line": 31,
+        "column": 4,
+        "offset": 714
+      },
+      "end": {
+        "line": 31,
+        "column": 72,
+        "offset": 782
+      },
+      "exported": true
+    },
+    {
+      "id": "translate",
+      "kind": "function",
+      "name": "translate",
+      "qualName": "translate",
+      "signature": "translate dx dy p =",
+      "start": {
+        "line": 33,
+        "column": 4,
+        "offset": 788
+      },
+      "end": {
+        "line": 33,
+        "column": 63,
+        "offset": 847
+      },
+      "exported": true
+    },
+    {
+      "id": "( +| )",
+      "kind": "function",
+      "name": "( +| )",
+      "qualName": "( +| )",
+      "signature": "( +| ) a b =",
+      "start": {
+        "line": 35,
+        "column": 4,
+        "offset": 853
+      },
+      "end": {
+        "line": 35,
+        "column": 51,
+        "offset": 900
+      },
+      "exported": true
+    },
+    {
+      "id": "describe",
+      "kind": "function",
+      "name": "describe",
+      "qualName": "describe",
+      "signature": "describe s =",
+      "start": {
+        "line": 37,
+        "column": 4,
+        "offset": 906
+      },
+      "end": {
+        "line": 38,
+        "column": 41,
+        "offset": 960
+      },
+      "exported": true
+    },
+    {
+      "id": "hypot",
+      "kind": "function",
+      "name": "hypot",
+      "qualName": "hypot",
+      "signature": "external hypot : float -\u003e float -\u003e float = \"caml_hypot_float\" \"caml_hypot\"",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 962
+      },
+      "end": {
+        "line": 41,
+        "column": 25,
+        "offset": 1062
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "Printf",
+      "kind": "open",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 42
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 10,
+        "column": 14,
+        "offset": 195
+      },
+      "enclosing": "shape.Circle"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 12,
+        "offset": 221
+      },
+      "enclosing": "shape.Rect"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 20,
+        "offset": 229
+      },
+      "enclosing": "shape.Rect"
+    },
+    {
+      "name": "point",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 15,
+        "offset": 250
+      },
+      "enclosing": "shape.Polygon"
+    },
+    {
+      "name": "atan",
+      "kind": "call",
+      "start": {
+        "line": 18,
+        "column": 16,
+        "offset": 342
+      },
+      "enclosing": "pi"
+    },
+    {
+      "name": "Circle",
+      "kind": "value",
+      "start": {
+        "line": 22,
+        "column": 4,
+        "offset": 412
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "Rect",
+      "kind": "value",
+      "start": {
+        "line": 23,
+        "column": 4,
+        "offset": 446
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "abs_float",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 19,
+        "offset": 461
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "x",
+      "kind": "value",
+      "start": {
+        "line": 23,
+        "column": 33,
+        "offset": 475
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "x",
+      "kind": "value",
+      "start": {
+        "line": 23,
+        "column": 40,
+        "offset": 482
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "y",
+      "kind": "value",
+      "start": {
+        "line": 23,
+        "column": 49,
+        "offset": 491
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "y",
+      "kind": "value",
+      "start": {
+        "line": 23,
+        "column": 56,
+        "offset": 498
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "Polygon",
+      "kind": "value",
+      "start": {
+        "line": 24,
+        "column": 4,
+        "offset": 506
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "Degenerate",
+      "kind": "value",
+      "start": {
+        "line": 24,
+        "column": 25,
+        "offset": 527
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "Polygon",
+      "kind": "value",
+      "start": {
+        "line": 25,
+        "column": 4,
+        "offset": 559
+      },
+      "enclosing": "area"
+    },
+    {
+      "name": "perimeter_of_points",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 29,
+        "offset": 649
+      },
+      "enclosing": "perimeter_of_points"
+    },
+    {
+      "name": "distance",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 57,
+        "offset": 677
+      },
+      "enclosing": "perimeter_of_points"
+    },
+    {
+      "name": "sqrt",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 19,
+        "offset": 729
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "x",
+      "kind": "value",
+      "start": {
+        "line": 31,
+        "column": 29,
+        "offset": 739
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "x",
+      "kind": "value",
+      "start": {
+        "line": 31,
+        "column": 36,
+        "offset": 746
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "y",
+      "kind": "value",
+      "start": {
+        "line": 31,
+        "column": 54,
+        "offset": 764
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "y",
+      "kind": "value",
+      "start": {
+        "line": 31,
+        "column": 61,
+        "offset": 771
+      },
+      "enclosing": "distance"
+    },
+    {
+      "name": "x",
+      "kind": "value",
+      "start": {
+        "line": 33,
+        "column": 39,
+        "offset": 823
+      },
+      "enclosing": "translate"
+    },
+    {
+      "name": "y",
+      "kind": "value",
+      "start": {
+        "line": 33,
+        "column": 54,
+        "offset": 838
+      },
+      "enclosing": "translate"
+    },
+    {
+      "name": "x",
+      "kind": "value",
+      "start": {
+        "line": 35,
+        "column": 25,
+        "offset": 874
+      },
+      "enclosing": "( +| )"
+    },
+    {
+      "name": "x",
+      "kind": "value",
+      "start": {
+        "line": 35,
+        "column": 32,
+        "offset": 881
+      },
+      "enclosing": "( +| )"
+    },
+    {
+      "name": "y",
+      "kind": "value",
+      "start": {
+        "line": 35,
+        "column": 41,
+        "offset": 890
+      },
+      "enclosing": "( +| )"
+    },
+    {
+      "name": "y",
+      "kind": "value",
+      "start": {
+        "line": 35,
+        "column": 48,
+        "offset": 897
+      },
+      "enclosing": "( +| )"
+    },
+    {
+      "name": "sprintf",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 2,
+        "offset": 921
+      },
+      "enclosing": "describe"
+    },
+    {
+      "name": "area",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 34,
+        "offset": 953
+      },
+      "enclosing": "describe"
+    },
+    {
+      "name": "Circle",
+      "kind": "value",
+      "start": {
+        "line": 44,
+        "column": 4,
+        "offset": 1077
+      }
+    },
+    {
+      "name": "Rect",
+      "kind": "value",
+      "start": {
+        "line": 44,
+        "column": 37,
+        "offset": 1110
+      }
+    },
+    {
+      "name": "map",
+      "qualifier": "List",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 10,
+        "offset": 1168
+      }
+    },
+    {
+      "name": "iter",
+      "qualifier": "List",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 10,
+        "offset": 1191
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 11,
+        "offset": 53
+      },
+      "text": "(** Geometric shapes and their areas. *)\n\nopen Printf",
+      "hash": "701fa15d2f11b3b2d11e6f67189fb77a30727821e9db80c2a25939e8f5cb6e73"
+    },
+    {
+      "id": "point#1",
+      "kind": "symbol",
+      "symbolId": "point",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 55
+      },
+      "end": {
+        "line": 6,
+        "column": 45,
+        "offset": 129
+      },
+      "text": "(** A point in the plane. *)\ntype point = { x : float; mutable y : float }",
+      "hash": "012b830298d676f5f48c44a9c1bfb6da8d1242ae4b215dc04c1085a4c1938ab8"
+    },
+    {
+      "id": "shape#1",
+      "kind": "symbol",
+      "symbolId": "shape",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 131
+      },
+      "end": {
+        "line": 12,
+        "column": 25,
+        "offset": 260
+      },
+      "text": "(** The shapes this module knows. *)\ntype shape =\n  | Circle of point * float\n  | Rect of point * point\n  | Polygon of point list",
+      "hash": "0e4f1f4096f984ffc4add4223c427f3320cf081165c6df71c63eefac1ba1b23e"
+    },
+    {
+      "id": "labelled#1",
+      "kind": "symbol",
+      "symbolId": "labelled",
+      "start": {
+        "line": 14,
+        "column": 5,
+        "offset": 267
+      },
+      "end": {
+        "line": 14,
+        "column": 30,
+        "offset": 292
+      },
+      "text": "'a labelled = string * 'a",
+      "hash": "bb62129c842bad8d4ee6bd3365983fe3eb9bb9204a48ff890842d5ce06827e85"
+    },
+    {
+      "id": "Degenerate#1",
+      "kind": "symbol",
+      "symbolId": "Degenerate",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 294
+      },
+      "end": {
+        "line": 16,
+        "column": 30,
+        "offset": 324
+      },
+      "text": "exception Degenerate of string",
+      "hash": "948295211650700d1735b7ccc99bb86dcdc4f260c810d77a8581776b9eb0da72"
+    },
+    {
+      "id": "L18#1",
+      "kind": "window",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 326
+      },
+      "end": {
+        "line": 18,
+        "column": 24,
+        "offset": 350
+      },
+      "text": "let pi = 4.0 *. atan 1.0",
+      "hash": "9f6d377632537afd8843a21eb509793c66c5a4a3b33bae2710c782630d571caa"
+    },
+    {
+      "id": "area#1",
+      "kind": "symbol",
+      "symbolId": "area",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 352
+      },
+      "end": {
+        "line": 25,
+        "column": 20,
+        "offset": 575
+      },
+      "text": "(** [area s] is the area of [s]. *)\nlet area = function\n  | Circle (_, r) -\u003e pi *. r *. r\n  | Rect (a, b) -\u003e abs_float ((b.x -. a.x) *. (b.y -. a.y))\n  | Polygon [] -\u003e raise (Degenerate \"empty polygon\")\n  | Polygon _ -\u003e 0.0",
+      "hash": "1e355bc170c1361b7c975ebc667b1f139f1ef6a5268bfafe0d8b09a50becde64"
+    },
+    {
+      "id": "perimeter_of_points#1",
+      "kind": "symbol",
+      "symbolId": "perimeter_of_points",
+      "start": {
+        "line": 27,
+        "column": 8,
+        "offset": 585
+      },
+      "end": {
+        "line": 29,
+        "column": 12,
+        "offset": 708
+      },
+      "text": "perimeter_of_points acc = function\n  | a :: (b :: _ as rest) -\u003e perimeter_of_points (acc +. distance a b) rest\n  | _ -\u003e acc",
+      "hash": "e70324651e0b1cdc9bd0d47018af9200b9ea120a920ab60d565294ab17740d11"
+    },
+    {
+      "id": "distance#1",
+      "kind": "symbol",
+      "symbolId": "distance",
+      "start": {
+        "line": 31,
+        "column": 4,
+        "offset": 714
+      },
+      "end": {
+        "line": 31,
+        "column": 72,
+        "offset": 782
+      },
+      "text": "distance a b = sqrt (((b.x -. a.x) ** 2.0) +. ((b.y -. a.y) ** 2.0))",
+      "hash": "a068326779edd3f2f243a153286a82611d3bbe91eab07e0d132b914ad81eea6b"
+    },
+    {
+      "id": "translate#1",
+      "kind": "symbol",
+      "symbolId": "translate",
+      "start": {
+        "line": 33,
+        "column": 4,
+        "offset": 788
+      },
+      "end": {
+        "line": 33,
+        "column": 63,
+        "offset": 847
+      },
+      "text": "translate dx dy p = { p with x = p.x +. dx; y = p.y +. dy }",
+      "hash": "419dde45beca91244c2829252cab36459bd91351363004c45e5f2af032d59fbc"
+    },
+    {
+      "id": "( +| )#1",
+      "kind": "symbol",
+      "symbolId": "( +| )",
+      "start": {
+        "line": 35,
+        "column": 4,
+        "offset": 853
+      },
+      "end": {
+        "line": 35,
+        "column": 51,
+        "offset": 900
+      },
+      "text": "( +| ) a b = { x = a.x +. b.x; y = a.y +. b.y }",
+      "hash": "79b496ef4961fd5a8d5344e0ca0fe4eb2aa279ed474aafc4ddd327654599acc3"
+    },
+    {
+      "id": "describe#1",
+      "kind": "symbol",
+      "symbolId": "describe",
+      "start": {
+        "line": 37,
+        "column": 4,
+        "offset": 906
+      },
+      "end": {
+        "line": 38,
+        "column": 41,
+        "offset": 960
+      },
+      "text": "describe s =\n  sprintf \"shape with area %.2f\" (area s)",
+      "hash": "e63a6527f88ada5ba692f42d6f057f21ad6277864b8b60323d4c3dabf7aeb65a"
+    },
+    {
+      "id": "hypot#1",
+      "kind": "symbol",
+      "symbolId": "hypot",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 962
+      },
+      "end": {
+        "line": 41,
+        "column": 25,
+        "offset": 1062
+      },
+      "text": "external hypot : float -\u003e float -\u003e float = \"caml_hypot_float\" \"caml_hypot\"\n  [@@unboxed] [@@noalloc]",
+      "hash": "863cfdf18a7a5bf42fd5d79ced7adebe02891a10d931c7c70f6575b68817bdc9"
+    },
+    {
+      "id": "L43#1",
+      "kind": "window",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 1064
+      },
+      "end": {
+        "line": 46,
+        "column": 28,
+        "offset": 1209
+      },
+      "text": "let () =\n  [ Circle ({ x = 0.; y = 0. }, 1.); Rect ({ x = 0.; y = 0. }, { x = 2.; y = 3. }) ]\n  |\u003e List.map describe\n  |\u003e List.iter print_endline",
+      "hash": "e24e55d42bf3a9aabb77a233853af7b8dc93173979e3cda832d41a1fb6fbb210"
+    }
+  ]
+}

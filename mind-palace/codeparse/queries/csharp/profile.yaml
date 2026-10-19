@@ -1,0 +1,23 @@
+# C#: namespaces (block or file-scoped) name a file's package; `using`
+# directives import a namespace (`static` a type's members, an alias one
+# name); a partial class is one type across files, so the csharp family
+# resolver merges same-named types of one namespace. Members are exported
+# when declared public or protected (interface and enum members always).
+name: C#
+family: csharp
+extensions: [.cs]
+grammar: c_sharp
+query: tags.scm
+kinds:
+  definition.constructor: method
+  definition.destructor: method
+  definition.operator: method
+  definition.indexer: property
+  definition.delegate: type
+  definition.event: field
+scope:
+  separators: ["."]
+  packageBy: declaration
+  exported: declared
+  options:
+    partialTypes: merge

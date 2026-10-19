@@ -3,11 +3,13 @@ id: 0109-bzh
 title: Resolver for Java and Kotlin
 purpose: Resolves references for Java and Kotlin so calls, references and implementations link to the right definitions.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:22.516Z"
-updated: "2026-10-19T18:32:00.323Z"
+updated: "2026-10-19T21:06:52.951Z"
+started: "2026-10-19T20:59:18.190Z"
+completed: "2026-10-19T21:06:52.951Z"
 tags:
   - plan-0012-cgi
   - wave-7
@@ -34,15 +36,15 @@ links:
     - ["0012-cgi", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Resolver for Java and Kotlin
@@ -79,10 +81,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'jvm'
-- [ ] [MANUAL] Only this family's two files changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'jvm'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'jvm'
+- [x] [MANUAL] Only this family's two files changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'jvm'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -90,3 +92,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/resolvers/jvm_test.go` - resolution tests over the language goldens
 
 ## Work Log
+
+### 2026-10-19T21:06:46.389Z - Added codeindex/resolvers/jvm.go (jvm family: Java and Kotlin share declared packages; single imports bind the local name as qualifier of the owning package (longest prefix that is a view package) and as a bare name when unaliased and top-level; on-demand/Kotlin wildcard and implicit imports (profile implicitImports / defaultImports, else JVMImplicitImports) open packages; static imports and module-info directives bind no package; Visible: Kotlin private file-local, explicit imports shadow package/open/name steps, import step only reaches explicitly imported definitions, Kotlin extensions from another package need an import) and jvm_test.go (4 tests: end-to-end through codeindex with the real extractor over the java/ and kotlin/ goldens and small rule sources, Scope and Visible units). go test -race ./codeindex/... passes. Known gap in the core, not changed: the engine's member steps exclude top-level definitions, so a Kotlin extension called through a value receiver (s.shout()) stays unresolved; bare calls and type-qualified calls resolve. Only jvm.go and jvm_test.go changed (plus merges of claude/sharp-gates-45zpak for 0084 and 0091).

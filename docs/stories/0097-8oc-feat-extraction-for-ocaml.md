@@ -3,11 +3,13 @@ id: 0097-8oc
 title: Extraction for OCaml
 purpose: 'Adds OCaml to the indexer: files .ml, .mli.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:17.942Z"
-updated: "2026-10-19T18:30:42.699Z"
+updated: "2026-10-19T20:53:50.559Z"
+started: "2026-10-19T20:46:55.574Z"
+completed: "2026-10-19T20:53:50.559Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for OCaml
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/ocaml'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/ocaml'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/ocaml'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/ocaml'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/ocaml.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:53:43.879Z - Added OCaml extraction: grammars/ocaml.go registers gotreesitter's ocaml grammar (also used by the .mli 'interface' dialect, since no ocaml_interface grammar ships); queries/ocaml/tags.scm captures modules, functors, module types (interface), types (enum for variants, struct for records, type), variant constructors, record fields, exceptions, module-level let functions/values (incl. operators), val specs, externals, classes, class types, methods, instance variables; imports for open/include/let open/M.(e) (kinds open, include, local_open); refs: calls (qualified, pipelines |> and @@, method invocations, functor applications), types, module bindings, implements (module type constraints), extends (inherit), new, constructors, record field reads. profile.yaml: family ocaml, packageBy file, interface dialect on the ocaml grammar, options for .mli/.ml pairing and dune. Goldens: shapes.ml, shapes.mli, store.ml, widgets.ml, broken.ml (5 inputs). gofmt/vet/build clean; go test -race ./codeparse/... passes (TestGolden/ocaml 5/5). Known engine behaviour: fields of a one-line record inherit the comment above the type as their doc. Only the story's three paths changed.

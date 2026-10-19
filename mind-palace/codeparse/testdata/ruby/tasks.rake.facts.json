@@ -1,0 +1,421 @@
+{
+  "lang": "ruby",
+  "symbols": [
+    {
+      "id": "shop",
+      "kind": "namespace",
+      "name": "shop",
+      "qualName": "shop",
+      "signature": "namespace :shop do",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 56
+      },
+      "end": {
+        "line": 26,
+        "column": 3,
+        "offset": 544
+      },
+      "exported": true
+    },
+    {
+      "id": "shop::import",
+      "kind": "task",
+      "name": "import",
+      "qualName": "shop::import",
+      "signature": "task :import, [:path] =\u003e :environment do |_t, args|",
+      "doc": "Import the product catalogue from a CSV file",
+      "start": {
+        "line": 7,
+        "column": 2,
+        "offset": 131
+      },
+      "end": {
+        "line": 9,
+        "column": 5,
+        "offset": 228
+      },
+      "parent": "shop",
+      "exported": true
+    },
+    {
+      "id": "shop::reindex",
+      "kind": "task",
+      "name": "reindex",
+      "qualName": "shop::reindex",
+      "signature": "task reindex: %i[environment import] do",
+      "doc": "Rebuild the search index",
+      "start": {
+        "line": 12,
+        "column": 2,
+        "offset": 266
+      },
+      "end": {
+        "line": 14,
+        "column": 5,
+        "offset": 337
+      },
+      "parent": "shop",
+      "exported": true
+    },
+    {
+      "id": "shop::orders",
+      "kind": "namespace",
+      "name": "orders",
+      "qualName": "shop::orders",
+      "signature": "namespace :orders do",
+      "start": {
+        "line": 16,
+        "column": 2,
+        "offset": 341
+      },
+      "end": {
+        "line": 21,
+        "column": 5,
+        "offset": 478
+      },
+      "parent": "shop",
+      "exported": true
+    },
+    {
+      "id": "shop::orders::purge",
+      "kind": "task",
+      "name": "purge",
+      "qualName": "shop::orders::purge",
+      "signature": "task \"purge\" do",
+      "doc": "Purges abandoned baskets.",
+      "start": {
+        "line": 18,
+        "column": 4,
+        "offset": 398
+      },
+      "end": {
+        "line": 20,
+        "column": 7,
+        "offset": 472
+      },
+      "parent": "shop::orders",
+      "exported": true
+    },
+    {
+      "id": "shop::batch_size",
+      "kind": "method",
+      "name": "batch_size",
+      "qualName": "shop::batch_size",
+      "signature": "def batch_size",
+      "start": {
+        "line": 23,
+        "column": 2,
+        "offset": 482
+      },
+      "end": {
+        "line": 25,
+        "column": 5,
+        "offset": 540
+      },
+      "parent": "shop",
+      "exported": true
+    },
+    {
+      "id": "default",
+      "kind": "task",
+      "name": "default",
+      "qualName": "default",
+      "signature": "task default: \"shop:reindex\"",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 546
+      },
+      "end": {
+        "line": 28,
+        "column": 28,
+        "offset": 574
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "shop/importer",
+      "kind": "require",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 31
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Shop",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 4,
+        "offset": 187
+      },
+      "enclosing": "shop::import"
+    },
+    {
+      "name": "Importer",
+      "qualifier": "Shop",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 10,
+        "offset": 193
+      },
+      "enclosing": "shop::import"
+    },
+    {
+      "name": "new",
+      "qualifier": "Shop::Importer",
+      "kind": "call",
+      "start": {
+        "line": 8,
+        "column": 19,
+        "offset": 202
+      },
+      "enclosing": "shop::import"
+    },
+    {
+      "name": "run",
+      "qualifier": "Shop::Importer.new(args[:path])",
+      "kind": "call",
+      "start": {
+        "line": 8,
+        "column": 36,
+        "offset": 219
+      },
+      "enclosing": "shop::import"
+    },
+    {
+      "name": "Shop",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 4,
+        "offset": 310
+      },
+      "enclosing": "shop::reindex"
+    },
+    {
+      "name": "Search",
+      "qualifier": "Shop",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 10,
+        "offset": 316
+      },
+      "enclosing": "shop::reindex"
+    },
+    {
+      "name": "rebuild!",
+      "qualifier": "Shop::Search",
+      "kind": "call",
+      "start": {
+        "line": 13,
+        "column": 17,
+        "offset": 323
+      },
+      "enclosing": "shop::reindex"
+    },
+    {
+      "name": "Shop",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 6,
+        "offset": 420
+      },
+      "enclosing": "shop::orders::purge"
+    },
+    {
+      "name": "Order",
+      "qualifier": "Shop",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 12,
+        "offset": 426
+      },
+      "enclosing": "shop::orders::purge"
+    },
+    {
+      "name": "where",
+      "qualifier": "Shop::Order",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 18,
+        "offset": 432
+      },
+      "enclosing": "shop::orders::purge"
+    },
+    {
+      "name": "delete_all",
+      "qualifier": "Shop::Order.where(status: :draft)",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 40,
+        "offset": 454
+      },
+      "enclosing": "shop::orders::purge"
+    },
+    {
+      "name": "ENV",
+      "kind": "value",
+      "start": {
+        "line": 24,
+        "column": 4,
+        "offset": 501
+      },
+      "enclosing": "shop::batch_size"
+    },
+    {
+      "name": "fetch",
+      "qualifier": "ENV",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 8,
+        "offset": 505
+      },
+      "enclosing": "shop::batch_size"
+    },
+    {
+      "name": "to_i",
+      "qualifier": "ENV.fetch(\"BATCH_SIZE\", 500)",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 33,
+        "offset": 530
+      },
+      "enclosing": "shop::batch_size"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 5,
+        "column": 18,
+        "offset": 74
+      },
+      "text": "# frozen_string_literal: true\n\nrequire \"shop/importer\"\n\nnamespace :shop do",
+      "hash": "731c7738cbd648f912afbfff282c50fdf066aadfd6b5e059030002c96511fc2b"
+    },
+    {
+      "id": "shop::import#1",
+      "kind": "symbol",
+      "symbolId": "shop::import",
+      "start": {
+        "line": 6,
+        "column": 7,
+        "offset": 82
+      },
+      "end": {
+        "line": 9,
+        "column": 5,
+        "offset": 228
+      },
+      "text": "\"Import the product catalogue from a CSV file\"\n  task :import, [:path] =\u003e :environment do |_t, args|\n    Shop::Importer.new(args[:path]).run\n  end",
+      "hash": "31167acf0db9de804e92f88ef00d07842716d810990906603ad65276eac1baed"
+    },
+    {
+      "id": "shop::reindex#1",
+      "kind": "symbol",
+      "symbolId": "shop::reindex",
+      "start": {
+        "line": 11,
+        "column": 7,
+        "offset": 237
+      },
+      "end": {
+        "line": 14,
+        "column": 5,
+        "offset": 337
+      },
+      "text": "\"Rebuild the search index\"\n  task reindex: %i[environment import] do\n    Shop::Search.rebuild!\n  end",
+      "hash": "9ca0c5b957ebfe6ce8066a02da6c668f7de12ae665d51d565818f83fa3807d8b"
+    },
+    {
+      "id": "L16#1",
+      "kind": "window",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 339
+      },
+      "end": {
+        "line": 16,
+        "column": 22,
+        "offset": 361
+      },
+      "text": "  namespace :orders do",
+      "hash": "5226e6b31ac07016b1279285028a7edc8a2e8743dfae4e0896f53e71272b24a3"
+    },
+    {
+      "id": "shop::orders::purge#1",
+      "kind": "symbol",
+      "symbolId": "shop::orders::purge",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 362
+      },
+      "end": {
+        "line": 20,
+        "column": 7,
+        "offset": 472
+      },
+      "text": "    # Purges abandoned baskets.\n    task \"purge\" do\n      Shop::Order.where(status: :draft).delete_all\n    end",
+      "hash": "df276afde569275a3dd090a0a809ecf3872fda48890f137ffe43964f1f451f5d"
+    },
+    {
+      "id": "shop::batch_size#1",
+      "kind": "symbol",
+      "symbolId": "shop::batch_size",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 480
+      },
+      "end": {
+        "line": 25,
+        "column": 5,
+        "offset": 540
+      },
+      "text": "  def batch_size\n    ENV.fetch(\"BATCH_SIZE\", 500).to_i\n  end",
+      "hash": "603f91ee855e443c86794a14d19b36abaa8f63da27b1a7f4e78f9014668ad972"
+    },
+    {
+      "id": "default#1",
+      "kind": "symbol",
+      "symbolId": "default",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 546
+      },
+      "end": {
+        "line": 28,
+        "column": 28,
+        "offset": 574
+      },
+      "text": "task default: \"shop:reindex\"",
+      "hash": "409a1abb86967d33e475a490205f91f1586de3d36b6e384376a85874e46cb105"
+    }
+  ]
+}

@@ -1,0 +1,1068 @@
+{
+  "lang": "go",
+  "package": "demo",
+  "symbols": [
+    {
+      "id": "demo.DefaultName",
+      "kind": "const",
+      "name": "DefaultName",
+      "qualName": "demo.DefaultName",
+      "signature": "DefaultName = \"demo\"",
+      "doc": "DefaultName is the name a Server gets.",
+      "start": {
+        "line": 18,
+        "column": 6,
+        "offset": 235
+      },
+      "end": {
+        "line": 18,
+        "column": 26,
+        "offset": 255
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.MaxConns",
+      "kind": "const",
+      "name": "MaxConns",
+      "qualName": "demo.MaxConns",
+      "signature": "MaxConns, minConns = 64, 1",
+      "doc": "MaxConns bounds connections.",
+      "start": {
+        "line": 22,
+        "column": 1,
+        "offset": 299
+      },
+      "end": {
+        "line": 22,
+        "column": 27,
+        "offset": 325
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.minConns",
+      "kind": "const",
+      "name": "minConns",
+      "qualName": "demo.minConns",
+      "signature": "MaxConns, minConns = 64, 1",
+      "doc": "MaxConns bounds connections.",
+      "start": {
+        "line": 22,
+        "column": 1,
+        "offset": 299
+      },
+      "end": {
+        "line": 22,
+        "column": 27,
+        "offset": 325
+      }
+    },
+    {
+      "id": "demo.registry",
+      "kind": "var",
+      "name": "registry",
+      "qualName": "demo.registry",
+      "signature": "registry = map[string]*Server{}",
+      "start": {
+        "line": 27,
+        "column": 1,
+        "offset": 360
+      },
+      "end": {
+        "line": 27,
+        "column": 32,
+        "offset": 391
+      }
+    },
+    {
+      "id": "demo.ErrClosed",
+      "kind": "var",
+      "name": "ErrClosed",
+      "qualName": "demo.ErrClosed",
+      "signature": "ErrClosed = fmt.Errorf(\"closed\")",
+      "doc": "ErrClosed is returned after Close.",
+      "start": {
+        "line": 29,
+        "column": 1,
+        "offset": 432
+      },
+      "end": {
+        "line": 29,
+        "column": 33,
+        "offset": 464
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.Server",
+      "kind": "struct",
+      "name": "Server",
+      "qualName": "demo.Server",
+      "signature": "Server struct",
+      "doc": "Server serves requests.\n\nIt is safe for concurrent use.",
+      "start": {
+        "line": 37,
+        "column": 5,
+        "offset": 569
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 694
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.Server.Name",
+      "kind": "field",
+      "name": "Name",
+      "qualName": "demo.Server.Name",
+      "signature": "Name string",
+      "doc": "Name names the server.",
+      "start": {
+        "line": 39,
+        "column": 1,
+        "offset": 613
+      },
+      "end": {
+        "line": 39,
+        "column": 12,
+        "offset": 624
+      },
+      "parent": "demo.Server",
+      "exported": true
+    },
+    {
+      "id": "demo.Server.n",
+      "kind": "field",
+      "name": "n",
+      "qualName": "demo.Server.n",
+      "signature": "n, m int",
+      "start": {
+        "line": 40,
+        "column": 1,
+        "offset": 626
+      },
+      "end": {
+        "line": 40,
+        "column": 9,
+        "offset": 634
+      },
+      "parent": "demo.Server"
+    },
+    {
+      "id": "demo.Server.m",
+      "kind": "field",
+      "name": "m",
+      "qualName": "demo.Server.m",
+      "signature": "n, m int",
+      "start": {
+        "line": 40,
+        "column": 1,
+        "offset": 626
+      },
+      "end": {
+        "line": 40,
+        "column": 9,
+        "offset": 634
+      },
+      "parent": "demo.Server"
+    },
+    {
+      "id": "demo.Server.Embedded",
+      "kind": "field",
+      "name": "Embedded",
+      "qualName": "demo.Server.Embedded",
+      "signature": "*Embedded",
+      "start": {
+        "line": 41,
+        "column": 1,
+        "offset": 636
+      },
+      "end": {
+        "line": 41,
+        "column": 10,
+        "offset": 645
+      },
+      "parent": "demo.Server",
+      "exported": true
+    },
+    {
+      "id": "demo.Server.Reader",
+      "kind": "field",
+      "name": "Reader",
+      "qualName": "demo.Server.Reader",
+      "signature": "io.Reader",
+      "start": {
+        "line": 42,
+        "column": 1,
+        "offset": 647
+      },
+      "end": {
+        "line": 42,
+        "column": 10,
+        "offset": 656
+      },
+      "parent": "demo.Server",
+      "exported": true
+    },
+    {
+      "id": "demo.Server.opts",
+      "kind": "field",
+      "name": "opts",
+      "qualName": "demo.Server.opts",
+      "signature": "opts Options[string] `json:\"opts\"`",
+      "start": {
+        "line": 43,
+        "column": 1,
+        "offset": 658
+      },
+      "end": {
+        "line": 43,
+        "column": 35,
+        "offset": 692
+      },
+      "parent": "demo.Server"
+    },
+    {
+      "id": "demo.ID",
+      "kind": "type",
+      "name": "ID",
+      "qualName": "demo.ID",
+      "signature": "ID int",
+      "doc": "ID identifies a server.",
+      "start": {
+        "line": 48,
+        "column": 1,
+        "offset": 732
+      },
+      "end": {
+        "line": 48,
+        "column": 7,
+        "offset": 738
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.Handler",
+      "kind": "interface",
+      "name": "Handler",
+      "qualName": "demo.Handler",
+      "signature": "Handler interface",
+      "doc": "Handler handles one request.",
+      "start": {
+        "line": 51,
+        "column": 1,
+        "offset": 774
+      },
+      "end": {
+        "line": 55,
+        "column": 2,
+        "offset": 874
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.Handler.Serve",
+      "kind": "method",
+      "name": "Serve",
+      "qualName": "demo.Handler.Serve",
+      "signature": "Serve(ctx context.Context, x int) error",
+      "doc": "Serve serves x.",
+      "start": {
+        "line": 53,
+        "column": 2,
+        "offset": 817
+      },
+      "end": {
+        "line": 53,
+        "column": 41,
+        "offset": 856
+      },
+      "parent": "demo.Handler",
+      "exported": true
+    },
+    {
+      "id": "demo.Options",
+      "kind": "struct",
+      "name": "Options",
+      "qualName": "demo.Options",
+      "signature": "Options[T any] struct",
+      "doc": "Options are generic options.",
+      "start": {
+        "line": 59,
+        "column": 5,
+        "offset": 915
+      },
+      "end": {
+        "line": 61,
+        "column": 1,
+        "offset": 949
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.Options.Value",
+      "kind": "field",
+      "name": "Value",
+      "qualName": "demo.Options.Value",
+      "signature": "Value T",
+      "start": {
+        "line": 60,
+        "column": 1,
+        "offset": 940
+      },
+      "end": {
+        "line": 60,
+        "column": 8,
+        "offset": 947
+      },
+      "parent": "demo.Options",
+      "exported": true
+    },
+    {
+      "id": "demo.Alias",
+      "kind": "type",
+      "name": "Alias",
+      "qualName": "demo.Alias",
+      "signature": "Alias = map[string]int",
+      "doc": "Alias is another name for a map.",
+      "start": {
+        "line": 64,
+        "column": 5,
+        "offset": 992
+      },
+      "end": {
+        "line": 64,
+        "column": 27,
+        "offset": 1014
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.NewServer",
+      "kind": "function",
+      "name": "NewServer",
+      "qualName": "demo.NewServer",
+      "signature": "func NewServer(name string) *Server",
+      "doc": "NewServer returns a server.\nIt registers it too.",
+      "start": {
+        "line": 70,
+        "column": 0,
+        "offset": 1071
+      },
+      "end": {
+        "line": 74,
+        "column": 1,
+        "offset": 1179
+      },
+      "exported": true
+    },
+    {
+      "id": "demo.Server.Serve",
+      "kind": "method",
+      "name": "Serve",
+      "qualName": "demo.Server.Serve",
+      "signature": "func (s *Server) Serve(ctx context.Context, x int) error",
+      "doc": "Serve implements Handler.",
+      "start": {
+        "line": 77,
+        "column": 0,
+        "offset": 1210
+      },
+      "end": {
+        "line": 84,
+        "column": 1,
+        "offset": 1377
+      },
+      "parent": "demo.Server",
+      "exported": true
+    },
+    {
+      "id": "demo.Server.String",
+      "kind": "method",
+      "name": "String",
+      "qualName": "demo.Server.String",
+      "signature": "func (s Server) String() string",
+      "start": {
+        "line": 86,
+        "column": 0,
+        "offset": 1379
+      },
+      "end": {
+        "line": 86,
+        "column": 49,
+        "offset": 1428
+      },
+      "parent": "demo.Server",
+      "exported": true
+    },
+    {
+      "id": "demo.Server.helper",
+      "kind": "method",
+      "name": "helper",
+      "qualName": "demo.Server.helper",
+      "signature": "func (s *Server) helper(n int) int",
+      "start": {
+        "line": 88,
+        "column": 0,
+        "offset": 1430
+      },
+      "end": {
+        "line": 90,
+        "column": 1,
+        "offset": 1497
+      },
+      "parent": "demo.Server"
+    },
+    {
+      "id": "demo.Options.Get",
+      "kind": "method",
+      "name": "Get",
+      "qualName": "demo.Options.Get",
+      "signature": "func (o *Options[T]) Get() T",
+      "doc": "Get returns the value.",
+      "start": {
+        "line": 93,
+        "column": 0,
+        "offset": 1525
+      },
+      "end": {
+        "line": 93,
+        "column": 47,
+        "offset": 1572
+      },
+      "parent": "demo.Options",
+      "exported": true
+    },
+    {
+      "id": "demo.first",
+      "kind": "function",
+      "name": "first",
+      "qualName": "demo.first",
+      "signature": "func first[T any](xs []T) T",
+      "start": {
+        "line": 95,
+        "column": 0,
+        "offset": 1574
+      },
+      "end": {
+        "line": 101,
+        "column": 1,
+        "offset": 1667
+      }
+    },
+    {
+      "id": "demo.init",
+      "kind": "function",
+      "name": "init",
+      "qualName": "demo.init",
+      "signature": "func init()",
+      "start": {
+        "line": 103,
+        "column": 0,
+        "offset": 1669
+      },
+      "end": {
+        "line": 105,
+        "column": 1,
+        "offset": 1708
+      }
+    },
+    {
+      "id": "demo.init~2",
+      "kind": "function",
+      "name": "init",
+      "qualName": "demo.init",
+      "signature": "func init()",
+      "start": {
+        "line": 107,
+        "column": 0,
+        "offset": 1710
+      },
+      "end": {
+        "line": 109,
+        "column": 1,
+        "offset": 1739
+      }
+    }
+  ],
+  "imports": [
+    {
+      "spec": "context",
+      "start": {
+        "line": 7,
+        "column": 1,
+        "offset": 117
+      }
+    },
+    {
+      "spec": "fmt",
+      "start": {
+        "line": 8,
+        "column": 1,
+        "offset": 128
+      }
+    },
+    {
+      "spec": "strings",
+      "alias": "str",
+      "start": {
+        "line": 9,
+        "column": 1,
+        "offset": 135
+      }
+    },
+    {
+      "spec": "embed",
+      "alias": "_",
+      "start": {
+        "line": 11,
+        "column": 1,
+        "offset": 151
+      }
+    },
+    {
+      "spec": "math",
+      "alias": ".",
+      "start": {
+        "line": 12,
+        "column": 1,
+        "offset": 162
+      }
+    },
+    {
+      "spec": "io",
+      "start": {
+        "line": 15,
+        "column": 7,
+        "offset": 181
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Server",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 24,
+        "offset": 383
+      },
+      "enclosing": "demo.registry"
+    },
+    {
+      "name": "Errorf",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 17,
+        "offset": 448
+      },
+      "enclosing": "demo.ErrClosed"
+    },
+    {
+      "name": "Handler",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 6,
+        "offset": 474
+      }
+    },
+    {
+      "name": "Options",
+      "kind": "type",
+      "start": {
+        "line": 43,
+        "column": 6,
+        "offset": 663
+      },
+      "enclosing": "demo.Server.opts"
+    },
+    {
+      "name": "Context",
+      "qualifier": "context",
+      "kind": "type",
+      "start": {
+        "line": 53,
+        "column": 20,
+        "offset": 835
+      },
+      "enclosing": "demo.Handler.Serve"
+    },
+    {
+      "name": "Stringer",
+      "qualifier": "fmt",
+      "kind": "type",
+      "start": {
+        "line": 54,
+        "column": 6,
+        "offset": 863
+      },
+      "enclosing": "demo.Handler"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 60,
+        "column": 7,
+        "offset": 946
+      },
+      "enclosing": "demo.Options.Value"
+    },
+    {
+      "name": "Server",
+      "kind": "type",
+      "start": {
+        "line": 70,
+        "column": 29,
+        "offset": 1100
+      },
+      "enclosing": "demo.NewServer"
+    },
+    {
+      "name": "Server",
+      "kind": "type",
+      "start": {
+        "line": 71,
+        "column": 7,
+        "offset": 1116
+      },
+      "enclosing": "demo.NewServer"
+    },
+    {
+      "name": "ToUpper",
+      "qualifier": "str",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 24,
+        "offset": 1133
+      },
+      "enclosing": "demo.NewServer"
+    },
+    {
+      "name": "Server",
+      "kind": "type",
+      "start": {
+        "line": 77,
+        "column": 9,
+        "offset": 1219
+      },
+      "enclosing": "demo.Server.Serve"
+    },
+    {
+      "name": "Context",
+      "qualifier": "context",
+      "kind": "type",
+      "start": {
+        "line": 77,
+        "column": 35,
+        "offset": 1245
+      },
+      "enclosing": "demo.Server.Serve"
+    },
+    {
+      "name": "Err",
+      "qualifier": "ctx",
+      "kind": "call",
+      "start": {
+        "line": 78,
+        "column": 15,
+        "offset": 1284
+      },
+      "enclosing": "demo.Server.Serve"
+    },
+    {
+      "name": "helper",
+      "qualifier": "s",
+      "kind": "call",
+      "start": {
+        "line": 81,
+        "column": 3,
+        "offset": 1323
+      },
+      "enclosing": "demo.Server.Serve"
+    },
+    {
+      "name": "Println",
+      "qualifier": "fmt",
+      "kind": "call",
+      "start": {
+        "line": 82,
+        "column": 5,
+        "offset": 1338
+      },
+      "enclosing": "demo.Server.Serve"
+    },
+    {
+      "name": "Sqrt",
+      "kind": "call",
+      "start": {
+        "line": 82,
+        "column": 13,
+        "offset": 1346
+      },
+      "enclosing": "demo.Server.Serve"
+    },
+    {
+      "name": "Server",
+      "kind": "type",
+      "start": {
+        "line": 86,
+        "column": 8,
+        "offset": 1387
+      },
+      "enclosing": "demo.Server.String"
+    },
+    {
+      "name": "Server",
+      "kind": "type",
+      "start": {
+        "line": 88,
+        "column": 9,
+        "offset": 1439
+      },
+      "enclosing": "demo.Server.helper"
+    },
+    {
+      "name": "first",
+      "kind": "type",
+      "start": {
+        "line": 89,
+        "column": 8,
+        "offset": 1475
+      },
+      "enclosing": "demo.Server.helper"
+    },
+    {
+      "name": "Options",
+      "kind": "type",
+      "start": {
+        "line": 93,
+        "column": 9,
+        "offset": 1534
+      },
+      "enclosing": "demo.Options.Get"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 93,
+        "column": 17,
+        "offset": 1542
+      },
+      "enclosing": "demo.Options.Get"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 93,
+        "column": 27,
+        "offset": 1552
+      },
+      "enclosing": "demo.Options.Get"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 95,
+        "column": 23,
+        "offset": 1597
+      },
+      "enclosing": "demo.first"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 95,
+        "column": 26,
+        "offset": 1600
+      },
+      "enclosing": "demo.first"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 96,
+        "column": 10,
+        "offset": 1614
+      },
+      "enclosing": "demo.first"
+    },
+    {
+      "name": "NewServer",
+      "kind": "call",
+      "start": {
+        "line": 104,
+        "column": 1,
+        "offset": 1684
+      },
+      "enclosing": "demo.init"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 32,
+        "column": 30,
+        "offset": 498
+      },
+      "text": "// Copyright 2026 Example. A file header, not a doc comment.\n\n// Package demo serves things.\npackage demo\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\tstr \"strings\"\n\n\t_ \"embed\"\n\t. \"math\"\n)\n\nimport \"io\"\n\n// DefaultName is the name a Server gets.\nconst DefaultName = \"demo\"\n\nconst (\n\t// MaxConns bounds connections.\n\tMaxConns, minConns = 64, 1\n\t_                  = 0\n)\n\nvar (\n\tregistry = map[string]*Server{}\n\t// ErrClosed is returned after Close.\n\tErrClosed = fmt.Errorf(\"closed\")\n)\n\nvar _ Handler = (*Server)(nil)",
+      "hash": "12279c163571a010c4a25f90e6f458e3c02e0edbd02c0c2e48368e1a8dc1cc45"
+    },
+    {
+      "id": "demo.Server#1",
+      "kind": "symbol",
+      "symbolId": "demo.Server",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 500
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 694
+      },
+      "text": "// Server serves requests.\n//\n// It is safe for concurrent use.\ntype Server struct {\n\t// Name names the server.\n\tName string\n\tn, m int\n\t*Embedded\n\tio.Reader\n\topts Options[string] `json:\"opts\"`\n}",
+      "hash": "7d8d092d17a5f7bbcfe785aaf559a0d86f80ba182f532851c4b8c7db93620621"
+    },
+    {
+      "id": "demo.ID#1",
+      "kind": "symbol",
+      "symbolId": "demo.ID",
+      "start": {
+        "line": 47,
+        "column": 0,
+        "offset": 703
+      },
+      "end": {
+        "line": 48,
+        "column": 7,
+        "offset": 738
+      },
+      "text": "\t// ID identifies a server.\n\tID int",
+      "hash": "03ea06a7eada9e6486c1550da20471aec505db4ddf4d6d3c59e7a3ad04ceb8c0"
+    },
+    {
+      "id": "demo.Handler#1",
+      "kind": "symbol",
+      "symbolId": "demo.Handler",
+      "start": {
+        "line": 50,
+        "column": 0,
+        "offset": 740
+      },
+      "end": {
+        "line": 55,
+        "column": 2,
+        "offset": 874
+      },
+      "text": "\t// Handler handles one request.\n\tHandler interface {\n\t\t// Serve serves x.\n\t\tServe(ctx context.Context, x int) error\n\t\tfmt.Stringer\n\t}",
+      "hash": "02b668559e6154fcc256c86e84ff63e319d0af2132a1a4b217dee5736c29145c"
+    },
+    {
+      "id": "demo.Options#1",
+      "kind": "symbol",
+      "symbolId": "demo.Options",
+      "start": {
+        "line": 58,
+        "column": 0,
+        "offset": 878
+      },
+      "end": {
+        "line": 61,
+        "column": 1,
+        "offset": 949
+      },
+      "text": "// Options are generic options.\ntype Options[T any] struct {\n\tValue T\n}",
+      "hash": "70a528fe8857ada5ec76a4df9bb93e69f9485a7d0fb45e05188414bf3a7ada92"
+    },
+    {
+      "id": "demo.Alias#1",
+      "kind": "symbol",
+      "symbolId": "demo.Alias",
+      "start": {
+        "line": 63,
+        "column": 0,
+        "offset": 951
+      },
+      "end": {
+        "line": 64,
+        "column": 27,
+        "offset": 1014
+      },
+      "text": "// Alias is another name for a map.\ntype Alias = map[string]int",
+      "hash": "233f5f6badb096b5bfa0e719fd8031c1ff852995bd0a7f579a73f4b7308bafea"
+    },
+    {
+      "id": "demo.NewServer#1",
+      "kind": "symbol",
+      "symbolId": "demo.NewServer",
+      "start": {
+        "line": 66,
+        "column": 0,
+        "offset": 1016
+      },
+      "end": {
+        "line": 74,
+        "column": 1,
+        "offset": 1179
+      },
+      "text": "/*\nNewServer returns a server.\nIt registers it too.\n*/\nfunc NewServer(name string) *Server {\n\ts := \u0026Server{Name: str.ToUpper(name)}\n\tregistry[name] = s\n\treturn s\n}",
+      "hash": "84f8e4cb82507cc48354d23cb348061777526a1639f7e293dd02ffed3bc22fd7"
+    },
+    {
+      "id": "demo.Server.Serve#1",
+      "kind": "symbol",
+      "symbolId": "demo.Server.Serve",
+      "start": {
+        "line": 76,
+        "column": 0,
+        "offset": 1181
+      },
+      "end": {
+        "line": 84,
+        "column": 1,
+        "offset": 1377
+      },
+      "text": "// Serve implements Handler.\nfunc (s *Server) Serve(ctx context.Context, x int) error {\n\tif err := ctx.Err(); err != nil {\n\t\treturn err\n\t}\n\ts.helper(x)\n\tfmt.Println(Sqrt(float64(x)))\n\treturn nil\n}",
+      "hash": "6d94fabc213f4e9d3e8db9af365e67cc3927081fc8b477eebbc6f8588b58384e"
+    },
+    {
+      "id": "demo.Server.String#1",
+      "kind": "symbol",
+      "symbolId": "demo.Server.String",
+      "start": {
+        "line": 86,
+        "column": 0,
+        "offset": 1379
+      },
+      "end": {
+        "line": 86,
+        "column": 49,
+        "offset": 1428
+      },
+      "text": "func (s Server) String() string { return s.Name }",
+      "hash": "f0f4552d0ac455d75c5b9e2ef89bd258825759645f445dbd26375935d11da5be"
+    },
+    {
+      "id": "demo.Server.helper#1",
+      "kind": "symbol",
+      "symbolId": "demo.Server.helper",
+      "start": {
+        "line": 88,
+        "column": 0,
+        "offset": 1430
+      },
+      "end": {
+        "line": 90,
+        "column": 1,
+        "offset": 1497
+      },
+      "text": "func (s *Server) helper(n int) int {\n\treturn first[int]([]int{n})\n}",
+      "hash": "57da762db7142882eb983eb1a7a6e447dd24a4899b885cda877057acc1ada78c"
+    },
+    {
+      "id": "demo.Options.Get#1",
+      "kind": "symbol",
+      "symbolId": "demo.Options.Get",
+      "start": {
+        "line": 92,
+        "column": 0,
+        "offset": 1499
+      },
+      "end": {
+        "line": 93,
+        "column": 47,
+        "offset": 1572
+      },
+      "text": "// Get returns the value.\nfunc (o *Options[T]) Get() T { return o.Value }",
+      "hash": "eb79efc31193da089d86fd3c4b77476dca60970ac304eb6701e0a2ba3d8ae8e1"
+    },
+    {
+      "id": "demo.first#1",
+      "kind": "symbol",
+      "symbolId": "demo.first",
+      "start": {
+        "line": 95,
+        "column": 0,
+        "offset": 1574
+      },
+      "end": {
+        "line": 101,
+        "column": 1,
+        "offset": 1667
+      },
+      "text": "func first[T any](xs []T) T {\n\tvar zero T\n\tif len(xs) == 0 {\n\t\treturn zero\n\t}\n\treturn xs[0]\n}",
+      "hash": "11354cea9b0340f00859d4d3c903016765f998b7bfa78cf22aeca784bf02d045"
+    },
+    {
+      "id": "demo.init#1",
+      "kind": "symbol",
+      "symbolId": "demo.init",
+      "start": {
+        "line": 103,
+        "column": 0,
+        "offset": 1669
+      },
+      "end": {
+        "line": 105,
+        "column": 1,
+        "offset": 1708
+      },
+      "text": "func init() {\n\tNewServer(DefaultName)\n}",
+      "hash": "ad8c71be8290725459a6a69e1517ac0f8f2cd03cebe3c8e658eed0dae98009bd"
+    },
+    {
+      "id": "demo.init~2#1",
+      "kind": "symbol",
+      "symbolId": "demo.init~2",
+      "start": {
+        "line": 107,
+        "column": 0,
+        "offset": 1710
+      },
+      "end": {
+        "line": 109,
+        "column": 1,
+        "offset": 1739
+      },
+      "text": "func init() {\n\t_ = MaxConns\n}",
+      "hash": "0eb97892c6f7a46aff3c895298b8f92800cd60af5e21211ae51aa2d2d071389b"
+    },
+    {
+      "id": "L111#1",
+      "kind": "window",
+      "start": {
+        "line": 111,
+        "column": 0,
+        "offset": 1741
+      },
+      "end": {
+        "line": 111,
+        "column": 43,
+        "offset": 1784
+      },
+      "text": "// Trailing comment at the end of the file.",
+      "hash": "bff162ded432a27eea0b581896dc214bd47e6ba5ef726470c786893ffabef70f"
+    }
+  ]
+}

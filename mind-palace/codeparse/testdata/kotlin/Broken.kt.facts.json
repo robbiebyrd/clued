@@ -1,0 +1,167 @@
+{
+  "lang": "kotlin",
+  "package": "com.example.broken",
+  "symbols": [
+    {
+      "id": "com.example.broken.Ok",
+      "kind": "class",
+      "name": "Ok",
+      "qualName": "com.example.broken.Ok",
+      "signature": "class Ok",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 28
+      },
+      "end": {
+        "line": 5,
+        "column": 1,
+        "offset": 64
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.broken.Ok.fine",
+      "kind": "method",
+      "name": "fine",
+      "qualName": "com.example.broken.Ok.fine",
+      "signature": "fun fine(): Int = 1",
+      "start": {
+        "line": 4,
+        "column": 4,
+        "offset": 43
+      },
+      "end": {
+        "line": 4,
+        "column": 23,
+        "offset": 62
+      },
+      "parent": "com.example.broken.Ok",
+      "exported": true
+    },
+    {
+      "id": "com.example.broken.Broken",
+      "kind": "class",
+      "name": "Broken",
+      "qualName": "com.example.broken.Broken",
+      "signature": "class Broken",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 66
+      },
+      "end": {
+        "line": 11,
+        "column": 1,
+        "offset": 137
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.broken.Broken.missingBrace",
+      "kind": "method",
+      "name": "missingBrace",
+      "qualName": "com.example.broken.Broken.missingBrace",
+      "signature": "fun missingBrace(x: Int",
+      "start": {
+        "line": 8,
+        "column": 4,
+        "offset": 85
+      },
+      "end": {
+        "line": 10,
+        "column": 5,
+        "offset": 135
+      },
+      "parent": "com.example.broken.Broken",
+      "exported": true
+    },
+    {
+      "id": "com.example.broken.afterBroken",
+      "kind": "function",
+      "name": "afterBroken",
+      "qualName": "com.example.broken.afterBroken",
+      "signature": "fun afterBroken(): String = \"still here\"",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 139
+      },
+      "end": {
+        "line": 13,
+        "column": 40,
+        "offset": 179
+      },
+      "exported": true
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 1,
+        "column": 26,
+        "offset": 26
+      },
+      "text": "package com.example.broken",
+      "hash": "fb4a5d94d009e70a295b18be89f2512531fc15f952ed2665176a040ce7b3151c"
+    },
+    {
+      "id": "com.example.broken.Ok#1",
+      "kind": "symbol",
+      "symbolId": "com.example.broken.Ok",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 28
+      },
+      "end": {
+        "line": 5,
+        "column": 1,
+        "offset": 64
+      },
+      "text": "class Ok {\n    fun fine(): Int = 1\n}",
+      "hash": "ee3ae052bbaa99333068c4b45fd5b3deb9e10c0fa7b19c765651fc173fb76371"
+    },
+    {
+      "id": "com.example.broken.Broken#1",
+      "kind": "symbol",
+      "symbolId": "com.example.broken.Broken",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 66
+      },
+      "end": {
+        "line": 11,
+        "column": 1,
+        "offset": 137
+      },
+      "text": "class Broken {\n    fun missingBrace(x: Int {\n        return x +\n    }\n}",
+      "hash": "f5ee25542977ae16738700f19038e51e7fc190144330d0274b252f5d1a3347d4"
+    },
+    {
+      "id": "com.example.broken.afterBroken#1",
+      "kind": "symbol",
+      "symbolId": "com.example.broken.afterBroken",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 139
+      },
+      "end": {
+        "line": 13,
+        "column": 40,
+        "offset": 179
+      },
+      "text": "fun afterBroken(): String = \"still here\"",
+      "hash": "6e935420cad0b600d832e4aabbe83dbe4533050fc05650666e543d1cae1be819"
+    }
+  ]
+}

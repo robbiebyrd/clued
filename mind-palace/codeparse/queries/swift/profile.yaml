@@ -1,0 +1,25 @@
+# Swift: a module is a build target (a SwiftPM target is Sources/<T>/ or
+# Tests/<T>/ with every directory below it), and every file of a module sees
+# the module's internal symbols without an import. `import M` brings M's
+# public symbols in unqualified (`@_exported import` re-exports them,
+# `@testable import` adds its internal ones); `import struct M.T` names one.
+# An extension carries the qualified name of the type it extends, so its
+# members merge into that type. An inheritance clause lists the superclass
+# (only first, only in a class) and the protocols the type conforms to.
+name: Swift
+family: swift
+extensions: [.swift]
+query: tags.scm
+kinds:
+  definition.actor: class
+  definition.case: const
+  definition.associatedtype: type
+scope:
+  separators: ["."]
+  packageBy: directory
+  exported: declared
+  options:
+    module: target
+    targetRoots: "Sources,Tests"
+    extensions: merge
+    conformance: implements

@@ -1,0 +1,217 @@
+{
+  "lang": "c",
+  "symbols": [
+    {
+      "id": "ok",
+      "kind": "function",
+      "name": "ok",
+      "qualName": "ok",
+      "signature": "int ok(int x)",
+      "doc": "ok is defined before the error.",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 58
+      },
+      "end": {
+        "line": 7,
+        "column": 1,
+        "offset": 90
+      },
+      "exported": true
+    },
+    {
+      "id": "half",
+      "kind": "function",
+      "name": "half",
+      "qualName": "half",
+      "signature": "int half(int y)",
+      "doc": "half is cut off mid-expression.",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 130
+      },
+      "end": {
+        "line": 13,
+        "column": 1,
+        "offset": 168
+      },
+      "exported": true
+    },
+    {
+      "id": "after",
+      "kind": "struct",
+      "name": "after",
+      "qualName": "after",
+      "signature": "struct after",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 170
+      },
+      "end": {
+        "line": 17,
+        "column": 1,
+        "offset": 194
+      },
+      "exported": true
+    },
+    {
+      "id": "after.a",
+      "kind": "field",
+      "name": "a",
+      "qualName": "after.a",
+      "signature": "int a;",
+      "start": {
+        "line": 16,
+        "column": 1,
+        "offset": 186
+      },
+      "end": {
+        "line": 16,
+        "column": 7,
+        "offset": 192
+      },
+      "parent": "after",
+      "exported": true
+    },
+    {
+      "id": "after_error",
+      "kind": "function",
+      "name": "after_error",
+      "qualName": "after_error",
+      "signature": "int after_error(struct after *p)",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 197
+      },
+      "end": {
+        "line": 22,
+        "column": 1,
+        "offset": 251
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "stdio.h",
+      "kind": "include_system",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "after",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 23,
+        "offset": 220
+      },
+      "enclosing": "after_error"
+    },
+    {
+      "name": "ok",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 8,
+        "offset": 240
+      },
+      "enclosing": "after_error"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 1,
+        "column": 18,
+        "offset": 18
+      },
+      "text": "#include \u003cstdio.h\u003e",
+      "hash": "1e839e32685d525d4c1965f9ba99267582bb562cbb1d9eba94b1c8058cde2f2e"
+    },
+    {
+      "id": "ok#1",
+      "kind": "symbol",
+      "symbolId": "ok",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 20
+      },
+      "end": {
+        "line": 7,
+        "column": 1,
+        "offset": 90
+      },
+      "text": "/* ok is defined before the error. */\nint ok(int x)\n{\n\treturn x + 1;\n}",
+      "hash": "4f3ee709f9b246b4001c8f3a7e7690a5cae18addf1b8dd7470c8b1df2524c248"
+    },
+    {
+      "id": "half#1",
+      "kind": "symbol",
+      "symbolId": "half",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 92
+      },
+      "end": {
+        "line": 13,
+        "column": 1,
+        "offset": 168
+      },
+      "text": "/* half is cut off mid-expression. */\nint half(int y)\n{\n\treturn y * (2 + ;\n}",
+      "hash": "caed391e15ef2572fb25a3befa7c597ee097f93d30ce4576d87cf5857b26d5b2"
+    },
+    {
+      "id": "after#1",
+      "kind": "symbol",
+      "symbolId": "after",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 170
+      },
+      "end": {
+        "line": 17,
+        "column": 1,
+        "offset": 194
+      },
+      "text": "struct after {\n\tint a;\n}",
+      "hash": "2dde2b61e6896ce52706eff28f8c43cf6dba590d39e27e96aee862de9fcb98ae"
+    },
+    {
+      "id": "after_error#1",
+      "kind": "symbol",
+      "symbolId": "after_error",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 197
+      },
+      "end": {
+        "line": 22,
+        "column": 1,
+        "offset": 251
+      },
+      "text": "int after_error(struct after *p)\n{\n\treturn ok(p-\u003ea);\n}",
+      "hash": "e6e789684d8efb02778f8ec9f86394fcb6ab8a8e96dc99abce705d1c7456e36b"
+    }
+  ]
+}
