@@ -20,7 +20,10 @@ How it fits together:
   code store: in remote mode the relay uploads the source of the
   repositories Claude Code works in, content-addressed, per worktree and
   branch, through a write-only API that serves none of it back. See
-  [Collected code](#collected-code).
+  [Collected code](#collected-code). Clued Cloud can also take a
+  repository's pushed code, plans and stories straight from GitHub through
+  the clued GitHub App ([github-app.md](github-app.md)); a self-hosted
+  server does not run the app.
 - **MCP** stays available through the plugin's stdio servers, which in remote
   mode read and write through the server, and additionally over HTTPS at
   `/mcp` for clients that want no local process at all.
@@ -469,6 +472,21 @@ An embedding server (Clued Cloud) can refuse writes per account with
 `CluedOptions.BeforeCodeWrite` (403 `forbidden`, 413 `quota`); the
 self-hosted server accepts every write a token's projects cover.
 
+#### GitHub-backed projects
+
+Clued Cloud runs the clued GitHub App: a claimed installation writes each
+repository's pushed branches into the project's code store as a worktree
+of its own (`gh_<repository id>`, source `github`), mirrors the plans and
+stories of the default branch, and records the repository's activity
+(pushes, branches, pull requests, CI) in `<project>_code_events`. On such a
+project `GET …/code/capabilities` answers `"github": true`
+(`CluedOptions.GitHubBacked`), and clients send clean, pushed files as
+entries without content, uploading only what is not on GitHub yet. The
+self-hosted server sets no `GitHubBacked` (`github` is always false) and
+does not serve the webhook; the packages it would need (`ghapp`, `ghsync`)
+are in the public module. Permissions, what is stored, the branch policy
+and how to remove it are in [github-app.md](github-app.md).
+
 ## Client setup
 
 ### `config.json`
@@ -633,7 +651,10 @@ mind-palace sync --from file --to clued-server --on-conflict overwrite   # the f
 `sync` copies plans, stories and templates between two configured stores
 and reports, per kind, the ids it copied, left unchanged, overwrote and
 the conflicts it refused (`--on-conflict error`, the default, fails on the
-first one; `skip` leaves them); the `sync` MCP tool does the same.
+first one; `skip` leaves them; `overwrite` replaces them; `newer` replaces
+a document only when the source copy's `updated` timestamp is the same or
+later and reports the others, the mode the GitHub App sync uses); the
+`sync` MCP tool does the same (`onConflict`).
 
 ### Project slugs
 
