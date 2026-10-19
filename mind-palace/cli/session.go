@@ -146,7 +146,7 @@ func (a *App) sessionCmd() *cobra.Command {
 		a.sessionTranscriptCmd(), a.sessionRestoreCmd(), a.sessionBackfillCmd(),
 		a.sessionDaemonCmd(), a.sessionMCPCmd(), a.sessionWhoamiCmd(),
 		a.sessionSearchMemoryCmd(), a.sessionLimitsCmd(), a.sessionActivitiesCmd(), a.sessionReportCmd(), a.sessionDigestCmd(), a.sessionMemoryCmd(), a.sessionMemoryIngestCmd(),
-		a.sessionLoginCmd(), a.sessionLogoutCmd(), a.sessionConfigPullCmd(),
+		a.sessionLoginCmd(), a.sessionLogoutCmd(), a.sessionConfigPullCmd(), a.sessionCodeSyncCmd(),
 	)
 	return c
 }
