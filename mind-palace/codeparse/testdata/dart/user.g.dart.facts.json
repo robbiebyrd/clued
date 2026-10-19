@@ -1,0 +1,246 @@
+{
+  "lang": "dart",
+  "symbols": [
+    {
+      "id": "_$UserFromJson",
+      "kind": "function",
+      "name": "_$UserFromJson",
+      "qualName": "_$UserFromJson",
+      "signature": "User _$UserFromJson(Map\u003cString, dynamic\u003e json)",
+      "start": {
+        "line": 9,
+        "column": 47,
+        "offset": 298
+      },
+      "end": {
+        "line": 16,
+        "column": 6,
+        "offset": 528
+      }
+    },
+    {
+      "id": "_$UserToJson",
+      "kind": "function",
+      "name": "_$UserToJson",
+      "qualName": "_$UserToJson",
+      "signature": "Map\u003cString, dynamic\u003e _$UserToJson(User instance)",
+      "start": {
+        "line": 18,
+        "column": 49,
+        "offset": 579
+      },
+      "end": {
+        "line": 22,
+        "column": 6,
+        "offset": 698
+      }
+    },
+    {
+      "id": "UserCopy",
+      "kind": "extension",
+      "name": "UserCopy",
+      "qualName": "UserCopy",
+      "signature": "extension UserCopy on User",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 700
+      },
+      "end": {
+        "line": 27,
+        "column": 1,
+        "offset": 842
+      },
+      "exported": true
+    },
+    {
+      "id": "UserCopy.copyWith",
+      "kind": "method",
+      "name": "copyWith",
+      "qualName": "UserCopy.copyWith",
+      "signature": "User copyWith({int? id, String? name})",
+      "start": {
+        "line": 25,
+        "column": 41,
+        "offset": 770
+      },
+      "end": {
+        "line": 26,
+        "column": 67,
+        "offset": 840
+      },
+      "parent": "UserCopy",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "user.dart",
+      "kind": "part_of",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 43
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "User",
+      "kind": "type",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 251
+      }
+    },
+    {
+      "name": "User",
+      "kind": "call",
+      "start": {
+        "line": 9,
+        "column": 50,
+        "offset": 301
+      },
+      "enclosing": "_$UserFromJson"
+    },
+    {
+      "name": "toInt",
+      "kind": "call",
+      "start": {
+        "line": 10,
+        "column": 30,
+        "offset": 337
+      },
+      "enclosing": "_$UserFromJson"
+    },
+    {
+      "name": "map",
+      "kind": "call",
+      "start": {
+        "line": 13,
+        "column": 16,
+        "offset": 451
+      },
+      "enclosing": "_$UserFromJson"
+    },
+    {
+      "name": "toList",
+      "kind": "call",
+      "start": {
+        "line": 14,
+        "column": 15,
+        "offset": 490
+      },
+      "enclosing": "_$UserFromJson"
+    },
+    {
+      "name": "User",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 34,
+        "offset": 564
+      }
+    },
+    {
+      "name": "User",
+      "kind": "type",
+      "start": {
+        "line": 24,
+        "column": 22,
+        "offset": 722
+      },
+      "enclosing": "UserCopy"
+    },
+    {
+      "name": "User",
+      "kind": "type",
+      "start": {
+        "line": 25,
+        "column": 2,
+        "offset": 731
+      },
+      "enclosing": "UserCopy"
+    },
+    {
+      "name": "User",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 6,
+        "offset": 779
+      },
+      "enclosing": "UserCopy.copyWith"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 7,
+        "column": 77,
+        "offset": 249
+      },
+      "text": "// GENERATED CODE - DO NOT MODIFY BY HAND\n\npart of 'user.dart';\n\n// **************************************************************************\n// JsonSerializableGenerator\n// **************************************************************************",
+      "hash": "631aa0fa6f7c7e90e0a7882de8a81e9935ffbcdf87aa2d05b90714b7658ff016"
+    },
+    {
+      "id": "_$UserFromJson#1",
+      "kind": "symbol",
+      "symbolId": "_$UserFromJson",
+      "start": {
+        "line": 9,
+        "column": 47,
+        "offset": 298
+      },
+      "end": {
+        "line": 16,
+        "column": 6,
+        "offset": 528
+      },
+      "text": "=\u003e User(\n      id: (json['id'] as num).toInt(),\n      name: json['display_name'] as String,\n      tags: (json['tags'] as List\u003cdynamic\u003e?)\n              ?.map((e) =\u003e e as String)\n              .toList() ??\n          const [],\n    );",
+      "hash": "bfac8e90a06121d6a94909fe5960dc31ec18964674c186dab6a6ad942a3f5978"
+    },
+    {
+      "id": "_$UserToJson#1",
+      "kind": "symbol",
+      "symbolId": "_$UserToJson",
+      "start": {
+        "line": 18,
+        "column": 49,
+        "offset": 579
+      },
+      "end": {
+        "line": 22,
+        "column": 6,
+        "offset": 698
+      },
+      "text": "=\u003e \u003cString, dynamic\u003e{\n      'id': instance.id,\n      'display_name': instance.name,\n      'tags': instance.tags,\n    };",
+      "hash": "7f890e769a76556ddac6de4322f678e62ca745f5298c3284fe370113ae7fa03a"
+    },
+    {
+      "id": "UserCopy#1",
+      "kind": "symbol",
+      "symbolId": "UserCopy",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 700
+      },
+      "end": {
+        "line": 27,
+        "column": 1,
+        "offset": 842
+      },
+      "text": "extension UserCopy on User {\n  User copyWith({int? id, String? name}) =\u003e\n      User(id: id ?? this.id, name: name ?? this.name, tags: tags);\n}",
+      "hash": "8dc8a40eaa15f9fcf48559a0207d5968c6bfa1187c5a8e613a295d57b42b1861"
+    }
+  ]
+}
