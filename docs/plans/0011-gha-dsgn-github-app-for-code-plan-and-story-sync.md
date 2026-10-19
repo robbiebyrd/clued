@@ -6,7 +6,7 @@ status: pending
 priority: "3"
 effort: XL
 created: "2026-10-19T17:30:17.235Z"
-updated: "2026-10-19T17:30:17.235Z"
+updated: "2026-10-19T17:34:00.360Z"
 tags:
   - github
   - code-graph
@@ -81,6 +81,9 @@ progress:
 - **Claims bind an installation to the account or workspace that started the install, or to a user whose linked GitHub identity is the installer.** — Installation ids are guessable and installations can be made by anyone on their own repositories; without a bound claim, someone could push code into another account's namespace.
 - **Plans and stories flow one way, repository → server, with a `newer` conflict mode and archive-on-delete.** — The repository's default branch is the reviewed source of truth; MCP edits not yet merged must not be overwritten, and deletions must not break links.
 - **Rules in the public module (`ghapp`, `ghsync`), composition in clued-cloud.** — Matches the repositories' split (rules in `mind-palace`, the cloud composes) and leaves a self-hosted server able to wire the same packages later.
+- **Information flows one way, GitHub → clued.** — The app never posts check runs, statuses or comments to GitHub, and clued sends no status notifications (e-mail or web) about CI results or sync outcomes; events are recorded for later use only. The only messages sent are the existing security notifications for claiming or removing an installation.
+- **Uninstalling keeps the data until it is wiped.** — The GitHub-backed worktree, its trees, blobs and activity events stay until the project, account or workspace is deleted (the existing purgers); the projects simply stop being GitHub-backed and the Claude Code clients carry on collecting, including clean files again.
+- **Branch sync is configurable, defaulting to active branches plus the default branch.** — Syncing every branch of a busy repository costs imports and storage for branches nobody works on; the default policy follows where work happens, and repositories that want more (or less) can say so.
 - **Queue and acknowledge fast; fetch from GitHub in workers; reconcile nightly.** — GitHub requires an answer within 10 seconds and doesn't guarantee delivery or order; the before-tip check and the nightly reconcile make the sync converge regardless.
 
 ### Rejected alternatives
@@ -127,7 +130,14 @@ Each claimed repository has one **GitHub-backed worktree** per project: id `gh_<
 - **Force pushes, `before` of all zeros, compares over 300 files or truncated**: a full import of B at `after` instead.
 - **Full import** (installation, repository added, new branch via `create`, or forced): `GET git/trees/{sha}?recursive=1`; when GitHub truncates (very large repositories), walk subtrees; a `Full: true` change replaces the ref's tree.
 - **`delete` of a branch**: `RemoveRef` on the GitHub worktree (a tombstone change), so its branch layer can be dropped.
-- **Which branches**: the default branch always; other branches when pushed to, up to 50 per repository (oldest-updated dropped first); tags are ignored.
+- **Which branches** (the *branch policy*, per repository):
+  - `active` (**default**): the default branch, plus every branch that is *active*: it has an open pull request, or it received a push in the last `activeDays` days (default 14).
+  - `default`: the default branch only.
+  - `all`: every branch, up to `maxBranches` (default 200; the least recently pushed beyond that are inactive).
+  - **Where it is set**: per repository on the Integrations page (defaulting to the installation's setting, which defaults to `active`), and in the repository's `mind-palace.config.yaml` under `github.branches` / `github.activeDays` / `github.maxBranches`, which wins when present, since it is reviewed with the code.
+  - **Becoming active**: a push to an inactive branch, or a pull request opened from it, makes it active; its tree is brought up to date by the before-tip rule (a full import when the stored head is stale or missing).
+  - **Becoming inactive**: when its pull request closes and no push arrives within `activeDays`, a daily sweep stops syncing it. Its last tree is **kept** (marked inactive on the worktree, not deleted), so the branch layer stays until the branch is deleted on GitHub or the data is wiped.
+  - Open pull requests are tracked from `pull_request` events and listed once at import (`GET pulls?state=open`). Tags are ignored.
 - **Filtering and redaction on the server**: the same built-in deny list, size cap (1 MiB, the plan's `capabilities` limit) and binary detection as the 0010 client, plus the built-in redaction rules and the account's pulled `redactPatterns`; `excludePaths` doesn't apply (it names local paths). `.gitignore` is moot (only committed files exist). Repository-level `codeSync: false` in `mind-palace.config.yaml` is honoured here too.
 - Ordering: jobs for one repository run one at a time in delivery order; a push whose `before` isn't the current tip of the ref falls back to a full import, which makes out-of-order or lost deliveries self-healing.
 - A nightly reconcile per repository compares each tracked branch's tip with the stored head and re-imports drifted refs, covering lost deliveries.
@@ -167,18 +177,18 @@ On a push to the default branch that touches the plans or stories directories (r
 
 ### Jobs
 
-`ghsync.Jobs` port: `Enqueue`, `Claim(lease)`, `Done`, `Retry(after)`, ordered per repository. `memjobs` for tests and the in-memory server; clued-cloud adds a Mongo implementation (`github_jobs`, one in-flight job per repository via a lease document, exponential back-off up to 1 hour, dead-lettered after 10 attempts with a `github_job_failed` metric and an owner notice). Workers run in the clued-cloud process (`--github-workers`, default 4). GitHub rate limits (`X-RateLimit-Remaining`, secondary limits, `Retry-After`) pause that installation's jobs rather than failing them.
+`ghsync.Jobs` port: `Enqueue`, `Claim(lease)`, `Done`, `Retry(after)`, ordered per repository. `memjobs` for tests and the in-memory server; clued-cloud adds a Mongo implementation (`github_jobs`, one in-flight job per repository via a lease document, exponential back-off up to 1 hour, dead-lettered after 10 attempts with a `github_job_failed` metric and the repository's state on the Integrations page set to *failed*). Workers run in the clued-cloud process (`--github-workers`, default 4). GitHub rate limits (`X-RateLimit-Remaining`, secondary limits, `Retry-After`) pause that installation's jobs rather than failing them.
 
 ### clued-cloud
 
 - **Config**: `--github-app-id`, `--github-app-slug`, `--github-private-key-file`, `--github-webhook-secret-file`, `--github-workers` (all with `CLUED_CLOUD_GITHUB_*` fallbacks); the feature is off when unset. The private key and webhook secret are read from files, held in memory only, never logged.
-- **Pages** (server-rendered, CSP as every page, POST forms behind `protect`): Settings → Integrations lists the user's installations and synced repositories with last sync time and state (synced, importing, paused, failed) and an *Install on GitHub* button; the workspace settings page gets the same for workspace admins. *Remove* only unlinks the installation (and links to GitHub to uninstall the app); it never deletes data, which stays under the normal project deletion and retention.
+- **Pages** (server-rendered, CSP as every page, POST forms behind `protect`): Settings → Integrations lists the user's installations and synced repositories with last sync time, state (synced, importing, paused, failed) and branch policy (a POST form per repository and per installation), and an *Install on GitHub* button; the workspace settings page gets the same for workspace admins. *Remove* only unlinks the installation (and links to GitHub to uninstall the app); it never deletes data, which stays until it is wiped (project, account or workspace deletion).
 - **Entitlement**: `Limits.GitHubSync` (off by default, like `CodeSync`), and code written from GitHub counts toward `Limits.CodeBytes`. Plans and stories sync is allowed whenever the installation is claimed, since plans and stories are already a core feature.
-- **Audit**: `AuditGitHubInstalled`, `AuditGitHubUninstalled`, `AuditGitHubReposChanged` with sentences in `web/security.go`, and `Service.notify` to the owner when an installation is claimed or removed.
+- **Audit**: `AuditGitHubInstalled`, `AuditGitHubUninstalled`, `AuditGitHubReposChanged` with sentences in `web/security.go`, and `Service.notify` to the owner when an installation is claimed or removed (the existing security notification; no other notifications are sent).
 - **Notices**: codes in `web.notices` for claimed, nothing to claim, removed.
 - **Metrics**: `github_deliveries` (labels `event`, `outcome=queued|duplicate|dropped|invalid_signature`), `github_jobs` (`kind`, `outcome`), `github_api_calls` (`outcome`), `github_rate_limited`, with help text in `counterHelp`.
 - **Purgers**: account and workspace deletion remove their installations, jobs, delivery records and events (code and documents go with the existing purgers).
-- **Uninstall**: `installation.deleted` marks the installation removed, stops jobs and turns the projects back into client-backed (`capabilities.github` false); clients resume uploading clean files on their next full reconcile.
+- **Uninstall** (`installation.deleted`, or a repository removed from the installation): the installation or repository is marked removed and its jobs stop; the GitHub-backed worktree is marked inactive but its trees, blobs and events are **kept until wiped** by the existing project, account and workspace purgers. The projects turn back into client-backed (`capabilities.github` false), and Claude Code clients carry on collecting, uploading clean files again from their next full reconcile. Reinstalling re-links the same worktree (`gh_<repository id>`) and brings it up to date.
 
 ### Error Handling
 
@@ -188,8 +198,8 @@ On a push to the default branch that touches the plans or stories directories (r
 - Compare too large or truncated, `before` not the stored tip: full import of that ref.
 - Blob over the size cap or binary: entry recorded with `sha256: ""` and size, as 0010 does.
 - Plan or story invalid at the commit: skipped, `plan_sync_problem` event; conflict with a newer server copy: skipped, `plan_sync_conflict` event.
-- Quota full: code jobs for that account stop with a notice; plans and stories still sync.
-- Job dead-lettered after 10 attempts: metric, owner notice, and the nightly reconcile tries again.
+- Quota full: code jobs for that account stop and the repositories show *paused* on the Integrations page; plans and stories still sync.
+- Job dead-lettered after 10 attempts: metric, *failed* state on the Integrations page, and the nightly reconcile tries again.
 
 ### Edge Cases
 
@@ -212,7 +222,7 @@ On a push to the default branch that touches the plans or stories directories (r
 - Read-only permissions; the app never writes to GitHub.
 - Server-side deny list, size cap, binary skip and redaction apply to GitHub content just as the client's do; `codeSync: false` in a repository opts it out.
 - Code and events are written only under the claimed target's namespace (`u…` / `w…`), through the same fail-closed namespacing as 0010; nothing is readable through any route.
-- Uninstalling or suspending stops processing at once; account and workspace deletion purge installations, jobs and events.
+- Uninstalling or suspending stops processing at once; the data stays until wiped, and account and workspace deletion purge installations, jobs, events and code.
 - **Performance:** - Push sync costs one compare call plus one blob call per new file version; blobs already held (by git blob id) are not fetched.
 - Large pushes and first imports run in workers with per-repository ordering and back-off; the webhook answers in milliseconds.
 - GitHub's 5,000+ requests per hour per installation is far above normal push volume; a first import of a very large repository is spread across jobs and paused on rate limits.
@@ -221,9 +231,9 @@ On a push to the default branch that touches the plans or stories directories (r
 ## Testing
 
 - `ghapp`: JWT claims and signing, token caching and refresh, signature verification (valid, wrong secret, missing header, altered body), payload decoding from recorded fixtures, rate-limit header handling; an `httptest` fake of the GitHub API, never api.github.com.
-- `ghsync` suite over the fake: claim rules (state bound to session, identity match, foreign installations refused), push → change with correct `git_oid` / `dirty` / `unpushed` / `upstream`, renames, force push → full import, truncated tree walk, branch delete, branch cap, deny list and redaction, `codeSync: false`, plan and story sync with `newer` and archive-on-delete, invalid documents skipped, activity events allow-listed, ordering and before-tip fallback, reconcile after a lost delivery.
+- `ghsync` suite over the fake: claim rules (state bound to session, identity match, foreign installations refused), push → change with correct `git_oid` / `dirty` / `unpushed` / `upstream`, renames, force push → full import, truncated tree walk, branch delete, the branch policies (active by open pull request and by `activeDays`, inactivity sweep keeps the tree, `default`, `all` with `maxBranches`, config file overriding the page), deny list and redaction, `codeSync: false`, plan and story sync with `newer` and archive-on-delete, invalid documents skipped, activity events allow-listed, ordering and before-tip fallback, reconcile after a lost delivery.
 - 0010 changes: `capabilities.github`, entries without `sha256` accepted only when clean, pushed and GitHub-backed; the client skips upload for them (plugin test with a fake GitHub-backed server).
-- clued-cloud: webhook endpoint (signature, dedupe, 202), install and claim pages (CSRF, state, nothing-to-claim answers identical), workspace install by an admin only, entitlement and quota, metrics, audit and notices, purgers, uninstall; the Mongo job queue with leases and dead-lettering (with `CLUED_CLOUD_TEST_MONGODB_URI`).
+- clued-cloud: webhook endpoint (signature, dedupe, 202), install and claim pages (CSRF, state, nothing-to-claim answers identical), workspace install by an admin only, entitlement and quota, metrics, audit and notices, purgers, uninstall keeps data and clients resume full uploads, branch policy forms; the Mongo job queue with leases and dead-lettering (with `CLUED_CLOUD_TEST_MONGODB_URI`).
 
 ## Scope
 
@@ -238,27 +248,13 @@ On a push to the default branch that touches the plans or stories directories (r
 
 **Out of scope:**
 
-- Any write to GitHub: check runs, commit statuses, comments, issues, labels. — The app asks for read-only permissions so installing it is low-risk; reporting back to GitHub is a separate decision (see Open Questions).
+- Any write to GitHub (check runs, commit statuses, comments, issues, labels) and any status notification to users about CI or sync. — Decided: information flows GitHub → clued only. The app asks for read-only permissions so installing it is low-risk.
 - Changing a story's or plan's status from GitHub events (closing a story when a pull request merges). — The repository's files are the source of truth for plans and stories; the server mirrors them. Status changes still happen through `story_setStatus` and land in the repository through a commit.
 - Plans and stories on non-default branches. — They are proposals until merged; syncing them would put unmerged documents on the board. Can be added as a 'proposed' view later.
 - Self-hosted clued servers. — The packages are in the public module so a self-hosted server can wire them later (its own app via GitHub's manifest flow); this plan ships it in clued-cloud only, where the webhook URL is public.
 - GitHub Enterprise Server hosts. — `ghapp` takes the API base URL as an option, but only github.com is configured and tested.
 - Reading or displaying the activity log or collected code. — Same as 0010: collect now, expose later.
 - Git history before the installation. — The initial import takes the current tip of each branch; history is not replayed.
-
-## Open Questions
-
-- [ ] "Status notifications": this plan has the app *receive* GitHub's events (pushes, branches, pull requests, CI) and record them. Should clued also *send* something: notify the user (e-mail or a web notice) on CI failures or plan/story sync conflicts, or post a read-only 'clued' check run back to GitHub (needs Checks: write)? — Robbie
-- [ ] On uninstall, should the GitHub-backed worktree's data stay until the project is deleted (this plan's default), or be purged at once? — Robbie
-- [ ] Is a 50-branch cap per repository right, or should non-default branches sync only while they have an open pull request? — Robbie
-
----
-
-# Part 2 — Implementation
-
-**Architecture:** GitHub → `POST /github/webhook` (clued-cloud: verify, dedupe, resolve claim, enqueue) → `ghsync` workers (`ghapp` client with the installation token) → `code.Store` (GitHub-backed worktree trees, change log, activity events) and the project's plan/story store (`store.Sync`, mode `newer`) under the claimed namespace. Clients query `capabilities` and send only overlays for GitHub-backed projects.
-
-**Tech Stack:** Go 1.26 standard library (`crypto/rsa`, `crypto/hmac`, `net/http`, `encoding/json`), the existing `code`, `store`, `service` and `projects` packages from plan 0010 and before, Mongo for jobs and events in clued-cloud. No new third-party dependency.
 
 ## Constraints
 
@@ -329,7 +325,7 @@ On a push to the default branch that touches the plans or stories directories (r
 - Produces: `ghsync.Service{App, Jobs, Code(ctx, target, slug), Docs(ctx, target, slug), Claims}`, `Service.Handle(ctx, delivery)`, `Service.Work(ctx)`, `Service.Reconcile(ctx)`, `ghsync.Jobs` port
 
 - [ ] **Step 1: Push → compare → blobs → `Commit`, with the before-tip rule and full-import fallback**
-- [ ] **Step 2: Full import from recursive trees (and subtree walk when truncated); branch create, delete and the 50-branch cap**
+- [ ] **Step 2: Full import from recursive trees (and subtree walk when truncated); branch create and delete; the branch policy (`active` default with open pull requests and `activeDays`, `default`, `all` with `maxBranches`), the daily inactivity sweep, and reading `github.*` from the repository's `mind-palace.config.yaml`**
 - [ ] **Step 3: Server-side filter and redaction shared with the 0010 client (lift the deny list and binary check into a shared package)**
 - [ ] **Step 4: Allow-listed activity events for every subscribed event**
 - [ ] **Step 5: `Jobs` port with per-repository ordering, leases and back-off; `memjobs`**
@@ -404,7 +400,7 @@ On a push to the default branch that touches the plans or stories directories (r
 - [ ] **Step 1: Mongo job queue with leases, back-off and dead letters; worker pool and nightly reconcile**
 - [ ] **Step 2: Wire `ghsync.Service` with namespaced `code.Store` and plan/story openers; `GitHubBacked` hook for `capabilities`**
 - [ ] **Step 3: `Limits.GitHubSync`, quota accounting, audit kinds and sentences, notices, metrics with help text**
-- [ ] **Step 4: Purgers for installations, jobs, deliveries and events; uninstall handling**
+- [ ] **Step 4: Purgers for installations, jobs, deliveries and events; uninstall keeps the data until wiped; branch policy forms on the Integrations pages**
 
 ## Phase 4: Documentation
 
@@ -434,7 +430,9 @@ On a push to the default branch that touches the plans or stories directories (r
 - [ ] Deny-listed, binary and oversized files never have content stored; redaction applies; `codeSync: false` in a repository opts it out.
 - [ ] Plans and stories on the default branch appear in the project's server store; a newer MCP edit is not overwritten (conflict recorded); a deleted document is archived; sequence numbers no longer collide.
 - [ ] Push, branch, pull request and CI events are recorded as allow-listed activity events; nothing exposes them, or the code, through any route.
-- [ ] On a GitHub-backed project, clients upload only dirty and unpushed files; on uninstall they resume full uploads.
+- [ ] On a GitHub-backed project, clients upload only dirty and unpushed files; on uninstall the GitHub-synced data stays until wiped and clients resume full uploads.
+- [ ] By default only the default branch and active branches (open pull request, or pushed within `activeDays`) sync; `default` and `all` policies work, set on the Integrations page or in `mind-palace.config.yaml` (which wins); a branch going inactive keeps its last tree.
+- [ ] Nothing is ever written to GitHub, and no status notifications are sent to users.
 - [ ] Invalid signatures, duplicates and unclaimed installations store nothing; secrets and payloads are never logged.
 - [ ] Entitlement, quota, metrics, audit events, notices and purgers work as described; `gofmt`, `go vet` and `go test -race ./...` pass in both repositories, with and without MongoDB.
 
@@ -447,11 +445,13 @@ On a push to the default branch that touches the plans or stories directories (r
 | Receive status notifications of changes | 2.2, Step 4 (activity log of pushes, branches, pull requests and CI) |
 | Keep plans and stories up to date | 2.3 |
 | Keep code up to date alongside the client overlays | 2.1, 2.4 |
+| GitHub → clued only, no outbound notifications | Decisions; Scope (out of scope) |
+| Uninstall keeps data until wiped; local collection continues | Design, clued-cloud "Uninstall"; 3.2, Step 4 |
+| Configurable branch sync, default: default branch plus active branches | Design, "Which branches"; 2.2, Step 2; 3.2, Step 4 |
 **Residual risk:** Pushed code lives on the server even when no one opted in on their machine, so the entitlement and the install screen must say so plainly. Server-side redaction can only use the account's patterns, not each machine's. A very large monorepo's first import can take a long time under rate limits.
 
 ## Next Steps
 
-1. Decide whether the app should report back to GitHub (a read-only 'clued' check run showing sync and plan validation) — needs Checks: write.
-2. Surface the activity log: CI status and pull requests on the board and on stories; pull requests that mention story ids in the story's view.
-3. Self-hosted servers: the GitHub manifest flow (`mind-palace server github-app create`) and wiring `ghsync` into `server run`.
-4. 'Proposed' plans and stories from open pull requests.
+1. Surface the activity log (inside clued only): CI status and pull requests on the board and on stories; pull requests that mention story ids in the story's view.
+2. Self-hosted servers: the GitHub manifest flow (`mind-palace server github-app create`) and wiring `ghsync` into `server run`.
+3. 'Proposed' plans and stories from open pull requests.
