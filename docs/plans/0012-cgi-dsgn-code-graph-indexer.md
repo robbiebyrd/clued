@@ -6,7 +6,7 @@ status: pending
 priority: "3"
 effort: XL
 created: "2026-10-19T17:49:42.286Z"
-updated: "2026-10-19T17:51:56.623Z"
+updated: "2026-10-19T19:48:41.820Z"
 tags:
   - code-graph
   - falkordb
@@ -29,7 +29,7 @@ progress:
   "1":
     status: pending
   "1.1":
-    status: pending
+    status: complete
   "1.2":
     status: pending
   "2":
@@ -534,3 +534,66 @@ Each task runs in a headless Claude Code session (`claude -p`, remote mode, the 
 3. Use the 0011 activity log in tools ('what changed on this branch since main', CI status of the commit a symbol was last changed in).
 4. More grammars from the chosen runtime's registry.
 5. Embedded languages (SQL in strings, scripts in HTML, Vue and Svelte single-file components).
+
+
+## Work Log
+
+### 2026-10-19 — 1.1 Parser spike (story 0078-k15)
+
+**1.1 Parser spike (story 0078-k15): choice = gotreesitter v0.56.0 (github.com/odvcencio/gotreesitter, MIT), imported one grammar package at a time (`grammars/<lang>`), never the aggregate `grammars` package.** Evidence was gathered by the spike test (commit 4baad28, deleted afterwards), a C oracle (tree-sitter CLI 0.25.10 on the same pinned grammar commits) and a working wazero prototype. The host was a shared 4-vCPU sandbox (load average 8-16 from other agents), so absolute rates are noisy; ratios were measured back to back.
+
+*Build and licences.* Both candidates cross-compile with `CGO_ENABLED=0 -trimpath -ldflags '-s -w'` for all 7 targets (darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, linux/arm GOARM=6, windows/amd64, windows/arm64), linked into `cmd/mind-palace`. CI's `go-licenses check ./... --disallowed_types=forbidden,restricted,unknown` passes with either one linked (gotreesitter MIT; wazero Apache-2.0; gotreesitter's per-language packages pull in no other module). All 25 grammars we use are MIT except clojure (CC0-1.0), per gotreesitter's licenses/grammars.json. The aggregate `grammars` package embeds all 206 grammars, including GPL-3.0 (caddy, disassembly, jq) and MPL-2.0 (nim) tables that go-licenses cannot see. That is why codeparse imports only the per-language packages.
+
+*Binary size, mind-palace with -s -w (MiB):* base 44.04/41.69/43.07/40.44/40.56/43.95/40.72 (in the target order above). With gotreesitter and all 25 grammars (parse+query reachable): 56.99/53.98/55.84/52.44/53.00/56.84/52.80, so **+12.1 to +13.0 MiB**. Of that, the runtime is about 9 MiB and the 25 compressed grammar blobs are 3.9 MiB. With wazero plus one grammar (Go, a 0.5 MiB .wasm): 47.29/44.84/46.25/43.56/42.44/47.19/43.81, so +3.2 MiB. The other 24 grammars as .wasm would add about 40 MiB uncompressed: the tree-sitter-wasms builds of 19 of them total 38.8 MiB (objc 7.4, ocaml 4.8, cpp 4.5, kotlin 3.9, c_sharp 3.8).
+
+*Grammar and query support, all 21 languages and 25 grammars:* gotreesitter ships every one, with upstream node types: python, c, cpp, c_sharp, objc, swift, java, javascript (jsx included), typescript, tsx, sql (m-novikov/tree-sitter-sql), rust, go, php, perl, ocaml, dart, ruby, kotlin, lua, commonlisp, elisp, clojure, scheme, racket. For each grammar, a tags-convention query (@definition.*, @reference.call/class/implementation/mixin, @import, @package, @doc, with #eq?/#any-of?/#not-any-of? predicates, anchors and alternations) compiled and returned every expected definition, call and import on a sample: **25/25 pass**. One query (Python docstring) was checked against the C CLI and gave the same captures. gotreesitter has no explicit upstream tags.scm for these languages; `ResolveTagsQuery` infers one, and it is empty for perl, elisp and racket. clued's own query files are therefore required for every language, as the plan already says. `.mli` files parse cleanly with the ocaml grammar (`value_specification`, `module_type_definition`); the separate upstream `ocaml_interface` grammar is not shipped.
+
+*Correctness against C on one public repository per language* (number of files with an error node; the 1 MiB cap applies). The pairs (C, gotreesitter) are identical file for file for python 91 files (0,0), java 264 (0,0), javascript 141 (0,0), rust 110 (0,0), php 125 (0,0), ruby 147 (0,0), lua 77 (0,0), elisp 49 (0,0), clojure 82 (0,0), racket 82 (0,0), c 52 (18,18), objc 49 (4,4), ocaml 291 (28,28), commonlisp 31 (4,4), scheme 234 (6,6). They also match for Go on clued plus clued-cloud, 597 files (0,0). The rest diverge, with errors only gotreesitter reports: **dart** 1303 files (0, 146: Flutter-style calls such as `runApp(` and `body: Center(` with trailing-comma arguments), **kotlin** 327 (6, 69: a one-line class body with a member, `class A { fun f(): Int }`, `actual`/`expect` members, generic `withType<…<*>>`; one file takes 8 s), **swift** 101 (5, 37: whole-file errors and 5-30 s parses on Alamofire's Request.swift and DataRequest.swift), **c_sharp** 951 (43, 61: 28 only in gotreesitter, mostly after `#pragma warning restore`; 10 only in C), **perl** 274 (14, 21-23), **cpp** 47 (19, 20). typescript 481 (4 C, 0-1 Go) and tsx 13 (1 C, 0 Go) favour gotreesitter. **sql**: 23 of 56 pgvector files have errors (PostgreSQL extension DDL and plpgsql). The C oracle could not run there because the pinned grammar's scanner.cc is C++ and the CLI skips it. m-novikov/tree-sitter-sql is old and dialect-limited.
+
+*Throughput and memory, parse plus query, single-threaded:* clued (384 Go files, 3.1 MiB) 73 files/s, 0.58 MiB/s, with the query taking 5% of the time. clued-cloud (213 files, 2.1 MiB) 51 files/s, 0.50 MiB/s. Together that is 9.5 s and a peak live heap of 222 MiB. With 4 workers it is 73 files/s and a 444 MiB peak; scaling is poor on the oversubscribed host. Public corpus, 5,414 files and 38 MiB in 25 grammars, 4 workers: 103 files/s overall and a **1.1 GiB** peak heap. Per grammar (MiB/s): lua 7.5, elisp 5.1, php 4.0, racket 4.0, ocaml 3.3, ruby 2.9, rust 2.8, scheme 2.3, commonlisp 1.9, java 1.8, javascript 1.8, typescript 1.5, perl 1.3, cpp 1.3, tsx 1.2, python 1.2, clojure 1.2, c 0.9, dart 0.8, kotlin 0.7, c_sharp 0.56, objc 0.38, go 0.28, sql 0.12, swift 0.11. The 2 s cut-off (`SetTimeoutMicros`) works and stopped 11 swift and 2 c_sharp files. Against C on the same 597 Go files, the C CLI parses at 5.1 MiB/s (about 9x gotreesitter's parse-only 0.59 MiB/s) and wazero running the C runtime parses at 1.3 MiB/s (1.0 MiB/s with the query; about 2.2x gotreesitter) in 5 MiB of linear memory. On single large files gotreesitter is up to 25x slower than C (cobra's completions_test.go, 119 KB: 400 ms against 18 ms). A shared `*Query` and `*Language` across 4 goroutines, each with its own `Parser`, is clean under `-race`.
+
+*wazero evaluation.* The prebuilt grammar .wasm files (npm tree-sitter-wasms 0.1.13, Unlicense, 36 grammars; web-tree-sitter 0.27.1) cannot be used from Go. They are Emscripten SIDE_MODULEs with a `dylink`/`dylink.0` section. They import `env.memory`, `env.__indirect_function_table`, `env.__memory_base`/`__table_base`/`__stack_pointer`, the `GOT.func.*`/`GOT.mem.*` globals and malloc/free from the main module. Loading them needs Emscripten's dynamic linker (relocations, the GOT, a shared table), and wazero has none. The prebuilt set also lacks 6 of our grammars (sql, perl, commonlisp, clojure, scheme, racket) and is built from 2023-era grammars (tree-sitter-cli 0.20.8). The workable wazero route is the one m-parse (vista-forge) takes. It compiles the tree-sitter C runtime, each grammar's parser.c/scanner.c and a C shim exposing a flat i32 handle ABI into a standalone WASI reactor. The spike built that for Go in a few minutes (clang 18, wasi-sysroot 25 and compiler-rt builtins downloaded from wasi-sdk releases; 530 KB .wasm; compile and instantiate 140-160 ms). It runs correctly with C parity by construction. Its costs:
+- A C/wasm toolchain plus node and the tree-sitter CLI (swift and perl ship no parser.c; sql has a C++ scanner) to regenerate 25 committed .wasm artifacts on each grammar bump.
+- A hand-written shim for nodes, cursors and query captures, with copies across linear memory.
+- About 40 MiB more binary.
+- A non-reentrant module per worker.
+- **Interpreter only on linux/arm (32-bit): 0.02 MiB/s, 50x slower** (wazero's compiler covers amd64 and arm64 only).
+
+It was not taken further.
+
+*Why gotreesitter.* It meets every hard criterion with no build tooling: `go get`, 25/25 grammars, official node types, full query language with predicates, CGO-free on all 7 targets, permissive licence and a 3x smaller binary delta. It is also very actively maintained: 111 releases since 2026-02-20, v0.56.0 on 2026-10-13, locked-C parity boards. Its costs are speed (about 0.6 MiB/s per core on Go, 9x C), memory (hundreds of MiB per busy worker) and parity gaps in wave-2 grammars. The design absorbs those: each file version is parsed once by content hash, and the 2 s cut-off falls back to text. The risks are a single maintainer and a pre-1.0 API, so pin the version and keep it behind `codeparse` so a grammar can move to another runtime without changing callers.
+
+*Grammars that need work* (none must be added to the runtime; all exist):
+- dart, kotlin and swift parity (wave 2: file upstream issues with the reproducers above; until then rely on the 2 s cut-off and the text fallback, and keep whatever the query still matched).
+- c_sharp after `#pragma`.
+- perl (9 extra error files).
+- sql: m-novikov grammar; consider adding DerekStride/tree-sitter-sql via gotreesitter's ts2go/grammargen pipeline in 0095-451.
+- OCaml `.mli` through the ocaml grammar (the interface grammar is absent).
+- `.asd`, `.lsp`, `.t`, `.rake`, `.mts`, `.cts`, `.jsx`, `.mm` and `.h` routing are clued's own detection (gotreesitter's registry lacks some of them).
+
+*Usage for 0080-6sk* (verified program):
+```go
+import (
+    ts "github.com/odvcencio/gotreesitter"
+    golang "github.com/odvcencio/gotreesitter/grammars/go" // package names: golang (go), c_sharp, tsx, commonlisp, ...
+)
+lang := golang.Language()               // cached *ts.Language, decoded lazily, goroutine-safe
+q, err := ts.NewQuery(queryText, lang)  // compile once per language; share across goroutines
+p := ts.NewParser(lang)                 // one per goroutine (or ts.NewParserPool(lang, ...))
+p.SetTimeoutMicros(2_000_000)           // the plan's 2 s cut-off
+p.SetMemoryBudgetBytes(256 << 20)       // default is max(512 MiB, 512 B per input byte)
+tree, err := p.Parse(src)
+defer tree.Release()
+if tree.ParseStopReason() != ts.ParseStopAccepted || tree.RootNode().HasError() { /* text fallback or partial facts */ }
+cur := q.Exec(tree.RootNode(), lang, src)
+for { m, ok := cur.NextMatch(); if !ok { break }
+    for _, c := range m.Captures { // c.Name ("name", "definition.function", "import", ...), m.PatternIndex
+        _ = c.Text(src); _ = c.Node.Type(lang); _ = c.Node.StartPoint() /* 0-based Row, byte Column */; _ = c.Node.StartByte() } }
+```
+Grammar quirks seen while writing the queries:
+- The Python docstring is `(block . (string))` with no `expression_statement`.
+- Swift `function_declaration` puts the return type under field `name` too, as upstream C does, so match `name: (simple_identifier)`.
+- Kotlin nodes carry no field names (use positional children).
+- Dart calls are `(identifier) . (selector (argument_part))` siblings.
+- `Node.Text(src)` and `QueryCapture.Text(src)` return strings.
+- `Node.SExpr(lang)` omits field names.
