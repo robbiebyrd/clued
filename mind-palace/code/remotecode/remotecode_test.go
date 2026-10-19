@@ -114,7 +114,9 @@ func (w writer) AppendEvents(ctx context.Context, events []code.Event) error {
 func TestConformance(t *testing.T) {
 	codetest.Run(t, func(t *testing.T) code.Store {
 		st := newStores()
-		ts := newServer(t, st, codeapi.Options{})
+		// GitHub-backed, so the suite's clean, pushed entries without
+		// content are accepted.
+		ts := newServer(t, st, codeapi.Options{GitHubBacked: func(context.Context, string) bool { return true }})
 		server := st.get(project)
 		return codetest.Split{Writes: writer{Store: newClient(t, ts.URL, tokenSuite, project), server: server}, Reads: server}
 	})
@@ -147,8 +149,13 @@ func TestCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Code.MaxFileBytes != 4096 || got.Code.MaxBatch != 7 {
+	if got.Code.MaxFileBytes != 4096 || got.Code.MaxBatch != 7 || got.GitHub {
 		t.Fatalf("capabilities = %+v", got)
+	}
+	ts = newServer(t, newStores(), codeapi.Options{GitHubBacked: func(context.Context, string) bool { return true }})
+	got, err = newClient(t, ts.URL, tokenSuite, project).Capabilities(context.Background())
+	if err != nil || !got.GitHub {
+		t.Fatalf("github capabilities = %+v, %v", got, err)
 	}
 }
 

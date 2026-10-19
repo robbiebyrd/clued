@@ -272,14 +272,113 @@ func TestCapabilitiesAreLimitsOnly(t *testing.T) {
 	ts := newServer(t, newStores(), codeapi.Options{MaxFileBytes: 1234, MaxBatch: 7})
 	status, env := call(t, ts.URL, tokenAlice, "GET", codePath("capabilities"), nil)
 	expect(t, "capabilities", status, env, 200, "")
-	if got := string(env.Result); got != `{"code":{"maxFileBytes":1234,"maxBatch":7}}` {
+	if got := string(env.Result); got != `{"code":{"maxFileBytes":1234,"maxBatch":7},"github":false}` {
 		t.Fatalf("capabilities %s", got)
 	}
 	ts = newServer(t, newStores(), codeapi.Options{})
 	_, env = call(t, ts.URL, tokenAlice, "GET", codePath("capabilities"), nil)
-	if want := fmt.Sprintf(`{"code":{"maxFileBytes":%d,"maxBatch":%d}}`, codeapi.DefaultMaxFileBytes, codeapi.DefaultMaxBatch); string(env.Result) != want {
+	if want := fmt.Sprintf(`{"code":{"maxFileBytes":%d,"maxBatch":%d},"github":false}`, codeapi.DefaultMaxFileBytes, codeapi.DefaultMaxBatch); string(env.Result) != want {
 		t.Fatalf("default capabilities %s, want %s", env.Result, want)
 	}
+}
+
+// TestGitHubBacked covers Options.GitHubBacked: capabilities reports it,
+// and a change may send clean, pushed entries without content only on a
+// GitHub-backed project.
+func TestGitHubBacked(t *testing.T) {
+	const other = "github.com__org__other"
+	st := newStores()
+	var mu sync.Mutex
+	var asked []string
+	ts := newServer(t, st, codeapi.Options{
+		Namespace: func(_ context.Context, project string) (string, error) { return "k__" + project, nil },
+		GitHubBacked: func(ctx context.Context, key string) bool {
+			mu.Lock()
+			defer mu.Unlock()
+			asked = append(asked, codeapi.Project(ctx)+" "+key)
+			return key == "k__"+project
+		},
+	})
+	otherPath := func(rest string) string { return "/api/v1/projects/" + other + "/code/" + rest }
+
+	status, env := call(t, ts.URL, tokenAlice, "GET", codePath("capabilities"), nil)
+	expect(t, "capabilities", status, env, 200, "")
+	if want := fmt.Sprintf(`{"code":{"maxFileBytes":%d,"maxBatch":%d},"github":true}`, codeapi.DefaultMaxFileBytes, codeapi.DefaultMaxBatch); string(env.Result) != want {
+		t.Fatalf("github capabilities %s, want %s", env.Result, want)
+	}
+	_, env = call(t, ts.URL, tokenAlice, "GET", otherPath("capabilities"), nil)
+	if !strings.HasSuffix(string(env.Result), `"github":false}`) {
+		t.Fatalf("other capabilities %s", env.Result)
+	}
+	mu.Lock()
+	if len(asked) != 2 || asked[0] != project+" k__"+project || asked[1] != other+" k__"+other {
+		t.Fatalf("GitHubBacked asked %v", asked)
+	}
+	asked = nil
+	mu.Unlock()
+
+	for _, p := range []string{codePath(""), otherPath("")} {
+		status, env = call(t, ts.URL, tokenAlice, "PUT", p+"worktrees/"+wt1, worktreeBody())
+		expect(t, "worktree", status, env, 200, "")
+	}
+	contentless := func(edit func(map[string]any)) map[string]any {
+		e := map[string]any{"path": "pkg/a.go", "size": 1200, "mode": "100644", "lang": "go", "git_oid": oid1}
+		if edit != nil {
+			edit(e)
+		}
+		return changeBody(e)
+	}
+
+	// GitHub-backed: a clean, pushed entry with its git_oid needs no
+	// content, next to an overlay that carries its own.
+	call(t, ts.URL, tokenAlice, "PUT", codePath("blobs/"+sha("dirty")), "dirty")
+	body := contentless(nil)
+	body["upserts"] = append(body["upserts"].([]map[string]any),
+		map[string]any{"path": "pkg/b.go", "sha256": sha("dirty"), "size": 5, "git_oid": oid2, "dirty": true, "unpushed": true})
+	status, env = call(t, ts.URL, tokenAlice, "POST", codePath("worktrees/"+wt1+"/changes"), body)
+	expect(t, "content-less clean, pushed entry", status, env, 200, "")
+	tree, err := st.get("k__"+project).Tree(t.Context(), wt1, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tree) != 2 || tree[0].Path != "pkg/a.go" || tree[0].SHA256 != "" || tree[0].GitOID != oid1 || tree[0].Size != 1200 {
+		t.Fatalf("tree %#v", tree)
+	}
+	mu.Lock()
+	if len(asked) != 1 {
+		t.Fatalf("GitHubBacked asked %v for one change", asked)
+	}
+	mu.Unlock()
+
+	// Even on a GitHub-backed project, an entry GitHub cannot supply
+	// carries its content.
+	for name, edit := range map[string]func(map[string]any){
+		"dirty":              func(e map[string]any) { e["dirty"] = true },
+		"unpushed":           func(e map[string]any) { e["unpushed"] = true },
+		"no git oid":         func(e map[string]any) { delete(e, "git_oid"); e["dirty"] = true; e["unpushed"] = true },
+		"dirty and unpushed": func(e map[string]any) { e["dirty"] = true; e["unpushed"] = true },
+	} {
+		status, env = call(t, ts.URL, tokenAlice, "POST", codePath("worktrees/"+wt1+"/changes"), contentless(edit))
+		expect(t, "content-less "+name, status, env, 400, "invalid")
+	}
+
+	// Not GitHub-backed: content-less entries are invalid unless they are
+	// over the size cap.
+	status, env = call(t, ts.URL, tokenAlice, "POST", otherPath("worktrees/"+wt1+"/changes"), contentless(nil))
+	expect(t, "content-less entry on a project GitHub does not back", status, env, 400, "invalid")
+	status, env = call(t, ts.URL, tokenAlice, "POST", otherPath("worktrees/"+wt1+"/changes"),
+		contentless(func(e map[string]any) { e["size"] = codeapi.DefaultMaxFileBytes + 1; e["dirty"] = true }))
+	expect(t, "content-less entry over the cap", status, env, 200, "")
+	if cs, _ := st.get("k__"+other).Changes(t.Context(), 0, 10); len(cs) != 1 {
+		t.Fatalf("other project changes %#v", cs)
+	}
+
+	// Without the hook no project is GitHub-backed.
+	st2 := newStores()
+	ts2 := newServer(t, st2, codeapi.Options{})
+	call(t, ts2.URL, tokenAlice, "PUT", codePath("worktrees/"+wt1), worktreeBody())
+	status, env = call(t, ts2.URL, tokenAlice, "POST", codePath("worktrees/"+wt1+"/changes"), contentless(nil))
+	expect(t, "content-less entry without GitHubBacked", status, env, 400, "invalid")
 }
 
 // TestNoReadRoute: no GET (or other) route returns blobs, trees, worktrees
@@ -539,6 +638,8 @@ func TestValidation(t *testing.T) {
 		{"uppercase sha256", entry(func(e map[string]any) { e["sha256"] = strings.ToUpper(sha("a")) })},
 		{"malformed git oid", entry(func(e map[string]any) { e["git_oid"] = "xyz" })},
 		{"clean entry without git oid", entry(func(e map[string]any) { delete(e, "git_oid") })},
+		{"no content, not GitHub-backed", entry(func(e map[string]any) { delete(e, "sha256") })},
+		{"no content, dirty", entry(func(e map[string]any) { delete(e, "sha256"); e["dirty"] = true })},
 		{"negative size", entry(func(e map[string]any) { e["size"] = -1 })},
 		{"bad mode", entry(func(e map[string]any) { e["mode"] = "rwx" })},
 		{"control character in lang", entry(func(e map[string]any) { e["lang"] = "go\n" })},
@@ -559,9 +660,10 @@ func TestValidation(t *testing.T) {
 	}
 
 	// An untracked file is dirty without a git oid; a never-pushed branch
-	// sends unpushed entries without an upstream; content may be absent.
+	// sends unpushed entries without an upstream; content is absent from a
+	// file over the size cap.
 	ok := changeBody(map[string]any{"path": "new.go", "sha256": sha("a"), "size": 1, "dirty": true, "unpushed": true},
-		map[string]any{"path": "logo.png", "size": 9000, "mode": "100644", "git_oid": oid1, "unpushed": true})
+		map[string]any{"path": "video.mp4", "size": codeapi.DefaultMaxFileBytes + 1, "mode": "100644", "git_oid": oid1, "unpushed": true})
 	delete(ok, "upstream")
 	status, env := call(t, ts.URL, tokenAlice, "POST", changes, ok)
 	expect(t, "valid unpushed change", status, env, 200, "")
@@ -751,6 +853,7 @@ func TestCluedMountsCode(t *testing.T) {
 			opts.Code = st.Open
 			opts.BeforeCodeWrite = before
 			opts.CodeMaxFileBytes = 64
+			opts.GitHubBacked = func(_ context.Context, key string) bool { return key == "uacct-alice__"+project }
 		}
 		c := server.NewClued(opts)
 		t.Cleanup(c.Close)
@@ -785,8 +888,12 @@ func TestCluedMountsCode(t *testing.T) {
 		})
 		status, env := call(t, ts.URL, tokenAlice, "GET", codePath("capabilities"), nil)
 		expect(t, "capabilities", status, env, 200, "")
-		if string(env.Result) != fmt.Sprintf(`{"code":{"maxFileBytes":64,"maxBatch":%d}}`, codeapi.DefaultMaxBatch) {
+		if string(env.Result) != fmt.Sprintf(`{"code":{"maxFileBytes":64,"maxBatch":%d},"github":true}`, codeapi.DefaultMaxBatch) {
 			t.Fatalf("capabilities %s", env.Result)
+		}
+		_, env = call(t, ts.URL, tokenBob, "GET", codePath("capabilities"), nil)
+		if string(env.Result) != fmt.Sprintf(`{"code":{"maxFileBytes":64,"maxBatch":%d},"github":false}`, codeapi.DefaultMaxBatch) {
+			t.Fatalf("bob's capabilities %s", env.Result)
 		}
 		status, _ = call(t, ts.URL, "", "GET", codePath("capabilities"), nil)
 		if status != 401 {
@@ -810,6 +917,14 @@ func TestCluedMountsCode(t *testing.T) {
 			t.Fatalf("BeforeCodeWrite keys %v", keys)
 		}
 		mu.Unlock()
+
+		// GitHubBacked sees the namespaced key: alice's project is
+		// GitHub-backed, bob's is not.
+		contentless := changeBody(map[string]any{"path": "a.go", "size": 10, "git_oid": oid1})
+		status, env = call(t, ts.URL, tokenAlice, "POST", codePath("worktrees/"+wt1+"/changes"), contentless)
+		expect(t, "alice content-less", status, env, 200, "")
+		status, env = call(t, ts.URL, tokenBob, "POST", codePath("worktrees/"+wt1+"/changes"), contentless)
+		expect(t, "bob content-less", status, env, 400, "invalid")
 
 		status, env = call(t, ts.URL, tokenAlice, "PUT", codePath("blobs/"+sha(strings.Repeat("x", 65))), strings.Repeat("x", 65))
 		expect(t, "over CodeMaxFileBytes", status, env, 413, "too_large")
@@ -846,7 +961,9 @@ func TestCluedMountsCode(t *testing.T) {
 func TestConformanceOverHTTP(t *testing.T) {
 	codetest.Run(t, func(t *testing.T) code.Store {
 		st := newStores()
-		ts := newServer(t, st, codeapi.Options{})
+		// GitHub-backed, so the suite's clean, pushed entries without
+		// content are accepted.
+		ts := newServer(t, st, codeapi.Options{GitHubBacked: func(context.Context, string) bool { return true }})
 		server := st.get(project)
 		return codetest.Split{Writes: &httpWriter{Store: server, t: t, base: ts.URL + codePath("")}, Reads: server}
 	})

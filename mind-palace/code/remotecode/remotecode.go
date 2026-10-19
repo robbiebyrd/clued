@@ -82,8 +82,11 @@ func New(client *remote.Client, project string) (*Store, error) {
 // Project is the slug the store writes to.
 func (s *Store) Project() string { return s.project }
 
-// Capabilities returns the server's code limits; ErrUnsupported when the
-// server has no code transport.
+// Capabilities returns the server's code limits and whether the project is
+// GitHub-backed (Capabilities.GitHub: send clean, pushed entries with
+// their git_oid and no content, and upload no blob for them); a server
+// that predates the flag reads as false. ErrUnsupported when the server
+// has no code transport.
 func (s *Store) Capabilities(ctx context.Context) (codeapi.Capabilities, error) {
 	var out codeapi.Capabilities
 	resp, err := s.client.Send(ctx, http.MethodGet, s.base+"capabilities", nil, "", nil)
