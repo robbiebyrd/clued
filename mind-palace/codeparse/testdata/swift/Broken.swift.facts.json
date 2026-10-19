@@ -1,0 +1,249 @@
+{
+  "lang": "swift",
+  "symbols": [
+    {
+      "id": "Valid",
+      "kind": "struct",
+      "name": "Valid",
+      "qualName": "Valid",
+      "signature": "struct Valid",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 19
+      },
+      "end": {
+        "line": 6,
+        "column": 1,
+        "offset": 103
+      }
+    },
+    {
+      "id": "Valid.name",
+      "kind": "property",
+      "name": "name",
+      "qualName": "Valid.name",
+      "signature": "let name: String",
+      "start": {
+        "line": 4,
+        "column": 4,
+        "offset": 38
+      },
+      "end": {
+        "line": 4,
+        "column": 20,
+        "offset": 54
+      },
+      "parent": "Valid"
+    },
+    {
+      "id": "Valid.greet",
+      "kind": "method",
+      "name": "greet",
+      "qualName": "Valid.greet",
+      "signature": "func greet() -\u003e String",
+      "start": {
+        "line": 5,
+        "column": 4,
+        "offset": 59
+      },
+      "end": {
+        "line": 5,
+        "column": 46,
+        "offset": 101
+      },
+      "parent": "Valid"
+    },
+    {
+      "id": "Broken",
+      "kind": "class",
+      "name": "Broken",
+      "qualName": "Broken",
+      "signature": "class Broken: Valid",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 105
+      },
+      "end": {
+        "line": 14,
+        "column": 1,
+        "offset": 199
+      }
+    },
+    {
+      "id": "Broken.half",
+      "kind": "method",
+      "name": "half",
+      "qualName": "Broken.half",
+      "signature": "func half( -\u003e Int",
+      "start": {
+        "line": 9,
+        "column": 4,
+        "offset": 131
+      },
+      "end": {
+        "line": 11,
+        "column": 5,
+        "offset": 175
+      },
+      "parent": "Broken"
+    },
+    {
+      "id": "Broken.dangling",
+      "kind": "property",
+      "name": "dangling",
+      "qualName": "Broken.dangling",
+      "signature": "var dangling: =",
+      "start": {
+        "line": 13,
+        "column": 4,
+        "offset": 181
+      },
+      "end": {
+        "line": 13,
+        "column": 19,
+        "offset": 196
+      },
+      "parent": "Broken"
+    },
+    {
+      "id": "afterwards",
+      "kind": "function",
+      "name": "afterwards",
+      "qualName": "afterwards",
+      "signature": "func afterwards() -\u003e Int",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 201
+      },
+      "end": {
+        "line": 18,
+        "column": 1,
+        "offset": 264
+      }
+    }
+  ],
+  "imports": [
+    {
+      "spec": "Foundation",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Valid",
+      "kind": "extends",
+      "start": {
+        "line": 8,
+        "column": 14,
+        "offset": 119
+      },
+      "enclosing": "Broken"
+    },
+    {
+      "name": "Valid",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 14,
+        "offset": 119
+      },
+      "enclosing": "Broken"
+    },
+    {
+      "name": "Valid",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 4,
+        "offset": 232
+      },
+      "enclosing": "afterwards"
+    },
+    {
+      "name": "greet",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 21,
+        "offset": 249
+      },
+      "enclosing": "afterwards"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 1,
+        "column": 17,
+        "offset": 17
+      },
+      "text": "import Foundation",
+      "hash": "55aac2c2aa641984035e30775100e49413795cb00816ca20cebbecec6f805d78"
+    },
+    {
+      "id": "Valid#1",
+      "kind": "symbol",
+      "symbolId": "Valid",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 19
+      },
+      "end": {
+        "line": 6,
+        "column": 1,
+        "offset": 103
+      },
+      "text": "struct Valid {\n    let name: String\n    func greet() -\u003e String { \"hello \\(name)\" }\n}",
+      "hash": "ea4efe1de3fd1c25aa51032421bd3a3a9249623f13192859cf2542909c2893a6"
+    },
+    {
+      "id": "Broken#1",
+      "kind": "symbol",
+      "symbolId": "Broken",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 105
+      },
+      "end": {
+        "line": 14,
+        "column": 1,
+        "offset": 199
+      },
+      "text": "class Broken: Valid {\n    func half( -\u003e Int {\n        return 1 +\n    }\n\n    var dangling: = \n}",
+      "hash": "b1fb4ccd98e029693aa8091216699b438803bef066e3b11e5aefc88d56a9f85e"
+    },
+    {
+      "id": "afterwards#1",
+      "kind": "symbol",
+      "symbolId": "afterwards",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 201
+      },
+      "end": {
+        "line": 18,
+        "column": 1,
+        "offset": 264
+      },
+      "text": "func afterwards() -\u003e Int {\n    Valid(name: \"x\").greet().count\n}",
+      "hash": "38e806e94f55c4ad7702a827749486353fb568f027324b94d50616c7982dae98"
+    }
+  ]
+}
