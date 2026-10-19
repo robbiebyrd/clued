@@ -717,11 +717,22 @@ func strictlyContains(a, b *def) bool {
 }
 
 // defaultSignature is a definition's text up to its body (the child in
-// field body), or its first line when it has no body.
+// field body), less the comments just before the body (Ruby's
+// "module Shop # The currency…"), or its first line when it has no body.
 func (x *extraction) defaultSignature(n *ts.Node) string {
 	start, end := int(n.StartByte()), int(n.EndByte())
 	if body := n.ChildByFieldName("body", x.l.lang); body != nil && int(body.StartByte()) > start {
 		end = int(body.StartByte())
+		for i := n.ChildCount() - 1; i >= 0; i-- {
+			c := n.Child(i)
+			if c == nil || int(c.EndByte()) > end {
+				continue
+			}
+			if !strings.Contains(c.Type(x.l.lang), "comment") || int(c.StartByte()) <= start {
+				break
+			}
+			end = int(c.StartByte())
+		}
 	} else if first := x.lines.line(start); x.lines.line(max(start, end-1)) > first {
 		end = x.lines.end(first)
 	}

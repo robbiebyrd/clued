@@ -6,7 +6,7 @@
       "kind": "module",
       "name": "Shop",
       "qualName": "Shop",
-      "signature": "module Shop # The currency every price is kept in.",
+      "signature": "module Shop",
       "doc": "Shop holds the storefront's domain model.",
       "start": {
         "line": 9,
