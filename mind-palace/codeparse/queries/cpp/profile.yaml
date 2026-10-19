@@ -1,0 +1,28 @@
+# C++: one global scope per translation unit, partitioned by namespaces.
+# There is no package clause: a namespace is a definition (kind namespace),
+# so what it holds is qualified by position (geometry::Circle::area), and a
+# method defined outside its class (A::f) names its class through
+# @receiver. Imports are #include (include for "x", include_system for
+# <x>), using directives (using_namespace), using declarations (using, the
+# introduced name in names) and namespace aliases (namespace_alias). No
+# preprocessing: every branch of an #if is indexed as written.
+name: C++
+family: cfamily
+extensions: [.cc, .cpp, .cxx, .hpp, .hh, .h]
+query: tags.scm
+scope:
+  separators: ["::", "."]
+  packageBy: none
+  exported: all
+  options:
+    # The cfamily resolver: quoted includes resolve against the including
+    # file's directory first, then the include roots; angle includes only
+    # against the roots.
+    includeQuoted: relative-then-roots
+    includeSystem: roots
+    # A header and the source files of the same base name pair up
+    # (geometry.hpp with geometry.cpp), so declarations meet definitions.
+    headerPairing: basename
+    # Names are looked up through the enclosing namespaces, then the
+    # namespaces of the file's using directives and namespace aliases.
+    namespaceLookup: enclosing-then-using
