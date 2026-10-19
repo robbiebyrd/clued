@@ -2123,7 +2123,9 @@ every commit to the code transport and polling every 2 s, parsed with
 `codeparse` and resolved per layer; an hourly consistency check that
 repairs drift) and serves the graph read routes (section 7.14). Cursors and
 leases live in the session MongoDB's `code_index_cursors` under
-`--code-store mongo`, in memory otherwise. The URL is not dialled at start:
+`--code-store mongo`, and parsed facts in its `code_parses` parse cache
+(30-day TTL after last use, shared with `graph rebuild` and `graph
+status`); both are in memory otherwise. The URL is not dialled at start:
 an unreachable FalkorDB makes the indexer back off (up to 5 minutes, the
 cursor not moving) and the routes answer 503. `--graph` with `--code-store
 off`, or a value that is none of these, is `BadRequest`, exit 2 (the error
