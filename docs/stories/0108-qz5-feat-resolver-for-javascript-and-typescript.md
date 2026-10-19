@@ -3,12 +3,13 @@ id: 0108-qz5
 title: Resolver for JavaScript and TypeScript
 purpose: Resolves references for JavaScript and TypeScript so calls, references and implementations link to the right definitions.
 type: feat
-status: in_progress
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:16.135Z"
-updated: "2026-10-19T21:06:06.711Z"
+updated: "2026-10-19T21:06:13.946Z"
 started: "2026-10-19T20:54:50.174Z"
+completed: "2026-10-19T21:06:13.946Z"
 tags:
   - plan-0012-cgi
   - wave-7
