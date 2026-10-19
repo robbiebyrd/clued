@@ -1,0 +1,1334 @@
+{
+  "lang": "java",
+  "package": "com.example.store",
+  "symbols": [
+    {
+      "id": "com.example.store.Inventory",
+      "kind": "class",
+      "name": "Inventory",
+      "qualName": "com.example.store.Inventory",
+      "signature": "public class Inventory\u003cT extends Item\u003e extends AbstractStore implements Store\u003cT\u003e, AutoCloseable",
+      "doc": "Inventory keeps the items of one warehouse.\n\n@param \u003cT\u003e the item type",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 345
+      },
+      "end": {
+        "line": 64,
+        "column": 1,
+        "offset": 1500
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Inventory.MAX_ITEMS",
+      "kind": "field",
+      "name": "MAX_ITEMS",
+      "qualName": "com.example.store.Inventory.MAX_ITEMS",
+      "signature": "public static final int MAX_ITEMS = 10_000;",
+      "doc": "The largest number of items a warehouse holds.",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 506
+      },
+      "end": {
+        "line": 21,
+        "column": 47,
+        "offset": 549
+      },
+      "parent": "com.example.store.Inventory",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Inventory.items",
+      "kind": "field",
+      "name": "items",
+      "qualName": "com.example.store.Inventory.items",
+      "signature": "private final List\u003cT\u003e items = new ArrayList\u003c\u003e();",
+      "start": {
+        "line": 23,
+        "column": 4,
+        "offset": 555
+      },
+      "end": {
+        "line": 23,
+        "column": 52,
+        "offset": 603
+      },
+      "parent": "com.example.store.Inventory"
+    },
+    {
+      "id": "com.example.store.Inventory.name",
+      "kind": "field",
+      "name": "name",
+      "qualName": "com.example.store.Inventory.name",
+      "signature": "protected String name, region;",
+      "start": {
+        "line": 24,
+        "column": 4,
+        "offset": 608
+      },
+      "end": {
+        "line": 24,
+        "column": 34,
+        "offset": 638
+      },
+      "parent": "com.example.store.Inventory",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Inventory.region",
+      "kind": "field",
+      "name": "region",
+      "qualName": "com.example.store.Inventory.region",
+      "signature": "protected String name, region;",
+      "start": {
+        "line": 24,
+        "column": 4,
+        "offset": 608
+      },
+      "end": {
+        "line": 24,
+        "column": 34,
+        "offset": 638
+      },
+      "parent": "com.example.store.Inventory",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Inventory.count",
+      "kind": "field",
+      "name": "count",
+      "qualName": "com.example.store.Inventory.count",
+      "signature": "int count;",
+      "start": {
+        "line": 25,
+        "column": 4,
+        "offset": 643
+      },
+      "end": {
+        "line": 25,
+        "column": 14,
+        "offset": 653
+      },
+      "parent": "com.example.store.Inventory"
+    },
+    {
+      "id": "com.example.store.Inventory.Inventory",
+      "kind": "constructor",
+      "name": "Inventory",
+      "qualName": "com.example.store.Inventory.Inventory",
+      "signature": "public Inventory(String name)",
+      "doc": "Creates an empty inventory called name.",
+      "start": {
+        "line": 28,
+        "column": 4,
+        "offset": 710
+      },
+      "end": {
+        "line": 30,
+        "column": 5,
+        "offset": 789
+      },
+      "parent": "com.example.store.Inventory",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Inventory.add",
+      "kind": "method",
+      "name": "add",
+      "qualName": "com.example.store.Inventory.add",
+      "signature": "@Override public boolean add(T item) throws StoreException",
+      "doc": "Adds an item.\n\n@return whether it was added",
+      "start": {
+        "line": 37,
+        "column": 4,
+        "offset": 875
+      },
+      "end": {
+        "line": 44,
+        "column": 5,
+        "offset": 1100
+      },
+      "parent": "com.example.store.Inventory",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Inventory.find",
+      "kind": "method",
+      "name": "find",
+      "qualName": "com.example.store.Inventory.find",
+      "signature": "T find(String id)",
+      "doc": "find returns the first item with this id, or null.",
+      "start": {
+        "line": 47,
+        "column": 4,
+        "offset": 1164
+      },
+      "end": {
+        "line": 54,
+        "column": 5,
+        "offset": 1334
+      },
+      "parent": "com.example.store.Inventory"
+    },
+    {
+      "id": "com.example.store.Inventory.index",
+      "kind": "method",
+      "name": "index",
+      "qualName": "com.example.store.Inventory.index",
+      "signature": "private static \u003cK, V\u003e Map\u003cK, V\u003e index(List\u003cV\u003e values)",
+      "start": {
+        "line": 56,
+        "column": 4,
+        "offset": 1340
+      },
+      "end": {
+        "line": 58,
+        "column": 5,
+        "offset": 1428
+      },
+      "parent": "com.example.store.Inventory"
+    },
+    {
+      "id": "com.example.store.Inventory.close",
+      "kind": "method",
+      "name": "close",
+      "qualName": "com.example.store.Inventory.close",
+      "signature": "@Override public void close()",
+      "start": {
+        "line": 60,
+        "column": 4,
+        "offset": 1434
+      },
+      "end": {
+        "line": 63,
+        "column": 5,
+        "offset": 1498
+      },
+      "parent": "com.example.store.Inventory",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Store",
+      "kind": "interface",
+      "name": "Store",
+      "qualName": "com.example.store.Store",
+      "signature": "interface Store\u003cT\u003e",
+      "doc": "Store is anything that holds items.",
+      "start": {
+        "line": 67,
+        "column": 0,
+        "offset": 1545
+      },
+      "end": {
+        "line": 75,
+        "column": 1,
+        "offset": 1684
+      }
+    },
+    {
+      "id": "com.example.store.Store.LIMIT",
+      "kind": "const",
+      "name": "LIMIT",
+      "qualName": "com.example.store.Store.LIMIT",
+      "signature": "int LIMIT = 5;",
+      "start": {
+        "line": 68,
+        "column": 4,
+        "offset": 1570
+      },
+      "end": {
+        "line": 68,
+        "column": 18,
+        "offset": 1584
+      },
+      "parent": "com.example.store.Store",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Store.add",
+      "kind": "method",
+      "name": "add",
+      "qualName": "com.example.store.Store.add",
+      "signature": "boolean add(T item) throws StoreException;",
+      "start": {
+        "line": 70,
+        "column": 4,
+        "offset": 1590
+      },
+      "end": {
+        "line": 70,
+        "column": 46,
+        "offset": 1632
+      },
+      "parent": "com.example.store.Store",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Store.size",
+      "kind": "method",
+      "name": "size",
+      "qualName": "com.example.store.Store.size",
+      "signature": "default int size()",
+      "start": {
+        "line": 72,
+        "column": 4,
+        "offset": 1638
+      },
+      "end": {
+        "line": 74,
+        "column": 5,
+        "offset": 1682
+      },
+      "parent": "com.example.store.Store",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Status",
+      "kind": "enum",
+      "name": "Status",
+      "qualName": "com.example.store.Status",
+      "signature": "public enum Status implements Labelled",
+      "doc": "Status of an item.",
+      "start": {
+        "line": 78,
+        "column": 0,
+        "offset": 1712
+      },
+      "end": {
+        "line": 93,
+        "column": 1,
+        "offset": 1997
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Status.IN_STOCK",
+      "kind": "const",
+      "name": "IN_STOCK",
+      "qualName": "com.example.store.Status.IN_STOCK",
+      "signature": "IN_STOCK(\"in stock\")",
+      "doc": "On the shelf.",
+      "start": {
+        "line": 80,
+        "column": 4,
+        "offset": 1782
+      },
+      "end": {
+        "line": 80,
+        "column": 24,
+        "offset": 1802
+      },
+      "parent": "com.example.store.Status",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Status.SOLD_OUT",
+      "kind": "const",
+      "name": "SOLD_OUT",
+      "qualName": "com.example.store.Status.SOLD_OUT",
+      "signature": "SOLD_OUT(\"sold out\")",
+      "start": {
+        "line": 81,
+        "column": 4,
+        "offset": 1808
+      },
+      "end": {
+        "line": 81,
+        "column": 24,
+        "offset": 1828
+      },
+      "parent": "com.example.store.Status",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Status.label",
+      "kind": "field",
+      "name": "label",
+      "qualName": "com.example.store.Status.label",
+      "signature": "private final String label;",
+      "start": {
+        "line": 83,
+        "column": 4,
+        "offset": 1835
+      },
+      "end": {
+        "line": 83,
+        "column": 31,
+        "offset": 1862
+      },
+      "parent": "com.example.store.Status"
+    },
+    {
+      "id": "com.example.store.Status.Status",
+      "kind": "constructor",
+      "name": "Status",
+      "qualName": "com.example.store.Status.Status",
+      "signature": "Status(String label)",
+      "start": {
+        "line": 85,
+        "column": 4,
+        "offset": 1868
+      },
+      "end": {
+        "line": 87,
+        "column": 5,
+        "offset": 1924
+      },
+      "parent": "com.example.store.Status"
+    },
+    {
+      "id": "com.example.store.Status.label~2",
+      "kind": "method",
+      "name": "label",
+      "qualName": "com.example.store.Status.label",
+      "signature": "@Override public String label()",
+      "start": {
+        "line": 89,
+        "column": 4,
+        "offset": 1930
+      },
+      "end": {
+        "line": 92,
+        "column": 5,
+        "offset": 1995
+      },
+      "parent": "com.example.store.Status",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Item",
+      "kind": "record",
+      "name": "Item",
+      "qualName": "com.example.store.Item",
+      "signature": "public record Item(String id, long price, Status status) implements Comparable\u003cItem\u003e",
+      "doc": "An item: id, price and status.",
+      "start": {
+        "line": 96,
+        "column": 0,
+        "offset": 2037
+      },
+      "end": {
+        "line": 104,
+        "column": 1,
+        "offset": 2272
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Item.id",
+      "kind": "field",
+      "name": "id",
+      "qualName": "com.example.store.Item.id",
+      "signature": "String id",
+      "doc": "An item: id, price and status.",
+      "start": {
+        "line": 96,
+        "column": 19,
+        "offset": 2056
+      },
+      "end": {
+        "line": 96,
+        "column": 28,
+        "offset": 2065
+      },
+      "parent": "com.example.store.Item",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Item.price",
+      "kind": "field",
+      "name": "price",
+      "qualName": "com.example.store.Item.price",
+      "signature": "long price",
+      "doc": "An item: id, price and status.",
+      "start": {
+        "line": 96,
+        "column": 30,
+        "offset": 2067
+      },
+      "end": {
+        "line": 96,
+        "column": 40,
+        "offset": 2077
+      },
+      "parent": "com.example.store.Item",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Item.status",
+      "kind": "field",
+      "name": "status",
+      "qualName": "com.example.store.Item.status",
+      "signature": "Status status",
+      "doc": "An item: id, price and status.",
+      "start": {
+        "line": 96,
+        "column": 42,
+        "offset": 2079
+      },
+      "end": {
+        "line": 96,
+        "column": 55,
+        "offset": 2092
+      },
+      "parent": "com.example.store.Item",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Item.Item",
+      "kind": "constructor",
+      "name": "Item",
+      "qualName": "com.example.store.Item.Item",
+      "signature": "public Item",
+      "start": {
+        "line": 97,
+        "column": 4,
+        "offset": 2128
+      },
+      "end": {
+        "line": 99,
+        "column": 5,
+        "offset": 2175
+      },
+      "parent": "com.example.store.Item",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Item.compareTo",
+      "kind": "method",
+      "name": "compareTo",
+      "qualName": "com.example.store.Item.compareTo",
+      "signature": "public int compareTo(Item other)",
+      "start": {
+        "line": 101,
+        "column": 4,
+        "offset": 2181
+      },
+      "end": {
+        "line": 103,
+        "column": 5,
+        "offset": 2270
+      },
+      "parent": "com.example.store.Item",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Audited",
+      "kind": "annotation",
+      "name": "Audited",
+      "qualName": "com.example.store.Audited",
+      "signature": "@interface Audited",
+      "doc": "Marks a store method as audited.",
+      "start": {
+        "line": 107,
+        "column": 0,
+        "offset": 2314
+      },
+      "end": {
+        "line": 110,
+        "column": 1,
+        "offset": 2384
+      }
+    },
+    {
+      "id": "com.example.store.Audited.value",
+      "kind": "method",
+      "name": "value",
+      "qualName": "com.example.store.Audited.value",
+      "signature": "String value() default \"\";",
+      "start": {
+        "line": 108,
+        "column": 4,
+        "offset": 2339
+      },
+      "end": {
+        "line": 108,
+        "column": 30,
+        "offset": 2365
+      },
+      "parent": "com.example.store.Audited",
+      "exported": true
+    },
+    {
+      "id": "com.example.store.Audited.level",
+      "kind": "method",
+      "name": "level",
+      "qualName": "com.example.store.Audited.level",
+      "signature": "int level();",
+      "start": {
+        "line": 109,
+        "column": 4,
+        "offset": 2370
+      },
+      "end": {
+        "line": 109,
+        "column": 16,
+        "offset": 2382
+      },
+      "parent": "com.example.store.Audited",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "java.util.ArrayList",
+      "names": [
+        "ArrayList"
+      ],
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 67
+      }
+    },
+    {
+      "spec": "java.util.List",
+      "names": [
+        "List"
+      ],
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 95
+      }
+    },
+    {
+      "spec": "java.util.Map",
+      "names": [
+        "Map"
+      ],
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 118
+      }
+    },
+    {
+      "spec": "java.util.concurrent",
+      "kind": "on_demand",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 140
+      }
+    },
+    {
+      "spec": "java.util.Objects.requireNonNull",
+      "names": [
+        "requireNonNull"
+      ],
+      "kind": "static",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 171
+      }
+    },
+    {
+      "spec": "java.util.Collections",
+      "kind": "static_on_demand",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 219
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 23,
+        "offset": 368
+      },
+      "enclosing": "com.example.store.Inventory"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 33,
+        "offset": 378
+      },
+      "enclosing": "com.example.store.Inventory"
+    },
+    {
+      "name": "AbstractStore",
+      "kind": "extends",
+      "start": {
+        "line": 18,
+        "column": 47,
+        "offset": 392
+      },
+      "enclosing": "com.example.store.Inventory"
+    },
+    {
+      "name": "AbstractStore",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 47,
+        "offset": 392
+      },
+      "enclosing": "com.example.store.Inventory"
+    },
+    {
+      "name": "Store",
+      "kind": "implements",
+      "start": {
+        "line": 18,
+        "column": 72,
+        "offset": 417
+      },
+      "enclosing": "com.example.store.Inventory"
+    },
+    {
+      "name": "Store",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 72,
+        "offset": 417
+      },
+      "enclosing": "com.example.store.Inventory"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 78,
+        "offset": 423
+      },
+      "enclosing": "com.example.store.Inventory"
+    },
+    {
+      "name": "AutoCloseable",
+      "kind": "implements",
+      "start": {
+        "line": 18,
+        "column": 82,
+        "offset": 427
+      },
+      "enclosing": "com.example.store.Inventory"
+    },
+    {
+      "name": "AutoCloseable",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 82,
+        "offset": 427
+      },
+      "enclosing": "com.example.store.Inventory"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 18,
+        "offset": 569
+      },
+      "enclosing": "com.example.store.Inventory.items"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 23,
+        "offset": 574
+      },
+      "enclosing": "com.example.store.Inventory.items"
+    },
+    {
+      "name": "ArrayList",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 38,
+        "offset": 589
+      },
+      "enclosing": "com.example.store.Inventory.items"
+    },
+    {
+      "name": "ArrayList",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 38,
+        "offset": 589
+      },
+      "enclosing": "com.example.store.Inventory.items"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 24,
+        "column": 14,
+        "offset": 618
+      },
+      "enclosing": "com.example.store.Inventory.region"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 28,
+        "column": 21,
+        "offset": 727
+      },
+      "enclosing": "com.example.store.Inventory.Inventory"
+    },
+    {
+      "name": "name",
+      "qualifier": "this",
+      "kind": "value",
+      "start": {
+        "line": 29,
+        "column": 13,
+        "offset": 755
+      },
+      "enclosing": "com.example.store.Inventory.Inventory"
+    },
+    {
+      "name": "requireNonNull",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 20,
+        "offset": 762
+      },
+      "enclosing": "com.example.store.Inventory.Inventory"
+    },
+    {
+      "name": "Override",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 5,
+        "offset": 876
+      },
+      "enclosing": "com.example.store.Inventory.add"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 23,
+        "offset": 908
+      },
+      "enclosing": "com.example.store.Inventory.add"
+    },
+    {
+      "name": "StoreException",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 38,
+        "offset": 923
+      },
+      "enclosing": "com.example.store.Inventory.add"
+    },
+    {
+      "name": "size",
+      "qualifier": "items",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 18,
+        "offset": 958
+      },
+      "enclosing": "com.example.store.Inventory.add"
+    },
+    {
+      "name": "StoreException",
+      "kind": "call",
+      "start": {
+        "line": 40,
+        "column": 22,
+        "offset": 1003
+      },
+      "enclosing": "com.example.store.Inventory.add"
+    },
+    {
+      "name": "StoreException",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 22,
+        "offset": 1003
+      },
+      "enclosing": "com.example.store.Inventory.add"
+    },
+    {
+      "name": "add",
+      "qualifier": "items",
+      "kind": "call",
+      "start": {
+        "line": 43,
+        "column": 21,
+        "offset": 1084
+      },
+      "enclosing": "com.example.store.Inventory.add"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 47,
+        "column": 4,
+        "offset": 1164
+      },
+      "enclosing": "com.example.store.Inventory.find"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 47,
+        "column": 11,
+        "offset": 1171
+      },
+      "enclosing": "com.example.store.Inventory.find"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 48,
+        "column": 13,
+        "offset": 1197
+      },
+      "enclosing": "com.example.store.Inventory.find"
+    },
+    {
+      "name": "id",
+      "qualifier": "item",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 21,
+        "offset": 1236
+      },
+      "enclosing": "com.example.store.Inventory.find"
+    },
+    {
+      "name": "equals",
+      "qualifier": "item.id()",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 26,
+        "offset": 1241
+      },
+      "enclosing": "com.example.store.Inventory.find"
+    },
+    {
+      "name": "K",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 20,
+        "offset": 1356
+      },
+      "enclosing": "com.example.store.Inventory.index"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 23,
+        "offset": 1359
+      },
+      "enclosing": "com.example.store.Inventory.index"
+    },
+    {
+      "name": "Map",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 26,
+        "offset": 1362
+      },
+      "enclosing": "com.example.store.Inventory.index"
+    },
+    {
+      "name": "K",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 30,
+        "offset": 1366
+      },
+      "enclosing": "com.example.store.Inventory.index"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 33,
+        "offset": 1369
+      },
+      "enclosing": "com.example.store.Inventory.index"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 42,
+        "offset": 1378
+      },
+      "enclosing": "com.example.store.Inventory.index"
+    },
+    {
+      "name": "V",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 47,
+        "offset": 1383
+      },
+      "enclosing": "com.example.store.Inventory.index"
+    },
+    {
+      "name": "emptyMap",
+      "kind": "call",
+      "start": {
+        "line": 57,
+        "column": 15,
+        "offset": 1411
+      },
+      "enclosing": "com.example.store.Inventory.index"
+    },
+    {
+      "name": "Override",
+      "kind": "type",
+      "start": {
+        "line": 60,
+        "column": 5,
+        "offset": 1435
+      },
+      "enclosing": "com.example.store.Inventory.close"
+    },
+    {
+      "name": "clear",
+      "qualifier": "items",
+      "kind": "call",
+      "start": {
+        "line": 62,
+        "column": 14,
+        "offset": 1484
+      },
+      "enclosing": "com.example.store.Inventory.close"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 67,
+        "column": 16,
+        "offset": 1561
+      },
+      "enclosing": "com.example.store.Store"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 70,
+        "column": 16,
+        "offset": 1602
+      },
+      "enclosing": "com.example.store.Store.add"
+    },
+    {
+      "name": "StoreException",
+      "kind": "type",
+      "start": {
+        "line": 70,
+        "column": 31,
+        "offset": 1617
+      },
+      "enclosing": "com.example.store.Store.add"
+    },
+    {
+      "name": "Labelled",
+      "kind": "implements",
+      "start": {
+        "line": 78,
+        "column": 30,
+        "offset": 1742
+      },
+      "enclosing": "com.example.store.Status"
+    },
+    {
+      "name": "Labelled",
+      "kind": "type",
+      "start": {
+        "line": 78,
+        "column": 30,
+        "offset": 1742
+      },
+      "enclosing": "com.example.store.Status"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 83,
+        "column": 18,
+        "offset": 1849
+      },
+      "enclosing": "com.example.store.Status.label"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 85,
+        "column": 11,
+        "offset": 1875
+      },
+      "enclosing": "com.example.store.Status.Status"
+    },
+    {
+      "name": "label",
+      "qualifier": "this",
+      "kind": "value",
+      "start": {
+        "line": 86,
+        "column": 13,
+        "offset": 1904
+      },
+      "enclosing": "com.example.store.Status.Status"
+    },
+    {
+      "name": "Override",
+      "kind": "type",
+      "start": {
+        "line": 89,
+        "column": 5,
+        "offset": 1931
+      },
+      "enclosing": "com.example.store.Status.label~2"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 90,
+        "column": 11,
+        "offset": 1951
+      },
+      "enclosing": "com.example.store.Status.label~2"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 96,
+        "column": 19,
+        "offset": 2056
+      },
+      "enclosing": "com.example.store.Item.id"
+    },
+    {
+      "name": "Status",
+      "kind": "type",
+      "start": {
+        "line": 96,
+        "column": 42,
+        "offset": 2079
+      },
+      "enclosing": "com.example.store.Item.status"
+    },
+    {
+      "name": "Comparable",
+      "kind": "implements",
+      "start": {
+        "line": 96,
+        "column": 68,
+        "offset": 2105
+      },
+      "enclosing": "com.example.store.Item"
+    },
+    {
+      "name": "Comparable",
+      "kind": "type",
+      "start": {
+        "line": 96,
+        "column": 68,
+        "offset": 2105
+      },
+      "enclosing": "com.example.store.Item"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 96,
+        "column": 79,
+        "offset": 2116
+      },
+      "enclosing": "com.example.store.Item"
+    },
+    {
+      "name": "requireNonNull",
+      "kind": "call",
+      "start": {
+        "line": 98,
+        "column": 8,
+        "offset": 2150
+      },
+      "enclosing": "com.example.store.Item.Item"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 101,
+        "column": 25,
+        "offset": 2202
+      },
+      "enclosing": "com.example.store.Item.compareTo"
+    },
+    {
+      "name": "compare",
+      "qualifier": "Long",
+      "kind": "call",
+      "start": {
+        "line": 102,
+        "column": 20,
+        "offset": 2236
+      },
+      "enclosing": "com.example.store.Item.compareTo"
+    },
+    {
+      "name": "String",
+      "kind": "type",
+      "start": {
+        "line": 108,
+        "column": 4,
+        "offset": 2339
+      },
+      "enclosing": "com.example.store.Audited.value"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 11,
+        "column": 38,
+        "offset": 257
+      },
+      "text": "/*\n * Copyright 2026 Example Corp.\n */\npackage com.example.store;\n\nimport java.util.ArrayList;\nimport java.util.List;\nimport java.util.Map;\nimport java.util.concurrent.*;\nimport static java.util.Objects.requireNonNull;\nimport static java.util.Collections.*;",
+      "hash": "1b6fca06b520f7bb7e4b0228a28215bb7bfb8a75294a826ff6299612ba0533c8"
+    },
+    {
+      "id": "com.example.store.Inventory#1",
+      "kind": "symbol",
+      "symbolId": "com.example.store.Inventory",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 259
+      },
+      "end": {
+        "line": 64,
+        "column": 1,
+        "offset": 1500
+      },
+      "text": "/**\n * Inventory keeps the items of one warehouse.\n *\n * @param \u003cT\u003e the item type\n */\npublic class Inventory\u003cT extends Item\u003e extends AbstractStore implements Store\u003cT\u003e, AutoCloseable {\n\n    /** The largest number of items a warehouse holds. */\n    public static final int MAX_ITEMS = 10_000;\n\n    private final List\u003cT\u003e items = new ArrayList\u003c\u003e();\n    protected String name, region;\n    int count;\n\n    /** Creates an empty inventory called name. */\n    public Inventory(String name) {\n        this.name = requireNonNull(name);\n    }\n\n    /**\n     * Adds an item.\n     *\n     * @return whether it was added\n     */\n    @Override\n    public boolean add(T item) throws StoreException {\n        if (items.size() \u003e= MAX_ITEMS) {\n            throw new StoreException(\"full: \" + name);\n        }\n        count++;\n        return items.add(item);\n    }\n\n    // find returns the first item with this id, or null.\n    T find(String id) {\n        for (T item : items) {\n            if (item.id().equals(id)) {\n                return item;\n            }\n        }\n        return null;\n    }\n\n    private static \u003cK, V\u003e Map\u003cK, V\u003e index(List\u003cV\u003e values) {\n        return emptyMap();\n    }\n\n    @Override\n    public void close() {\n        items.clear();\n    }\n}",
+      "hash": "e5be60453c810c5bb8325c4906f1a6bbfab2eb2770e034794fb5739aa85a22f6"
+    },
+    {
+      "id": "com.example.store.Store#1",
+      "kind": "symbol",
+      "symbolId": "com.example.store.Store",
+      "start": {
+        "line": 66,
+        "column": 0,
+        "offset": 1502
+      },
+      "end": {
+        "line": 75,
+        "column": 1,
+        "offset": 1684
+      },
+      "text": "/** Store is anything that holds items. */\ninterface Store\u003cT\u003e {\n    int LIMIT = 5;\n\n    boolean add(T item) throws StoreException;\n\n    default int size() {\n        return 0;\n    }\n}",
+      "hash": "ecdd0e295c14b2e53824d9863a985c15cf367ca92381fe55220862eec40ec953"
+    },
+    {
+      "id": "com.example.store.Status#1",
+      "kind": "symbol",
+      "symbolId": "com.example.store.Status",
+      "start": {
+        "line": 77,
+        "column": 0,
+        "offset": 1686
+      },
+      "end": {
+        "line": 93,
+        "column": 1,
+        "offset": 1997
+      },
+      "text": "/** Status of an item. */\npublic enum Status implements Labelled {\n    /** On the shelf. */\n    IN_STOCK(\"in stock\"),\n    SOLD_OUT(\"sold out\");\n\n    private final String label;\n\n    Status(String label) {\n        this.label = label;\n    }\n\n    @Override\n    public String label() {\n        return label;\n    }\n}",
+      "hash": "6d3d93ed4c1765180ce94715807a4fbf6f4b885c7d5ee5be1bc5dc4a69a5e86f"
+    },
+    {
+      "id": "com.example.store.Item#1",
+      "kind": "symbol",
+      "symbolId": "com.example.store.Item",
+      "start": {
+        "line": 95,
+        "column": 0,
+        "offset": 1999
+      },
+      "end": {
+        "line": 104,
+        "column": 1,
+        "offset": 2272
+      },
+      "text": "/** An item: id, price and status. */\npublic record Item(String id, long price, Status status) implements Comparable\u003cItem\u003e {\n    public Item {\n        requireNonNull(id);\n    }\n\n    public int compareTo(Item other) {\n        return Long.compare(price, other.price);\n    }\n}",
+      "hash": "eacb0d66a9e50a5bb32fff6354be40abd860a5cd427346b5013ab829c60b39ba"
+    },
+    {
+      "id": "com.example.store.Audited#1",
+      "kind": "symbol",
+      "symbolId": "com.example.store.Audited",
+      "start": {
+        "line": 106,
+        "column": 0,
+        "offset": 2274
+      },
+      "end": {
+        "line": 110,
+        "column": 1,
+        "offset": 2384
+      },
+      "text": "/** Marks a store method as audited. */\n@interface Audited {\n    String value() default \"\";\n    int level();\n}",
+      "hash": "709b91216ad247a24350c383c0e0fde20008a757516a2250661b2788a6a3c7db"
+    }
+  ]
+}
