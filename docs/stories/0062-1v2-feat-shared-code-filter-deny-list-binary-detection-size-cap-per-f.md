@@ -3,11 +3,13 @@ id: 0062-1v2
 title: 'Shared code filter: deny list, binary detection, size cap, per-file excludes'
 purpose: The client (0010) and the GitHub sync (0011) must apply the same rules, so they live in one package both import.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:43.018Z"
-updated: "2026-10-19T18:26:58.157Z"
+updated: "2026-10-19T19:02:45.740Z"
+started: "2026-10-19T18:58:11.564Z"
+completed: "2026-10-19T19:02:45.740Z"
 tags:
   - plan-0010-awy
   - wave-1
@@ -29,15 +31,15 @@ links:
     - ["0010-awy", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Shared code filter: deny list, binary detection, size cap, per-file excludes
@@ -74,9 +76,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codefilter/... ./session/redact/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codefilter/... ./session/redact/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codefilter/... ./session/redact/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codefilter/... ./session/redact/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -85,3 +87,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/session/redact/store.go` - export the per-path `excludePaths` matcher so it can be applied per file
 
 ## Work Log
+
+### 2026-10-19T19:02:40.496Z - New package mind-palace/codefilter (stdlib only, so ghsync can import it): Decide(rel, size, head, Options) (Skip|MetadataOnly|Content, reason). Order: invalid path (empty, absolute, escaping root, backslash) -> Skip; codeSyncExclude (Excludes/NewExcludes: root-relative path.Match globs, slash-less globs match a name at any depth, globs with a slash anchored at the root, directory match excludes below) -> Skip; excludePaths (Options.ExcludePaths Matcher applied to Root+rel) -> Skip; fixed deny list (Denied: plan 0010's list by base name, case-insensitive, plus *secret* in any component under a config/ directory) -> Skip; size over MaxFileBytes (default 1 MiB) -> MetadataOnly; NUL in first 8 KiB or invalid UTF-8 (a rune cut off at the end of a short head tolerated) -> MetadataOnly. Also IsText, Decision.String, DefaultMaxFileBytes, SniffBytes, Reason* constants. session/redact/store.go: Paths.Match(path) (pattern, ok) exported as the per-path excludePaths matcher (Excludes now wraps it); redact.Paths satisfies codefilter.Matcher. Deny-listed files are Skip (no path sent), binary/oversized are MetadataOnly. Tests: 67 passing subtests/tests across codefilter and session/redact, go vet/gofmt/build clean.
