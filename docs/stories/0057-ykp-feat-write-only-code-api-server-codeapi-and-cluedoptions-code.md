@@ -3,11 +3,13 @@ id: 0057-ykp
 title: Write-only code API (`server/codeapi`) and `CluedOptions.Code`
 purpose: The transport that receives collected code.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:05:18.723Z"
-updated: "2026-10-19T18:26:25.066Z"
+updated: "2026-10-19T19:23:48.930Z"
+started: "2026-10-19T19:15:37.883Z"
+completed: "2026-10-19T19:23:48.930Z"
 tags:
   - plan-0010-awy
   - wave-4
@@ -32,15 +34,15 @@ links:
     - ["0010-awy", "included", ["2.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Write-only code API (`server/codeapi`) and `CluedOptions.Code`
@@ -77,10 +79,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./server/codeapi/... ./server/...
-- [ ] [MANUAL] No GET route other than `capabilities` exists, and `capabilities` returns limits only
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./server/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./server/codeapi/... ./server/...
+- [x] [MANUAL] No GET route other than `capabilities` exists, and `capabilities` returns limits only
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./server/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -89,3 +91,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/server/clued.go` - `CluedOptions.Code`, `CluedOptions.BeforeCodeWrite`, mounting under `/api/v1/projects/{project}/code/` through `NamespaceCtx`
 
 ## Work Log
+
+### 2026-10-19T19:23:43.773Z - Added server/codeapi: the seven routes (POST manifest, PUT blobs/{sha256}, PUT/DELETE worktrees/{id}, POST worktrees/{id}/changes, PUT worktrees/{id}/sessions/{session_id}, GET capabilities) with the httpapi envelope, MaxBatch 5000 (413 too_large), MaxFileBytes (default 1 MiB, 413 too_large), SHA-256 verification, inline validation of paths/hashes/oids/refs/ids, strict JSON (unknown fields, body owner and entry session are 400 invalid), owner stamped from the account and session per entry from session_id, another owner's worktree 404 like an unknown one (striped lock around PUT worktree's check and write), store errors mapped (invalid 400, not_found 404, missing blob 409 conflict). Exported: Mount(mux, Options), Handler(Options) (Mount plus the envelope 404 catch-all, easy to put behind auth.Middleware in tests), NotFound, Pattern, Options{Open, Namespace, Account (default auth principal), Allow, BeforeWrite, MaxFileBytes, MaxBatch, MaxBody}, ErrRefused (403 forbidden) and ErrQuota (413 quota) for BeforeWrite, Project(ctx), Operation(ctx), the body/result types. server/clued.go: CluedOptions.Code, BeforeCodeWrite(ctx, namespaced key, bytes added), CodeMaxFileBytes; code prefix always answers envelope 404, Mount only when Code is set, namespaced through NamespaceCtx and failing closed without a principal. Tests: 41 passing subtests in server/codeapi including codetest.Run over HTTP through a minimal in-test writer (token account codetest.Owner, reads from the server-side memcode); go test -race ./server/... all ok; gofmt/vet/build clean. Note for 0058: JSON cannot carry invalid UTF-8 and PUT blobs carries no size, so the remote adapter must check those two locally (codetest expects ErrInvalid). Only the three listed files changed.
