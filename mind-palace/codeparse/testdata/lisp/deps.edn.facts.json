@@ -1,0 +1,22 @@
+{
+  "lang": "lisp",
+  "dialect": "clojure",
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 5,
+        "column": 62,
+        "offset": 236
+      },
+      "text": "{:paths [\"src\" \"resources\"]\n :deps {org.clojure/clojure {:mvn/version \"1.11.1\"}\n        org.clojure/data.json {:mvn/version \"2.4.0\"}}\n :aliases {:test {:extra-paths [\"test\"]\n                  :main-opts [\"-m\" \"cognitect.test-runner\"]}}}",
+      "hash": "a9208688bb3382e6ebc7dec4161d614b2b6008135bd49aef1bda269f9b06559a"
+    }
+  ]
+}

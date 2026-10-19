@@ -1,0 +1,18 @@
+# SQL: one global namespace of schema objects, optionally qualified by
+# schema (s.t); names compare without case. References from queries
+# (FROM, JOIN, INSERT INTO, UPDATE, DELETE, CALL, REFERENCES, ON) name
+# tables, views and routines, so the sql family resolver matches them by
+# name and schema. Statements the grammar cannot parse are error nodes:
+# whatever matched around them is kept and their text stays in the
+# file's chunks. USE <database> (MySQL, T-SQL) is the package.
+name: SQL
+family: sql
+extensions: [.sql]
+query: tags.scm
+kinds:
+  reference.table: type
+scope:
+  separators: ["."]
+  packageBy: declaration
+  exported: all
+  caseInsensitive: true

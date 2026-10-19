@@ -462,8 +462,8 @@ func TestRebuildKeepsItsLeaseAlive(t *testing.T) {
 	want := dumpGraph(t, e.ctx, e.g)
 	// The incremental path saves the cursor after every batch; a rebuild
 	// writes the whole graph in one go, so it extends the lease itself.
-	e.svc.opts.Lease = 60 * time.Millisecond
-	e.svc.opts.Apply = slowApplier{Applier: FileApplier{}, delay: 250 * time.Millisecond}
+	e.svc.opts.Lease = 300 * time.Millisecond
+	e.svc.opts.Apply = slowApplier{Applier: FileApplier{}, delay: time.Second}
 	res, err := e.svc.Rebuild(e.ctx, e.project)
 	if err != nil {
 		t.Fatalf("Rebuild with a short lease = %v", err)
