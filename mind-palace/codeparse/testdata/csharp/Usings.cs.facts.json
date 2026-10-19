@@ -1,0 +1,315 @@
+{
+  "lang": "csharp",
+  "package": "Demo.Tools.Io",
+  "symbols": [
+    {
+      "id": "Demo.Tools.Io.LineReader",
+      "kind": "class",
+      "name": "LineReader",
+      "qualName": "Demo.Tools.Io.LineReader",
+      "signature": "public static class LineReader",
+      "doc": "\u003csummary\u003eReads lines from a file.\u003c/summary\u003e",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 392
+      },
+      "end": {
+        "line": 27,
+        "column": 1,
+        "offset": 874
+      },
+      "exported": true
+    },
+    {
+      "id": "Demo.Tools.Io.LineReader.ReadAsync",
+      "kind": "method",
+      "name": "ReadAsync",
+      "qualName": "Demo.Tools.Io.LineReader.ReadAsync",
+      "signature": "public static async Task\u003cstring[]\u003e ReadAsync(string path)",
+      "start": {
+        "line": 16,
+        "column": 4,
+        "offset": 429
+      },
+      "end": {
+        "line": 22,
+        "column": 5,
+        "offset": 705
+      },
+      "parent": "Demo.Tools.Io.LineReader",
+      "exported": true
+    },
+    {
+      "id": "Demo.Tools.Io.LineReader.Dump",
+      "kind": "method",
+      "name": "Dump",
+      "qualName": "Demo.Tools.Io.LineReader.Dump",
+      "signature": "public static string Dump(object value)",
+      "start": {
+        "line": 24,
+        "column": 4,
+        "offset": 711
+      },
+      "end": {
+        "line": 24,
+        "column": 69,
+        "offset": 776
+      },
+      "parent": "Demo.Tools.Io.LineReader",
+      "exported": true
+    },
+    {
+      "id": "Demo.Tools.Io.LineReader.Lengths",
+      "kind": "method",
+      "name": "Lengths",
+      "qualName": "Demo.Tools.Io.LineReader.Lengths",
+      "signature": "public static IntList Lengths(string[] lines)",
+      "start": {
+        "line": 26,
+        "column": 4,
+        "offset": 782
+      },
+      "end": {
+        "line": 26,
+        "column": 94,
+        "offset": 872
+      },
+      "parent": "Demo.Tools.Io.LineReader",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "System.Linq",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 67
+      }
+    },
+    {
+      "spec": "System",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 93
+      }
+    },
+    {
+      "spec": "System.IO",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 107
+      }
+    },
+    {
+      "spec": "System.Math",
+      "kind": "static",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 124
+      }
+    },
+    {
+      "spec": "System.Console",
+      "kind": "static",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 150
+      }
+    },
+    {
+      "spec": "System.Text.Json.JsonSerializer",
+      "alias": "Json",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 179
+      }
+    },
+    {
+      "spec": "System.Collections.Generic.List\u003cint\u003e",
+      "alias": "IntList",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 225
+      }
+    },
+    {
+      "spec": "global::System.Threading.Tasks",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 279
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Task",
+      "kind": "type",
+      "start": {
+        "line": 16,
+        "column": 24,
+        "offset": 449
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.ReadAsync"
+    },
+    {
+      "name": "StreamReader",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 31,
+        "offset": 524
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.ReadAsync"
+    },
+    {
+      "name": "ReadToEndAsync",
+      "qualifier": "reader",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 32,
+        "offset": 576
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.ReadAsync"
+    },
+    {
+      "name": "WriteLine",
+      "kind": "call",
+      "start": {
+        "line": 20,
+        "column": 8,
+        "offset": 602
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.ReadAsync"
+    },
+    {
+      "name": "Sqrt",
+      "kind": "call",
+      "start": {
+        "line": 20,
+        "column": 18,
+        "offset": 612
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.ReadAsync"
+    },
+    {
+      "name": "Split",
+      "qualifier": "text",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 20,
+        "offset": 652
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.ReadAsync"
+    },
+    {
+      "name": "Where",
+      "qualifier": "text.Split('\\n')",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 32,
+        "offset": 664
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.ReadAsync"
+    },
+    {
+      "name": "ToArray",
+      "qualifier": "text.Split('\\n').Where(l =\u003e l.Length \u003e 0)",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 57,
+        "offset": 689
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.ReadAsync"
+    },
+    {
+      "name": "Serialize",
+      "qualifier": "Json",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 52,
+        "offset": 759
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.Dump"
+    },
+    {
+      "name": "IntList",
+      "kind": "type",
+      "start": {
+        "line": 26,
+        "column": 18,
+        "offset": 796
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.Lengths"
+    },
+    {
+      "name": "IntList",
+      "kind": "type",
+      "start": {
+        "line": 26,
+        "column": 57,
+        "offset": 835
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.Lengths"
+    },
+    {
+      "name": "Select",
+      "qualifier": "lines",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 71,
+        "offset": 849
+      },
+      "enclosing": "Demo.Tools.Io.LineReader.Lengths"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 11,
+        "column": 24,
+        "offset": 342
+      },
+      "text": "// Every form of the using directive, and a file-scoped namespace.\nglobal using System.Linq;\nusing System;\nusing System.IO;\nusing static System.Math;\nusing static System.Console;\nusing Json = System.Text.Json.JsonSerializer;\nusing IntList = System.Collections.Generic.List\u003cint\u003e;\nusing global::System.Threading.Tasks;\n\nnamespace Demo.Tools.Io;",
+      "hash": "d573c9d2f25f72185d197511d45e00a3831881ab4a855a10b646472b51bd21cc"
+    },
+    {
+      "id": "Demo.Tools.Io.LineReader#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Tools.Io.LineReader",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 344
+      },
+      "end": {
+        "line": 27,
+        "column": 1,
+        "offset": 874
+      },
+      "text": "/// \u003csummary\u003eReads lines from a file.\u003c/summary\u003e\npublic static class LineReader\n{\n    public static async Task\u003cstring[]\u003e ReadAsync(string path)\n    {\n        using var reader = new StreamReader(path);\n        var text = await reader.ReadToEndAsync();\n        WriteLine(Sqrt(text.Length));\n        return text.Split('\\n').Where(l =\u003e l.Length \u003e 0).ToArray();\n    }\n\n    public static string Dump(object value) =\u003e Json.Serialize(value);\n\n    public static IntList Lengths(string[] lines) =\u003e new IntList(lines.Select(l =\u003e l.Length));\n}",
+      "hash": "38d62f8bcadc1cf93116ee1aacf56558798173e06285634cdcc5c169e7005561"
+    }
+  ]
+}

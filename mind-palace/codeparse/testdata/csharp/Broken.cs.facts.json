@@ -1,0 +1,142 @@
+{
+  "lang": "csharp",
+  "package": "Demo.Broken",
+  "symbols": [
+    {
+      "id": "Demo.Broken.Good",
+      "kind": "class",
+      "name": "Good",
+      "qualName": "Demo.Broken.Good",
+      "signature": "public class Good",
+      "start": {
+        "line": 6,
+        "column": 4,
+        "offset": 105
+      },
+      "end": {
+        "line": 9,
+        "column": 5,
+        "offset": 167
+      },
+      "exported": true
+    },
+    {
+      "id": "Demo.Broken.Good.Value",
+      "kind": "method",
+      "name": "Value",
+      "qualName": "Demo.Broken.Good.Value",
+      "signature": "public int Value()",
+      "start": {
+        "line": 8,
+        "column": 8,
+        "offset": 137
+      },
+      "end": {
+        "line": 8,
+        "column": 32,
+        "offset": 161
+      },
+      "parent": "Demo.Broken.Good",
+      "exported": true
+    },
+    {
+      "id": "Demo.Broken.Bad",
+      "kind": "class",
+      "name": "Bad",
+      "qualName": "Demo.Broken.Bad",
+      "signature": "public class Bad",
+      "start": {
+        "line": 11,
+        "column": 4,
+        "offset": 173
+      },
+      "end": {
+        "line": 21,
+        "column": 32,
+        "offset": 362
+      },
+      "exported": true
+    },
+    {
+      "id": "Demo.Broken.Bad.After",
+      "kind": "method",
+      "name": "After",
+      "qualName": "Demo.Broken.Bad.After",
+      "signature": "public string After()",
+      "start": {
+        "line": 18,
+        "column": 8,
+        "offset": 289
+      },
+      "end": {
+        "line": 18,
+        "column": 41,
+        "offset": 322
+      },
+      "parent": "Demo.Broken.Bad",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "System",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 62
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 5,
+        "column": 1,
+        "offset": 100
+      },
+      "text": "// A file with a syntax error: what parses around it is kept.\nusing System;\n\nnamespace Demo.Broken\n{",
+      "hash": "040499ac91564de0e7369f3320178688071c5c0e96befb17399ec4ea0f369324"
+    },
+    {
+      "id": "Demo.Broken.Good#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Broken.Good",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 101
+      },
+      "end": {
+        "line": 9,
+        "column": 5,
+        "offset": 167
+      },
+      "text": "    public class Good\n    {\n        public int Value() =\u003e 1;\n    }",
+      "hash": "cdbb824edf3ff8a9e53a956717556934e4ef2379ca09fd026634d11418fa9594"
+    },
+    {
+      "id": "Demo.Broken.Bad#1",
+      "kind": "symbol",
+      "symbolId": "Demo.Broken.Bad",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 169
+      },
+      "end": {
+        "line": 21,
+        "column": 32,
+        "offset": 362
+      },
+      "text": "    public class Bad\n    {\n        public void Half(int x\n        {\n            Console.WriteLine(x;\n        }\n\n        public string After() =\u003e \"after\";\n    }\n\n    public enum Mode { On, Off }",
+      "hash": "6eaa4aff65beaba5c8ad3e2294bc06ef3e095f10f4b8606d420c46e663faea0e"
+    }
+  ]
+}

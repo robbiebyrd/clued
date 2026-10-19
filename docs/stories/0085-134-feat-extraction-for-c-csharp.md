@@ -3,11 +3,13 @@ id: 0085-134
 title: Extraction for C# (csharp)
 purpose: 'Adds C# (csharp) to the indexer: files .cs.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:15.288Z"
-updated: "2026-10-19T18:29:24.606Z"
+updated: "2026-10-19T20:53:27.504Z"
+started: "2026-10-19T20:44:36.345Z"
+completed: "2026-10-19T20:53:27.504Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for C# (csharp)
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/csharp'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/csharp'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/csharp'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/csharp'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/csharp.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:53:22.556Z - Added C#: grammars/csharp.go registers gotreesitter's c_sharp grammar as "c_sharp"; queries/csharp/profile.yaml (family csharp, .cs, packageBy declaration, exported declared, partialTypes: merge option) and tags.scm (classes, structs, records incl. record struct and positional-record properties, interfaces and their members, enums and members as constants, delegates as types, methods, constructors, destructors, operators, indexers, properties, events, fields, const fields; using / using static / alias / global using imports; block and file-scoped namespace as package; calls incl. ?. and generic calls, type refs at every type:/returns: field, type arguments, constraints, attributes; extends/implements from base lists with the IName heuristic). Type declaration names are matched without their field so declarations recovered around a syntax error keep their names. Five goldens (Shapes, Usings, Orders, Form1.Designer generated/partial/#if/#region/raw strings, Broken); TestGolden/csharp 5/5 pass, go test -race ./codeparse/... ok, gofmt/vet/build clean. Known limits: a nested namespace does not extend the package; gotreesitter drops the broken method and a following enum in Broken.cs. Only the story's three paths changed.
