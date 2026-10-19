@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,16 +15,22 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/robbiebyrd/clued/mind-palace/code"
 	"github.com/robbiebyrd/clued/mind-palace/code/memcode"
 	"github.com/robbiebyrd/clued/mind-palace/code/mongocode"
+	"github.com/robbiebyrd/clued/mind-palace/codegraph"
+	"github.com/robbiebyrd/clued/mind-palace/codegraph/falkor"
+	"github.com/robbiebyrd/clued/mind-palace/codegraph/memgraph"
+	"github.com/robbiebyrd/clued/mind-palace/codeindex"
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/server"
 	"github.com/robbiebyrd/clued/mind-palace/server/auth"
+	"github.com/robbiebyrd/clued/mind-palace/server/codeapi"
 	"github.com/robbiebyrd/clued/mind-palace/server/device"
 	"github.com/robbiebyrd/clued/mind-palace/server/projects"
 	"github.com/robbiebyrd/clued/mind-palace/service"
@@ -38,6 +45,7 @@ const (
 	envServerTLSKey      = "CLUED_SERVER_TLS_KEY"
 	envServerBehindProxy = "CLUED_SERVER_BEHIND_PROXY"
 	envServerCodeStore   = "CLUED_SERVER_CODE_STORE"
+	envServerGraphURL    = "CLUED_SERVER_GRAPH"
 	defaultServerAddr    = "127.0.0.1:8443"
 )
 
@@ -52,6 +60,15 @@ const (
 	// client takes as "this server collects no code".
 	codeStoreOff = "off"
 )
+
+// runGraphMemory is the --graph value that keeps the code graph in memory
+// (codegraph/memgraph), for tests and trials; a redis:// or rediss:// URL
+// names a FalkorDB server.
+const runGraphMemory = "memory"
+
+// runGraphCursors is the collection of the indexer's cursors and leases in
+// the session config's MongoDB under --code-store mongo.
+const runGraphCursors = codeindex.CursorCollection
 
 // serverRunOptions is everything `server run` resolved from its flags, the
 // environment and the defaults; runCluedServer takes it so tests start the
@@ -79,6 +96,10 @@ type serverRunOptions struct {
 	// "mongo", "memory" or "off"; "" is the session store's backend (memory
 	// under --store memory, else mongo).
 	CodeStore string
+	// Graph is the code graph (--graph, CLUED_SERVER_GRAPH): a FalkorDB
+	// redis:// or rediss:// URL, or "memory"; "" (or "off") leaves the
+	// indexer and the graph read routes off. It needs a code store.
+	Graph string
 	// Version is reported by /health and whoami.
 	Version string
 	// Ready, when non-nil, receives the bound address once listening.
@@ -117,7 +138,13 @@ CLUED_MONGO_URL, CLUED_DB_NAME). Enrichment runs on the server.
 under /api/v1/projects/{project}/code/: mongo keeps the collected code in the
 session config's MongoDB, one set of collections per namespaced project;
 memory keeps it in memory; off serves no code routes. The default is the
-session store's backend.`,
+session store's backend.
+
+--graph (CLUED_SERVER_GRAPH) names the code graph, a FalkorDB server as
+redis://[user:password@]host:port (rediss:// for TLS), or memory: the
+server then runs the code indexer over the code store and serves the typed,
+token-capped graph read routes under /api/v1/projects/{project}/code/graph/.
+Without it both are off.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			o.Addr = firstNonEmpty(o.Addr, os.Getenv(envServerAddr), defaultServerAddr)
@@ -135,6 +162,7 @@ session store's backend.`,
 			if err := checkCodeStore(o.CodeStore); err != nil {
 				return a.fail(&service.Error{Kind: service.KindBadRequest, Message: err.Error()})
 			}
+			o.Graph = firstNonEmpty(o.Graph, os.Getenv(envServerGraphURL))
 			// The listening line is printed from a goroutine; closing ready on
 			// return ends it when the server never came up.
 			ready := make(chan string, 1)
@@ -165,6 +193,7 @@ session store's backend.`,
 	f.StringVar(&o.SessionConfig, "session-config", session.DefaultConfigPath(), "clued session config file (mongoUrl, dbName, enrichers)")
 	f.StringVar(&o.Store, "store", "", "\"memory\" keeps sessions, plans and stories in memory (for tests)")
 	f.StringVar(&o.CodeStore, "code-store", "", "code store: mongo, memory or off (default: $"+envServerCodeStore+", then the session store's backend)")
+	f.StringVar(&o.Graph, "graph", "", "code graph: a FalkorDB redis:// URL, or memory; off without it (default: $"+envServerGraphURL+")")
 	f.StringVar(&o.Version, "version", remote.Version, "version reported by /health and /api/v1/whoami")
 	return cmd
 }
@@ -212,6 +241,13 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 	if err := checkCodeStore(defaultCodeStore(o.CodeStore, o.Store)); err != nil {
 		return a.fail(&service.Error{Kind: service.KindBadRequest, Message: err.Error()})
 	}
+	graphs, err := openRunGraph(o.Graph, defaultCodeStore(o.CodeStore, o.Store))
+	if err != nil {
+		return a.fail(&service.Error{Kind: service.KindBadRequest, Message: err.Error()})
+	}
+	if graphs != nil {
+		defer graphs.Close()
+	}
 	opener := projects.NewOpener(cfg.EnabledStorage(), cfg.Dirs())
 
 	var sessions session.Store
@@ -249,6 +285,20 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 		}
 	}()
 
+	var (
+		graphOpts *codeapi.GraphOptions
+		indexer   *codeindex.Service
+		indexed   *indexCursors
+	)
+	if graphs != nil {
+		indexer, indexed, err = newRunIndexer(codeStores, graphs, logger)
+		if err != nil {
+			return a.fail(&service.Error{Kind: service.KindBadRequest, Message: err.Error()})
+		}
+		codeStores.onCommit = indexer.Kick
+		graphOpts = &codeapi.GraphOptions{Graphs: graphs, Indexed: indexed.Indexed}
+	}
+
 	tokens := auth.OpenTokenFile(o.Tokens)
 	srv := server.NewClued(server.CluedOptions{
 		Version:      o.Version,
@@ -262,11 +312,150 @@ func (a *App) runCluedServer(ctx context.Context, o serverRunOptions) error {
 		Exchange:     tokens,
 		ClientConfig: clientConfigFrom(sessionCfg, o.SessionConfig, time.Now()),
 		Code:         codeStores.opener(),
+		Graph:        graphOpts,
 	})
-	if err := srv.Serve(ctx, listen, o.Ready); err != nil {
+	var indexing sync.WaitGroup
+	indexCtx, stopIndexing := context.WithCancel(ctx)
+	if indexer != nil {
+		indexing.Add(1)
+		go func() {
+			defer indexing.Done()
+			_ = indexer.Run(indexCtx)
+		}()
+	}
+	err = srv.Serve(ctx, listen, o.Ready)
+	stopIndexing()
+	indexing.Wait()
+	if err != nil {
 		return a.fail(&service.Error{Kind: service.KindStorage, Message: err.Error(), Cause: err})
 	}
 	return nil
+}
+
+// openRunGraph opens the code graph of --graph: nil for "" and "off",
+// memgraph for "memory", FalkorDB for a redis:// or rediss:// URL (which it
+// does not dial: an unreachable server makes the indexer back off and the
+// read routes answer 503 unavailable). A graph needs a code store.
+func openRunGraph(spec, codeStore string) (codegraph.Opener, error) {
+	switch {
+	case spec == "" || spec == codeStoreOff:
+		return nil, nil
+	case codeStore == codeStoreOff:
+		return nil, errors.New("--graph needs a code store: --code-store off collects no code to index")
+	case spec == runGraphMemory:
+		return memgraph.New(), nil
+	case strings.HasPrefix(spec, "redis://") || strings.HasPrefix(spec, "rediss://"):
+		o, err := falkor.New(spec)
+		if err != nil {
+			// The URL may carry a password: name the step, not the value.
+			return nil, errors.New("--graph: the FalkorDB URL is not a valid redis:// or rediss:// URL")
+		}
+		return o, nil
+	}
+	return nil, errors.New("--graph: a FalkorDB redis:// or rediss:// URL, memory or off is accepted")
+}
+
+// newRunIndexer builds the code indexer `server run --graph` runs: the
+// FileApplier over the code stores and the graph, its cursors beside the
+// code store (MongoDB, else memory), recording how far each project is
+// indexed for the read routes' progress.
+func newRunIndexer(stores *codeStores, graphs codegraph.Opener, logger *slog.Logger) (*codeindex.Service, *indexCursors, error) {
+	var base codeindex.Cursors = codeindex.NewMemCursors(nil)
+	if stores.db != nil {
+		base = codeindex.NewMongoCursors(stores.db, runGraphCursors, nil)
+	}
+	cursors := &indexCursors{Cursors: base, seq: map[string]int64{}}
+	svc, err := codeindex.New(codeindex.Options{
+		Projects: stores.Projects,
+		Code:     stores.Open,
+		Graphs:   graphs,
+		Cursors:  cursors,
+		Apply:    codeindex.FileApplier{},
+		Logger:   logger,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return svc, cursors, nil
+}
+
+// indexCursors records, per project, the change-log position the indexer
+// last acquired or saved, which the graph read routes report progress
+// against.
+type indexCursors struct {
+	codeindex.Cursors
+
+	mu  sync.Mutex
+	seq map[string]int64
+}
+
+func (c *indexCursors) note(project string, seq int64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.seq[project] = seq
+}
+
+// Acquire implements codeindex.Cursors.
+func (c *indexCursors) Acquire(ctx context.Context, project, holder string, ttl time.Duration) (codeindex.Lease, codeindex.Cursor, error) {
+	l, cur, err := c.Cursors.Acquire(ctx, project, holder, ttl)
+	if err == nil {
+		c.note(project, cur.Seq)
+	}
+	return l, cur, err
+}
+
+// Save implements codeindex.Cursors.
+func (c *indexCursors) Save(ctx context.Context, l codeindex.Lease, cur codeindex.Cursor, ttl time.Duration) (codeindex.Lease, error) {
+	nl, err := c.Cursors.Save(ctx, l, cur, ttl)
+	if err == nil {
+		c.note(l.Project, cur.Seq)
+	}
+	return nl, err
+}
+
+// Delete implements codeindex.Cursors.
+func (c *indexCursors) Delete(ctx context.Context, project string) error {
+	err := c.Cursors.Delete(ctx, project)
+	if err == nil {
+		c.mu.Lock()
+		delete(c.seq, project)
+		c.mu.Unlock()
+	}
+	return err
+}
+
+// Indexed is codeapi.GraphOptions.Indexed.
+func (c *indexCursors) Indexed(_ context.Context, key string) (int64, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	seq, ok := c.seq[key]
+	return seq, ok
+}
+
+// kickingCodeStore asks the indexer to index its project after every
+// commit, ahead of the indexer's poll.
+type kickingCodeStore struct {
+	code.Store
+	key  string
+	kick func(string)
+}
+
+// Commit implements code.Store.
+func (s kickingCodeStore) Commit(ctx context.Context, c code.Change) (int64, error) {
+	seq, err := s.Store.Commit(ctx, c)
+	if err == nil {
+		s.kick(s.key)
+	}
+	return seq, err
+}
+
+// RemoveWorktree implements code.Store.
+func (s kickingCodeStore) RemoveWorktree(ctx context.Context, id string) error {
+	err := s.Store.RemoveWorktree(ctx, id)
+	if err == nil {
+		s.kick(s.key)
+	}
+	return err
 }
 
 // clientConfigFrom serves the enricher settings of the server's session
@@ -353,6 +542,12 @@ func checkCodeStore(kind string) error {
 type codeStores struct {
 	open  func(ctx context.Context, key string) (code.Store, error)
 	close func(ctx context.Context) error
+	// db is the MongoDB of --code-store mongo (nil otherwise), where the
+	// indexer keeps its cursors.
+	db *mongo.Database
+	// onCommit, when set (--graph), is told the key of a store a commit
+	// changed, so the indexer picks it up at once.
+	onCommit func(key string)
 
 	mu     sync.Mutex
 	stores map[string]code.Store
@@ -392,6 +587,7 @@ func openCodeStores(ctx context.Context, kind string, cfg session.Config) (*code
 			return mongocode.Open(ctx, db, mongocode.ProjectPrefix("", key))
 		}
 		c.close = client.Disconnect
+		c.db = db
 	default:
 		return nil, checkCodeStore(kind)
 	}
@@ -419,8 +615,44 @@ func (c *codeStores) Open(ctx context.Context, key string) (code.Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	if c.onCommit != nil {
+		s = kickingCodeStore{Store: s, key: key, kick: c.onCommit}
+	}
 	c.stores[key] = s
 	return s, nil
+}
+
+// codeChangesSuffix ends the name of a project's change-log collection
+// (mongocode's prefix is the key and "_").
+const codeChangesSuffix = "_code_changes"
+
+// Projects lists the namespaced projects that hold code, the indexer's
+// Options.Projects: those opened since the server started, and under
+// --code-store mongo every project with a change log in the database.
+func (c *codeStores) Projects(ctx context.Context) ([]string, error) {
+	c.mu.Lock()
+	keys := make(map[string]bool, len(c.stores))
+	for k := range c.stores {
+		keys[k] = true
+	}
+	c.mu.Unlock()
+	if c.db != nil {
+		names, err := c.db.ListCollectionNames(ctx, bson.D{})
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range names {
+			if k, ok := strings.CutSuffix(n, codeChangesSuffix); ok && codegraph.ValidKey(k) == nil {
+				keys[k] = true
+			}
+		}
+	}
+	out := make([]string, 0, len(keys))
+	for k := range keys {
+		out = append(out, k)
+	}
+	slices.Sort(out)
+	return out, nil
 }
 
 // Close releases the MongoDB connection of --code-store mongo.

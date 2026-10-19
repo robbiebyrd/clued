@@ -3,11 +3,12 @@ id: 0123-1d8
 title: Typed, token-capped graph read routes
 purpose: The first read path for collected code, for agents only and only for the caller's own view.
 type: feat
-status: ready
+status: in_progress
 priority: "3"
 effort: L
 created: "2026-10-19T18:11:41.725Z"
-updated: "2026-10-19T18:33:30.562Z"
+updated: "2026-10-19T19:41:23.196Z"
+started: "2026-10-19T19:41:23.196Z"
 tags:
   - plan-0012-cgi
   - wave-7
