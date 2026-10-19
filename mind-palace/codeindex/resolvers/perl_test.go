@@ -275,9 +275,10 @@ func TestResolve_perl(t *testing.T) {
 	})
 	e.want(codegraph.RelCallees, report, "load_shapes", map[string]string{circle + "#My::Shape::Circle::new": "qualified"})
 
-	// Modern.pm: $self in a block package reaches its attribute as a member;
+	// Modern.pm: $self in a block package reaches its attribute (a
+	// definition of the package, which only a package block encloses);
 	// a class's :isa reaches a class of another file by name.
-	e.want(codegraph.RelCallees, zoo, "Zoo::Animal::greet", map[string]string{zoo + "#Zoo::Animal::name": "name"})
+	e.want(codegraph.RelCallees, zoo, "Zoo::Animal::greet", map[string]string{zoo + "#Zoo::Animal::name": "exact"})
 	e.want(codegraph.RelImplementations, "lib/Zoo/Shape.pm", "Zoo::Shape", map[string]string{zoo + "#Zoo::Point": "name"})
 
 	// Several packages in one file.

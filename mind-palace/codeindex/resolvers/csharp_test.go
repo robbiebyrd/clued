@@ -400,7 +400,7 @@ func TestResolve_csharp(t *testing.T) {
 		{"Shared.cs", "Demo.Shared", "exact"},                     // an enclosing namespace
 		{"Global.cs", "GlobalThing", "exact"},                     // the global namespace
 		{"orders/Orders.cs", "Demo.Orders.OrderService", "exact"}, // using global::
-		{"ui/Form1.cs", "Demo.Ui.Form1", "name"},                  // two files' parts: the exported one
+		{"ui/Form1.cs", "Demo.Ui.Form1", "exact"},                 // two files' parts: one type, the exported part
 	} {
 		got := e.edges(codegraph.RelReferences, c.path, c.id, true)
 		if got[prog+"#"+main] != c.conf {
@@ -412,9 +412,10 @@ func TestResolve_csharp(t *testing.T) {
 	}
 
 	// Partial types: the constructor in Form1.cs reaches the private
-	// InitializeComponent of the Designer's part, and not Dialog's.
+	// InitializeComponent of the Designer's part (the enclosing type's
+	// other part), and not Dialog's.
 	csharpWant(t, "calls of the Form1 constructor", e.edges(codegraph.RelCallees, "ui/Form1.cs", "Demo.Ui.Form1.Form1", false), map[string]string{
-		"ui/Form1.Designer.cs#Demo.Ui.Form1.InitializeComponent": "name",
+		"ui/Form1.Designer.cs#Demo.Ui.Form1.InitializeComponent": "exact",
 	})
 	// Inside the Designer: Trace has two definitions (#if/#else); Add,
 	// through this.Controls (inherited from Form, outside the project),
