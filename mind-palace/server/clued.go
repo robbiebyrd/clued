@@ -164,6 +164,14 @@ type CluedOptions struct {
 	// project slug the request named (codeapi.Project) and the write
 	// (codeapi.Operation).
 	BeforeCodeWrite func(ctx context.Context, project string, bytes int64) error
+	// GitHubBacked, when set, is codeapi.Options.GitHubBacked: it reports
+	// whether the project of the namespaced key Code opens gets its pushed
+	// code from GitHub (a claimed, active installation of the GitHub App).
+	// The capabilities route then answers "github": true, and the code
+	// transport accepts clean, pushed entries without content (sha256 "")
+	// for that project. The context carries the principal and the project
+	// slug (codeapi.Project). Nil: no project is GitHub-backed.
+	GitHubBacked func(ctx context.Context, project string) bool
 	// CodeMaxFileBytes caps one blob of the code transport
 	// (codeapi.DefaultMaxFileBytes when zero); clients read it from the
 	// capabilities route.
@@ -313,6 +321,7 @@ func NewClued(opts CluedOptions) *Clued {
 				return ok && auth.AllowProject(p, project)
 			},
 			BeforeWrite:  opts.BeforeCodeWrite,
+			GitHubBacked: opts.GitHubBacked,
 			MaxFileBytes: opts.CodeMaxFileBytes,
 		})
 	}
