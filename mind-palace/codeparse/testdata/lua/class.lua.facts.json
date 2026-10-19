@@ -1,0 +1,548 @@
+{
+  "lang": "lua",
+  "symbols": [
+    {
+      "id": "Animal",
+      "kind": "module",
+      "name": "Animal",
+      "qualName": "Animal",
+      "signature": "local Animal = {}",
+      "doc": "Animal is the base class.",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 104
+      },
+      "end": {
+        "line": 4,
+        "column": 17,
+        "offset": 121
+      }
+    },
+    {
+      "id": "Animal.new",
+      "kind": "function",
+      "name": "new",
+      "qualName": "Animal.new",
+      "signature": "function Animal.new(name, sound)",
+      "doc": "Creates an animal called name.",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 182
+      },
+      "end": {
+        "line": 14,
+        "column": 3,
+        "offset": 345
+      },
+      "parent": "Animal",
+      "exported": true
+    },
+    {
+      "id": "Animal.speak",
+      "kind": "method",
+      "name": "speak",
+      "qualName": "Animal.speak",
+      "signature": "function Animal:speak()",
+      "doc": "Speak prints the animal's sound.",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 384
+      },
+      "end": {
+        "line": 20,
+        "column": 3,
+        "offset": 479
+      },
+      "parent": "Animal",
+      "exported": true
+    },
+    {
+      "id": "Animal.sound_of",
+      "kind": "method",
+      "name": "sound_of",
+      "qualName": "Animal.sound_of",
+      "signature": "function Animal:sound_of()",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 481
+      },
+      "end": {
+        "line": 24,
+        "column": 3,
+        "offset": 531
+      },
+      "parent": "Animal",
+      "exported": true
+    },
+    {
+      "id": "Dog",
+      "kind": "class",
+      "name": "Dog",
+      "qualName": "Dog",
+      "signature": "local Dog = setmetatable({}, { __index = Animal })",
+      "doc": "Dog extends Animal.",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 557
+      },
+      "end": {
+        "line": 27,
+        "column": 50,
+        "offset": 607
+      }
+    },
+    {
+      "id": "Dog.new",
+      "kind": "function",
+      "name": "new",
+      "qualName": "Dog.new",
+      "signature": "function Dog.new(name)",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 627
+      },
+      "end": {
+        "line": 33,
+        "column": 3,
+        "offset": 726
+      },
+      "parent": "Dog",
+      "exported": true
+    },
+    {
+      "id": "Dog.fetch",
+      "kind": "method",
+      "name": "fetch",
+      "qualName": "Dog.fetch",
+      "signature": "function Dog:fetch(thing)",
+      "start": {
+        "line": 35,
+        "column": 0,
+        "offset": 728
+      },
+      "end": {
+        "line": 38,
+        "column": 3,
+        "offset": 787
+      },
+      "parent": "Dog",
+      "exported": true
+    },
+    {
+      "id": "Cat",
+      "kind": "module",
+      "name": "Cat",
+      "qualName": "Cat",
+      "signature": "local Cat = {}",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 789
+      },
+      "end": {
+        "line": 40,
+        "column": 14,
+        "offset": 803
+      }
+    },
+    {
+      "id": "Cat.speak",
+      "kind": "method",
+      "name": "speak",
+      "qualName": "Cat.speak",
+      "signature": "function Cat:speak()",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 845
+      },
+      "end": {
+        "line": 45,
+        "column": 3,
+        "offset": 890
+      },
+      "parent": "Cat",
+      "exported": true
+    },
+    {
+      "id": "Puppy",
+      "kind": "class",
+      "name": "Puppy",
+      "qualName": "Puppy",
+      "signature": "local Puppy = setmetatable({}, { __index = base.Dog })",
+      "start": {
+        "line": 50,
+        "column": 0,
+        "offset": 970
+      },
+      "end": {
+        "line": 50,
+        "column": 54,
+        "offset": 1024
+      }
+    }
+  ],
+  "imports": [
+    {
+      "spec": "lib.base",
+      "alias": "base",
+      "kind": "require",
+      "start": {
+        "line": 49,
+        "column": 13,
+        "offset": 950
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Animal",
+      "kind": "type",
+      "start": {
+        "line": 9,
+        "column": 32,
+        "offset": 247
+      },
+      "enclosing": "Animal.new"
+    },
+    {
+      "name": "on_speak",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 18,
+        "column": 7,
+        "offset": 415
+      },
+      "enclosing": "Animal.speak"
+    },
+    {
+      "name": "sound_of",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 38,
+        "offset": 464
+      },
+      "enclosing": "Animal.speak"
+    },
+    {
+      "name": "Animal",
+      "kind": "extends",
+      "start": {
+        "line": 27,
+        "column": 41,
+        "offset": 598
+      },
+      "enclosing": "Dog"
+    },
+    {
+      "name": "new",
+      "qualifier": "Animal",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 22,
+        "offset": 672
+      },
+      "enclosing": "Dog.new"
+    },
+    {
+      "name": "Dog",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 28,
+        "offset": 718
+      },
+      "enclosing": "Dog.new"
+    },
+    {
+      "name": "speak",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 36,
+        "column": 7,
+        "offset": 761
+      },
+      "enclosing": "Dog.fetch"
+    },
+    {
+      "name": "Animal",
+      "kind": "extends",
+      "start": {
+        "line": 41,
+        "column": 30,
+        "offset": 834
+      }
+    },
+    {
+      "name": "speak",
+      "qualifier": "Animal",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 9,
+        "offset": 875
+      },
+      "enclosing": "Cat.speak"
+    },
+    {
+      "name": "new",
+      "qualifier": "Dog",
+      "kind": "call",
+      "start": {
+        "line": 47,
+        "column": 16,
+        "offset": 908
+      }
+    },
+    {
+      "name": "fetch",
+      "qualifier": "rex",
+      "kind": "call",
+      "start": {
+        "line": 48,
+        "column": 4,
+        "offset": 923
+      }
+    },
+    {
+      "name": "Dog",
+      "qualifier": "base",
+      "kind": "extends",
+      "start": {
+        "line": 50,
+        "column": 48,
+        "offset": 1018
+      },
+      "enclosing": "Puppy"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 5,
+        "column": 23,
+        "offset": 145
+      },
+      "text": "-- Classes the usual way: a table as metatable, __index for inheritance.\n\n--- Animal is the base class.\nlocal Animal = {}\nAnimal.__index = Animal",
+      "hash": "9b78cd05ca2d9166892556f1d826973393f662f3f7a74e3ef667ceb89464907b"
+    },
+    {
+      "id": "Animal.new#1",
+      "kind": "symbol",
+      "symbolId": "Animal.new",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 147
+      },
+      "end": {
+        "line": 14,
+        "column": 3,
+        "offset": 345
+      },
+      "text": "--- Creates an animal called name.\nfunction Animal.new(name, sound)\n  local self = setmetatable({}, Animal)\n  self.name = name\n  self.sound = sound\n  self.on_speak = function() end\n  return self\nend",
+      "hash": "3c3fc92bbdd6dfedb62ea741bf77e84752f51e588eaa81a7129c34141169fb0e"
+    },
+    {
+      "id": "Animal.speak#1",
+      "kind": "symbol",
+      "symbolId": "Animal.speak",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 347
+      },
+      "end": {
+        "line": 20,
+        "column": 3,
+        "offset": 479
+      },
+      "text": "--- Speak prints the animal's sound.\nfunction Animal:speak()\n  self.on_speak()\n  print(self.name .. \" says \" .. self:sound_of())\nend",
+      "hash": "f1f3dd08e104a72155464757bccf51765dae0cef620cacfefa2ffcb582fd9429"
+    },
+    {
+      "id": "Animal.sound_of#1",
+      "kind": "symbol",
+      "symbolId": "Animal.sound_of",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 481
+      },
+      "end": {
+        "line": 24,
+        "column": 3,
+        "offset": 531
+      },
+      "text": "function Animal:sound_of()\n  return self.sound\nend",
+      "hash": "8da235cc602023446e308142720959560f58dd34e388a88e4c6686d63c514fc9"
+    },
+    {
+      "id": "Dog#1",
+      "kind": "symbol",
+      "symbolId": "Dog",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 533
+      },
+      "end": {
+        "line": 27,
+        "column": 50,
+        "offset": 607
+      },
+      "text": "--- Dog extends Animal.\nlocal Dog = setmetatable({}, { __index = Animal })",
+      "hash": "c35202a65fa8cee38c8a8fb76fe016c4148c06a2da9fdcb18f85df5314f0e294"
+    },
+    {
+      "id": "L28#1",
+      "kind": "window",
+      "start": {
+        "line": 28,
+        "column": 0,
+        "offset": 608
+      },
+      "end": {
+        "line": 28,
+        "column": 17,
+        "offset": 625
+      },
+      "text": "Dog.__index = Dog",
+      "hash": "73015e484eda454536b9de993a8b7753f8228f13870fb1680b8c1fe521895854"
+    },
+    {
+      "id": "Dog.new#1",
+      "kind": "symbol",
+      "symbolId": "Dog.new",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 627
+      },
+      "end": {
+        "line": 33,
+        "column": 3,
+        "offset": 726
+      },
+      "text": "function Dog.new(name)\n  local self = Animal.new(name, \"woof\")\n  return setmetatable(self, Dog)\nend",
+      "hash": "01bcc0a4bd39855ca394aa812b0d2bc7b7aae593e8e0e0ffc9fb6307b4f6a108"
+    },
+    {
+      "id": "Dog.fetch#1",
+      "kind": "symbol",
+      "symbolId": "Dog.fetch",
+      "start": {
+        "line": 35,
+        "column": 0,
+        "offset": 728
+      },
+      "end": {
+        "line": 38,
+        "column": 3,
+        "offset": 787
+      },
+      "text": "function Dog:fetch(thing)\n  self:speak()\n  return thing\nend",
+      "hash": "e7496c8093157e0994d58eac7274af246715a86f3e27ea1fdc264b420bf2322f"
+    },
+    {
+      "id": "L40#1",
+      "kind": "window",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 789
+      },
+      "end": {
+        "line": 41,
+        "column": 39,
+        "offset": 843
+      },
+      "text": "local Cat = {}\nsetmetatable(Cat, { __index = Animal })",
+      "hash": "68bed0446d04db9890e7333e944ed9aeb65e493b233ff530fe005867e57e25dd"
+    },
+    {
+      "id": "Cat.speak#1",
+      "kind": "symbol",
+      "symbolId": "Cat.speak",
+      "start": {
+        "line": 43,
+        "column": 0,
+        "offset": 845
+      },
+      "end": {
+        "line": 45,
+        "column": 3,
+        "offset": 890
+      },
+      "text": "function Cat:speak()\n  Animal.speak(self)\nend",
+      "hash": "638a77def18152aedec0d2a03e2302c40b8763dffc20aea284ab6a7485355563"
+    },
+    {
+      "id": "L47#1",
+      "kind": "window",
+      "start": {
+        "line": 47,
+        "column": 0,
+        "offset": 892
+      },
+      "end": {
+        "line": 49,
+        "column": 32,
+        "offset": 969
+      },
+      "text": "local rex = Dog.new(\"Rex\")\nrex:fetch(\"ball\")\nlocal base = require(\"lib.base\")",
+      "hash": "21bedaeac0dcd1e6648bd4493dee21c7dd8c1fa9017b7b979d2717db23f2c8fa"
+    },
+    {
+      "id": "Puppy#1",
+      "kind": "symbol",
+      "symbolId": "Puppy",
+      "start": {
+        "line": 50,
+        "column": 0,
+        "offset": 970
+      },
+      "end": {
+        "line": 50,
+        "column": 54,
+        "offset": 1024
+      },
+      "text": "local Puppy = setmetatable({}, { __index = base.Dog })",
+      "hash": "b9a7187c9259cae463a59d57a7734cb70d36a2be3ce35044487c7102d68e65a0"
+    },
+    {
+      "id": "L52#1",
+      "kind": "window",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1026
+      },
+      "end": {
+        "line": 52,
+        "column": 63,
+        "offset": 1089
+      },
+      "text": "return { Animal = Animal, Dog = Dog, Cat = Cat, Puppy = Puppy }",
+      "hash": "2d57138dda051758d4ca600b434cd83816398119fd9f01d28fb9326a314af078"
+    }
+  ]
+}

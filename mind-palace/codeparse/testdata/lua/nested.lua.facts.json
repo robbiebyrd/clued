@@ -1,0 +1,598 @@
+{
+  "lang": "lua",
+  "symbols": [
+    {
+      "id": "app",
+      "kind": "module",
+      "name": "app",
+      "qualName": "app",
+      "signature": "local app = { handlers = {}, util = {} }",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 119
+      },
+      "end": {
+        "line": 4,
+        "column": 40,
+        "offset": 159
+      },
+      "exported": true
+    },
+    {
+      "id": "app.handlers",
+      "kind": "field",
+      "name": "handlers",
+      "qualName": "app.handlers",
+      "signature": "handlers = {}",
+      "start": {
+        "line": 4,
+        "column": 14,
+        "offset": 133
+      },
+      "end": {
+        "line": 4,
+        "column": 27,
+        "offset": 146
+      },
+      "parent": "app",
+      "exported": true
+    },
+    {
+      "id": "app.util",
+      "kind": "field",
+      "name": "util",
+      "qualName": "app.util",
+      "signature": "util = {}",
+      "start": {
+        "line": 4,
+        "column": 29,
+        "offset": 148
+      },
+      "end": {
+        "line": 4,
+        "column": 38,
+        "offset": 157
+      },
+      "parent": "app",
+      "exported": true
+    },
+    {
+      "id": "app.util.escape",
+      "kind": "function",
+      "name": "escape",
+      "qualName": "app.util.escape",
+      "signature": "function app.util.escape(s)",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 161
+      },
+      "end": {
+        "line": 10,
+        "column": 3,
+        "offset": 286
+      },
+      "exported": true
+    },
+    {
+      "id": "app.handlers.get",
+      "kind": "function",
+      "name": "get",
+      "qualName": "app.handlers.get",
+      "signature": "function app.handlers.get(req)",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 288
+      },
+      "end": {
+        "line": 18,
+        "column": 3,
+        "offset": 446
+      },
+      "exported": true
+    },
+    {
+      "id": "app.handlers.get.inner",
+      "kind": "function",
+      "name": "inner",
+      "qualName": "app.handlers.get.inner",
+      "signature": "local function inner(x)",
+      "start": {
+        "line": 13,
+        "column": 2,
+        "offset": 321
+      },
+      "end": {
+        "line": 16,
+        "column": 5,
+        "offset": 417
+      },
+      "parent": "app.handlers.get"
+    },
+    {
+      "id": "app.handlers.get.inner.innermost",
+      "kind": "function",
+      "name": "innermost",
+      "qualName": "app.handlers.get.inner.innermost",
+      "signature": "local function innermost()",
+      "start": {
+        "line": 14,
+        "column": 4,
+        "offset": 349
+      },
+      "end": {
+        "line": 14,
+        "column": 43,
+        "offset": 388
+      },
+      "parent": "app.handlers.get.inner"
+    },
+    {
+      "id": "ops",
+      "kind": "module",
+      "name": "ops",
+      "qualName": "ops",
+      "signature": "local ops =",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 757
+      },
+      "end": {
+        "line": 40,
+        "column": 1,
+        "offset": 915
+      }
+    },
+    {
+      "id": "ops.add",
+      "kind": "function",
+      "name": "add",
+      "qualName": "ops.add",
+      "signature": "add = function(a, b) return a + b end",
+      "start": {
+        "line": 35,
+        "column": 2,
+        "offset": 773
+      },
+      "end": {
+        "line": 35,
+        "column": 39,
+        "offset": 810
+      },
+      "parent": "ops",
+      "exported": true
+    },
+    {
+      "id": "ops.sub",
+      "kind": "function",
+      "name": "sub",
+      "qualName": "ops.sub",
+      "signature": "sub = function(a, b) return a - b end",
+      "start": {
+        "line": 36,
+        "column": 2,
+        "offset": 814
+      },
+      "end": {
+        "line": 36,
+        "column": 39,
+        "offset": 851
+      },
+      "parent": "ops",
+      "exported": true
+    },
+    {
+      "id": "ops.nested",
+      "kind": "field",
+      "name": "nested",
+      "qualName": "ops.nested",
+      "signature": "nested =",
+      "start": {
+        "line": 37,
+        "column": 2,
+        "offset": 855
+      },
+      "end": {
+        "line": 39,
+        "column": 3,
+        "offset": 912
+      },
+      "parent": "ops",
+      "exported": true
+    },
+    {
+      "id": "ops.nested.mul",
+      "kind": "function",
+      "name": "mul",
+      "qualName": "ops.nested.mul",
+      "signature": "mul = function(a, b) return a * b end",
+      "start": {
+        "line": 38,
+        "column": 4,
+        "offset": 870
+      },
+      "end": {
+        "line": 38,
+        "column": 41,
+        "offset": 907
+      },
+      "parent": "ops.nested",
+      "exported": true
+    },
+    {
+      "id": "loop",
+      "kind": "function",
+      "name": "loop",
+      "qualName": "loop",
+      "signature": "local function loop(n)",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 917
+      },
+      "end": {
+        "line": 50,
+        "column": 3,
+        "offset": 1068
+      }
+    },
+    {
+      "id": "obj",
+      "kind": "module",
+      "name": "obj",
+      "qualName": "obj",
+      "signature": "local obj = { value = 1 }",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1070
+      },
+      "end": {
+        "line": 52,
+        "column": 25,
+        "offset": 1095
+      }
+    },
+    {
+      "id": "obj.value",
+      "kind": "field",
+      "name": "value",
+      "qualName": "obj.value",
+      "signature": "value = 1",
+      "start": {
+        "line": 52,
+        "column": 14,
+        "offset": 1084
+      },
+      "end": {
+        "line": 52,
+        "column": 23,
+        "offset": 1093
+      },
+      "parent": "obj",
+      "exported": true
+    },
+    {
+      "id": "obj.get",
+      "kind": "method",
+      "name": "get",
+      "qualName": "obj.get",
+      "signature": "function obj:get()",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1096
+      },
+      "end": {
+        "line": 53,
+        "column": 40,
+        "offset": 1136
+      },
+      "parent": "obj",
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "gsub",
+      "qualifier": "s",
+      "kind": "call",
+      "start": {
+        "line": 7,
+        "column": 12,
+        "offset": 201
+      },
+      "enclosing": "app.util.escape"
+    },
+    {
+      "name": "format",
+      "qualifier": "string",
+      "kind": "call",
+      "start": {
+        "line": 8,
+        "column": 18,
+        "offset": 248
+      },
+      "enclosing": "app.util.escape"
+    },
+    {
+      "name": "byte",
+      "qualifier": "c",
+      "kind": "call",
+      "start": {
+        "line": 8,
+        "column": 37,
+        "offset": 267
+      },
+      "enclosing": "app.util.escape"
+    },
+    {
+      "name": "innermost",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 11,
+        "offset": 400
+      },
+      "enclosing": "app.handlers.get.inner"
+    },
+    {
+      "name": "inner",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 9,
+        "offset": 427
+      },
+      "enclosing": "app.handlers.get"
+    },
+    {
+      "name": "get",
+      "qualifier": "app.handlers",
+      "kind": "call",
+      "start": {
+        "line": 30,
+        "column": 24,
+        "offset": 737
+      }
+    },
+    {
+      "name": "mul",
+      "qualifier": "ops.nested",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 20,
+        "offset": 1033
+      },
+      "enclosing": "loop"
+    },
+    {
+      "name": "add",
+      "qualifier": "ops",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 31,
+        "offset": 1044
+      },
+      "enclosing": "loop"
+    },
+    {
+      "name": "get",
+      "qualifier": "obj",
+      "kind": "call",
+      "start": {
+        "line": 54,
+        "column": 10,
+        "offset": 1147
+      }
+    },
+    {
+      "name": "loop",
+      "kind": "call",
+      "start": {
+        "line": 54,
+        "column": 17,
+        "offset": 1154
+      }
+    },
+    {
+      "name": "escape",
+      "qualifier": "app.util",
+      "kind": "call",
+      "start": {
+        "line": 54,
+        "column": 35,
+        "offset": 1172
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 4,
+        "column": 40,
+        "offset": 159
+      },
+      "text": "-- Awkward cases: nested tables, deep field paths, closures, long strings,\n-- goto and a generated table of handlers.\n\nlocal app = { handlers = {}, util = {} }",
+      "hash": "a54827f8de74ef5d2c453c09ee1d1dc422dc6c70d70f3f9099358ad284faa3c2"
+    },
+    {
+      "id": "app.util.escape#1",
+      "kind": "symbol",
+      "symbolId": "app.util.escape",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 161
+      },
+      "end": {
+        "line": 10,
+        "column": 3,
+        "offset": 286
+      },
+      "text": "function app.util.escape(s)\n  return (s:gsub(\"[%c\\\"\\\\]\", function(c)\n    return string.format(\"\\\\%03d\", c:byte())\n  end))\nend",
+      "hash": "bdd8ce01db6d8c850495968467e0c1132518e8003f1c65a8de0cf2508ca570bf"
+    },
+    {
+      "id": "app.handlers.get#1",
+      "kind": "symbol",
+      "symbolId": "app.handlers.get",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 288
+      },
+      "end": {
+        "line": 18,
+        "column": 3,
+        "offset": 446
+      },
+      "text": "function app.handlers.get(req)\n  local function inner(x)\n    local function innermost() return x end\n    return innermost()\n  end\n  return inner(req.path)\nend",
+      "hash": "5635202c4a77daf04d18a5e0b9b8a924e0dc51b6f0ac08523ad114183a50aa1d"
+    },
+    {
+      "id": "L20#1",
+      "kind": "window",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 448
+      },
+      "end": {
+        "line": 34,
+        "column": 13,
+        "offset": 770
+      },
+      "text": "app.handlers[\"post\"] = function(req) return req end\n\nlocal template = [==[\nfunction not_a_function() end\nlocal x = require(\"not.an.import\")\n]==]\n\n-- Generated: one handler per verb.\nfor _, verb in ipairs({ \"put\", \"delete\" }) do\n  app.handlers[verb] = function(req)\n    return app.handlers.get(req)\n  end\nend\n\nlocal ops = {",
+      "hash": "20ed94197c2a2cb3bb62001ca9b72274e3f56c9c48e40ac168ee4cca6a198e7e"
+    },
+    {
+      "id": "ops.add#1",
+      "kind": "symbol",
+      "symbolId": "ops.add",
+      "start": {
+        "line": 35,
+        "column": 0,
+        "offset": 771
+      },
+      "end": {
+        "line": 35,
+        "column": 39,
+        "offset": 810
+      },
+      "text": "  add = function(a, b) return a + b end",
+      "hash": "a86040137534288c931f5c04fbf768c7b66d3c7c49b99942b4267a4ae0ea98d5"
+    },
+    {
+      "id": "ops.sub#1",
+      "kind": "symbol",
+      "symbolId": "ops.sub",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 812
+      },
+      "end": {
+        "line": 36,
+        "column": 39,
+        "offset": 851
+      },
+      "text": "  sub = function(a, b) return a - b end",
+      "hash": "6c74c5b144058af6c4bbf91974ee8ed059f6b055f620cca7fda249eee3d63cba"
+    },
+    {
+      "id": "L37#1",
+      "kind": "window",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 853
+      },
+      "end": {
+        "line": 40,
+        "column": 1,
+        "offset": 915
+      },
+      "text": "  nested = {\n    mul = function(a, b) return a * b end,\n  },\n}",
+      "hash": "fd355962ce8f3e1ab99d28b5a9e4f30cdbf5975b0cec6165e3adbad892927519"
+    },
+    {
+      "id": "loop#1",
+      "kind": "symbol",
+      "symbolId": "loop",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 917
+      },
+      "end": {
+        "line": 50,
+        "column": 3,
+        "offset": 1068
+      },
+      "text": "local function loop(n)\n  local i = 1\n  ::top::\n  if i \u003c n then\n    i = i + 1\n    goto top\n  end\n  return ops.nested.mul(i, ops.add(1, 2)), template\nend",
+      "hash": "ef4473ed3c454d9e7d860fdb31877a196adecf76d859400f1e80a211bf9652a1"
+    },
+    {
+      "id": "L52#1",
+      "kind": "window",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1070
+      },
+      "end": {
+        "line": 52,
+        "column": 25,
+        "offset": 1095
+      },
+      "text": "local obj = { value = 1 }",
+      "hash": "f9fdc51d4bb586214982623bf354a1bcfc734538c3e09d8f09abdee24a0fcbe5"
+    },
+    {
+      "id": "obj.get#1",
+      "kind": "symbol",
+      "symbolId": "obj.get",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1096
+      },
+      "end": {
+        "line": 53,
+        "column": 40,
+        "offset": 1136
+      },
+      "text": "function obj:get() return self.value end",
+      "hash": "a9a3f494d829a7968f6e384eb4eb7ef8286e3a2f92267731ffc9e8ac8e51618e"
+    },
+    {
+      "id": "L54#1",
+      "kind": "window",
+      "start": {
+        "line": 54,
+        "column": 0,
+        "offset": 1137
+      },
+      "end": {
+        "line": 56,
+        "column": 10,
+        "offset": 1198
+      },
+      "text": "print(obj:get(), loop(3), app.util.escape(\"a\\n\"))\n\nreturn app",
+      "hash": "10c9a36044ec6e59c8dd2b725502b3e5def943534be96ba8ab667445928bf90f"
+    }
+  ]
+}

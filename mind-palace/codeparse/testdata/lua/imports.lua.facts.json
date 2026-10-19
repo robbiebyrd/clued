@@ -1,0 +1,273 @@
+{
+  "lang": "lua",
+  "symbols": [
+    {
+      "id": "fetch",
+      "kind": "function",
+      "name": "fetch",
+      "qualName": "fetch",
+      "signature": "local function fetch(url)",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 401
+      },
+      "end": {
+        "line": 23,
+        "column": 3,
+        "offset": 577
+      }
+    }
+  ],
+  "imports": [
+    {
+      "spec": "busted.runner",
+      "kind": "require",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 42
+      }
+    },
+    {
+      "spec": "luarocks.loader",
+      "kind": "require",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 66
+      }
+    },
+    {
+      "spec": "strict",
+      "kind": "require",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 93
+      }
+    },
+    {
+      "spec": "cjson",
+      "alias": "json",
+      "kind": "require",
+      "start": {
+        "line": 6,
+        "column": 13,
+        "offset": 124
+      }
+    },
+    {
+      "spec": "socket",
+      "alias": "socket",
+      "kind": "require",
+      "start": {
+        "line": 7,
+        "column": 15,
+        "offset": 156
+      }
+    },
+    {
+      "spec": "socket.http",
+      "alias": "http",
+      "kind": "require",
+      "start": {
+        "line": 8,
+        "column": 13,
+        "offset": 186
+      }
+    },
+    {
+      "spec": "table",
+      "alias": "insert",
+      "names": [
+        "insert"
+      ],
+      "kind": "require",
+      "start": {
+        "line": 9,
+        "column": 15,
+        "offset": 224
+      }
+    },
+    {
+      "spec": "lpeg",
+      "alias": "lpeg",
+      "kind": "require",
+      "start": {
+        "line": 10,
+        "column": 17,
+        "offset": 265
+      }
+    },
+    {
+      "spec": "re",
+      "kind": "require",
+      "start": {
+        "line": 10,
+        "column": 34,
+        "offset": 282
+      }
+    },
+    {
+      "spec": "lfs",
+      "kind": "require",
+      "start": {
+        "line": 12,
+        "column": 16,
+        "offset": 313
+      }
+    },
+    {
+      "spec": "config.lua",
+      "kind": "include",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 336
+      }
+    },
+    {
+      "spec": "plugins/init.lua",
+      "kind": "include",
+      "start": {
+        "line": 15,
+        "column": 14,
+        "offset": 371
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "request",
+      "qualifier": "http",
+      "kind": "call",
+      "start": {
+        "line": 18,
+        "column": 26,
+        "offset": 453
+      },
+      "enclosing": "fetch"
+    },
+    {
+      "name": "decode",
+      "qualifier": "json",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 14,
+        "offset": 561
+      },
+      "enclosing": "fetch"
+    },
+    {
+      "name": "fetch",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 13,
+        "offset": 592
+      }
+    },
+    {
+      "name": "insert",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 631
+      }
+    },
+    {
+      "name": "gettime",
+      "qualifier": "socket",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 20,
+        "offset": 651
+      }
+    },
+    {
+      "name": "match",
+      "qualifier": "lpeg",
+      "kind": "call",
+      "start": {
+        "line": 27,
+        "column": 11,
+        "offset": 673
+      }
+    },
+    {
+      "name": "compile",
+      "qualifier": "re",
+      "kind": "call",
+      "start": {
+        "line": 27,
+        "column": 20,
+        "offset": 682
+      }
+    },
+    {
+      "name": "currentdir",
+      "qualifier": "lfs",
+      "kind": "call",
+      "start": {
+        "line": 27,
+        "column": 55,
+        "offset": 717
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 15,
+        "column": 42,
+        "offset": 399
+      },
+      "text": "-- Every way a Lua file pulls in another.\nrequire \"busted.runner\"\nrequire(\"luarocks.loader\")\nrequire 'strict'\n\nlocal json = require(\"cjson\")\nlocal socket = require \"socket\"\nlocal http = require(\"socket.http\")\nlocal insert = require(\"table\").insert\nlocal lpeg, re = require(\"lpeg\"), require(\"re\")\n\nlocal ok, lfs = pcall(require, \"lfs\")\n\ndofile(\"config.lua\")\nlocal chunk = loadfile(\"plugins/init.lua\")",
+      "hash": "f3217145e32ee7b1ab83a7f4e3b3769b76cf0f09fa80aca88520eb335db86e13"
+    },
+    {
+      "id": "fetch#1",
+      "kind": "symbol",
+      "symbolId": "fetch",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 401
+      },
+      "end": {
+        "line": 23,
+        "column": 3,
+        "offset": 577
+      },
+      "text": "local function fetch(url)\n  local body, code = http.request(url)\n  if code ~= 200 then\n    error(\"fetch \" .. url .. \": \" .. tostring(code))\n  end\n  return json.decode(body)\nend",
+      "hash": "2a8e95a0b001d5f88a162cbe24e4f6f6e25c78edb148f63f39e748c4466dbba0"
+    },
+    {
+      "id": "L25#1",
+      "kind": "window",
+      "start": {
+        "line": 25,
+        "column": 0,
+        "offset": 579
+      },
+      "end": {
+        "line": 27,
+        "column": 75,
+        "offset": 737
+      },
+      "text": "local data = fetch(\"https://example.com/data.json\")\ninsert(data, socket.gettime())\nprint(lpeg.match(re.compile(\"%a+\"), \"abc\"), ok and lfs.currentdir(), chunk)",
+      "hash": "908a69f0f684252e9c7ee3674dd372f4d742fd618442b7239ef8d255c873b1c4"
+    }
+  ]
+}
