@@ -3,11 +3,12 @@ id: 0092-y8g
 title: Extraction for Dart (and Flutter)
 purpose: 'Adds Dart (and Flutter) to the indexer: files .dart.'
 type: feat
-status: ready
+status: in_progress
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:52.472Z"
-updated: "2026-10-19T18:30:09.197Z"
+updated: "2026-10-19T20:46:58.743Z"
+started: "2026-10-19T20:46:54.950Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,7 +34,7 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
     status: pending
   "3":

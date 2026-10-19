@@ -1,0 +1,300 @@
+{
+  "lang": "dart",
+  "symbols": [
+    {
+      "id": "Greeting",
+      "kind": "class",
+      "name": "Greeting",
+      "qualName": "Greeting",
+      "signature": "class Greeting extends StatelessWidget",
+      "doc": "Still found: the class before the error.",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 85
+      },
+      "end": {
+        "line": 9,
+        "column": 1,
+        "offset": 232
+      },
+      "exported": true
+    },
+    {
+      "id": "Greeting.Greeting",
+      "kind": "constructor",
+      "name": "Greeting",
+      "qualName": "Greeting.Greeting",
+      "signature": "const Greeting({super.key})",
+      "start": {
+        "line": 5,
+        "column": 2,
+        "offset": 128
+      },
+      "end": {
+        "line": 5,
+        "column": 29,
+        "offset": 155
+      },
+      "parent": "Greeting",
+      "exported": true
+    },
+    {
+      "id": "Greeting.build",
+      "kind": "method",
+      "name": "build",
+      "qualName": "Greeting.build",
+      "signature": "Widget build(BuildContext context)",
+      "start": {
+        "line": 8,
+        "column": 37,
+        "offset": 207
+      },
+      "end": {
+        "line": 8,
+        "column": 60,
+        "offset": 230
+      },
+      "parent": "Greeting",
+      "exported": true
+    },
+    {
+      "id": "Broken",
+      "kind": "class",
+      "name": "Broken",
+      "qualName": "Broken",
+      "signature": "class Broken",
+      "doc": "The error is inside half's body: the operand after + is missing.",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 303
+      },
+      "end": {
+        "line": 20,
+        "column": 1,
+        "offset": 451
+      },
+      "exported": true
+    },
+    {
+      "id": "Broken.half",
+      "kind": "method",
+      "name": "half",
+      "qualName": "Broken.half",
+      "signature": "void half()",
+      "start": {
+        "line": 13,
+        "column": 14,
+        "offset": 332
+      },
+      "end": {
+        "line": 16,
+        "column": 3,
+        "offset": 378
+      },
+      "parent": "Broken",
+      "exported": true
+    },
+    {
+      "id": "Broken.value",
+      "kind": "property",
+      "name": "value",
+      "qualName": "Broken.value",
+      "signature": "int get value",
+      "doc": "Still found: the getter after the error.",
+      "start": {
+        "line": 19,
+        "column": 16,
+        "offset": 443
+      },
+      "end": {
+        "line": 19,
+        "column": 22,
+        "offset": 449
+      },
+      "parent": "Broken",
+      "exported": true
+    },
+    {
+      "id": "answer",
+      "kind": "function",
+      "name": "answer",
+      "qualName": "answer",
+      "signature": "int answer()",
+      "doc": "Still found: the function after the error.",
+      "start": {
+        "line": 23,
+        "column": 13,
+        "offset": 513
+      },
+      "end": {
+        "line": 23,
+        "column": 30,
+        "offset": 530
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "package:flutter/widgets.dart",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "StatelessWidget",
+      "kind": "extends",
+      "start": {
+        "line": 4,
+        "column": 23,
+        "offset": 108
+      },
+      "enclosing": "Greeting"
+    },
+    {
+      "name": "StatelessWidget",
+      "kind": "type",
+      "start": {
+        "line": 4,
+        "column": 23,
+        "offset": 108
+      },
+      "enclosing": "Greeting"
+    },
+    {
+      "name": "Widget",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 2,
+        "offset": 172
+      },
+      "enclosing": "Greeting"
+    },
+    {
+      "name": "BuildContext",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 15,
+        "offset": 185
+      },
+      "enclosing": "Greeting"
+    },
+    {
+      "name": "Text",
+      "kind": "call",
+      "start": {
+        "line": 8,
+        "column": 46,
+        "offset": 216
+      },
+      "enclosing": "Greeting.build"
+    },
+    {
+      "name": "Text",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 46,
+        "offset": 216
+      },
+      "enclosing": "Greeting.build"
+    },
+    {
+      "name": "show",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 4,
+        "offset": 362
+      },
+      "enclosing": "Broken.half"
+    },
+    {
+      "name": "compute",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 16,
+        "offset": 516
+      },
+      "enclosing": "answer"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 1,
+        "column": 38,
+        "offset": 38
+      },
+      "text": "import 'package:flutter/widgets.dart';",
+      "hash": "dafc9301133983056824d63c082cd27443f2d73158b38fc98dc7c7c06379e754"
+    },
+    {
+      "id": "Greeting#1",
+      "kind": "symbol",
+      "symbolId": "Greeting",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 40
+      },
+      "end": {
+        "line": 9,
+        "column": 1,
+        "offset": 232
+      },
+      "text": "/// Still found: the class before the error.\nclass Greeting extends StatelessWidget {\n  const Greeting({super.key});\n\n  @override\n  Widget build(BuildContext context) =\u003e const Text('hello');\n}",
+      "hash": "74a45479d6eab436f9ed62b60d1d996af8a8707a34d2c55bdaf31e0f90160fad"
+    },
+    {
+      "id": "Broken#1",
+      "kind": "symbol",
+      "symbolId": "Broken",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 234
+      },
+      "end": {
+        "line": 20,
+        "column": 1,
+        "offset": 451
+      },
+      "text": "/// The error is inside half's body: the operand after + is missing.\nclass Broken {\n  void half() {\n    final total = 1 + ;\n    show(total);\n  }\n\n  /// Still found: the getter after the error.\n  int get value =\u003e 42;\n}",
+      "hash": "630d2ef2f4550ce9ae8a4e96e3f5f2a1e732431e4c6a93ea777c052bbdae4a63"
+    },
+    {
+      "id": "answer#1",
+      "kind": "symbol",
+      "symbolId": "answer",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 453
+      },
+      "end": {
+        "line": 23,
+        "column": 30,
+        "offset": 530
+      },
+      "text": "/// Still found: the function after the error.\nint answer() =\u003e compute(6, 7);",
+      "hash": "5eae33cdd25576980a0ed9477d0d623a23ea916eed70bbaea7b41a8e097d0062"
+    }
+  ]
+}
