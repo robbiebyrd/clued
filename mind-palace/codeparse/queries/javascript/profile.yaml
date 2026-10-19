@@ -1,0 +1,21 @@
+# JavaScript: ES modules and CommonJS. A file is its own module (no
+# package clause); names are exported by `export` or by assignment to
+# `exports.x` / `module.exports.x`, which the query captures as
+# @exported. The jsts family resolver (shared with TypeScript) reads the
+# options: import kinds are "import" and "export" (ES, `export ... from`),
+# "require" (CommonJS) and "dynamic" (`import()`); a relative spec is
+# resolved against the importing file's directory, trying the extensions
+# in order and then the directory's index file; any other spec is a
+# package (node_modules, or the package.json "exports" map).
+name: JavaScript
+family: jsts
+extensions: [.js, .mjs, .cjs, .jsx]
+query: tags.scm
+scope:
+  separators: ["."]
+  packageBy: file
+  exported: declared
+  options:
+    moduleSystems: "esm,commonjs"
+    resolveExtensions: ".js,.mjs,.cjs,.jsx,.json"
+    indexFile: "index"

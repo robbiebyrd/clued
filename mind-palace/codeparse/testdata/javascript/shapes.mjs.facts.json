@@ -1,0 +1,1087 @@
+{
+  "lang": "javascript",
+  "symbols": [
+    {
+      "id": "PRECISION",
+      "kind": "const",
+      "name": "PRECISION",
+      "qualName": "PRECISION",
+      "signature": "PRECISION = 2",
+      "doc": "The default precision of every area, in decimal places.",
+      "start": {
+        "line": 7,
+        "column": 13,
+        "offset": 236
+      },
+      "end": {
+        "line": 7,
+        "column": 26,
+        "offset": 249
+      },
+      "exported": true
+    },
+    {
+      "id": "created",
+      "kind": "var",
+      "name": "created",
+      "qualName": "created",
+      "signature": "created = 0",
+      "doc": "How many shapes were made; not exported.",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 304
+      },
+      "end": {
+        "line": 10,
+        "column": 15,
+        "offset": 315
+      }
+    },
+    {
+      "id": "registry",
+      "kind": "var",
+      "name": "registry",
+      "qualName": "registry",
+      "signature": "registry = new Map()",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 322
+      },
+      "end": {
+        "line": 12,
+        "column": 24,
+        "offset": 342
+      }
+    },
+    {
+      "id": "Shape",
+      "kind": "class",
+      "name": "Shape",
+      "qualName": "Shape",
+      "signature": "class Shape extends EventEmitter",
+      "doc": "Shape is the base of every shape.\nIt counts the shapes it makes.",
+      "start": {
+        "line": 18,
+        "column": 7,
+        "offset": 431
+      },
+      "end": {
+        "line": 64,
+        "column": 1,
+        "offset": 1221
+      },
+      "exported": true
+    },
+    {
+      "id": "Shape.name",
+      "kind": "field",
+      "name": "name",
+      "qualName": "Shape.name",
+      "signature": "name = 'shape'",
+      "doc": "The shape's name.",
+      "start": {
+        "line": 20,
+        "column": 2,
+        "offset": 495
+      },
+      "end": {
+        "line": 20,
+        "column": 16,
+        "offset": 509
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.#count",
+      "kind": "field",
+      "name": "#count",
+      "qualName": "Shape.#count",
+      "signature": "static #count = 0",
+      "start": {
+        "line": 21,
+        "column": 2,
+        "offset": 513
+      },
+      "end": {
+        "line": 21,
+        "column": 19,
+        "offset": 530
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.#id",
+      "kind": "field",
+      "name": "#id",
+      "qualName": "Shape.#id",
+      "signature": "#id",
+      "start": {
+        "line": 22,
+        "column": 2,
+        "offset": 534
+      },
+      "end": {
+        "line": 22,
+        "column": 5,
+        "offset": 537
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.constructor",
+      "kind": "method",
+      "name": "constructor",
+      "qualName": "Shape.constructor",
+      "signature": "constructor(name)",
+      "start": {
+        "line": 24,
+        "column": 2,
+        "offset": 542
+      },
+      "end": {
+        "line": 29,
+        "column": 3,
+        "offset": 646
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "Shape.area",
+      "signature": "area()",
+      "doc": "Area of the shape; subclasses override it.",
+      "start": {
+        "line": 32,
+        "column": 2,
+        "offset": 702
+      },
+      "end": {
+        "line": 34,
+        "column": 3,
+        "offset": 754
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.id",
+      "kind": "method",
+      "name": "id",
+      "qualName": "Shape.id",
+      "signature": "get id()",
+      "start": {
+        "line": 36,
+        "column": 2,
+        "offset": 758
+      },
+      "end": {
+        "line": 38,
+        "column": 3,
+        "offset": 793
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.label",
+      "kind": "method",
+      "name": "label",
+      "qualName": "Shape.label",
+      "signature": "set label(value)",
+      "start": {
+        "line": 40,
+        "column": 2,
+        "offset": 797
+      },
+      "end": {
+        "line": 42,
+        "column": 3,
+        "offset": 850
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.create",
+      "kind": "method",
+      "name": "create",
+      "qualName": "Shape.create",
+      "signature": "static create(kind, ...args)",
+      "start": {
+        "line": 44,
+        "column": 2,
+        "offset": 854
+      },
+      "end": {
+        "line": 46,
+        "column": 3,
+        "offset": 925
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.#describe",
+      "kind": "method",
+      "name": "#describe",
+      "qualName": "Shape.#describe",
+      "signature": "#describe()",
+      "start": {
+        "line": 48,
+        "column": 2,
+        "offset": 929
+      },
+      "end": {
+        "line": 50,
+        "column": 3,
+        "offset": 986
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.toString",
+      "kind": "method",
+      "name": "toString",
+      "qualName": "Shape.toString",
+      "signature": "toString()",
+      "start": {
+        "line": 52,
+        "column": 2,
+        "offset": 990
+      },
+      "end": {
+        "line": 54,
+        "column": 3,
+        "offset": 1035
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.onResize",
+      "kind": "method",
+      "name": "onResize",
+      "qualName": "Shape.onResize",
+      "signature": "onResize = (event) =\u003e",
+      "doc": "An arrow function in a field is a method bound to the instance.",
+      "start": {
+        "line": 57,
+        "column": 2,
+        "offset": 1108
+      },
+      "end": {
+        "line": 59,
+        "column": 3,
+        "offset": 1167
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Shape.[Symbol.iterator]",
+      "kind": "method",
+      "name": "[Symbol.iterator]",
+      "qualName": "Shape.[Symbol.iterator]",
+      "signature": "*[Symbol.iterator]()",
+      "start": {
+        "line": 61,
+        "column": 2,
+        "offset": 1172
+      },
+      "end": {
+        "line": 63,
+        "column": 3,
+        "offset": 1219
+      },
+      "parent": "Shape"
+    },
+    {
+      "id": "Circle",
+      "kind": "class",
+      "name": "Circle",
+      "qualName": "Circle",
+      "signature": "class Circle extends Shape",
+      "doc": "A circle of radius r.",
+      "start": {
+        "line": 67,
+        "column": 7,
+        "offset": 1259
+      },
+      "end": {
+        "line": 76,
+        "column": 1,
+        "offset": 1406
+      },
+      "exported": true
+    },
+    {
+      "id": "Circle.constructor",
+      "kind": "method",
+      "name": "constructor",
+      "qualName": "Circle.constructor",
+      "signature": "constructor(r)",
+      "start": {
+        "line": 68,
+        "column": 2,
+        "offset": 1290
+      },
+      "end": {
+        "line": 71,
+        "column": 3,
+        "offset": 1347
+      },
+      "parent": "Circle"
+    },
+    {
+      "id": "Circle.area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "Circle.area",
+      "signature": "area()",
+      "start": {
+        "line": 73,
+        "column": 2,
+        "offset": 1351
+      },
+      "end": {
+        "line": 75,
+        "column": 3,
+        "offset": 1404
+      },
+      "parent": "Circle"
+    },
+    {
+      "id": "Square",
+      "kind": "class",
+      "name": "Square",
+      "qualName": "Square",
+      "signature": "class Square extends geometry.Polygon",
+      "start": {
+        "line": 78,
+        "column": 0,
+        "offset": 1408
+      },
+      "end": {
+        "line": 82,
+        "column": 1,
+        "offset": 1511
+      }
+    },
+    {
+      "id": "Square.area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "Square.area",
+      "signature": "area()",
+      "start": {
+        "line": 79,
+        "column": 2,
+        "offset": 1450
+      },
+      "end": {
+        "line": 81,
+        "column": 3,
+        "offset": 1509
+      },
+      "parent": "Square"
+    },
+    {
+      "id": "kinds",
+      "kind": "const",
+      "name": "kinds",
+      "qualName": "kinds",
+      "signature": "kinds = { circle: Circle, square: Square }",
+      "start": {
+        "line": 84,
+        "column": 6,
+        "offset": 1519
+      },
+      "end": {
+        "line": 84,
+        "column": 48,
+        "offset": 1561
+      }
+    },
+    {
+      "id": "round",
+      "kind": "function",
+      "name": "round",
+      "qualName": "round",
+      "signature": "function round(x)",
+      "doc": "Rounds x to PRECISION places.",
+      "start": {
+        "line": 87,
+        "column": 7,
+        "offset": 1608
+      },
+      "end": {
+        "line": 90,
+        "column": 1,
+        "offset": 1690
+      },
+      "exported": true
+    },
+    {
+      "id": "load",
+      "kind": "function",
+      "name": "load",
+      "qualName": "load",
+      "signature": "async function load(url)",
+      "start": {
+        "line": 92,
+        "column": 7,
+        "offset": 1699
+      },
+      "end": {
+        "line": 95,
+        "column": 1,
+        "offset": 1793
+      },
+      "exported": true
+    },
+    {
+      "id": "ids",
+      "kind": "function",
+      "name": "ids",
+      "qualName": "ids",
+      "signature": "function* ids(start = 0)",
+      "start": {
+        "line": 97,
+        "column": 0,
+        "offset": 1795
+      },
+      "end": {
+        "line": 100,
+        "column": 1,
+        "offset": 1866
+      }
+    },
+    {
+      "id": "parse",
+      "kind": "function",
+      "name": "parse",
+      "qualName": "parse",
+      "signature": "parse = (items) =\u003e items.map((it) =\u003e Shape.create(it.kind, it.size))",
+      "doc": "Parses a list of shape descriptions.",
+      "start": {
+        "line": 103,
+        "column": 6,
+        "offset": 1918
+      },
+      "end": {
+        "line": 103,
+        "column": 74,
+        "offset": 1986
+      }
+    },
+    {
+      "id": "total",
+      "kind": "function",
+      "name": "total",
+      "qualName": "total",
+      "signature": "total = function (shapes)",
+      "start": {
+        "line": 105,
+        "column": 13,
+        "offset": 2002
+      },
+      "end": {
+        "line": 107,
+        "column": 1,
+        "offset": 2086
+      },
+      "exported": true
+    },
+    {
+      "id": "Unit",
+      "kind": "class",
+      "name": "Unit",
+      "qualName": "Unit",
+      "signature": "Unit = class",
+      "start": {
+        "line": 109,
+        "column": 13,
+        "offset": 2102
+      },
+      "end": {
+        "line": 113,
+        "column": 1,
+        "offset": 2147
+      },
+      "exported": true
+    },
+    {
+      "id": "Unit.area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "Unit.area",
+      "signature": "area()",
+      "start": {
+        "line": 110,
+        "column": 2,
+        "offset": 2119
+      },
+      "end": {
+        "line": 112,
+        "column": 3,
+        "offset": 2145
+      },
+      "parent": "Unit"
+    },
+    {
+      "id": "counter",
+      "kind": "var",
+      "name": "counter",
+      "qualName": "counter",
+      "signature": "counter = 0",
+      "start": {
+        "line": 115,
+        "column": 11,
+        "offset": 2161
+      },
+      "end": {
+        "line": 115,
+        "column": 22,
+        "offset": 2172
+      },
+      "exported": true
+    },
+    {
+      "id": "limit",
+      "kind": "var",
+      "name": "limit",
+      "qualName": "limit",
+      "signature": "limit = 10",
+      "start": {
+        "line": 115,
+        "column": 24,
+        "offset": 2174
+      },
+      "end": {
+        "line": 115,
+        "column": 34,
+        "offset": 2184
+      },
+      "exported": true
+    },
+    {
+      "id": "Canvas",
+      "kind": "class",
+      "name": "Canvas",
+      "qualName": "Canvas",
+      "signature": "class Canvas",
+      "start": {
+        "line": 117,
+        "column": 15,
+        "offset": 2202
+      },
+      "end": {
+        "line": 122,
+        "column": 1,
+        "offset": 2308
+      },
+      "exported": true
+    },
+    {
+      "id": "Canvas.draw",
+      "kind": "method",
+      "name": "draw",
+      "qualName": "Canvas.draw",
+      "signature": "draw(shape)",
+      "start": {
+        "line": 118,
+        "column": 2,
+        "offset": 2219
+      },
+      "end": {
+        "line": 121,
+        "column": 3,
+        "offset": 2306
+      },
+      "parent": "Canvas"
+    }
+  ],
+  "imports": [
+    {
+      "spec": "node:events",
+      "names": [
+        "EventEmitter"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 71
+      }
+    },
+    {
+      "spec": "./geometry.mjs",
+      "alias": "geometry",
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 115
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Map",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 19,
+        "offset": 337
+      },
+      "enclosing": "registry"
+    },
+    {
+      "name": "EventEmitter",
+      "kind": "extends",
+      "start": {
+        "line": 18,
+        "column": 27,
+        "offset": 451
+      },
+      "enclosing": "Shape"
+    },
+    {
+      "name": "Error",
+      "kind": "type",
+      "start": {
+        "line": 33,
+        "column": 14,
+        "offset": 725
+      },
+      "enclosing": "Shape.area"
+    },
+    {
+      "name": "#describe",
+      "qualifier": "this",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 16,
+        "offset": 1019
+      },
+      "enclosing": "Shape.toString"
+    },
+    {
+      "name": "emit",
+      "qualifier": "this",
+      "kind": "call",
+      "start": {
+        "line": 58,
+        "column": 9,
+        "offset": 1141
+      },
+      "enclosing": "Shape.onResize"
+    },
+    {
+      "name": "Shape",
+      "kind": "extends",
+      "start": {
+        "line": 67,
+        "column": 28,
+        "offset": 1280
+      },
+      "enclosing": "Circle"
+    },
+    {
+      "name": "round",
+      "kind": "call",
+      "start": {
+        "line": 74,
+        "column": 11,
+        "offset": 1371
+      },
+      "enclosing": "Circle.area"
+    },
+    {
+      "name": "Polygon",
+      "qualifier": "geometry",
+      "kind": "extends",
+      "start": {
+        "line": 78,
+        "column": 30,
+        "offset": 1438
+      },
+      "enclosing": "Square"
+    },
+    {
+      "name": "round",
+      "kind": "call",
+      "start": {
+        "line": 80,
+        "column": 11,
+        "offset": 1470
+      },
+      "enclosing": "Square.area"
+    },
+    {
+      "name": "squared",
+      "qualifier": "geometry",
+      "kind": "call",
+      "start": {
+        "line": 80,
+        "column": 26,
+        "offset": 1485
+      },
+      "enclosing": "Square.area"
+    },
+    {
+      "name": "round",
+      "qualifier": "Math",
+      "kind": "call",
+      "start": {
+        "line": 89,
+        "column": 14,
+        "offset": 1671
+      },
+      "enclosing": "round"
+    },
+    {
+      "name": "fetch",
+      "kind": "call",
+      "start": {
+        "line": 93,
+        "column": 20,
+        "offset": 1746
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "parse",
+      "kind": "call",
+      "start": {
+        "line": 94,
+        "column": 9,
+        "offset": 1767
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "json",
+      "qualifier": "res",
+      "kind": "call",
+      "start": {
+        "line": 94,
+        "column": 25,
+        "offset": 1783
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "map",
+      "qualifier": "items",
+      "kind": "call",
+      "start": {
+        "line": 103,
+        "column": 31,
+        "offset": 1943
+      },
+      "enclosing": "parse"
+    },
+    {
+      "name": "create",
+      "qualifier": "Shape",
+      "kind": "call",
+      "start": {
+        "line": 103,
+        "column": 49,
+        "offset": 1961
+      },
+      "enclosing": "parse"
+    },
+    {
+      "name": "reduce",
+      "qualifier": "shapes",
+      "kind": "call",
+      "start": {
+        "line": 106,
+        "column": 16,
+        "offset": 2046
+      },
+      "enclosing": "total"
+    },
+    {
+      "name": "area",
+      "qualifier": "s",
+      "kind": "call",
+      "start": {
+        "line": 106,
+        "column": 43,
+        "offset": 2073
+      },
+      "enclosing": "total"
+    },
+    {
+      "name": "set",
+      "qualifier": "registry",
+      "kind": "call",
+      "start": {
+        "line": 119,
+        "column": 13,
+        "offset": 2246
+      },
+      "enclosing": "Canvas.draw"
+    },
+    {
+      "name": "log",
+      "qualifier": "console",
+      "kind": "call",
+      "start": {
+        "line": 120,
+        "column": 12,
+        "offset": 2280
+      },
+      "enclosing": "Canvas.draw"
+    },
+    {
+      "name": "toString",
+      "qualifier": "shape",
+      "kind": "call",
+      "start": {
+        "line": 120,
+        "column": 22,
+        "offset": 2290
+      },
+      "enclosing": "Canvas.draw"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 12,
+        "column": 25,
+        "offset": 343
+      },
+      "text": "// Shapes: an ES module with every kind of definition JavaScript has.\n\nimport { EventEmitter } from 'node:events';\nimport * as geometry from './geometry.mjs';\n\n/** The default precision of every area, in decimal places. */\nexport const PRECISION = 2;\n\n/** How many shapes were made; not exported. */\nlet created = 0;\n\nvar registry = new Map();",
+      "hash": "bdd3bd51ec2e80b16ffa8085028e39b1e1895c8e4cbad889e249b893bb04d034"
+    },
+    {
+      "id": "Shape#1",
+      "kind": "symbol",
+      "symbolId": "Shape",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 345
+      },
+      "end": {
+        "line": 64,
+        "column": 1,
+        "offset": 1221
+      },
+      "text": "/**\n * Shape is the base of every shape.\n * It counts the shapes it makes.\n */\nexport class Shape extends EventEmitter {\n  /** The shape's name. */\n  name = 'shape';\n  static #count = 0;\n  #id;\n\n  constructor(name) {\n    super();\n    this.name = name;\n    this.#id = Shape.#count++;\n    created++;\n  }\n\n  /** Area of the shape; subclasses override it. */\n  area() {\n    throw new Error('not implemented');\n  }\n\n  get id() {\n    return this.#id;\n  }\n\n  set label(value) {\n    this.name = String(value);\n  }\n\n  static create(kind, ...args) {\n    return new kinds[kind](...args);\n  }\n\n  #describe() {\n    return `${this.name} #${this.#id}`;\n  }\n\n  toString() {\n    return this.#describe();\n  }\n\n  // An arrow function in a field is a method bound to the instance.\n  onResize = (event) =\u003e {\n    this.emit('resize', event);\n  };\n\n  *[Symbol.iterator]() {\n    yield this.name;\n  }\n}",
+      "hash": "7795102ba8cfcfc79b65abc43ab0217cc94fb721fcf8ab9f83d9cf2f1821de82"
+    },
+    {
+      "id": "Circle#1",
+      "kind": "symbol",
+      "symbolId": "Circle",
+      "start": {
+        "line": 66,
+        "column": 0,
+        "offset": 1223
+      },
+      "end": {
+        "line": 76,
+        "column": 1,
+        "offset": 1406
+      },
+      "text": "/** A circle of radius r. */\nexport class Circle extends Shape {\n  constructor(r) {\n    super('circle');\n    this.r = r;\n  }\n\n  area() {\n    return round(Math.PI * this.r ** 2);\n  }\n}",
+      "hash": "33dcfe73024f813d487d0943244174bdb472b88f18f05a65325d6c4a588894b1"
+    },
+    {
+      "id": "Square#1",
+      "kind": "symbol",
+      "symbolId": "Square",
+      "start": {
+        "line": 78,
+        "column": 0,
+        "offset": 1408
+      },
+      "end": {
+        "line": 82,
+        "column": 1,
+        "offset": 1511
+      },
+      "text": "class Square extends geometry.Polygon {\n  area() {\n    return round(geometry.squared(this.side));\n  }\n}",
+      "hash": "6dd5c132895452b7fcb5f93e037189655aa4b9a84c4b3a25937f3ac29381e2a6"
+    },
+    {
+      "id": "L84#1",
+      "kind": "window",
+      "start": {
+        "line": 84,
+        "column": 0,
+        "offset": 1513
+      },
+      "end": {
+        "line": 84,
+        "column": 49,
+        "offset": 1562
+      },
+      "text": "const kinds = { circle: Circle, square: Square };",
+      "hash": "d6cba4d6ded05fff80354a8accfa6771619f91aa9432ca3affa7f0c13af15c3b"
+    },
+    {
+      "id": "round#1",
+      "kind": "symbol",
+      "symbolId": "round",
+      "start": {
+        "line": 86,
+        "column": 0,
+        "offset": 1564
+      },
+      "end": {
+        "line": 90,
+        "column": 1,
+        "offset": 1690
+      },
+      "text": "/** Rounds x to PRECISION places. */\nexport function round(x) {\n  const f = 10 ** PRECISION;\n  return Math.round(x * f) / f;\n}",
+      "hash": "ca23f4e2486af7e30639b5018c93866d56c3c26389bc1188c39c5ad0bcaa27fb"
+    },
+    {
+      "id": "load#1",
+      "kind": "symbol",
+      "symbolId": "load",
+      "start": {
+        "line": 92,
+        "column": 7,
+        "offset": 1699
+      },
+      "end": {
+        "line": 95,
+        "column": 1,
+        "offset": 1793
+      },
+      "text": "async function load(url) {\n  const res = await fetch(url);\n  return parse(await res.json());\n}",
+      "hash": "cd73a00185474c1c245a3a9bf529d0f43f0156cf6f95cd533582719ed2ca8bb4"
+    },
+    {
+      "id": "ids#1",
+      "kind": "symbol",
+      "symbolId": "ids",
+      "start": {
+        "line": 97,
+        "column": 0,
+        "offset": 1795
+      },
+      "end": {
+        "line": 100,
+        "column": 1,
+        "offset": 1866
+      },
+      "text": "function* ids(start = 0) {\n  let i = start;\n  while (true) yield i++;\n}",
+      "hash": "43d9d233ca5904eb04cc297cf3fd4b05c65c2fcac5f3562b38e1a48fa0b54ae6"
+    },
+    {
+      "id": "parse#1",
+      "kind": "symbol",
+      "symbolId": "parse",
+      "start": {
+        "line": 102,
+        "column": 0,
+        "offset": 1868
+      },
+      "end": {
+        "line": 103,
+        "column": 74,
+        "offset": 1986
+      },
+      "text": "/** Parses a list of shape descriptions. */\nconst parse = (items) =\u003e items.map((it) =\u003e Shape.create(it.kind, it.size))",
+      "hash": "737d3a2fb5304f84a11c4732e961edd023184e91590a8851a3832d2f9206bdee"
+    },
+    {
+      "id": "total#1",
+      "kind": "symbol",
+      "symbolId": "total",
+      "start": {
+        "line": 105,
+        "column": 13,
+        "offset": 2002
+      },
+      "end": {
+        "line": 107,
+        "column": 1,
+        "offset": 2086
+      },
+      "text": "total = function (shapes) {\n  return shapes.reduce((sum, s) =\u003e sum + s.area(), 0);\n}",
+      "hash": "f8cf42b7a796a444bef3ecd583d0493ff16d75642a5a5ef9529f6954e64a6729"
+    },
+    {
+      "id": "Unit#1",
+      "kind": "symbol",
+      "symbolId": "Unit",
+      "start": {
+        "line": 109,
+        "column": 13,
+        "offset": 2102
+      },
+      "end": {
+        "line": 113,
+        "column": 1,
+        "offset": 2147
+      },
+      "text": "Unit = class {\n  area() {\n    return 1;\n  }\n}",
+      "hash": "91da0fe8838852c467adcaab94c5d1b91cddaf370854170eacf1bb4dbeb03b50"
+    },
+    {
+      "id": "L115#1",
+      "kind": "window",
+      "start": {
+        "line": 115,
+        "column": 0,
+        "offset": 2150
+      },
+      "end": {
+        "line": 115,
+        "column": 35,
+        "offset": 2185
+      },
+      "text": "export let counter = 0, limit = 10;",
+      "hash": "2db53d5afc0d7b5ac641699dfd3c467a0ee87ccece157c701004230b3cf0199b"
+    },
+    {
+      "id": "Canvas#1",
+      "kind": "symbol",
+      "symbolId": "Canvas",
+      "start": {
+        "line": 117,
+        "column": 15,
+        "offset": 2202
+      },
+      "end": {
+        "line": 122,
+        "column": 1,
+        "offset": 2308
+      },
+      "text": "class Canvas {\n  draw(shape) {\n    registry.set(shape.id, shape);\n    console.log(shape.toString());\n  }\n}",
+      "hash": "ab4169fd6722a27141d7ea57b919bd9b993313c8c88714d33d522da0b027cc65"
+    },
+    {
+      "id": "L124#1",
+      "kind": "window",
+      "start": {
+        "line": 124,
+        "column": 0,
+        "offset": 2310
+      },
+      "end": {
+        "line": 124,
+        "column": 39,
+        "offset": 2349
+      },
+      "text": "export { created, ids as identifiers };",
+      "hash": "4a0a7507d829e0ac8c801c6ff3492bf33fe6ffcc02140e59445178dba6d222ec"
+    }
+  ]
+}

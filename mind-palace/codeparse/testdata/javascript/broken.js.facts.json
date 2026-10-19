@@ -1,0 +1,173 @@
+{
+  "lang": "javascript",
+  "symbols": [
+    {
+      "id": "ok",
+      "kind": "function",
+      "name": "ok",
+      "qualName": "ok",
+      "signature": "function ok(a)",
+      "start": {
+        "line": 6,
+        "column": 7,
+        "offset": 140
+      },
+      "end": {
+        "line": 8,
+        "column": 1,
+        "offset": 178
+      },
+      "exported": true
+    },
+    {
+      "id": "Survivor",
+      "kind": "class",
+      "name": "Survivor",
+      "qualName": "Survivor",
+      "signature": "class Survivor extends Base",
+      "start": {
+        "line": 14,
+        "column": 7,
+        "offset": 225
+      },
+      "end": {
+        "line": 18,
+        "column": 1,
+        "offset": 288
+      },
+      "exported": true
+    },
+    {
+      "id": "Survivor.run",
+      "kind": "method",
+      "name": "run",
+      "qualName": "Survivor.run",
+      "signature": "run()",
+      "start": {
+        "line": 15,
+        "column": 2,
+        "offset": 257
+      },
+      "end": {
+        "line": 17,
+        "column": 3,
+        "offset": 286
+      },
+      "parent": "Survivor"
+    }
+  ],
+  "imports": [
+    {
+      "spec": "./helper.js",
+      "names": [
+        "helper"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 94
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "helper",
+      "kind": "call",
+      "start": {
+        "line": 7,
+        "column": 9,
+        "offset": 166
+      },
+      "enclosing": "ok"
+    },
+    {
+      "name": "Base",
+      "kind": "extends",
+      "start": {
+        "line": 14,
+        "column": 30,
+        "offset": 248
+      },
+      "enclosing": "Survivor"
+    },
+    {
+      "name": "ok",
+      "kind": "call",
+      "start": {
+        "line": 16,
+        "column": 11,
+        "offset": 276
+      },
+      "enclosing": "Survivor.run"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 4,
+        "column": 37,
+        "offset": 131
+      },
+      "text": "// A file with a syntax error: the parser recovers and the query still\n// finds what it can.\n\nimport { helper } from './helper.js';",
+      "hash": "376b74bdbd19f2e7b1b84ef8ff8ca8ef01099de1ea0532328d0bcade8d865949"
+    },
+    {
+      "id": "ok#1",
+      "kind": "symbol",
+      "symbolId": "ok",
+      "start": {
+        "line": 6,
+        "column": 7,
+        "offset": 140
+      },
+      "end": {
+        "line": 8,
+        "column": 1,
+        "offset": 178
+      },
+      "text": "function ok(a) {\n  return helper(a);\n}",
+      "hash": "4addb5ccf7e26922337e0253f9cdbc4bd9b2755e08206a157b22db23fa4213c3"
+    },
+    {
+      "id": "L10#1",
+      "kind": "window",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 180
+      },
+      "end": {
+        "line": 12,
+        "column": 1,
+        "offset": 216
+      },
+      "text": "function broken(a, {\n  return a +;\n}",
+      "hash": "f156b80e31a8034ffe0654e8a5d844a517399f228a965e8f4d732f6d6ac4df63"
+    },
+    {
+      "id": "Survivor#1",
+      "kind": "symbol",
+      "symbolId": "Survivor",
+      "start": {
+        "line": 14,
+        "column": 7,
+        "offset": 225
+      },
+      "end": {
+        "line": 18,
+        "column": 1,
+        "offset": 288
+      },
+      "text": "class Survivor extends Base {\n  run() {\n    return ok(1);\n  }\n}",
+      "hash": "c9de5e24d18af3b90addf01439c7233351069585fb003d00a65561b64ddfc340"
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "lang": "javascript",
+  "symbols": [
+    {
+      "id": "lazy",
+      "kind": "function",
+      "name": "lazy",
+      "qualName": "lazy",
+      "signature": "lazy = () =\u003e import('./lazy.js')",
+      "start": {
+        "line": 13,
+        "column": 6,
+        "offset": 441
+      },
+      "end": {
+        "line": 13,
+        "column": 38,
+        "offset": 473
+      }
+    },
+    {
+      "id": "plugin",
+      "kind": "function",
+      "name": "plugin",
+      "qualName": "plugin",
+      "signature": "function plugin()",
+      "start": {
+        "line": 16,
+        "column": 7,
+        "offset": 525
+      },
+      "end": {
+        "line": 18,
+        "column": 1,
+        "offset": 587
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "./shapes.mjs",
+      "kind": "export",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 56
+      }
+    },
+    {
+      "spec": "./geometry.mjs",
+      "alias": "geometry",
+      "kind": "export",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 86
+      }
+    },
+    {
+      "spec": "./shapes.mjs",
+      "names": [
+        "round",
+        "load"
+      ],
+      "kind": "export",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 130
+      }
+    },
+    {
+      "spec": "./shapes.mjs",
+      "names": [
+        "default"
+      ],
+      "kind": "export",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 188
+      }
+    },
+    {
+      "spec": "./App.jsx",
+      "names": [
+        "default"
+      ],
+      "kind": "export",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 238
+      }
+    },
+    {
+      "spec": "lib",
+      "alias": "defaultExport",
+      "kind": "import",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 276
+      }
+    },
+    {
+      "spec": "quoted-lib",
+      "names": [
+        "a",
+        "b",
+        "default"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 326
+      }
+    },
+    {
+      "spec": "./data.json",
+      "alias": "json",
+      "kind": "import",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 380
+      }
+    },
+    {
+      "spec": "./lazy.js",
+      "kind": "dynamic",
+      "start": {
+        "line": 13,
+        "column": 19,
+        "offset": 454
+      }
+    },
+    {
+      "spec": "./store.cjs",
+      "names": [
+        "Store"
+      ],
+      "kind": "require",
+      "start": {
+        "line": 14,
+        "column": 18,
+        "offset": 493
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 11,
+        "column": 53,
+        "offset": 433
+      },
+      "text": "// Every way a module re-exports or loads another one.\n\nexport * from './shapes.mjs';\nexport * as geometry from './geometry.mjs';\nexport { round, load as loadShapes } from './shapes.mjs';\nexport { default as Canvas } from './shapes.mjs';\nexport { default } from './App.jsx';\n\nimport defaultExport, * as everything from 'lib';\nimport { a, b as c, default as d } from \"quoted-lib\";\nimport json from './data.json' with { type: 'json' };",
+      "hash": "8ea9fe008e353cf1c9b813b7ce5bda0aa601d98229a37c289105d19687de51ca"
+    },
+    {
+      "id": "lazy#1",
+      "kind": "symbol",
+      "symbolId": "lazy",
+      "start": {
+        "line": 13,
+        "column": 6,
+        "offset": 441
+      },
+      "end": {
+        "line": 13,
+        "column": 38,
+        "offset": 473
+      },
+      "text": "lazy = () =\u003e import('./lazy.js')",
+      "hash": "d5bd17b086fcd85fd1034e8db4140eb05b4dcb35f6611bde361583dcc9cb599b"
+    },
+    {
+      "id": "L14#1",
+      "kind": "window",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 475
+      },
+      "end": {
+        "line": 14,
+        "column": 41,
+        "offset": 516
+      },
+      "text": "const { Store } = require('./store.cjs');",
+      "hash": "01a45d62f85deb4babd233564b67b90876449ca61e25f87199043289fa100599"
+    },
+    {
+      "id": "plugin#1",
+      "kind": "symbol",
+      "symbolId": "plugin",
+      "start": {
+        "line": 16,
+        "column": 7,
+        "offset": 525
+      },
+      "end": {
+        "line": 18,
+        "column": 1,
+        "offset": 587
+      },
+      "text": "function plugin() {\n  return import(`./plugins/${name}.js`);\n}",
+      "hash": "d7433bc30db9e9835231bad17a33a85aef252f004db5bf63e2c98d9635cec2f0"
+    }
+  ]
+}

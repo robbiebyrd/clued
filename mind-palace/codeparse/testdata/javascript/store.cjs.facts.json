@@ -1,0 +1,683 @@
+{
+  "lang": "javascript",
+  "symbols": [
+    {
+      "id": "readFile",
+      "kind": "const",
+      "name": "readFile",
+      "qualName": "readFile",
+      "signature": "readFile = promisify(fs.readFile)",
+      "start": {
+        "line": 11,
+        "column": 6,
+        "offset": 277
+      },
+      "end": {
+        "line": 11,
+        "column": 39,
+        "offset": 310
+      }
+    },
+    {
+      "id": "Store",
+      "kind": "function",
+      "name": "Store",
+      "qualName": "Store",
+      "signature": "function Store(dir)",
+      "doc": "Store keeps values by key, in memory and on disk.\n@param {string} dir where the store writes",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 420
+      },
+      "end": {
+        "line": 21,
+        "column": 1,
+        "offset": 566
+      }
+    },
+    {
+      "id": "Store.get",
+      "kind": "method",
+      "name": "get",
+      "qualName": "Store.get",
+      "signature": "Store.prototype.get = async function get(key)",
+      "doc": "Get returns the value of key, reading it from disk once.",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 632
+      },
+      "end": {
+        "line": 28,
+        "column": 1,
+        "offset": 830
+      }
+    },
+    {
+      "id": "Store.file",
+      "kind": "method",
+      "name": "file",
+      "qualName": "Store.file",
+      "signature": "Store.prototype.file = function (key)",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 833
+      },
+      "end": {
+        "line": 32,
+        "column": 1,
+        "offset": 929
+      }
+    },
+    {
+      "id": "Store.toString",
+      "kind": "method",
+      "name": "toString",
+      "qualName": "Store.toString",
+      "signature": "Store.prototype.toString = () =\u003e show(this)",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 932
+      },
+      "end": {
+        "line": 34,
+        "column": 43,
+        "offset": 975
+      }
+    },
+    {
+      "id": "memoize",
+      "kind": "function",
+      "name": "memoize",
+      "qualName": "memoize",
+      "signature": "function memoize(fn)",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 978
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 1205
+      }
+    },
+    {
+      "id": "memoize.lookup",
+      "kind": "function",
+      "name": "lookup",
+      "qualName": "memoize.lookup",
+      "signature": "function lookup(arg)",
+      "doc": "A closure defined inside a function nests under it.",
+      "start": {
+        "line": 39,
+        "column": 2,
+        "offset": 1086
+      },
+      "end": {
+        "line": 42,
+        "column": 3,
+        "offset": 1186
+      },
+      "parent": "memoize"
+    },
+    {
+      "id": "open",
+      "kind": "function",
+      "name": "open",
+      "qualName": "open",
+      "signature": "exports.open = function open(name)",
+      "doc": "Opens a store under the user's home.",
+      "start": {
+        "line": 47,
+        "column": 0,
+        "offset": 1251
+      },
+      "end": {
+        "line": 50,
+        "column": 1,
+        "offset": 1370
+      },
+      "exported": true
+    },
+    {
+      "id": "close",
+      "kind": "function",
+      "name": "close",
+      "qualName": "close",
+      "signature": "module.exports.close = (store) =\u003e",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1373
+      },
+      "end": {
+        "line": 54,
+        "column": 1,
+        "offset": 1432
+      },
+      "exported": true
+    },
+    {
+      "id": "VERSION",
+      "kind": "const",
+      "name": "VERSION",
+      "qualName": "VERSION",
+      "signature": "exports.VERSION = '1.4.0'",
+      "start": {
+        "line": 56,
+        "column": 0,
+        "offset": 1435
+      },
+      "end": {
+        "line": 56,
+        "column": 25,
+        "offset": 1460
+      },
+      "exported": true
+    },
+    {
+      "id": "clear",
+      "kind": "function",
+      "name": "clear",
+      "qualName": "clear",
+      "signature": "clear(store)",
+      "doc": "Removes every cached value.",
+      "start": {
+        "line": 65,
+        "column": 2,
+        "offset": 1606
+      },
+      "end": {
+        "line": 67,
+        "column": 3,
+        "offset": 1663
+      },
+      "exported": true
+    },
+    {
+      "id": "reset",
+      "kind": "function",
+      "name": "reset",
+      "qualName": "reset",
+      "signature": "reset: function (store)",
+      "start": {
+        "line": 68,
+        "column": 2,
+        "offset": 1667
+      },
+      "end": {
+        "line": 70,
+        "column": 3,
+        "offset": 1729
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "fs",
+      "alias": "fs",
+      "kind": "require",
+      "start": {
+        "line": 5,
+        "column": 11,
+        "offset": 101
+      }
+    },
+    {
+      "spec": "node:path",
+      "alias": "path",
+      "kind": "require",
+      "start": {
+        "line": 6,
+        "column": 13,
+        "offset": 129
+      }
+    },
+    {
+      "spec": "util",
+      "names": [
+        "promisify",
+        "inspect"
+      ],
+      "kind": "require",
+      "start": {
+        "line": 7,
+        "column": 37,
+        "offset": 188
+      }
+    },
+    {
+      "spec": "debug",
+      "kind": "require",
+      "start": {
+        "line": 8,
+        "column": 14,
+        "offset": 219
+      }
+    },
+    {
+      "spec": "./polyfills",
+      "kind": "require",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 246
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "promisify",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 17,
+        "offset": 288
+      },
+      "enclosing": "readFile"
+    },
+    {
+      "name": "Store",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 24,
+        "offset": 466
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "Store",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 43,
+        "offset": 485
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "resolve",
+      "qualifier": "path",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 18,
+        "offset": 515
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "create",
+      "qualifier": "Object",
+      "kind": "call",
+      "start": {
+        "line": 20,
+        "column": 22,
+        "offset": 551
+      },
+      "enclosing": "Store"
+    },
+    {
+      "name": "readFile",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 20,
+        "offset": 749
+      },
+      "enclosing": "Store.get"
+    },
+    {
+      "name": "file",
+      "qualifier": "this",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 34,
+        "offset": 763
+      },
+      "enclosing": "Store.get"
+    },
+    {
+      "name": "parse",
+      "qualifier": "JSON",
+      "kind": "call",
+      "start": {
+        "line": 27,
+        "column": 33,
+        "offset": 816
+      },
+      "enclosing": "Store.get"
+    },
+    {
+      "name": "join",
+      "qualifier": "path",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 14,
+        "offset": 887
+      },
+      "enclosing": "Store.file"
+    },
+    {
+      "name": "encodeURIComponent",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 29,
+        "offset": 902
+      },
+      "enclosing": "Store.file"
+    },
+    {
+      "name": "show",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 33,
+        "offset": 965
+      },
+      "enclosing": "Store.toString"
+    },
+    {
+      "name": "Map",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 19,
+        "offset": 1020
+      },
+      "enclosing": "memoize"
+    },
+    {
+      "name": "has",
+      "qualifier": "seen",
+      "kind": "call",
+      "start": {
+        "line": 40,
+        "column": 14,
+        "offset": 1123
+      },
+      "enclosing": "memoize.lookup"
+    },
+    {
+      "name": "set",
+      "qualifier": "seen",
+      "kind": "call",
+      "start": {
+        "line": 40,
+        "column": 29,
+        "offset": 1138
+      },
+      "enclosing": "memoize.lookup"
+    },
+    {
+      "name": "fn",
+      "kind": "call",
+      "start": {
+        "line": 40,
+        "column": 38,
+        "offset": 1147
+      },
+      "enclosing": "memoize.lookup"
+    },
+    {
+      "name": "get",
+      "qualifier": "seen",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 16,
+        "offset": 1173
+      },
+      "enclosing": "memoize.lookup"
+    },
+    {
+      "name": "debug",
+      "kind": "call",
+      "start": {
+        "line": 48,
+        "column": 2,
+        "offset": 1290
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "Store",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 13,
+        "offset": 1327
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "join",
+      "qualifier": "path",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 24,
+        "offset": 1338
+      },
+      "enclosing": "open"
+    },
+    {
+      "name": "create",
+      "qualifier": "Object",
+      "kind": "call",
+      "start": {
+        "line": 66,
+        "column": 25,
+        "offset": 1646
+      },
+      "enclosing": "clear"
+    },
+    {
+      "name": "clear",
+      "qualifier": "module.exports",
+      "kind": "call",
+      "start": {
+        "line": 69,
+        "column": 19,
+        "offset": 1712
+      },
+      "enclosing": "reset"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 11,
+        "column": 40,
+        "offset": 311
+      },
+      "text": "'use strict';\n\n// A key-value store in CommonJS: require, module.exports and prototypes.\n\nconst fs = require('fs');\nconst path = require('node:path');\nconst { promisify, inspect: show } = require('util');\nconst debug = require('debug')('store');\nrequire('./polyfills');\n\nconst readFile = promisify(fs.readFile);",
+      "hash": "a2ed11ee3e34e7dbf5830527d7d28719804e856896be68f44bb2991f0cb2ba75"
+    },
+    {
+      "id": "Store#1",
+      "kind": "symbol",
+      "symbolId": "Store",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 313
+      },
+      "end": {
+        "line": 21,
+        "column": 1,
+        "offset": 566
+      },
+      "text": "/**\n * Store keeps values by key, in memory and on disk.\n * @param {string} dir where the store writes\n */\nfunction Store(dir) {\n  if (!(this instanceof Store)) return new Store(dir);\n  this.dir = path.resolve(dir);\n  this.cache = Object.create(null);\n}",
+      "hash": "6f9f0fa37fb9ba8382d64483c83f5b94ae8bb933e065f8fe8066c87928b7c795"
+    },
+    {
+      "id": "Store.get#1",
+      "kind": "symbol",
+      "symbolId": "Store.get",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 568
+      },
+      "end": {
+        "line": 28,
+        "column": 1,
+        "offset": 830
+      },
+      "text": "/** Get returns the value of key, reading it from disk once. */\nStore.prototype.get = async function get(key) {\n  if (key in this.cache) return this.cache[key];\n  const raw = await readFile(this.file(key), 'utf8');\n  return (this.cache[key] = JSON.parse(raw));\n}",
+      "hash": "70492b2e1c2ee7506db6e17a35e12af6a8537096309f1816d8c0260c88aba587"
+    },
+    {
+      "id": "Store.file#1",
+      "kind": "symbol",
+      "symbolId": "Store.file",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 833
+      },
+      "end": {
+        "line": 32,
+        "column": 1,
+        "offset": 929
+      },
+      "text": "Store.prototype.file = function (key) {\n  return path.join(this.dir, encodeURIComponent(key));\n}",
+      "hash": "4e58bdcdc7e51c34cc80e431f66e500da50f398646218d08fec11313901e4af1"
+    },
+    {
+      "id": "Store.toString#1",
+      "kind": "symbol",
+      "symbolId": "Store.toString",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 932
+      },
+      "end": {
+        "line": 34,
+        "column": 43,
+        "offset": 975
+      },
+      "text": "Store.prototype.toString = () =\u003e show(this)",
+      "hash": "829a9ef2700acfa1b28e876bd15c1e36b53103e657c1c5aea20cfb016b41023d"
+    },
+    {
+      "id": "memoize#1",
+      "kind": "symbol",
+      "symbolId": "memoize",
+      "start": {
+        "line": 36,
+        "column": 0,
+        "offset": 978
+      },
+      "end": {
+        "line": 44,
+        "column": 1,
+        "offset": 1205
+      },
+      "text": "function memoize(fn) {\n  const seen = new Map();\n  // A closure defined inside a function nests under it.\n  function lookup(arg) {\n    if (!seen.has(arg)) seen.set(arg, fn(arg));\n    return seen.get(arg);\n  }\n  return lookup;\n}",
+      "hash": "6ce3e3d552643af479e8f7af7ffe2341d1ca513349f04819274943b5603420aa"
+    },
+    {
+      "id": "open#1",
+      "kind": "symbol",
+      "symbolId": "open",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 1207
+      },
+      "end": {
+        "line": 50,
+        "column": 1,
+        "offset": 1370
+      },
+      "text": "/** Opens a store under the user's home. */\nexports.open = function open(name) {\n  debug('open %s', name);\n  return new Store(path.join(process.env.HOME, name));\n}",
+      "hash": "ad6c7541224d6ff2d1202319a4a1ecc9720e19d9be6d375965cab1db518b1979"
+    },
+    {
+      "id": "close#1",
+      "kind": "symbol",
+      "symbolId": "close",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1373
+      },
+      "end": {
+        "line": 54,
+        "column": 1,
+        "offset": 1432
+      },
+      "text": "module.exports.close = (store) =\u003e {\n  store.cache = null;\n}",
+      "hash": "e91a5ae00059deebf36b5d3bfd4223cca8e3cea806768b3e6e5c4c8e9ea5293d"
+    },
+    {
+      "id": "L56#1",
+      "kind": "window",
+      "start": {
+        "line": 56,
+        "column": 0,
+        "offset": 1435
+      },
+      "end": {
+        "line": 63,
+        "column": 10,
+        "offset": 1566
+      },
+      "text": "exports.VERSION = '1.4.0';\n\nmodule.exports.Store = Store;\nmodule.exports.memoize = memoize;\n\nmodule.exports = {\n  Store,\n  memoize,",
+      "hash": "e218885056edfc99724dc45297a17720e1ba14fc3fef33e03cab9236cad8c7dd"
+    },
+    {
+      "id": "clear#1",
+      "kind": "symbol",
+      "symbolId": "clear",
+      "start": {
+        "line": 64,
+        "column": 0,
+        "offset": 1567
+      },
+      "end": {
+        "line": 67,
+        "column": 3,
+        "offset": 1663
+      },
+      "text": "  /** Removes every cached value. */\n  clear(store) {\n    store.cache = Object.create(null);\n  }",
+      "hash": "9bc04e1698655327a956cf7836049cfb80e52c9cf6f5152a7aba1f3cf6d54d21"
+    },
+    {
+      "id": "reset#1",
+      "kind": "symbol",
+      "symbolId": "reset",
+      "start": {
+        "line": 68,
+        "column": 0,
+        "offset": 1665
+      },
+      "end": {
+        "line": 70,
+        "column": 3,
+        "offset": 1729
+      },
+      "text": "  reset: function (store) {\n    module.exports.clear(store);\n  }",
+      "hash": "1f3990a915d7d9ebb63d275c27b8734dd3897cc2c84650e149525ee659c35693"
+    }
+  ]
+}
