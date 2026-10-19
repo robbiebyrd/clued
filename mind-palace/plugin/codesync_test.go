@@ -46,6 +46,13 @@ type codeServer struct {
 
 func newCodeServer(t *testing.T) *codeServer {
 	t.Helper()
+	return newCodeServerWith(t, nil)
+}
+
+// newCodeServerWith is newCodeServer whose code transport reports every
+// project GitHub-backed while githubBacked returns true (nil: none is).
+func newCodeServerWith(t *testing.T, githubBacked func() bool) *codeServer {
+	t.Helper()
 	s := &codeServer{sessions: memsession.New(), code: map[string]*memcode.Store{}, requests: map[string]int{}}
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/whoami", auth.WhoamiHandler("test"))
@@ -53,9 +60,13 @@ func newCodeServer(t *testing.T) *codeServer {
 		p, ok := auth.FromContext(r.Context())
 		return p.AccountID, ok
 	}}))
-	codeapi.Mount(mux, codeapi.Options{Open: func(_ context.Context, key string) (code.Store, error) {
+	opts := codeapi.Options{Open: func(_ context.Context, key string) (code.Store, error) {
 		return s.store(key), nil
-	}})
+	}}
+	if githubBacked != nil {
+		opts.GitHubBacked = func(context.Context, string) bool { return githubBacked() }
+	}
+	codeapi.Mount(mux, opts)
 	h := auth.Middleware(stubTokens{token: remoteToken, account: remoteAccount, projects: []string{"*"}})(mux)
 	s.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
@@ -475,4 +486,70 @@ func TestEventRelaySendsNoCodeWithCodeSyncOff(t *testing.T) {
 		t.Errorf("%d code stores were opened with codeSync off", stores)
 	}
 	mustNotExist(t, codesync.StateDir(filepath.Dir(dataPath(home, "config.json"))), "code sync state directory")
+}
+
+func TestEventRelayLeavesCleanPushedContentToGitHub(t *testing.T) {
+	requireJq(t)
+	srv := newCodeServerWith(t, func() bool { return true })
+	home := codeHome(t, srv, true)
+	env := remoteEnv(t, home, closedPort(t), "CLUED_WAL_PATH="+filepath.Join(t.TempDir(), "events.wal"))
+	files := map[string]string{"main.go": "package main\n", "util.go": "package main // util\n"}
+	r := newCodeRepo(t, files)
+	st := srv.store(r.project())
+	id := r.worktree()
+	manifest := "POST " + codeapi.Prefix + "/" + r.project() + "/code/manifest"
+	blobs := "PUT " + codeapi.Prefix + "/" + r.project() + "/code/blobs/"
+	wantOmitted := func(step, rel string) {
+		t.Helper()
+		e, ok := treeOf(t, st, id, "main")[rel]
+		oid := runGit(t, r.root, "rev-parse", "HEAD:"+rel)
+		if !ok || e.SHA256 != "" || e.Dirty || e.Unpushed || e.GitOID != oid || e.Size != int64(len(files[rel])) {
+			t.Errorf("%s: %s = %+v, want clean, pushed, git_oid %s, size %d and no content", step, rel, e, oid, len(files[rel]))
+		}
+	}
+
+	// SessionStart: the full reconcile reads capabilities and sends the
+	// clean, pushed files without content: no manifest, no upload.
+	relayEvent(t, r, env, map[string]any{"hook_event_name": "SessionStart", "source": "startup"})
+	noRelayLog(t, home)
+	if n := srv.count("GET " + codeapi.Prefix + "/" + r.project() + "/code/capabilities"); n == 0 {
+		t.Fatal("the full reconcile did not read the capabilities")
+	}
+	if tree := treeOf(t, st, id, "main"); len(tree) != 2 {
+		t.Fatalf("SessionStart: tree = %v", treePaths(tree))
+	}
+	wantOmitted("SessionStart", "main.go")
+	wantOmitted("SessionStart", "util.go")
+	if m, b := srv.count(manifest), srv.count(blobs); m != 0 || b != 0 {
+		t.Errorf("SessionStart: %d manifest and %d blob requests, want none", m, b)
+	}
+
+	// Write: an overlay is uploaded as before.
+	r.write("new.go", "package main // new\n")
+	files["new.go"] = "package main // new\n"
+	relayEvent(t, r, env, map[string]any{
+		"hook_event_name": "PostToolUse", "tool_name": "Write",
+		"tool_input": map[string]any{"file_path": r.path("new.go")},
+	})
+	noRelayLog(t, home)
+	if e := treeOf(t, st, id, "main")["new.go"]; e.SHA256 != sha(files["new.go"]) || !e.Dirty {
+		t.Errorf("Write: new.go = %+v, want dirty with its content", e)
+	}
+	if b := srv.count(blobs); b != 1 {
+		t.Errorf("Write: %d blob uploads, want 1", b)
+	}
+
+	// Bash: committed and pushed, the file is GitHub's to supply now.
+	runGit(t, r.root, "add", "new.go")
+	runGit(t, r.root, "commit", "-q", "-m", "new")
+	runGit(t, r.root, "push", "-q")
+	relayEvent(t, r, env, map[string]any{
+		"hook_event_name": "PostToolUse", "tool_name": "Bash",
+		"tool_input": map[string]any{"command": "git commit -am new && git push"},
+	})
+	noRelayLog(t, home)
+	wantOmitted("Bash push", "new.go")
+	if b := srv.count(blobs); b != 1 {
+		t.Errorf("Bash push: %d blob uploads, want still 1", b)
+	}
 }

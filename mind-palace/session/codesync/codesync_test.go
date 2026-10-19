@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -856,5 +857,152 @@ func TestSessionsAndRemove(t *testing.T) {
 	// A worktree the state does not know is a no-op.
 	if err := codesync.Remove(context.Background(), h.request(nil), filepath.Join(h.base, "gone")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// gitHubBacked is a code server whose project is GitHub-backed while on
+// holds.
+func gitHubBacked(on *atomic.Bool) codeapi.Options {
+	return codeapi.Options{GitHubBacked: func(context.Context, string) bool { return on.Load() }}
+}
+
+// wantOmitted checks that rel is in the tree without content: clean,
+// pushed, with the blob id of rev:rel and its size.
+func (h *harness) wantOmitted(step, rel, rev string, size int64) {
+	h.t.Helper()
+	e, ok := h.tree("main")[rel]
+	if !ok || e.SHA256 != "" || e.Dirty || e.Unpushed || e.Size != size || e.GitOID != h.oid(rev+":"+rel) {
+		h.t.Fatalf("%s: %s = %+v (present %v), want clean, pushed, size %d, git_oid %s and no content",
+			step, rel, e, ok, size, h.oid(rev+":"+rel))
+	}
+}
+
+func TestGitHubBackedProjectSkipsCleanPushedContent(t *testing.T) {
+	var on atomic.Bool
+	on.Store(true)
+	h := newHarness(t, map[string]string{"main.go": "package main\n", "lib/lib.go": "package lib\n"}, gitHubBacked(&on))
+	git(t, h.root, "push", "-q", "origin", "main:old")
+
+	// The first reconcile reads nothing: GitHub has every file.
+	rep := h.run(nil)
+	if !rep.GitHub || !rep.FullCommitted || rep.Omitted != 2 || rep.Hashed != 0 || rep.Uploaded != 0 || rep.Upserts != 2 {
+		t.Fatalf("first run = %+v", rep)
+	}
+	h.wantOmitted("first run", "main.go", "HEAD", 13)
+	h.wantOmitted("first run", "lib/lib.go", "HEAD", 12)
+	if !h.state().GitHub {
+		t.Fatal("the state does not remember the capability")
+	}
+	for _, c := range []string{"package main\n", "package lib\n"} {
+		if _, err := h.store().Blob(context.Background(), shaOf(c)); err == nil {
+			t.Fatalf("the blob of %q was uploaded", c)
+		}
+	}
+
+	// An edit is an overlay: uploaded as before.
+	v2 := "package main // v2\n"
+	h.write("main.go", v2)
+	rep = h.run(func(r *codesync.Request) { r.Paths = []string{"main.go"} })
+	if rep.Hashed != 1 || rep.Uploaded != 1 || rep.Omitted != 0 {
+		t.Fatalf("edit = %+v", rep)
+	}
+	if e := h.tree("main")["main.go"]; e.SHA256 != shaOf(v2) || !e.Dirty || blobContent(t, h.store(), e.SHA256) != v2 {
+		t.Fatalf("edited entry = %+v", e)
+	}
+
+	// Committed but not pushed: still an overlay, the content is kept.
+	git(t, h.root, "commit", "-q", "-am", "v2")
+	rep = h.run(func(r *codesync.Request) { r.Status = true })
+	if e := h.tree("main")["main.go"]; e.SHA256 != shaOf(v2) || e.Dirty || !e.Unpushed || rep.Uploaded != 0 {
+		t.Fatalf("after commit: %+v, report %+v", e, rep)
+	}
+
+	// Pushed: GitHub has it now, so it goes without content.
+	git(t, h.root, "push", "-q")
+	rep = h.run(func(r *codesync.Request) { r.Status = true })
+	if rep.Uploaded != 0 || rep.Hashed != 0 {
+		t.Fatalf("after push = %+v", rep)
+	}
+	h.wantOmitted("after push", "main.go", "HEAD", int64(len(v2)))
+
+	// Files another machine pushed arrive with a pull, unread.
+	git(t, h.base, "clone", "-q", h.bare, "other")
+	other := filepath.Join(h.base, "other")
+	h.writeIn(other, "pulled.go", "package main // pulled\n")
+	git(t, other, "add", "pulled.go")
+	git(t, other, "commit", "-q", "-m", "pulled")
+	git(t, other, "push", "-q", "origin", "main")
+	git(t, h.root, "pull", "-q", "--ff-only")
+	rep = h.run(nil)
+	if rep.Hashed != 0 || rep.Uploaded != 0 || rep.Upserts == 0 {
+		t.Fatalf("after pull = %+v", rep)
+	}
+	h.wantOmitted("after pull", "pulled.go", "HEAD", int64(len("package main // pulled\n")))
+
+	// An entry GitHub supplied that turns unpushed without its file
+	// changing (another upstream) is read and uploaded.
+	git(t, h.root, "branch", "-q", "--set-upstream-to=origin/old")
+	rep = h.run(nil)
+	tree := h.tree("main")
+	if e := tree["main.go"]; e.SHA256 != shaOf(v2) || !e.Unpushed {
+		t.Fatalf("main.go unpushed against old = %+v", e)
+	}
+	if e := tree["pulled.go"]; e.SHA256 != shaOf("package main // pulled\n") || !e.Unpushed ||
+		blobContent(t, h.store(), e.SHA256) != "package main // pulled\n" {
+		t.Fatalf("pulled.go unpushed against old = %+v", e)
+	}
+	h.wantOmitted("upstream old", "lib/lib.go", "HEAD", 12)
+	if rep.Uploaded != 1 || rep.Hashed != 2 {
+		t.Fatalf("upstream old = %+v", rep)
+	}
+}
+
+func TestUploadsResumeWhenTheProjectStopsBeingGitHubBacked(t *testing.T) {
+	var on atomic.Bool
+	on.Store(true)
+	files := map[string]string{"main.go": "package main\n", "lib/lib.go": "package lib\n"}
+	h := newHarness(t, files, gitHubBacked(&on))
+	if rep := h.run(nil); rep.Omitted != 2 || rep.Uploaded != 0 {
+		t.Fatalf("GitHub-backed run = %+v", rep)
+	}
+
+	// Uninstalled: an incremental run does not ask, the next full
+	// reconcile does.
+	on.Store(false)
+	h.write("new.go", "package main // new\n")
+	rep := h.run(func(r *codesync.Request) { r.Paths = []string{"new.go"} })
+	if !rep.GitHub || rep.Full || rep.Uploaded != 1 {
+		t.Fatalf("incremental run = %+v", rep)
+	}
+	h.wantOmitted("incremental run", "main.go", "HEAD", 13)
+
+	h.now = h.now.Add(codesync.FullAfter + time.Minute)
+	rep = h.run(nil)
+	if rep.GitHub || !rep.FullCommitted || rep.Omitted != 0 || rep.Hashed != 2 || rep.Uploaded != 2 {
+		t.Fatalf("full reconcile after uninstall = %+v", rep)
+	}
+	tree := h.tree("main")
+	for p, c := range files {
+		if e := tree[p]; e.SHA256 != shaOf(c) || blobContent(t, h.store(), e.SHA256) != c {
+			t.Fatalf("%s = %+v, want its content", p, e)
+		}
+	}
+	if h.state().GitHub {
+		t.Fatal("the state still says GitHub-backed")
+	}
+	if rep := h.run(func(r *codesync.Request) { r.Full = true }); rep.Hashed != 0 || rep.Uploaded != 0 || rep.Upserts != 3 {
+		t.Fatalf("a later full reconcile = %+v", rep)
+	}
+
+	// Installed again: the next full reconcile drops the content of what
+	// GitHub has.
+	on.Store(true)
+	rep = h.run(func(r *codesync.Request) { r.Full = true })
+	if !rep.GitHub || rep.Omitted != 2 || rep.Hashed != 0 || rep.Uploaded != 0 {
+		t.Fatalf("reinstalled = %+v", rep)
+	}
+	h.wantOmitted("reinstalled", "main.go", "HEAD", 13)
+	if e := h.tree("main")["new.go"]; e.SHA256 != shaOf("package main // new\n") || !e.Dirty {
+		t.Fatalf("the untracked file lost its content: %+v", e)
 	}
 }

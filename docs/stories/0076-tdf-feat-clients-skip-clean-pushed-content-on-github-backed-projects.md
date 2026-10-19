@@ -3,11 +3,13 @@ id: 0076-tdf
 title: Clients skip clean, pushed content on GitHub-backed projects
 purpose: Avoids every machine re-uploading what GitHub already supplies.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:06:55.354Z"
-updated: "2026-10-19T18:28:27.093Z"
+updated: "2026-10-19T20:10:41.142Z"
+started: "2026-10-19T20:00:50.233Z"
+completed: "2026-10-19T20:10:41.142Z"
 tags:
   - plan-0011-gha
   - wave-8
@@ -32,13 +34,13 @@ links:
     - ["0011-gha", "included", ["2.4"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Clients skip clean, pushed content on GitHub-backed projects
@@ -71,9 +73,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/codesync/... && go test ./plugin/
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/codesync/... ./plugin/
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./session/codesync/... && go test ./plugin/
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/codesync/... ./plugin/
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -82,3 +84,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/plugin/codesync_test.go` - GitHub-backed case
 
 ## Work Log
+
+### 2026-10-19T20:10:35.046Z - session/codesync reads capabilities.github on full reconciles (and on ref changes) and keeps it in the state (State.GitHub). On a GitHub-backed project a clean, pushed, tracked file is neither read, hashed nor uploaded: its entry goes with sha256 "", git_oid and size, so no manifest or blob request is made for it; dirty and unpushed files are uploaded as before, and an entry GitHub supplied that turns unpushed with an unchanged stamp is read again. When a full reconcile finds the capability false, the entries left to GitHub lose their stamp and synced mark, so that reconcile reads and uploads them. Report gains GitHub and Omitted. Tests: 2 new codesync tests (skip + overlays + pull + upstream change; uninstall resume + reinstall) and plugin TestEventRelayLeavesCleanPushedContentToGitHub (GitHub-backed server via codeapi.Options.GitHubBacked; asserts no manifest/blob requests). go test -race ./session/codesync/... ./plugin/: ok (124 tests pass, 1 skip). Deviation: mind-palace/session/codesync/state.go (outside Files) gains one field, State.GitHub, since an incremental run does not read capabilities and needs the last full reconcile's answer.
