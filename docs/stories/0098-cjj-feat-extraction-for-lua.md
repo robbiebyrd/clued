@@ -3,11 +3,13 @@ id: 0098-cjj
 title: Extraction for Lua
 purpose: 'Adds Lua to the indexer: files .lua.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:23.454Z"
-updated: "2026-10-19T18:30:49.115Z"
+updated: "2026-10-19T20:53:52.636Z"
+started: "2026-10-19T20:46:48.071Z"
+completed: "2026-10-19T20:53:52.634Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for Lua
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/lua'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/lua'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/lua'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/lua'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/lua.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:53:47.232Z - Added Lua: grammars/lua.go (gotreesitter grammars/lua), queries/lua/profile.yaml (family lua, .lua, separators . and :, packageBy file, exported declared) and tags.scm: global/local functions, M.f and M:m (receiver = table), f = function / local f = function / M.f = function, functions in table constructors, top-level module tables (local M = {} exported when the file returns M) and setmetatable-made class tables, module-table fields; imports require "x" / require("x") / local m = require("x") (alias) / require("x").f (name) / pcall(require, "x") (kind require), dofile/loadfile (kind include); refs: calls (bare, m.f, obj:m, stdlib globals excluded), extends from setmetatable(_, { __index = Base }), type from setmetatable(o, Class). Goldens: module, imports, class, nested (deep paths, closures, long strings, goto, generated handlers) and broken (syntax error) .lua; go test -race ./codeparse/... ok, TestGolden/lua 5 inputs pass; gofmt/vet/build clean. No go.mod change. Quirk: an alternation around the two table-constructor field patterns gave every field the first field's @name under gotreesitter v0.56.0, so they are separate patterns. Only the three listed paths changed.

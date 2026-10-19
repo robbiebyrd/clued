@@ -1,0 +1,14 @@
+# Lua: every file is its own module, reached through require("a.b") (dots
+# are directory separators on package.path); a module's API is the table it
+# returns, so the resolver scopes names by file and qualifies table-field
+# functions by their table (M.f, M:f). Local functions and tables are
+# file-private; global functions, functions stored in a table and the table
+# a file returns are exported (scope.exported: declared, see tags.scm).
+name: Lua
+family: lua
+extensions: [.lua]
+query: tags.scm
+scope:
+  separators: [".", ":"]
+  packageBy: file
+  exported: declared

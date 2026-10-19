@@ -1,0 +1,156 @@
+{
+  "lang": "lua",
+  "symbols": [
+    {
+      "id": "M",
+      "kind": "module",
+      "name": "M",
+      "qualName": "M",
+      "signature": "local M = {}",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 1,
+        "column": 12,
+        "offset": 12
+      },
+      "exported": true
+    },
+    {
+      "id": "M.ok",
+      "kind": "function",
+      "name": "ok",
+      "qualName": "M.ok",
+      "signature": "function M.ok(a)",
+      "doc": "Fine before the error.",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 41
+      },
+      "end": {
+        "line": 6,
+        "column": 3,
+        "offset": 80
+      },
+      "parent": "M",
+      "exported": true
+    },
+    {
+      "id": "M.broken",
+      "kind": "function",
+      "name": "broken",
+      "qualName": "M.broken",
+      "signature": "function M.broken(a if a then",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 82
+      },
+      "end": {
+        "line": 12,
+        "column": 3,
+        "offset": 138
+      },
+      "parent": "M",
+      "exported": true
+    },
+    {
+      "id": "after",
+      "kind": "function",
+      "name": "after",
+      "qualName": "after",
+      "signature": "local function after(x)",
+      "doc": "Fine after the error.",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 166
+      },
+      "end": {
+        "line": 17,
+        "column": 3,
+        "offset": 210
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "helper",
+      "kind": "call",
+      "start": {
+        "line": 5,
+        "column": 9,
+        "offset": 67
+      },
+      "enclosing": "M.ok"
+    },
+    {
+      "name": "ok",
+      "qualifier": "M",
+      "kind": "call",
+      "start": {
+        "line": 16,
+        "column": 11,
+        "offset": 201
+      },
+      "enclosing": "after"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "M.ok#1",
+      "kind": "symbol",
+      "symbolId": "M.ok",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 14
+      },
+      "end": {
+        "line": 6,
+        "column": 3,
+        "offset": 80
+      },
+      "text": "--- Fine before the error.\nfunction M.ok(a)\n  return helper(a)\nend",
+      "hash": "247ad8a5f6841efea58f7dab5d084c17526c06e3d94be9a3b85dad3ed169f193"
+    },
+    {
+      "id": "M.broken#1",
+      "kind": "symbol",
+      "symbolId": "M.broken",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 82
+      },
+      "end": {
+        "line": 12,
+        "column": 3,
+        "offset": 138
+      },
+      "text": "function M.broken(a\n  if a then\n    return a +\n  end\nend",
+      "hash": "a26a690763d32f8786d15b9342d1e1e0318fad9a459cb4b7ae5e6c8e6223386e"
+    },
+    {
+      "id": "after#1",
+      "kind": "symbol",
+      "symbolId": "after",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 140
+      },
+      "end": {
+        "line": 17,
+        "column": 3,
+        "offset": 210
+      },
+      "text": "--- Fine after the error.\nlocal function after(x)\n  return M.ok(x)\nend",
+      "hash": "e58e0fc0deba0acf6c5f6601fe7eb99f271e9f365c80b9d5904a746454d9819b"
+    }
+  ]
+}
