@@ -1,0 +1,246 @@
+{
+  "lang": "cpp",
+  "symbols": [
+    {
+      "id": "Widget",
+      "kind": "class",
+      "name": "Widget",
+      "qualName": "Widget",
+      "signature": "class Widget",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 105
+      },
+      "end": {
+        "line": 13,
+        "column": 1,
+        "offset": 225
+      },
+      "exported": true
+    },
+    {
+      "id": "Widget::Widget",
+      "kind": "method",
+      "name": "Widget",
+      "qualName": "Widget::Widget",
+      "signature": "Widget();",
+      "start": {
+        "line": 8,
+        "column": 2,
+        "offset": 131
+      },
+      "end": {
+        "line": 8,
+        "column": 11,
+        "offset": 140
+      },
+      "parent": "Widget",
+      "exported": true
+    },
+    {
+      "id": "Widget::size",
+      "kind": "method",
+      "name": "size",
+      "qualName": "Widget::size",
+      "signature": "int size() const",
+      "start": {
+        "line": 9,
+        "column": 2,
+        "offset": 143
+      },
+      "end": {
+        "line": 9,
+        "column": 44,
+        "offset": 185
+      },
+      "parent": "Widget",
+      "exported": true
+    },
+    {
+      "id": "Widget::items_",
+      "kind": "field",
+      "name": "items_",
+      "qualName": "Widget::items_",
+      "signature": "std::vector\u003cint\u003e items_;",
+      "start": {
+        "line": 12,
+        "column": 2,
+        "offset": 199
+      },
+      "end": {
+        "line": 12,
+        "column": 26,
+        "offset": 223
+      },
+      "parent": "Widget",
+      "exported": true
+    },
+    {
+      "id": "after",
+      "kind": "function",
+      "name": "after",
+      "qualName": "after",
+      "signature": "int after(int x)",
+      "doc": "after survives the error above.",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 380
+      },
+      "end": {
+        "line": 22,
+        "column": 34,
+        "offset": 414
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "vector",
+      "kind": "include_system",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 66
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "size",
+      "qualifier": "items_",
+      "kind": "call",
+      "start": {
+        "line": 9,
+        "column": 35,
+        "offset": 176
+      },
+      "enclosing": "Widget::size"
+    },
+    {
+      "name": "vector",
+      "qualifier": "std",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 7,
+        "offset": 204
+      },
+      "enclosing": "Widget::items_"
+    },
+    {
+      "name": "Widget",
+      "kind": "type",
+      "start": {
+        "line": 16,
+        "column": 18,
+        "offset": 293
+      }
+    },
+    {
+      "name": "size",
+      "qualifier": "w",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 8,
+        "offset": 313
+      }
+    },
+    {
+      "name": "draw",
+      "kind": "call",
+      "start": {
+        "line": 18,
+        "column": 4,
+        "offset": 331
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 4,
+        "column": 18,
+        "offset": 103
+      },
+      "text": "// broken.cc: a file with a syntax error the indexer still reads.\n#include \u003cvector\u003e\n\nnamespace broken {",
+      "hash": "f89c69e108f9d06cce313b58fe183bb43c1ee893971fbf7e01ab4ee7863f5ed4"
+    },
+    {
+      "id": "Widget#1",
+      "kind": "symbol",
+      "symbolId": "Widget",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 105
+      },
+      "end": {
+        "line": 13,
+        "column": 1,
+        "offset": 225
+      },
+      "text": "class Widget {\n public:\n  Widget();\n  int size() const { return items_.size(); }\n\n private:\n  std::vector\u003cint\u003e items_;\n}",
+      "hash": "15f97282dd5caa505cd01cc153cf5eeee350a47a3eedaf1a233b9ad0abec055f"
+    },
+    {
+      "id": "L15#1",
+      "kind": "window",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 228
+      },
+      "end": {
+        "line": 19,
+        "column": 3,
+        "offset": 342
+      },
+      "text": "// render is cut short: its body never closes.\nvoid render(const Widget\u0026 w {\n  if (w.size() \u003e 0) {\n    draw(w;\n  }",
+      "hash": "993d9934fa44ff6a684a3d41dab3abf6daa52f9d87e1e0c31370fe65e26062b6"
+    },
+    {
+      "id": "after#1",
+      "kind": "symbol",
+      "symbolId": "after",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 344
+      },
+      "end": {
+        "line": 22,
+        "column": 34,
+        "offset": 414
+      },
+      "text": "/// after survives the error above.\nint after(int x) { return x * 2; }",
+      "hash": "827bfc3385472184f4674312817f906b234bf68bd6e52f1e73d3df375304af7e"
+    },
+    {
+      "id": "L24#1",
+      "kind": "window",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 416
+      },
+      "end": {
+        "line": 24,
+        "column": 22,
+        "offset": 438
+      },
+      "text": "}  // namespace broken",
+      "hash": "8cda855c02286be9c16e9dfc533375677ee6977c13c3ba862a741df161eacbf7"
+    }
+  ]
+}
