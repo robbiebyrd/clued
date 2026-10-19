@@ -3,11 +3,11 @@ id: 0071-sct
 title: '`ghsync` contracts: service, jobs port, branch policy, claims'
 purpose: Fixes the shapes the code sync, docs sync and activity log stories build on, so those three can run in parallel.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:06:29.520Z"
-updated: "2026-10-19T18:06:29.520Z"
+updated: "2026-10-19T18:27:55.018Z"
 tags:
   - plan-0011-gha
   - wave-1

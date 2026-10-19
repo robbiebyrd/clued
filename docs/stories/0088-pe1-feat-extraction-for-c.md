@@ -3,11 +3,11 @@ id: 0088-pe1
 title: Extraction for C++
 purpose: 'Adds C++ to the indexer: files .cc, .cpp, .cxx, .hpp, .hh, .h.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: L
 created: "2026-10-19T18:08:31.497Z"
-updated: "2026-10-19T18:08:31.497Z"
+updated: "2026-10-19T18:29:44.016Z"
 tags:
   - plan-0012-cgi
   - wave-3

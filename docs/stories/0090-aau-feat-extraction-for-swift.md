@@ -3,11 +3,11 @@ id: 0090-aau
 title: Extraction for Swift
 purpose: 'Adds Swift to the indexer: files .swift.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:41.549Z"
-updated: "2026-10-19T18:08:41.549Z"
+updated: "2026-10-19T18:29:56.517Z"
 tags:
   - plan-0012-cgi
   - wave-3

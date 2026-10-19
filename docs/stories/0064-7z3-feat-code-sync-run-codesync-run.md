@@ -3,11 +3,11 @@ id: 0064-7z3
 title: Code sync run (`codesync.Run`)
 purpose: 'The core of collection: turn a hook event into uploaded blobs and a committed change, within a budget.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: L
 created: "2026-10-19T18:05:52.551Z"
-updated: "2026-10-19T18:05:52.551Z"
+updated: "2026-10-19T18:27:10.692Z"
 tags:
   - plan-0010-awy
   - wave-6

@@ -3,11 +3,11 @@ id: 0056-qbe
 title: MongoDB code store (`mongocode`)
 purpose: The server's real backend for collected code.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:05:13.803Z"
-updated: "2026-10-19T18:05:13.803Z"
+updated: "2026-10-19T18:26:18.469Z"
 tags:
   - plan-0010-awy
   - wave-3

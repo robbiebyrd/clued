@@ -3,11 +3,11 @@ id: 0109-bzh
 title: Resolver for Java and Kotlin
 purpose: Resolves references for Java and Kotlin so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:22.516Z"
-updated: "2026-10-19T18:10:22.516Z"
+updated: "2026-10-19T18:32:00.323Z"
 tags:
   - plan-0012-cgi
   - wave-7

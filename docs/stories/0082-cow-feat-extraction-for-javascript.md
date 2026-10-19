@@ -3,11 +3,11 @@ id: 0082-cow
 title: Extraction for JavaScript
 purpose: 'Adds JavaScript to the indexer: files .js, .mjs, .cjs, .jsx.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:07:26.246Z"
-updated: "2026-10-19T18:07:26.246Z"
+updated: "2026-10-19T18:29:05.346Z"
 tags:
   - plan-0012-cgi
   - wave-3

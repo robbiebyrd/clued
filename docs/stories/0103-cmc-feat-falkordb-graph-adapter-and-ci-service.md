@@ -3,11 +3,11 @@ id: 0103-cmc
 title: FalkorDB graph adapter and CI service
 purpose: The production graph store.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: L
 created: "2026-10-19T18:09:49.112Z"
-updated: "2026-10-19T18:09:49.112Z"
+updated: "2026-10-19T18:31:20.557Z"
 tags:
   - plan-0012-cgi
   - wave-3

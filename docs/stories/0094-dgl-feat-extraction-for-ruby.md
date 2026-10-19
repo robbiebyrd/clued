@@ -3,11 +3,11 @@ id: 0094-dgl
 title: Extraction for Ruby
 purpose: 'Adds Ruby to the indexer: files .rb, .rake, Gemfile.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:02.491Z"
-updated: "2026-10-19T18:09:02.491Z"
+updated: "2026-10-19T18:30:22.220Z"
 tags:
   - plan-0012-cgi
   - wave-3

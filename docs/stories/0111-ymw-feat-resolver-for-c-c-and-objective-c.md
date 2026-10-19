@@ -3,11 +3,11 @@ id: 0111-ymw
 title: Resolver for C, C++ and Objective-C
 purpose: Resolves references for C, C++ and Objective-C so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:33.998Z"
-updated: "2026-10-19T18:10:33.998Z"
+updated: "2026-10-19T18:32:13.060Z"
 tags:
   - plan-0012-cgi
   - wave-7

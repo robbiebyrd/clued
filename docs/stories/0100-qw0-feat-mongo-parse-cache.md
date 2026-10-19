@@ -3,11 +3,11 @@ id: 0100-qw0
 title: Mongo parse cache
 purpose: Parse each file version once across branches, layers and members, and survive restarts.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:09:33.601Z"
-updated: "2026-10-19T18:09:33.601Z"
+updated: "2026-10-19T18:31:01.619Z"
 tags:
   - plan-0012-cgi
   - wave-2

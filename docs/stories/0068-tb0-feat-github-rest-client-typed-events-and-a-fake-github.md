@@ -3,11 +3,11 @@ id: 0068-tb0
 title: GitHub REST client, typed events and a fake GitHub
 purpose: The sync needs a small, typed GitHub client and a fake to test against (never api.github.com).
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:06:13.697Z"
-updated: "2026-10-19T18:06:13.697Z"
+updated: "2026-10-19T18:27:35.651Z"
 tags:
   - plan-0011-gha
   - wave-2

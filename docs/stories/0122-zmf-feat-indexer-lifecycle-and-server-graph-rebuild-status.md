@@ -3,11 +3,11 @@ id: 0122-zmf
 title: Indexer lifecycle and `server graph rebuild|status`
 purpose: Keeps graphs bounded and recoverable.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:36.504Z"
-updated: "2026-10-19T18:11:36.504Z"
+updated: "2026-10-19T18:33:24.011Z"
 tags:
   - plan-0012-cgi
   - wave-6

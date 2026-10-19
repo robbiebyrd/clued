@@ -3,11 +3,11 @@ id: 0099-1pa
 title: Extraction for Lisp (Common Lisp, Emacs Lisp, Clojure, Scheme/Racket)
 purpose: 'Adds Lisp (Common Lisp, Emacs Lisp, Clojure, Scheme/Racket) to the indexer: files .lisp, .lsp, .cl, .asd, .el, .clj, .cljs, .cljc, .edn, .scm, .ss, .rkt.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: L
 created: "2026-10-19T18:09:28.522Z"
-updated: "2026-10-19T18:09:28.522Z"
+updated: "2026-10-19T18:30:55.131Z"
 tags:
   - plan-0012-cgi
   - wave-3

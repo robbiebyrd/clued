@@ -3,11 +3,11 @@ id: 0062-1v2
 title: 'Shared code filter: deny list, binary detection, size cap, per-file excludes'
 purpose: The client (0010) and the GitHub sync (0011) must apply the same rules, so they live in one package both import.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:43.018Z"
-updated: "2026-10-19T18:05:43.018Z"
+updated: "2026-10-19T18:26:58.157Z"
 tags:
   - plan-0010-awy
   - wave-1

@@ -3,11 +3,11 @@ id: 0065-2l0
 title: Relay triggers and `session code-sync` CLI
 purpose: Collection has to happen on its own, on the hook events where Claude changes files.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:05:59.414Z"
-updated: "2026-10-19T18:05:59.414Z"
+updated: "2026-10-19T18:27:17.050Z"
 tags:
   - plan-0010-awy
   - wave-7

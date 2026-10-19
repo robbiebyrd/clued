@@ -3,11 +3,11 @@ id: 0124-qap
 title: 'Agent tools: `code_search`, `code_symbol`, `code_neighbors`, `code_outline`, `code_context`'
 purpose: Gives agents compact answers with `path:line` instead of grep and whole-file reads.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:48.239Z"
-updated: "2026-10-19T18:11:48.239Z"
+updated: "2026-10-19T18:33:37.338Z"
 tags:
   - plan-0012-cgi
   - wave-8

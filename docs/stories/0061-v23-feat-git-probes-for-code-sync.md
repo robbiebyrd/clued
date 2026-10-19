@@ -3,11 +3,11 @@ id: 0061-v23
 title: Git probes for code sync
 purpose: Code sync needs the worktree root, HEAD, the upstream commit, which paths are unpushed or dirty, and the default branch; today only origin and branch are probed.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:38.362Z"
-updated: "2026-10-19T18:05:38.362Z"
+updated: "2026-10-19T18:26:51.212Z"
 tags:
   - plan-0010-awy
   - wave-1

@@ -3,11 +3,11 @@ id: 0084-ouo
 title: Extraction for Java
 purpose: 'Adds Java to the indexer: files .java.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:07:36.735Z"
-updated: "2026-10-19T18:07:36.735Z"
+updated: "2026-10-19T18:29:18.237Z"
 tags:
   - plan-0012-cgi
   - wave-3

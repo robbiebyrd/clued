@@ -3,11 +3,11 @@ id: 0113-hpg
 title: Resolver for Rust
 purpose: Resolves references for Rust so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:46.433Z"
-updated: "2026-10-19T18:10:46.433Z"
+updated: "2026-10-19T18:32:25.989Z"
 tags:
   - plan-0012-cgi
   - wave-7

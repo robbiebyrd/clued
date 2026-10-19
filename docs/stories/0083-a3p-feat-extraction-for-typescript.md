@@ -3,11 +3,11 @@ id: 0083-a3p
 title: Extraction for TypeScript
 purpose: 'Adds TypeScript to the indexer: files .ts, .tsx, .mts, .cts, .d.ts.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: L
 created: "2026-10-19T18:07:31.582Z"
-updated: "2026-10-19T18:07:31.582Z"
+updated: "2026-10-19T18:29:11.999Z"
 tags:
   - plan-0012-cgi
   - wave-3

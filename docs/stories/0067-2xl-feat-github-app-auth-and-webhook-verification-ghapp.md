@@ -3,11 +3,11 @@ id: 0067-2xl
 title: GitHub App auth and webhook verification (`ghapp`)
 purpose: Everything the GitHub App does starts with an app JWT, an installation token and a verified webhook.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:06:09.413Z"
-updated: "2026-10-19T18:06:09.413Z"
+updated: "2026-10-19T18:27:29.547Z"
 tags:
   - plan-0011-gha
   - wave-1

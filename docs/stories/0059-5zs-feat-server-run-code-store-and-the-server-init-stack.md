@@ -3,11 +3,11 @@ id: 0059-5zs
 title: '`server run --code-store` and the `server init` stack'
 purpose: Self-hosted servers need a way to turn the code store on.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:28.291Z"
-updated: "2026-10-19T18:05:28.291Z"
+updated: "2026-10-19T18:26:38.063Z"
 tags:
   - plan-0010-awy
   - wave-5

@@ -3,11 +3,11 @@ id: 0107-nkl
 title: Resolver for Python
 purpose: Resolves references for Python so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:10.732Z"
-updated: "2026-10-19T18:10:10.732Z"
+updated: "2026-10-19T18:31:47.472Z"
 tags:
   - plan-0012-cgi
   - wave-7

@@ -3,11 +3,11 @@ id: 0074-uto
 title: '`store.Sync` conflict mode `newer`'
 purpose: The docs sync must not overwrite an MCP edit that is newer than the repository copy.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: XS
 created: "2026-10-19T18:06:45.600Z"
-updated: "2026-10-19T18:06:45.600Z"
+updated: "2026-10-19T18:28:14.454Z"
 tags:
   - plan-0011-gha
   - wave-1

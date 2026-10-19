@@ -3,11 +3,11 @@ id: 0116-u28
 title: Resolver for Ruby
 purpose: Resolves references for Ruby so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:03.522Z"
-updated: "2026-10-19T18:11:03.522Z"
+updated: "2026-10-19T18:32:45.870Z"
 tags:
   - plan-0012-cgi
   - wave-7

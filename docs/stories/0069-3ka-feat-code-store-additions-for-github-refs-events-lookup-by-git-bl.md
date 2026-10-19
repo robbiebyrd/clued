@@ -3,11 +3,11 @@ id: 0069-3ka
 title: 'Code store additions for GitHub: refs, events, lookup by git blob id'
 purpose: The GitHub sync needs to drop deleted branches, record activity events and avoid re-fetching blobs it already holds.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:06:18.886Z"
-updated: "2026-10-19T18:06:18.886Z"
+updated: "2026-10-19T18:27:42.146Z"
 tags:
   - plan-0011-gha
   - wave-4

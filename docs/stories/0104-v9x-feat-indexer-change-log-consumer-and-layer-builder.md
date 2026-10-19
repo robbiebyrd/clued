@@ -3,11 +3,11 @@ id: 0104-v9x
 title: 'Indexer: change-log consumer and layer builder'
 purpose: Turns 0010's change log into the right layers.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: L
 created: "2026-10-19T18:09:54.069Z"
-updated: "2026-10-19T18:09:54.069Z"
+updated: "2026-10-19T18:31:27.427Z"
 tags:
   - plan-0012-cgi
   - wave-4

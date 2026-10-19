@@ -3,11 +3,11 @@ id: 0093-yvw
 title: Extraction for PHP
 purpose: 'Adds PHP to the indexer: files .php.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:57.368Z"
-updated: "2026-10-19T18:08:57.368Z"
+updated: "2026-10-19T18:30:16.044Z"
 tags:
   - plan-0012-cgi
   - wave-3

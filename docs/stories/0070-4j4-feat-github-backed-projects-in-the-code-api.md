@@ -3,11 +3,11 @@ id: 0070-4j4
 title: GitHub-backed projects in the code API
 purpose: When GitHub supplies the pushed code, clients should stop uploading it; the server has to say so and accept entries without content in exactly that case.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:06:24.077Z"
-updated: "2026-10-19T18:06:24.077Z"
+updated: "2026-10-19T18:27:48.690Z"
 tags:
   - plan-0011-gha
   - wave-6

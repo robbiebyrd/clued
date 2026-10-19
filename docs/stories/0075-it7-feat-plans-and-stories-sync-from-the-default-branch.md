@@ -3,11 +3,11 @@ id: 0075-it7
 title: Plans and stories sync from the default branch
 purpose: Keeps the server's plans and stories equal to the repository's default branch.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:06:49.892Z"
-updated: "2026-10-19T18:06:49.892Z"
+updated: "2026-10-19T18:28:20.865Z"
 tags:
   - plan-0011-gha
   - wave-3

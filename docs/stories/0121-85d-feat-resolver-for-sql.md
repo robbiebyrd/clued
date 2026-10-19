@@ -3,11 +3,11 @@ id: 0121-85d
 title: Resolver for SQL
 purpose: Resolves references for SQL so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:31.068Z"
-updated: "2026-10-19T18:11:31.068Z"
+updated: "2026-10-19T18:33:17.286Z"
 tags:
   - plan-0012-cgi
   - wave-7

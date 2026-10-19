@@ -3,11 +3,11 @@ id: 0053-mar
 title: 'Code store contract: model, port and validation'
 purpose: Every other 0010, 0011 and 0012 story builds against `code.Store` and its model.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:04:50.160Z"
-updated: "2026-10-19T18:04:50.160Z"
+updated: "2026-10-19T18:25:59.276Z"
 tags:
   - plan-0010-awy
   - wave-1

@@ -3,11 +3,11 @@ id: 0091-fcm
 title: Extraction for Kotlin
 purpose: 'Adds Kotlin to the indexer: files .kt, .kts.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:47.069Z"
-updated: "2026-10-19T18:08:47.069Z"
+updated: "2026-10-19T18:30:02.996Z"
 tags:
   - plan-0012-cgi
   - wave-3

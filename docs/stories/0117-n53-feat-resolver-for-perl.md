@@ -3,11 +3,11 @@ id: 0117-n53
 title: Resolver for Perl
 purpose: Resolves references for Perl so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:09.249Z"
-updated: "2026-10-19T18:11:09.249Z"
+updated: "2026-10-19T18:32:51.817Z"
 tags:
   - plan-0012-cgi
   - wave-7

@@ -3,11 +3,11 @@ id: 0110-djd
 title: Resolver for C# (csharp)
 purpose: Resolves references for C# (csharp) so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:28.294Z"
-updated: "2026-10-19T18:10:28.294Z"
+updated: "2026-10-19T18:32:06.841Z"
 tags:
   - plan-0012-cgi
   - wave-7

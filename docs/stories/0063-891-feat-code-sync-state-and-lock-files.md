@@ -3,11 +3,11 @@ id: 0063-891
 title: Code sync state and lock files
 purpose: Each worktree's sync needs a stamp cache, a pending queue, refused files and a back-off, kept safely across concurrent hook runs.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:47.734Z"
-updated: "2026-10-19T18:05:47.734Z"
+updated: "2026-10-19T18:27:04.654Z"
 tags:
   - plan-0010-awy
   - wave-1

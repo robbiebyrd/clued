@@ -3,11 +3,11 @@ id: 0079-zwm
 title: '`codeparse` contract: facts, detection, profiles, cache'
 purpose: Fixes the shapes the extractor, the 19 language stories, the cache and the indexer build on.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:07:11.562Z"
-updated: "2026-10-19T18:07:11.562Z"
+updated: "2026-10-19T18:28:45.650Z"
 tags:
   - plan-0012-cgi
   - wave-1

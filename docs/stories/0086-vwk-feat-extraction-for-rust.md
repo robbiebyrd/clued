@@ -3,11 +3,11 @@ id: 0086-vwk
 title: Extraction for Rust
 purpose: 'Adds Rust to the indexer: files .rs.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:20.739Z"
-updated: "2026-10-19T18:08:20.739Z"
+updated: "2026-10-19T18:29:31.163Z"
 tags:
   - plan-0012-cgi
   - wave-3

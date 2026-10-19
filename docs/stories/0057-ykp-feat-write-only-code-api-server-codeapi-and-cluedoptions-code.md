@@ -3,11 +3,11 @@ id: 0057-ykp
 title: Write-only code API (`server/codeapi`) and `CluedOptions.Code`
 purpose: The transport that receives collected code.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:05:18.723Z"
-updated: "2026-10-19T18:05:18.723Z"
+updated: "2026-10-19T18:26:25.066Z"
 tags:
   - plan-0010-awy
   - wave-4

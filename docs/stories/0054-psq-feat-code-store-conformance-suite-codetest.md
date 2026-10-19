@@ -3,11 +3,11 @@ id: 0054-psq
 title: Code store conformance suite (`codetest`)
 purpose: The memory, Mongo and remote stores must behave identically.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:05:03.789Z"
-updated: "2026-10-19T18:05:03.789Z"
+updated: "2026-10-19T18:26:05.623Z"
 tags:
   - plan-0010-awy
   - wave-2

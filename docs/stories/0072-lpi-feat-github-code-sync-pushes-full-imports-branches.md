@@ -3,11 +3,11 @@ id: 0072-lpi
 title: 'GitHub code sync: pushes, full imports, branches'
 purpose: Keeps the GitHub-backed worktree (base and branch layers) current from pushes.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: L
 created: "2026-10-19T18:06:33.866Z"
-updated: "2026-10-19T18:06:33.866Z"
+updated: "2026-10-19T18:28:01.273Z"
 tags:
   - plan-0011-gha
   - wave-5

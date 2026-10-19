@@ -3,11 +3,11 @@ id: 0105-it1
 title: 'Indexer: apply files, tombstones and `hiddenBy`'
 purpose: Writes each changed file into its layer and keeps views correct.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:59.821Z"
-updated: "2026-10-19T18:09:59.821Z"
+updated: "2026-10-19T18:31:34.192Z"
 tags:
   - plan-0012-cgi
   - wave-5

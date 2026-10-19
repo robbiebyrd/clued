@@ -3,11 +3,11 @@ id: 0098-cjj
 title: Extraction for Lua
 purpose: 'Adds Lua to the indexer: files .lua.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:23.454Z"
-updated: "2026-10-19T18:09:23.454Z"
+updated: "2026-10-19T18:30:49.115Z"
 tags:
   - plan-0012-cgi
   - wave-3

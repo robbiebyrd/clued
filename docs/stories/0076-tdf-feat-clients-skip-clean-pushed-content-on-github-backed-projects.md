@@ -3,11 +3,11 @@ id: 0076-tdf
 title: Clients skip clean, pushed content on GitHub-backed projects
 purpose: Avoids every machine re-uploading what GitHub already supplies.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:06:55.354Z"
-updated: "2026-10-19T18:06:55.354Z"
+updated: "2026-10-19T18:28:27.093Z"
 tags:
   - plan-0011-gha
   - wave-8

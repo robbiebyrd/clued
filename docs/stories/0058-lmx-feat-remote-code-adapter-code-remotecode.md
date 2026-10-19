@@ -3,11 +3,11 @@ id: 0058-lmx
 title: Remote code adapter (`code/remotecode`)
 purpose: The client side of the transport, used by `codesync`.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:23.491Z"
-updated: "2026-10-19T18:05:23.491Z"
+updated: "2026-10-19T18:26:31.534Z"
 tags:
   - plan-0010-awy
   - wave-5

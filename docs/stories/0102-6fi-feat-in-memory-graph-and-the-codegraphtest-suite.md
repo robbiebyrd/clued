@@ -3,11 +3,11 @@ id: 0102-6fi
 title: In-memory graph and the `codegraphtest` suite
 purpose: Gives every later story a graph to test against without FalkorDB, and pins the behaviour FalkorDB must match.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:43.796Z"
-updated: "2026-10-19T18:09:43.796Z"
+updated: "2026-10-19T18:31:14.456Z"
 tags:
   - plan-0012-cgi
   - wave-2

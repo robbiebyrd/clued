@@ -3,11 +3,11 @@ id: 0066-zp3
 title: Docs and `/clued-setup` for code collection
 purpose: Every entrypoint change goes into PROTOCOL.md, and users must be told plainly what leaves their machine.
 type: chor
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:06:04.203Z"
-updated: "2026-10-19T18:06:04.203Z"
+updated: "2026-10-19T18:27:22.983Z"
 tags:
   - plan-0010-awy
   - wave-8

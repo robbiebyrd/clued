@@ -3,11 +3,11 @@ id: 0118-lga
 title: Resolver for Lua
 purpose: Resolves references for Lua so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:14.667Z"
-updated: "2026-10-19T18:11:14.667Z"
+updated: "2026-10-19T18:32:58.165Z"
 tags:
   - plan-0012-cgi
   - wave-7

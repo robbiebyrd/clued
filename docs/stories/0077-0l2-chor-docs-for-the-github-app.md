@@ -3,11 +3,11 @@ id: 0077-0l2
 title: Docs for the GitHub App
 purpose: Users and operators need to know what the app reads, stores and keeps.
 type: chor
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:07:00.716Z"
-updated: "2026-10-19T18:07:00.716Z"
+updated: "2026-10-19T18:28:33.335Z"
 tags:
   - plan-0011-gha
   - wave-9

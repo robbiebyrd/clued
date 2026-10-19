@@ -3,11 +3,11 @@ id: 0115-jq8
 title: Resolver for PHP
 purpose: Resolves references for PHP so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:57.853Z"
-updated: "2026-10-19T18:10:57.853Z"
+updated: "2026-10-19T18:32:39.186Z"
 tags:
   - plan-0012-cgi
   - wave-7

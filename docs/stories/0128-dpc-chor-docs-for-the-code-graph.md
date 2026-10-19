@@ -3,11 +3,11 @@ id: 0128-dpc
 title: Docs for the code graph
 purpose: Documents the first read path for collected code.
 type: chor
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:12:15.055Z"
-updated: "2026-10-19T18:12:15.055Z"
+updated: "2026-10-19T18:34:03.440Z"
 tags:
   - plan-0012-cgi
   - wave-10

@@ -3,11 +3,11 @@ id: 0055-xeo
 title: In-memory code store (`memcode`)
 purpose: Tests everywhere (transport, client, indexer) and `server run --store memory` need a code store with no database.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:08.895Z"
-updated: "2026-10-19T18:05:08.895Z"
+updated: "2026-10-19T18:26:11.962Z"
 tags:
   - plan-0010-awy
   - wave-3

@@ -3,11 +3,11 @@ id: 0127-0sp
 title: FalkorDB in the `server init` stack
 purpose: Self-hosted servers get the graph with no manual setup.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:12:09.305Z"
-updated: "2026-10-19T18:12:09.305Z"
+updated: "2026-10-19T18:33:56.594Z"
 tags:
   - plan-0012-cgi
   - wave-8

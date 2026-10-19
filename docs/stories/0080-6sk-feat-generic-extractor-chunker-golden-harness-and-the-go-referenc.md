@@ -3,11 +3,11 @@ id: 0080-6sk
 title: Generic extractor, chunker, golden harness and the Go reference language
 purpose: The engine every language plugs into, proven on Go.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: L
 created: "2026-10-19T18:07:16.265Z"
-updated: "2026-10-19T18:07:16.265Z"
+updated: "2026-10-19T18:28:52.418Z"
 tags:
   - plan-0012-cgi
   - wave-2

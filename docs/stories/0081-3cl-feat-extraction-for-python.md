@@ -3,11 +3,11 @@ id: 0081-3cl
 title: Extraction for Python
 purpose: 'Adds Python to the indexer: files .py, .pyi.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:07:21.431Z"
-updated: "2026-10-19T18:07:21.431Z"
+updated: "2026-10-19T18:28:58.841Z"
 tags:
   - plan-0012-cgi
   - wave-3

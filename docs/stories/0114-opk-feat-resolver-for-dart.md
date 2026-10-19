@@ -3,11 +3,11 @@ id: 0114-opk
 title: Resolver for Dart
 purpose: Resolves references for Dart so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:52.301Z"
-updated: "2026-10-19T18:10:52.301Z"
+updated: "2026-10-19T18:32:32.560Z"
 tags:
   - plan-0012-cgi
   - wave-7

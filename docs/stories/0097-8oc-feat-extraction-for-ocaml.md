@@ -3,11 +3,11 @@ id: 0097-8oc
 title: Extraction for OCaml
 purpose: 'Adds OCaml to the indexer: files .ml, .mli.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:17.942Z"
-updated: "2026-10-19T18:09:17.942Z"
+updated: "2026-10-19T18:30:42.699Z"
 tags:
   - plan-0012-cgi
   - wave-3

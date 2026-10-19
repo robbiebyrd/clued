@@ -3,11 +3,11 @@ id: 0119-ddc
 title: Resolver for OCaml
 purpose: Resolves references for OCaml so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:20.133Z"
-updated: "2026-10-19T18:11:20.133Z"
+updated: "2026-10-19T18:33:04.354Z"
 tags:
   - plan-0012-cgi
   - wave-7

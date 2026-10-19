@@ -3,11 +3,11 @@ id: 0096-daz
 title: Extraction for Perl
 purpose: 'Adds Perl to the indexer: files .pl, .pm, .t.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:12.665Z"
-updated: "2026-10-19T18:09:12.665Z"
+updated: "2026-10-19T18:30:35.577Z"
 tags:
   - plan-0012-cgi
   - wave-3

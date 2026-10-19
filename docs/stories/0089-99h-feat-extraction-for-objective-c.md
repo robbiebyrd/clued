@@ -3,11 +3,11 @@ id: 0089-99h
 title: Extraction for Objective-C
 purpose: 'Adds Objective-C to the indexer: files .m, .mm, .h.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:36.538Z"
-updated: "2026-10-19T18:08:36.538Z"
+updated: "2026-10-19T18:29:49.987Z"
 tags:
   - plan-0012-cgi
   - wave-3

@@ -3,11 +3,11 @@ id: 0106-wdt
 title: Resolution core and the Go resolver
 purpose: Links references to definitions per layer; the engine every language family plugs into.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: L
 created: "2026-10-19T18:10:05.235Z"
-updated: "2026-10-19T18:10:05.235Z"
+updated: "2026-10-19T18:31:40.849Z"
 tags:
   - plan-0012-cgi
   - wave-6

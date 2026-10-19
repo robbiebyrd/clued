@@ -3,11 +3,11 @@ id: 0112-5ga
 title: Resolver for Swift
 purpose: Resolves references for Swift so calls, references and implementations link to the right definitions.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:40.665Z"
-updated: "2026-10-19T18:10:40.665Z"
+updated: "2026-10-19T18:32:19.459Z"
 tags:
   - plan-0012-cgi
   - wave-7

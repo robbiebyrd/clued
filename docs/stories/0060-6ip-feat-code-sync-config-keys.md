@@ -3,11 +3,11 @@ id: 0060-6ip
 title: Code sync config keys
 purpose: The client needs an opt-in switch (off by default) and limits before it uploads anything.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:33.909Z"
-updated: "2026-10-19T18:05:33.909Z"
+updated: "2026-10-19T18:26:44.539Z"
 tags:
   - plan-0010-awy
   - wave-1

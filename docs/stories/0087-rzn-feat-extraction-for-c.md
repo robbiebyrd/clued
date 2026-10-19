@@ -3,11 +3,11 @@ id: 0087-rzn
 title: Extraction for C
 purpose: 'Adds C to the indexer: files .c, .h.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:26.017Z"
-updated: "2026-10-19T18:08:26.017Z"
+updated: "2026-10-19T18:29:37.303Z"
 tags:
   - plan-0012-cgi
   - wave-3

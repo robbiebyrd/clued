@@ -3,11 +3,11 @@ id: 0101-qmn
 title: '`codegraph` contract: port, schema, views'
 purpose: Fixes the graph shapes so the memory adapter, the FalkorDB adapter, the indexer and the read API can be built in parallel.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: S
 created: "2026-10-19T18:09:38.850Z"
-updated: "2026-10-19T18:09:38.850Z"
+updated: "2026-10-19T18:31:07.716Z"
 tags:
   - plan-0012-cgi
   - wave-1

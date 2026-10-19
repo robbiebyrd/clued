@@ -3,11 +3,11 @@ id: 0125-067
 title: Evaluation harness and task set
 purpose: Measures tokens, turns and success with and without the tools; built in parallel with everything else.
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:53.687Z"
-updated: "2026-10-19T18:11:53.687Z"
+updated: "2026-10-19T18:33:43.800Z"
 tags:
   - plan-0012-cgi
   - wave-1

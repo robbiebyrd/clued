@@ -3,11 +3,11 @@ id: 0085-134
 title: Extraction for C# (csharp)
 purpose: 'Adds C# (csharp) to the indexer: files .cs.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:15.288Z"
-updated: "2026-10-19T18:08:15.288Z"
+updated: "2026-10-19T18:29:24.606Z"
 tags:
   - plan-0012-cgi
   - wave-3

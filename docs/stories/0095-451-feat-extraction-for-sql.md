@@ -3,11 +3,11 @@ id: 0095-451
 title: Extraction for SQL
 purpose: 'Adds SQL to the indexer: files .sql.'
 type: feat
-status: pending
+status: ready
 priority: "3"
 effort: L
 created: "2026-10-19T18:09:07.704Z"
-updated: "2026-10-19T18:09:07.704Z"
+updated: "2026-10-19T18:30:28.725Z"
 tags:
   - plan-0012-cgi
   - wave-3
