@@ -3,11 +3,13 @@ id: 0068-tb0
 title: GitHub REST client, typed events and a fake GitHub
 purpose: The sync needs a small, typed GitHub client and a fake to test against (never api.github.com).
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:06:13.697Z"
-updated: "2026-10-19T18:27:35.651Z"
+updated: "2026-10-19T19:17:52.335Z"
+started: "2026-10-19T19:05:19.997Z"
+completed: "2026-10-19T19:17:41.291Z"
 tags:
   - plan-0011-gha
   - wave-2
@@ -33,15 +35,15 @@ links:
     - ["0011-gha", "included", ["1.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # GitHub REST client, typed events and a fake GitHub
@@ -78,9 +80,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./ghapp/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./ghapp/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./ghapp/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./ghapp/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -91,3 +93,7 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/ghapp/testdata/` - recorded payload fixtures
 
 ## Work Log
+
+### 2026-10-19T19:17:35.667Z - ghapp REST client (client.go): App.InstallationClient (token bought up front, refreshed from the cache, one retry after a 401), App.AppClient (JWT), NewClient; Installation, Installations, InstallationRepositories, Repository, RepositoryByID, Branches, Branch, OpenPulls, Compare (Truncated at GitHub's 300-file cap), Tree (recursive, Truncated), Blob, Contents (file or directory; encoding none -> ErrTooLarge). Link-header pagination that refuses next links off the base host, MaxPages cap; X-RateLimit-* recorded (Client.RateLimit); 5xx and transport errors retried with doubling backoff; Retry-After (seconds or HTTP date) and primary reset waited only up to MaxRetryWait, otherwise returned. Typed errors: *APIError with errors.Is ErrNotFound / ErrRateLimited / ErrTooLarge / ErrUnauthorized, Temporary(), RetryAfter(err). events.go: ParseEvent for push, create, delete, pull_request, check_suite, check_run, status, workflow_run, installation, installation_repositories, repository (+ ping); Event interface (EventName, EventAction, InstallationID, RepositoryID), exported Envelope, Timestamp accepting RFC 3339 or Unix seconds; e-mail addresses are never decoded. ghapptest.Fake: httptest GitHub with real git blob/tree/commit ids (tree ids checked against git write-tree), JWT and token auth, seedable installations (suspend, remove, repo selection, token revocation), repos (Commit with Put/PutMode/Symlink/Submodule/Delete, Merge, SetBranch, DeleteBranch, Update for renames), computed compare (added/modified/removed/renamed, ahead/behind/diverged) or SetCompare override, tree truncation (Fake.TreeLimit, Repo.SetTreeLimit), contents, open pulls, pagination (PageSize), per-installation rate limit (SetRateRemaining), fault injection (Inject, FailNext, RateLimitNext), request log (Requests, Count), PushEvent/Envelope payload builders and Deliver/DeliverRaw signed webhook delivery. testdata/events: 13 GitHub-shaped fixtures. Tests: 33 in ghapp (19 new in client_test.go), go test -race ./ghapp/... ok, coverage 88.8% of ghapp/...; gofmt, go vet ./..., go build ./... clean. Deviation: the plan named the test ghapp_test.go; the story's client_test.go is used (package ghapp_test, since ghapptest imports ghapp). Only the listed files changed.
+
+### 2026-10-19T19:17:52.335Z - Correction to the test count above: client_test.go adds 25 test functions (33 in ghapp in total, 8 from auth_test.go).
