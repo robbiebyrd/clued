@@ -3,12 +3,13 @@ id: 0077-0l2
 title: Docs for the GitHub App
 purpose: Users and operators need to know what the app reads, stores and keeps.
 type: chor
-status: in_progress
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:07:00.716Z"
-updated: "2026-10-19T20:12:49.986Z"
+updated: "2026-10-19T20:27:46.780Z"
 started: "2026-10-19T20:12:49.986Z"
+completed: "2026-10-19T20:27:46.780Z"
 tags:
   - plan-0011-gha
   - wave-9
@@ -40,13 +41,13 @@ links:
     - ["0011-gha", "included", ["4.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Docs for the GitHub App
@@ -79,9 +80,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test ./plugin/
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./plugin/
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test ./plugin/
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./plugin/
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -92,3 +93,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/README.md` - package map
 
 ## Work Log
+
+### 2026-10-19T20:27:39.973Z - Wrote docs/github-app.md (permissions, events, claims, webhook intake, code sync, branch policy incl. github.* in mind-palace.config.yaml, plans and stories sync with newer + archive-on-delete, activity log, what is stored, uninstall and deletion), documented from the code where it differs from the plan (direct-from-GitHub claims need a linked installer identity only; a rename switches to the new slug with no alias; the self-hosted server does not run the app). PROTOCOL.md: 4.4.1 GitHub-backed projects and the state's github flag, 6.3 and 9 onConflict/--on-conflict newer (with aliases), 7.12 capabilities.github rewritten (content-less entries accepted on every project; github only tells clients to skip clean pushed uploads), new 7.13 POST /github/webhook as Clued Cloud serves it, 11.2 github: keys. README.md pointer, .claude/CLAUDE.md and mind-palace/README.md rows for ghapp/, ghapptest, ghsync/ and docs/github-app.md. Outside the story's Files, at the coordinator's request: docs/server.md (listed in plan 0011 step 4.1: GitHub-backed projects under Collected code, --on-conflict newer), mind-palace/cli/cli.go and mind-palace/ops/documents.go (help text and onConflict description now list newer, left over from 0074; strings only). Verified: gofmt clean, go vet, go build; go test -race ./plugin/ (89 tests pass), ./ops/ ./cli/ ./store/ pass.
