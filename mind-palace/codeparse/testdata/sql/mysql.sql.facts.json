@@ -1,0 +1,270 @@
+{
+  "lang": "sql",
+  "package": "shop",
+  "symbols": [
+    {
+      "id": "shop.customers",
+      "kind": "table",
+      "name": "customers",
+      "qualName": "shop.customers",
+      "signature": "CREATE TABLE `customers` (",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 124
+      },
+      "end": {
+        "line": 9,
+        "column": 1,
+        "offset": 241
+      },
+      "exported": true
+    },
+    {
+      "id": "shop.customers.id",
+      "kind": "column",
+      "name": "id",
+      "qualName": "shop.customers.id",
+      "signature": "`id` int NOT NULL AUTO_INCREMENT",
+      "start": {
+        "line": 6,
+        "column": 2,
+        "offset": 153
+      },
+      "end": {
+        "line": 6,
+        "column": 34,
+        "offset": 185
+      },
+      "parent": "shop.customers",
+      "exported": true
+    },
+    {
+      "id": "shop.customers.name",
+      "kind": "column",
+      "name": "name",
+      "qualName": "shop.customers.name",
+      "signature": "`name` varchar(100) NOT NULL",
+      "start": {
+        "line": 7,
+        "column": 2,
+        "offset": 189
+      },
+      "end": {
+        "line": 7,
+        "column": 30,
+        "offset": 217
+      },
+      "parent": "shop.customers",
+      "exported": true
+    },
+    {
+      "id": "shop.orders",
+      "kind": "table",
+      "name": "orders",
+      "qualName": "shop.orders",
+      "signature": "CREATE TABLE `orders` (",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 282
+      },
+      "end": {
+        "line": 15,
+        "column": 1,
+        "offset": 424
+      },
+      "exported": true
+    },
+    {
+      "id": "shop.orders.id",
+      "kind": "column",
+      "name": "id",
+      "qualName": "shop.orders.id",
+      "signature": "`id` int NOT NULL AUTO_INCREMENT",
+      "start": {
+        "line": 12,
+        "column": 2,
+        "offset": 308
+      },
+      "end": {
+        "line": 12,
+        "column": 34,
+        "offset": 340
+      },
+      "parent": "shop.orders",
+      "exported": true
+    },
+    {
+      "id": "shop.orders.customer_id",
+      "kind": "column",
+      "name": "customer_id",
+      "qualName": "shop.orders.customer_id",
+      "signature": "`customer_id` int NOT NULL REFERENCES `customers` (`id`)",
+      "start": {
+        "line": 13,
+        "column": 2,
+        "offset": 344
+      },
+      "end": {
+        "line": 13,
+        "column": 58,
+        "offset": 400
+      },
+      "parent": "shop.orders",
+      "exported": true
+    },
+    {
+      "id": "shop.orders_customer_idx",
+      "kind": "index",
+      "name": "orders_customer_idx",
+      "qualName": "shop.orders_customer_idx",
+      "signature": "CREATE INDEX `orders_customer_idx` ON `orders` (`customer_id`)",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 441
+      },
+      "end": {
+        "line": 17,
+        "column": 62,
+        "offset": 503
+      },
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "customers",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 40,
+        "offset": 382
+      },
+      "enclosing": "shop.orders.customer_id"
+    },
+    {
+      "name": "orders",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 38,
+        "offset": 479
+      },
+      "enclosing": "shop.orders_customer_idx"
+    },
+    {
+      "name": "customers",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 12,
+        "offset": 518
+      }
+    },
+    {
+      "name": "orders",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 25,
+        "offset": 581
+      }
+    },
+    {
+      "name": "customers",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 41,
+        "offset": 597
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 11,
+        "offset": 122
+      },
+      "text": "-- MySQL dump of the shop database: backticks, AUTO_INCREMENT and table\n-- options this grammar does not know.\nUSE `shop`;",
+      "hash": "f079a81f19c39d729f6015ee0a3e7531eadfed766f9190a8c95017f56e8fb60e"
+    },
+    {
+      "id": "shop.customers#1",
+      "kind": "symbol",
+      "symbolId": "shop.customers",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 124
+      },
+      "end": {
+        "line": 9,
+        "column": 1,
+        "offset": 241
+      },
+      "text": "CREATE TABLE `customers` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `name` varchar(100) NOT NULL,\n  PRIMARY KEY (`id`)\n)",
+      "hash": "74338485296e3ef8e3fbd2f5af46a553d083f2bff9324f1560a12f78bdc3fe69"
+    },
+    {
+      "id": "shop.orders#1",
+      "kind": "symbol",
+      "symbolId": "shop.orders",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 282
+      },
+      "end": {
+        "line": 15,
+        "column": 1,
+        "offset": 424
+      },
+      "text": "CREATE TABLE `orders` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `customer_id` int NOT NULL REFERENCES `customers` (`id`),\n  PRIMARY KEY (`id`)\n)",
+      "hash": "b72cf92cb3c9de7c0a2a6de878d05d02ed5f52893b26955e31370828b5ca9176"
+    },
+    {
+      "id": "shop.orders_customer_idx#1",
+      "kind": "symbol",
+      "symbolId": "shop.orders_customer_idx",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 441
+      },
+      "end": {
+        "line": 17,
+        "column": 62,
+        "offset": 503
+      },
+      "text": "CREATE INDEX `orders_customer_idx` ON `orders` (`customer_id`)",
+      "hash": "8a87039fece079493b27dbcab18e9cec6f0ae293f5ac55a47abbd04fe511b4c6"
+    },
+    {
+      "id": "L19#1",
+      "kind": "window",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 506
+      },
+      "end": {
+        "line": 21,
+        "column": 79,
+        "offset": 635
+      },
+      "text": "INSERT INTO `customers` (`name`) VALUES ('Ada');\n\nSELECT o.id, c.name FROM `orders` o JOIN `customers` c ON c.id = o.customer_id;",
+      "hash": "2883da7300c26218003f738a2aefc3afa16cc171a1255aacbe78758bbbeeae9a"
+    }
+  ]
+}

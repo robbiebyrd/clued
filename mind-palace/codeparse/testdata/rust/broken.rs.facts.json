@@ -1,0 +1,198 @@
+{
+  "lang": "rust",
+  "symbols": [
+    {
+      "id": "good",
+      "kind": "function",
+      "name": "good",
+      "qualName": "good",
+      "signature": "pub fn good() -\u003e u32",
+      "doc": "A file with a syntax error in the middle.\nParsed despite the error below.",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 83
+      },
+      "end": {
+        "line": 6,
+        "column": 1,
+        "offset": 113
+      },
+      "exported": true
+    },
+    {
+      "id": "bad",
+      "kind": "function",
+      "name": "bad",
+      "qualName": "bad",
+      "signature": "pub fn bad(x: u32 -\u003e u32",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 115
+      },
+      "end": {
+        "line": 10,
+        "column": 1,
+        "offset": 151
+      },
+      "exported": true
+    },
+    {
+      "id": "After",
+      "kind": "struct",
+      "name": "After",
+      "qualName": "After",
+      "signature": "pub struct After",
+      "doc": "After the error.",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 174
+      },
+      "end": {
+        "line": 15,
+        "column": 1,
+        "offset": 214
+      },
+      "exported": true
+    },
+    {
+      "id": "After::field",
+      "kind": "field",
+      "name": "field",
+      "qualName": "After::field",
+      "signature": "pub field: u32",
+      "start": {
+        "line": 14,
+        "column": 4,
+        "offset": 197
+      },
+      "end": {
+        "line": 14,
+        "column": 18,
+        "offset": 211
+      },
+      "parent": "After",
+      "exported": true
+    },
+    {
+      "id": "After~2",
+      "kind": "impl",
+      "name": "After",
+      "qualName": "After",
+      "signature": "impl After",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 216
+      },
+      "end": {
+        "line": 21,
+        "column": 1,
+        "offset": 282
+      }
+    },
+    {
+      "id": "After::get",
+      "kind": "method",
+      "name": "get",
+      "qualName": "After::get",
+      "signature": "pub fn get(\u0026self) -\u003e u32",
+      "start": {
+        "line": 18,
+        "column": 4,
+        "offset": 233
+      },
+      "end": {
+        "line": 20,
+        "column": 5,
+        "offset": 280
+      },
+      "parent": "After~2",
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "good",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 8,
+        "offset": 268
+      },
+      "enclosing": "After::get"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "good#1",
+      "kind": "symbol",
+      "symbolId": "good",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 6,
+        "column": 1,
+        "offset": 113
+      },
+      "text": "//! A file with a syntax error in the middle.\n\n/// Parsed despite the error below.\npub fn good() -\u003e u32 {\n    1\n}",
+      "hash": "3d14842521b99345d8417366dba822f0434bc1afcc78679b8cee84799b3bd184"
+    },
+    {
+      "id": "bad#1",
+      "kind": "symbol",
+      "symbolId": "bad",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 115
+      },
+      "end": {
+        "line": 10,
+        "column": 1,
+        "offset": 151
+      },
+      "text": "pub fn bad(x: u32 -\u003e u32 {\n    x +\n}",
+      "hash": "5d624bf45bf121497c475077f4ed47e3bf8915ecb06151a46ee290119f877419"
+    },
+    {
+      "id": "After#1",
+      "kind": "symbol",
+      "symbolId": "After",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 153
+      },
+      "end": {
+        "line": 15,
+        "column": 1,
+        "offset": 214
+      },
+      "text": "/// After the error.\npub struct After {\n    pub field: u32,\n}",
+      "hash": "085af4fccb9472c5ace1041ff0375a89bc21a893eaaa11ebbc5dac378ac2a222"
+    },
+    {
+      "id": "After~2#1",
+      "kind": "symbol",
+      "symbolId": "After~2",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 216
+      },
+      "end": {
+        "line": 21,
+        "column": 1,
+        "offset": 282
+      },
+      "text": "impl After {\n    pub fn get(\u0026self) -\u003e u32 {\n        good()\n    }\n}",
+      "hash": "db36323a61f418a6a3c1730e3bf5baab284b1b46297ee2a688f4ba79fee60579"
+    }
+  ]
+}

@@ -1,0 +1,344 @@
+{
+  "lang": "rust",
+  "symbols": [
+    {
+      "id": "parser",
+      "kind": "module",
+      "name": "parser",
+      "qualName": "parser",
+      "signature": "mod parser;",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 117
+      },
+      "end": {
+        "line": 5,
+        "column": 11,
+        "offset": 128
+      }
+    },
+    {
+      "id": "tests",
+      "kind": "module",
+      "name": "tests",
+      "qualName": "tests",
+      "signature": "mod tests;",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 142
+      },
+      "end": {
+        "line": 7,
+        "column": 10,
+        "offset": 152
+      }
+    },
+    {
+      "id": "api",
+      "kind": "module",
+      "name": "api",
+      "qualName": "api",
+      "signature": "pub mod api;",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 153
+      },
+      "end": {
+        "line": 8,
+        "column": 12,
+        "offset": 165
+      },
+      "exported": true
+    },
+    {
+      "id": "load",
+      "kind": "function",
+      "name": "load",
+      "qualName": "load",
+      "signature": "pub fn load(path: \u0026str) -\u003e io::Result\u003cSettings\u003e",
+      "doc": "Reads the settings.",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 496
+      },
+      "end": {
+        "line": 27,
+        "column": 1,
+        "offset": 686
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "alloc",
+      "kind": "extern_crate",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 63
+      }
+    },
+    {
+      "spec": "serde_json",
+      "alias": "json",
+      "kind": "extern_crate",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 83
+      }
+    },
+    {
+      "spec": "parser",
+      "kind": "mod",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 117
+      }
+    },
+    {
+      "spec": "tests",
+      "kind": "mod",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 142
+      }
+    },
+    {
+      "spec": "api",
+      "kind": "mod",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 153
+      }
+    },
+    {
+      "spec": "std",
+      "names": [
+        "io"
+      ],
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 167
+      }
+    },
+    {
+      "spec": "std::collections",
+      "names": [
+        "HashMap"
+      ],
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 180
+      }
+    },
+    {
+      "spec": "std::sync",
+      "names": [
+        "Arc",
+        "Mutex",
+        "mpsc::Sender as Tx"
+      ],
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 211
+      }
+    },
+    {
+      "spec": "std::fmt",
+      "names": [
+        "self",
+        "Display"
+      ],
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 260
+      }
+    },
+    {
+      "spec": "crate::config",
+      "alias": "Settings",
+      "names": [
+        "Config"
+      ],
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 291
+      }
+    },
+    {
+      "spec": "super",
+      "kind": "glob",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 330
+      }
+    },
+    {
+      "spec": "self::parser",
+      "names": [
+        "ast::{Expr, Stmt}",
+        "lexer::*"
+      ],
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 344
+      }
+    },
+    {
+      "spec": "api",
+      "names": [
+        "Client"
+      ],
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 393
+      }
+    },
+    {
+      "spec": "::serde",
+      "names": [
+        "Deserialize"
+      ],
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 414
+      }
+    },
+    {
+      "spec": "tokio",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 440
+      }
+    },
+    {
+      "spec": "log",
+      "alias": "logging",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 451
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Result",
+      "qualifier": "io",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 31,
+        "offset": 527
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "Settings",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 38,
+        "offset": 534
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "read_to_string",
+      "qualifier": "std::fs",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 24,
+        "offset": 570
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "Settings",
+      "kind": "type",
+      "start": {
+        "line": 25,
+        "column": 16,
+        "offset": 609
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "from_str",
+      "qualifier": "json",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 33,
+        "offset": 626
+      },
+      "enclosing": "load"
+    },
+    {
+      "name": "map_err",
+      "qualifier": "json::from_str(\u0026text)",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 49,
+        "offset": 642
+      },
+      "enclosing": "load"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 20,
+        "column": 19,
+        "offset": 470
+      },
+      "text": "// Every form of `use`, `extern crate` and `mod` declarations.\nextern crate alloc;\nextern crate serde_json as json;\n\nmod parser;\n#[cfg(test)]\nmod tests;\npub mod api;\n\nuse std::io;\nuse std::collections::HashMap;\nuse std::sync::{Arc, Mutex, mpsc::Sender as Tx};\nuse std::fmt::{self, Display};\nuse crate::config::Config as Settings;\nuse super::*;\nuse self::parser::{ast::{Expr, Stmt}, lexer::*};\npub use api::Client;\nuse ::serde::Deserialize;\nuse tokio;\nuse log as logging;",
+      "hash": "66597301948ca36bdcdb7300560c395de9b251577c051b453b5e4d775b98fc04"
+    },
+    {
+      "id": "load#1",
+      "kind": "symbol",
+      "symbolId": "load",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 472
+      },
+      "end": {
+        "line": 27,
+        "column": 1,
+        "offset": 686
+      },
+      "text": "/// Reads the settings.\npub fn load(path: \u0026str) -\u003e io::Result\u003cSettings\u003e {\n    let text = std::fs::read_to_string(path)?;\n    let config: Settings = json::from_str(\u0026text).map_err(io::Error::other)?;\n    Ok(config)\n}",
+      "hash": "bde59e75362258a9653eda6c30c143a1b7591fdd1a8a8b27727fa77adf29f7da"
+    }
+  ]
+}

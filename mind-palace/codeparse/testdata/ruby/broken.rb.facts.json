@@ -6,7 +6,7 @@
       "kind": "module",
       "name": "Inventory",
       "qualName": "Inventory",
-      "signature": "module Inventory # A warehouse with stock.",
+      "signature": "module Inventory",
       "start": {
         "line": 3,
         "column": 0,

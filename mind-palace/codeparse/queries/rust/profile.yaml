@@ -1,0 +1,22 @@
+# Rust: every file is a module of its crate's `mod` tree, rooted at the
+# crate root (src/lib.rs, src/main.rs, a [[bin]] or [lib] path in
+# Cargo.toml); a module's children are its `mod name;` declarations (the
+# imports of kind "mod") found as name.rs or name/mod.rs next to it, or in
+# the directory named after it. `use` brings names in (the paths start at a
+# crate name, `crate`, `self` or `super`; kind "glob" brings every exported
+# name); `impl Trait for Type` makes the impl, named after Type, implement
+# Trait. Names are qualified with `::`; an item is exported when it has a
+# visibility modifier (`pub`, `pub(crate)`, ...).
+name: Rust
+family: rust
+extensions: [.rs]
+query: tags.scm
+scope:
+  separators: ["::"]
+  packageBy: file
+  exported: declared
+  options:
+    manifest: Cargo.toml
+    crateRoots: src/lib.rs src/main.rs
+    modFile: mod.rs
+    pathRoots: crate self super

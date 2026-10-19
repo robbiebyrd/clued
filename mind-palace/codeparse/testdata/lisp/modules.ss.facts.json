@@ -1,0 +1,319 @@
+{
+  "lang": "lisp",
+  "dialect": "scheme",
+  "symbols": [
+    {
+      "id": "(app main)",
+      "kind": "module",
+      "name": "(app main)",
+      "qualName": "(app main)",
+      "signature": "(define-module (app main)",
+      "doc": "Guile and Chicken style modules, in a .ss file.",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 51
+      },
+      "end": {
+        "line": 5,
+        "column": 18,
+        "offset": 153
+      },
+      "exported": true
+    },
+    {
+      "id": "unless*",
+      "kind": "macro",
+      "name": "unless*",
+      "qualName": "unless*",
+      "signature": "(define-syntax unless*",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 258
+      },
+      "end": {
+        "line": 13,
+        "column": 55,
+        "offset": 355
+      },
+      "exported": true
+    },
+    {
+      "id": "adder",
+      "kind": "function",
+      "name": "adder",
+      "qualName": "adder",
+      "signature": "(define ((adder n) x)",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 357
+      },
+      "end": {
+        "line": 16,
+        "column": 10,
+        "offset": 389
+      },
+      "exported": true
+    },
+    {
+      "id": "main",
+      "kind": "function",
+      "name": "main",
+      "qualName": "main",
+      "signature": "(define (main args)",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 391
+      },
+      "end": {
+        "line": 23,
+        "column": 57,
+        "offset": 592
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "(ice-9 match)",
+      "kind": "import",
+      "start": {
+        "line": 3,
+        "column": 15,
+        "offset": 92
+      }
+    },
+    {
+      "spec": "(srfi srfi-1)",
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 15,
+        "offset": 121
+      }
+    },
+    {
+      "spec": "(ice-9 format)",
+      "kind": "import",
+      "start": {
+        "line": 7,
+        "column": 13,
+        "offset": 168
+      }
+    },
+    {
+      "spec": "chicken.string",
+      "kind": "import",
+      "start": {
+        "line": 8,
+        "column": 8,
+        "offset": 192
+      }
+    },
+    {
+      "spec": "srfi-13",
+      "names": [
+        "string-pad"
+      ],
+      "kind": "import",
+      "start": {
+        "line": 8,
+        "column": 23,
+        "offset": 207
+      }
+    },
+    {
+      "spec": "config.scm",
+      "kind": "include",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 234
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "+",
+      "kind": "call",
+      "start": {
+        "line": 16,
+        "column": 3,
+        "offset": 382
+      },
+      "enclosing": "adder"
+    },
+    {
+      "name": "match",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 3,
+        "offset": 414
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "greet",
+      "kind": "call",
+      "start": {
+        "line": 20,
+        "column": 15,
+        "offset": 440
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "usage",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 8,
+        "offset": 461
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "for-each",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 3,
+        "offset": 473
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "display",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 25,
+        "offset": 495
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "string-pad",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 34,
+        "offset": 504
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "cdr",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 54,
+        "offset": 524
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "format",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 3,
+        "offset": 538
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "fold",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 21,
+        "offset": 556
+      },
+      "enclosing": "main"
+    },
+    {
+      "name": "map",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 31,
+        "offset": 566
+      },
+      "enclosing": "main"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 9,
+        "column": 22,
+        "offset": 256
+      },
+      "text": ";; Guile and Chicken style modules, in a .ss file.\n(define-module (app main)\n  #:use-module (ice-9 match)\n  #:use-module (srfi srfi-1)\n  #:export (main))\n\n(use-modules (ice-9 format))\n(import chicken.string (only srfi-13 string-pad))\n(include \"config.scm\")",
+      "hash": "5fb49f81994ce36e30834f574d5d8383f73518f4e2e8cbfb253341a4a7a07be2"
+    },
+    {
+      "id": "unless*#1",
+      "kind": "symbol",
+      "symbolId": "unless*",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 258
+      },
+      "end": {
+        "line": 13,
+        "column": 55,
+        "offset": 355
+      },
+      "text": "(define-syntax unless*\n  (syntax-rules ()\n    ((_ test body ...) (if test #f (begin body ...)))))",
+      "hash": "e5112a94f63dda4dd0a4ccafccd460980156547b3c1f940f87cd7ddf1150d964"
+    },
+    {
+      "id": "adder#1",
+      "kind": "symbol",
+      "symbolId": "adder",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 357
+      },
+      "end": {
+        "line": 16,
+        "column": 10,
+        "offset": 389
+      },
+      "text": "(define ((adder n) x)\n  (+ n x))",
+      "hash": "3eff28307f30b0971102f6fa5810e18cdf6bb1ce8893901c5911cc67a7d4f058"
+    },
+    {
+      "id": "main#1",
+      "kind": "symbol",
+      "symbolId": "main",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 391
+      },
+      "end": {
+        "line": 23,
+        "column": 57,
+        "offset": 592
+      },
+      "text": "(define (main args)\n  (match args\n    ((_ name) (greet name))\n    (_ (usage)))\n  (for-each (lambda (a) (display (string-pad a 10))) (cdr args))\n  (format #t \"~a~%\" (fold + 0 (map string-length args))))",
+      "hash": "a6bd80636030d027e0f2c976184f6bf7c19fd17aa23dfa7197951bae209f6aa6"
+    }
+  ]
+}

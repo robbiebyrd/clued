@@ -100,7 +100,7 @@
       "kind": "module",
       "name": "Billing",
       "qualName": "Billing",
-      "signature": "module Billing # Reopens the module: Invoice is nested lexically.",
+      "signature": "module Billing",
       "start": {
         "line": 21,
         "column": 0,
@@ -305,10 +305,10 @@
       "exported": true
     },
     {
-      "id": "Billing::Invoice::Monthly",
+      "id": "Billing::Invoice::Reports::Monthly",
       "kind": "class",
       "name": "Monthly",
-      "qualName": "Billing::Invoice::Monthly",
+      "qualName": "Billing::Invoice::Reports::Monthly",
       "signature": "class Reports::Monthly; end",
       "doc": "A compact name inside a nesting: Monthly is qualified by its lexical\ncontainers, Reports stays a reference.",
       "start": {
@@ -325,10 +325,10 @@
       "exported": true
     },
     {
-      "id": "Billing::TIMEOUT",
+      "id": "Billing::Gateways::TIMEOUT",
       "kind": "const",
       "name": "TIMEOUT",
-      "qualName": "Billing::TIMEOUT",
+      "qualName": "Billing::Gateways::TIMEOUT",
       "signature": "Gateways::TIMEOUT = 15",
       "start": {
         "line": 52,
@@ -665,7 +665,7 @@
         "column": 10,
         "offset": 1195
       },
-      "enclosing": "Billing::Invoice::Monthly"
+      "enclosing": "Billing::Invoice::Reports::Monthly"
     },
     {
       "name": "Gateways",
@@ -675,7 +675,7 @@
         "column": 2,
         "offset": 1226
       },
-      "enclosing": "Billing::TIMEOUT"
+      "enclosing": "Billing::Gateways::TIMEOUT"
     },
     {
       "name": "Class",

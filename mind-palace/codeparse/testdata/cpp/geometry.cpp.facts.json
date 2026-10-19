@@ -59,10 +59,10 @@
       "exported": true
     },
     {
-      "id": "geometry::Shape",
+      "id": "geometry::Shape::Shape",
       "kind": "method",
       "name": "Shape",
-      "qualName": "geometry::Shape",
+      "qualName": "geometry::Shape::Shape",
       "signature": "Shape::Shape(std::string name) : name_(std::move(name))",
       "start": {
         "line": 27,
@@ -78,10 +78,10 @@
       "exported": true
     },
     {
-      "id": "geometry::operator==",
+      "id": "geometry::Shape::operator==",
       "kind": "method",
       "name": "operator==",
-      "qualName": "geometry::operator==",
+      "qualName": "geometry::Shape::operator==",
       "signature": "bool Shape::operator==(const Shape\u0026 other) const",
       "start": {
         "line": 32,
@@ -97,10 +97,10 @@
       "exported": true
     },
     {
-      "id": "geometry::count",
+      "id": "geometry::Shape::count",
       "kind": "method",
       "name": "count",
-      "qualName": "geometry::count",
+      "qualName": "geometry::Shape::count",
       "signature": "int Shape::count()",
       "start": {
         "line": 36,
@@ -116,10 +116,10 @@
       "exported": true
     },
     {
-      "id": "geometry::Circle",
+      "id": "geometry::Circle::Circle",
       "kind": "method",
       "name": "Circle",
-      "qualName": "geometry::Circle",
+      "qualName": "geometry::Circle::Circle",
       "signature": "Circle::Circle(Point centre, Length radius) : Shape(\"circle\"), centre_(centre), radius_(clamp(radius, 0.0, 1e9))",
       "start": {
         "line": 38,
@@ -135,10 +135,10 @@
       "exported": true
     },
     {
-      "id": "geometry::area",
+      "id": "geometry::Circle::area",
       "kind": "method",
       "name": "area",
-      "qualName": "geometry::area",
+      "qualName": "geometry::Circle::area",
       "signature": "double Circle::area() const",
       "doc": "area is pi r squared.",
       "start": {
@@ -155,10 +155,10 @@
       "exported": true
     },
     {
-      "id": "geometry::contains",
+      "id": "geometry::Bounds::contains",
       "kind": "method",
       "name": "contains",
-      "qualName": "geometry::contains",
+      "qualName": "geometry::Bounds::contains",
       "signature": "bool Bounds::contains(const Point\u0026 p) const",
       "start": {
         "line": 46,
@@ -174,10 +174,10 @@
       "exported": true
     },
     {
-      "id": "geometry::add",
+      "id": "geometry::Registry::add",
       "kind": "method",
       "name": "add",
-      "qualName": "geometry::add",
+      "qualName": "geometry::Registry::add",
       "signature": "std::size_t Registry\u003cT\u003e::add(std::unique_ptr\u003cT\u003e shape)",
       "start": {
         "line": 51,
@@ -372,7 +372,7 @@
         "column": 18,
         "offset": 438
       },
-      "enclosing": "geometry::Shape"
+      "enclosing": "geometry::Shape::Shape"
     },
     {
       "name": "move",
@@ -383,7 +383,7 @@
         "column": 44,
         "offset": 464
       },
-      "enclosing": "geometry::Shape"
+      "enclosing": "geometry::Shape::Shape"
     },
     {
       "name": "log",
@@ -394,7 +394,7 @@
         "column": 8,
         "offset": 502
       },
-      "enclosing": "geometry::Shape"
+      "enclosing": "geometry::Shape::Shape"
     },
     {
       "name": "Shape",
@@ -404,7 +404,7 @@
         "column": 29,
         "offset": 557
       },
-      "enclosing": "geometry::operator=="
+      "enclosing": "geometry::Shape::operator=="
     },
     {
       "name": "Point",
@@ -414,7 +414,7 @@
         "column": 15,
         "offset": 671
       },
-      "enclosing": "geometry::Circle"
+      "enclosing": "geometry::Circle::Circle"
     },
     {
       "name": "Length",
@@ -424,7 +424,7 @@
         "column": 29,
         "offset": 685
       },
-      "enclosing": "geometry::Circle"
+      "enclosing": "geometry::Circle::Circle"
     },
     {
       "name": "clamp",
@@ -434,7 +434,7 @@
         "column": 48,
         "offset": 748
       },
-      "enclosing": "geometry::Circle"
+      "enclosing": "geometry::Circle::Circle"
     },
     {
       "name": "GEOMETRY_SQUARE",
@@ -444,7 +444,7 @@
         "column": 15,
         "offset": 847
       },
-      "enclosing": "geometry::area"
+      "enclosing": "geometry::Circle::area"
     },
     {
       "name": "Point",
@@ -454,7 +454,7 @@
         "column": 28,
         "offset": 904
       },
-      "enclosing": "geometry::contains"
+      "enclosing": "geometry::Bounds::contains"
     },
     {
       "name": "T",
@@ -475,7 +475,7 @@
         "column": 5,
         "offset": 1023
       },
-      "enclosing": "geometry::add"
+      "enclosing": "geometry::Registry::add"
     },
     {
       "name": "Registry",
@@ -485,7 +485,7 @@
         "column": 12,
         "offset": 1030
       },
-      "enclosing": "geometry::add"
+      "enclosing": "geometry::Registry::add"
     },
     {
       "name": "T",
@@ -495,7 +495,7 @@
         "column": 21,
         "offset": 1039
       },
-      "enclosing": "geometry::add"
+      "enclosing": "geometry::Registry::add"
     },
     {
       "name": "unique_ptr",
@@ -506,7 +506,7 @@
         "column": 34,
         "offset": 1052
       },
-      "enclosing": "geometry::add"
+      "enclosing": "geometry::Registry::add"
     },
     {
       "name": "T",
@@ -516,7 +516,7 @@
         "column": 45,
         "offset": 1063
       },
-      "enclosing": "geometry::add"
+      "enclosing": "geometry::Registry::add"
     },
     {
       "name": "push_back",
@@ -527,7 +527,7 @@
         "column": 9,
         "offset": 1084
       },
-      "enclosing": "geometry::add"
+      "enclosing": "geometry::Registry::add"
     },
     {
       "name": "move",
@@ -538,7 +538,7 @@
         "column": 24,
         "offset": 1099
       },
-      "enclosing": "geometry::add"
+      "enclosing": "geometry::Registry::add"
     },
     {
       "name": "size",
@@ -549,7 +549,7 @@
         "column": 16,
         "offset": 1129
       },
-      "enclosing": "geometry::add"
+      "enclosing": "geometry::Registry::add"
     },
     {
       "name": "vector",
@@ -873,9 +873,9 @@
       "hash": "d392cf38c88aba9fb4c53ff9e690ec2dcdef3fafa7daf4bef4fc45cf25557b92"
     },
     {
-      "id": "geometry::Shape#1",
+      "id": "geometry::Shape::Shape#1",
       "kind": "symbol",
-      "symbolId": "geometry::Shape",
+      "symbolId": "geometry::Shape::Shape",
       "start": {
         "line": 27,
         "column": 0,
@@ -890,9 +890,9 @@
       "hash": "1b5ec9caa565aed469da334daaa2e04bdda14e24bedeaf4dcdcef943ba5dcaaf"
     },
     {
-      "id": "geometry::operator==#1",
+      "id": "geometry::Shape::operator==#1",
       "kind": "symbol",
-      "symbolId": "geometry::operator==",
+      "symbolId": "geometry::Shape::operator==",
       "start": {
         "line": 32,
         "column": 0,
@@ -907,9 +907,9 @@
       "hash": "98cddce0b76b8db1b26c195f1e2e447615ff7fb40df3fadaca9a139eed664d4e"
     },
     {
-      "id": "geometry::count#1",
+      "id": "geometry::Shape::count#1",
       "kind": "symbol",
-      "symbolId": "geometry::count",
+      "symbolId": "geometry::Shape::count",
       "start": {
         "line": 36,
         "column": 0,
@@ -924,9 +924,9 @@
       "hash": "1c13d66e3f3fdc13a0160e82940b59cdcfca8b94cc82d35948a5a01dad897e53"
     },
     {
-      "id": "geometry::Circle#1",
+      "id": "geometry::Circle::Circle#1",
       "kind": "symbol",
-      "symbolId": "geometry::Circle",
+      "symbolId": "geometry::Circle::Circle",
       "start": {
         "line": 38,
         "column": 0,
@@ -941,9 +941,9 @@
       "hash": "7062a01bd6781272b5c5b0e0739c84c44a2ad41c8f8e2a20369b2fd8a67b65ab"
     },
     {
-      "id": "geometry::area#1",
+      "id": "geometry::Circle::area#1",
       "kind": "symbol",
-      "symbolId": "geometry::area",
+      "symbolId": "geometry::Circle::area",
       "start": {
         "line": 41,
         "column": 0,
@@ -958,9 +958,9 @@
       "hash": "6666fcfa7296d0f356b4e7189d81b1cc9e05a2d333b3e5290f2a7f4a6224c39a"
     },
     {
-      "id": "geometry::contains#1",
+      "id": "geometry::Bounds::contains#1",
       "kind": "symbol",
-      "symbolId": "geometry::contains",
+      "symbolId": "geometry::Bounds::contains",
       "start": {
         "line": 46,
         "column": 0,
@@ -991,9 +991,9 @@
       "hash": "f791cb0bdff9eff47b2f19d7c3e2c7efbb76dba5f87048e94db8dbc629409d71"
     },
     {
-      "id": "geometry::add#1",
+      "id": "geometry::Registry::add#1",
       "kind": "symbol",
-      "symbolId": "geometry::add",
+      "symbolId": "geometry::Registry::add",
       "start": {
         "line": 51,
         "column": 0,
