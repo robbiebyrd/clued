@@ -370,8 +370,10 @@ mind-palace session backfill
 mind-palace session daemon [--addr host:port]   # POST /event, GET /health; default 127.0.0.1:8085
 mind-palace session mcp                         # session tools only, over stdio
 mind-palace session whoami                      # remote mode: the token's name, account and projects
-mind-palace hook relay                          # remote mode, run by the hooks: store one event, push the transcript delta
-mind-palace server run [--addr] [--tls-cert --tls-key | --behind-proxy]   # the clued server
+mind-palace hook relay                          # remote mode, run by the hooks: store one event, push the transcript delta, sync the code (codeSync)
+mind-palace session code-sync [--full] [--dry-run] [--path DIR]   # remote mode: sync a worktree's code now, no budget
+mind-palace session code-sync status [--path DIR]                 # the local code sync state per worktree
+mind-palace server run [--addr] [--tls-cert --tls-key | --behind-proxy] [--code-store mongo|memory|off]   # the clued server
 mind-palace server token create|list|revoke|grant                        # its bearer tokens
 mind-palace server init [--runtime] [--host] [--force] [--new-ca]        # the container stack under ~/.clued-server
 mind-palace server trust [--remove] [--dry-run]                          # trust the stack's CA on this machine
@@ -382,12 +384,14 @@ mind-palace server trust [--remove] [--dry-run]                          # trust
 `serverInsecure`), the client keeps no MongoDB and runs no daemon: the
 session store is `session/remotesession` over a clued server, each hook runs
 `hook relay` (`session/ingest` plus `session/catchup`, state under
-`<config dir>/catchup/`, failures in `relay.log`), and the plan and story
+`<config dir>/catchup/`, failures in `relay.log`) and, with `codeSync` on,
+`session/codesync` (state under `<config dir>/codesync/`), and the plan and story
 services opened through `clientcfg` add the server as the `clued-server`
 store (secondary, or primary for a project a clued cloud workspace shares,
 listed by `GET /api/v1/me/workspaces`: reads, `If-Match` writes and claim
-leases then go to the server). `server run` serves `server/sessionapi`, `server/storeapi` and
-`/api/v1/whoami` behind `server/auth`. The repository README's "Remote mode"
+leases then go to the server). `server run` serves `server/sessionapi`, `server/storeapi`,
+`server/codeapi` (with a code store, `--code-store`) and `/api/v1/whoami`
+behind `server/auth`. The repository README's "Remote mode"
 section and `docs/server.md` describe setting it up.
 
 The daemon stores each `POST /event` (store writes happen off the request
@@ -448,10 +452,16 @@ the tools use, the port has hourly aggregates for analytics
 | `store`, `store/*` | Kind-aware store interface, fan-out, sync, plugins |
 | `store/remotestore` | The `clued` storage plugin: plans and stories on a clued server, one project per store instance, over `remote` against `server/storeapi` |
 | `events` | In-process event bus (filter by kind and id) |
+| `code` | Collected code: the model (`Blob`, `Entry`, `Worktree`, `Change`, `SessionSeen`), the `code.Store` port (writes, plus the reads only tests and the indexer use), the validators (`ValidPath`, `ValidSHA256`, `ValidGitOID`, `ValidWorktreeID`, `ValidRef`) and the `Canonical*` copies stores put into query filters |
+| `code/codetest` | The conformance suite every `code.Store` passes (`codetest.Run`) |
+| `code/memcode`, `code/mongocode` | The in-memory and MongoDB code stores (`<prefix>code_blobs`, `code_trees`, `code_worktrees`, `code_changes`, `code_events`, `code_counters`; transactional commits on a replica set, idempotent ordered writes otherwise) |
+| `code/remotecode` | `code.Store` over a clued server's `server/codeapi` routes for the collector, with typed refusals (`ErrUnsupported`, `ErrForbidden`, `ErrConflict`, `ErrTooLarge`, `ErrQuota`) and `Capabilities` |
+| `codefilter` | What of a repository may leave for the code store, file by file (`Decide`: skip, metadata only, content): `codeSyncExclude`, `excludePaths`, the built-in deny list of secret files (`Denied`), the size cap and binary detection; shared by the client collector and the server-side GitHub sync |
 | `server/*` | HTTP, WebSocket and MCP entrypoints, and the clued server (`server/clued.go`, `mind-palace server run`) |
 | `server/auth` | Bearer tokens for the clued server: hashed token file managed by `server token`, constant-time compare, mtime reload, 401/403 in the httpapi envelope |
 | `server/sessionapi` | The `session.Store` port over HTTP (`/api/v1/session/…`), every route scoped to the token's account |
 | `server/storeapi` | The `store.Store` port over HTTP (`/api/v1/projects/{project}/store/…`); the raw document transport behind `store/remotestore`, with `ETag`/`If-Match` preconditions (412), an optional `BeforePut` hook and the 30 s document lease (`…/{id}/lock`, `…/unlock`) |
+| `server/codeapi` | The write-only code transport under `/api/v1/projects/{project}/code/` (`manifest`, `blobs/{sha256}`, `worktrees/{id}`, `…/changes`, `…/sessions/{session_id}`, `capabilities`): hash verification, inline validation, owner and session stamped from the token, another account's worktree answered as unknown (404), and the composer's `BeforeWrite` refusals (403 `forbidden`, 413 `quota`) |
 | `server/projects` | Project slugs derived from a git origin and one `store.Store` per project built from the server's storage definitions |
 | `server/stack` | The container stack `mind-palace server init` generates (nginx front-end, clued server, MongoDB) as a Docker Compose file or, for Apple Containers, as start and stop scripts with a launchd agent; its nginx and storage configs, a private name-constrained CA with a server certificate, the first token, and the trust-store plan behind `server trust` |
 | `remote` | The HTTP client the remote adapters share: base URL, bearer token, CA file, the plain-`http://`-off-loopback refusal, envelope decoding into typed errors |
@@ -465,6 +475,7 @@ the tools use, the port has hourly aggregates for analytics
 | `session/export` | `session export` / `export_session` (Markdown, HTML, JSONL, zip; redacted by default) and `session import` |
 | `session/redact` | Capture-time redaction (`redactAtCapture`, `redactPatterns`), exclusion (`excludePaths`) and metadata-only capture (`captureContent: false`, `session.WithoutContent`) as a `session.Store` decorator every client store is wrapped in, so no write path stores a secret |
 | `session/ingest` | Hook-event bookkeeping shared by the daemon and `hook relay`: session tracking, stamping, store write, WAL fallback |
+| `session/codesync` | Code sync, run by `hook relay` and `session code-sync`: resolves the worktree (id, ref, HEAD, upstream, default branch, project), enumerates with git, filters through `codefilter`, redacts and hashes changed files, uploads missing blobs and commits the change through `code/remotecode` within a budget, with state and lock files per worktree under `<config dir>/codesync/` and 24-hour back-offs on refusals |
 | `session/catchup` | One-shot replacement for the tailers: pushes a session's transcript delta and changed artifact files, with state and lock files per session |
 | `session/embed/voyage` | The Voyage AI `session.Embedder` (int8 output at the configured dimension, plain `net/http`; no error carries the key) for the `embedding` enricher and `search_semantic` |
 | `session/remotesession` | `session.Store` over a clued server (one HTTP call per port method to `server/sessionapi`); the query service, restore, backfill and the MCP tools run unchanged on it |

@@ -3,7 +3,8 @@
 This document describes every entrypoint of clued and the contract each one
 speaks: the Claude Code hooks, the `scripts/clued` shim, the capture daemon,
 the two MCP servers, the clued server's HTTPS API (session transport, store
-transport, plan and story service API, WebSocket, MCP over HTTP), the remote
+transport, code transport, plan and story service API, WebSocket, MCP over
+HTTP), the remote
 client rules, the `mind-palace` command line and the document model the
 plan and story services share. It is written from the code; a file reference
 such as `server/clued.go` means `mind-palace/server/clued.go`.
@@ -65,7 +66,8 @@ code (`cli/cli.go`):
 
 The transports of the clued server add lower-case kinds of their own:
 `unauthorized` (401), `forbidden` (403), `invalid` (400), `not_found` (404),
-`too_large` (413), `store` (502) and `partial` (a warning on a 200). A client
+`too_large` (413), `store` (502) and `partial` (a warning on a 200); the
+code transport (section 7.12) adds `conflict` (409) and `quota` (413). A client
 that cannot decode an envelope at all reports kind `http` with the status.
 
 ### 1.3 Local and remote mode
@@ -305,7 +307,10 @@ and always exits 0. In local mode it returns at once. In remote mode it has a
 five-second budget: it stamps and stores the event through the remote
 session store exactly as the daemon would (section 4.2), then, when the
 event carries `session_id` and `transcript_path`, runs the catch-up (section
-4.4), then flushes the WAL. Problems are appended to
+4.4), then flushes the WAL, then (`SessionEnd`, with `otelEndpoint`) exports
+the session's trace, and last, when code sync is on (`codeSync`, section
+11.1), syncs the worktree the event changed with what is left of the budget,
+at most 3 s (section 4.4.1). Problems are appended to
 `~/.claude/plugins/data/clued/relay.log` as
 `<RFC3339> <event> session=<id>: <notes>`.
 
@@ -445,6 +450,139 @@ resets the state), then changed artifact files and subagent lines under the
 two watched directories. A blob the server refuses as too large is recorded
 under `refused` and not retried. The state's `model` is the model the pushed
 lines last named, so each change is recorded once (section 4.5).
+
+#### 4.4.1 Code sync (remote mode)
+
+With `codeSync` on (section 11.1), `hook relay` also mirrors the source of
+the worktree an event changed to the server's code store (section 7.12)
+through `session/codesync`, as the last step of the relay, with what is
+left of the 5 s budget, at most 3 s. Nothing runs when `codeSync` is unset
+or false, in local mode, when `captureContent` is `false`, or with
+`CLUED_NO_CAPTURE=1`. Nothing is ever read back.
+
+**Triggers** (`cli/hook_relay.go`, `codeSyncRequest`):
+
+| Hook event | What the run looks at |
+|---|---|
+| `SessionStart` | Records the session on the worktree (`PUT …/sessions/{session_id}`, `{"ended": false}`), then the pending queue; a full reconcile when the ref changed, the worktree has no state yet or the last full reconcile is 6 hours old |
+| `SessionEnd` | The pending queue, then `PUT …/sessions/{session_id}` with `{"ended": true}` |
+| `PostToolUse` of `Write`, `Edit`, `MultiEdit` | `tool_input.file_path` |
+| `PostToolUse` of `NotebookEdit` | `tool_input.notebook_path` (or `file_path`) |
+| `PostToolUse` of `Bash` | Every path `git status --porcelain -z --untracked-files=all` names (renames' sources and deletions included) plus the files the state holds as dirty; and the HEAD and upstream check that refreshes `git_oid`, `dirty` and `unpushed` after a commit, push, pull, fetch or reset |
+| `FileChanged` | `file_path` (Claude Code also sends `event`: `change`, `add` or `unlink`; a vanished file becomes a delete) |
+| `Stop`, `SubagentStop` | As `Bash`: the status paths, the dirty files and the pending queue |
+| `CwdChanged` | The worktree of `new_cwd`, reconciled as on `SessionStart` |
+| `WorktreeCreate` | Claude Code sends only `name` (the path is what the hook returns), so nothing runs; the new worktree has no state and is reconciled in full at its first event inside it. When the input carries `worktree_path`, that worktree is reconciled in full at once |
+| `WorktreeRemove` | `worktree_path` (absolute): `DELETE worktrees/{id}` when the state knows the worktree's project, then the state file is removed |
+
+Every other event, `PostToolUseFailure` included (nothing was written),
+runs nothing. A path an event names is kept only when it sits inside the
+worktree root (`filepath.Rel`, then `filepath.IsLocal`, also through a
+symbolic link of a parent directory). Failures are notes in `relay.log`
+(`code sync: …`); the hook still exits 0.
+
+**One run** (`codesync.Run`):
+
+1. Resolve the worktree from the event's `cwd`: its root (`git rev-parse
+   --show-toplevel`), the project slug (`remote.project`, then the git
+   origin; section 7.2), the ref (`git branch --show-current`, or
+   `detached@<first 12 hex of HEAD>`), HEAD, the upstream commit and the
+   commits ahead of it (`@{upstream}`, `rev-list --count`), and the default
+   branch (`refs/remotes/origin/HEAD`, else `main` or `master` when the
+   branch exists, else empty). The worktree id is `wt_` and the first 16 hex
+   characters of SHA-256 of `<host name> NUL <absolute root>`. The run skips
+   (`skipped` in the CLI's result) outside a git repository, for a root that
+   matches `excludePaths`, a repository whose `mind-palace.config.yaml` says
+   `codeSync: false`, a project with only a directory-name slug (no origin
+   and no `remote.project`), a repository with no branch and no commit, a
+   worktree whose lock is held, and while a back-off runs.
+2. Take `<id>.lock`; read `<id>.json`. On a full reconcile (forced, a new
+   ref, root or project, or the last one 6 hours old) or a ref change, ask
+   `GET capabilities`: a smaller `maxFileBytes` lowers the content cap, and
+   `maxBatch` sizes the batches.
+3. Collect the candidates: the pending queue, the event's paths, the status
+   paths (Bash, Stop), and, on a full reconcile or when HEAD moved,
+   everything `git ls-files -z -co --exclude-standard --full-name` lists
+   (tracked, plus untracked files that are not ignored: `.gitignore` is
+   respected) and every path the state knows. A path git would not list
+   (ignored, or outside the repository) is not synced.
+4. Decide each file (`codefilter.Decide`), in this order: `codeSyncExclude`
+   (globs relative to the root; without a slash a glob matches a name at any
+   depth, with one it is anchored at the root; a matching directory excludes
+   everything below it), then `excludePaths` (per file), then the built-in
+   deny list, which cannot be switched off: `.env`, `.env.*`, `*.pem`,
+   `*.key`, `*.p12`, `*.pfx`, `id_rsa*`, `id_ed25519*`, `*.kdbx`, `.npmrc`,
+   `.pypirc`, `.netrc`, `credentials*.json` (by base name in any directory,
+   ignoring case) and any name containing `secret` below a directory named
+   `config`. A match is skipped entirely, path included (a file known before
+   becomes a delete). A file over the content cap (`codeSyncMaxFileBytes`,
+   1 MiB), one with a NUL byte in its first 8 KiB or invalid UTF-8, and a
+   symbolic link (never followed; mode `120000`) are sent as an entry with
+   `sha256: ""`, path and size only. Directories, submodules and other
+   special files are skipped.
+5. Hash only the files whose `(size, mtime)` stamp changed since the state:
+   read the content, apply the capture redaction when `redactAtCapture` is
+   on (the built-in rules, `redactPatterns` and `<private>` spans; section
+   11.1), and take the SHA-256 of the redacted bytes, so the hash names what
+   the server stores. Fill each entry's `git_oid` (its blob id in `git
+   ls-tree -r -z HEAD`, read once when HEAD moved; empty when untracked),
+   `dirty` (listed by `git status`, or no `git_oid`) and `unpushed` (listed
+   by `git diff --name-only -z <upstream> HEAD`, re-read when HEAD or the
+   upstream moved; always true without an upstream), `mode` (`100644`,
+   `100755` or `120000`) and `lang` (from the extension). An entry already
+   on the server with the same hash, size and flags is not sent again. A
+   commit or push changes no content, but it changes the flags, so the
+   affected entries are sent again.
+6. `PUT worktrees/{id}` on a full reconcile or a ref change; `PUT
+   …/sessions/{session_id}` on `SessionStart`; `POST manifest` in batches;
+   `PUT blobs/{sha256}` for each blob the server lacks; `POST
+   worktrees/{id}/changes` with the upserts and deletes, in batches of
+   `maxBatch`. A full reconcile with nothing left over sends every entry of
+   the worktree with `full: true` on the first batch (the server drops the
+   paths it no longer sees) and records `lastFull`. A request that answers
+   404 for the worktree (purged, removed) registers it again and retries
+   once.
+7. Mark what was committed as synced and save the state; whatever did not
+   fit stays in `pending` for the next run.
+
+**Budget.** A relay run stops reading and uploading at three quarters of its
+time (at most 3 s) so the commit still fits, and reads at most 8 MiB of
+changed content (the first file is always read); the rest stays pending.
+`mind-palace session code-sync` runs with no budget (section 9).
+
+**Failures.** A network error, a 5xx or any other failure not named below
+(401 included) ends the run with the work pending;
+the next event retries, and nothing goes to the WAL. 413 `too_large` on a
+blob puts the path under `refused` with its stamp, commits the entry with
+`sha256: ""`, and sends the content again only when the file changes. 409
+`conflict` on a commit (the server lacks a blob, after a purge) clears the
+`synced` mark of the paths whose blob is missing and queues them. A
+refusal of the feature backs the worktree off for 24 hours
+(`unsupportedUntil`): a server without a code store (any 404 from
+`capabilities`; elsewhere a 404 `not_found` whose message starts with `no
+route for `, a 404 without the envelope, or 405), 403 `forbidden` (the token does not cover the
+project, or the server refuses code for the account), and 413 `quota`
+(which also writes one `relay.log` line). Git missing, or a `cwd` outside a
+repository, skips quietly.
+
+**State** under `~/.claude/plugins/data/clued/codesync/` (the directory mode
+0700): `<worktree id>.lock`, created exclusively and taken over when older
+than 60 s (a held lock skips the run), and `<worktree id>.json`, written to
+a temporary file with mode 0600 and renamed over the old one. It holds
+paths, stamps and hashes, never content or the token:
+
+```json
+{"worktree": "wt_0123456789abcdef", "root": "/home/me/src/repo", "project": "github.com__owner__repo",
+ "defaultBranch": "main", "ref": "main", "head": "<git oid>", "upstream": "<git oid>", "ahead": 0,
+ "files": {"cmd/main.go": {"size": 1234, "mtime": "<RFC3339 nanoseconds>", "sha256": "<hex>", "gitOid": "<git oid>", "dirty": false, "unpushed": false, "synced": true}},
+ "pending": {"upserts": ["…"], "deletes": ["…"]},
+ "lastFull": "<RFC3339>", "refused": {"assets/big.json": "<size>+<mtime in Unix nanoseconds>"}, "unsupportedUntil": "<RFC3339>"}
+```
+
+`files`, `gitOid`, `pending`'s lists, `lastFull`, `refused` and
+`unsupportedUntil` are left out when empty. A state file that cannot be
+parsed is replaced by a full reconcile. `session code-sync status` prints a
+summary of these files (section 9).
 
 ### 4.5 The session's model
 
@@ -1279,8 +1417,10 @@ token in the config file by hand. `session logout` calls
 `DELETE /api/v1/me/tokens/current` and removes the remote keys from the
 config file. `session config-pull` reads `GET /api/v1/me/config` and copies
 `enabledEnrichers`, `disabledEnrichers`, `projectsDir`, `fileHistoryDir`,
-`redactAtCapture`, `redactPatterns`, `excludePaths` and `captureContent`
-into the config file when the server sets them, and removes
+`redactAtCapture`, `redactPatterns`, `excludePaths`, `captureContent`,
+`codeSync`, `codeSyncMaxFileBytes` and `codeSyncExclude` into the config
+file when the server sets them (so a clued cloud can turn code sync on or
+off for an account; the self-hosted server serves none of the three), and removes
 `captureContent` when the server sends no boolean for it (it is the
 server's capture hint: `false` for an account the server stores metadata
 only for, a clued cloud workspace on zero retention). A key the server
@@ -1384,6 +1524,109 @@ more than ten minutes left; a request refused with 401 is retried once
 with a fresh exchange. Plans and stories (`clientcfg`, the `clued` store
 driver's `key` and `tokenCache` options) use the same exchange.
 
+### 7.12 Code transport: `/api/v1/projects/{project}/code`
+
+The write side of the `code.Store` port (`server/codeapi`), which code sync
+(section 4.4.1) uses through `code/remotecode`. It is served when the server
+has a code store (`server run --code-store mongo|memory`, section 9; an
+embedding server sets `CluedOptions.Code`). No route of this section returns
+code, paths or trees: a client token can write code into its account but
+read none back. Every answer is the envelope of section 1.1.
+
+| Route (under `/api/v1/projects/{project}/code/`) | Body | Result |
+|---|---|---|
+| `GET capabilities` | | `{"code": {"maxFileBytes": 1048576, "maxBatch": 5000}, "github": false}` |
+| `POST manifest` | `{"shas": ["<sha256>", …]}`, at most `maxBatch` | `{"missing": [<the hashes the server lacks, in the order given>]}` |
+| `PUT blobs/{sha256}` | the raw bytes (`Content-Type: application/octet-stream`), at most `maxFileBytes` | `{}` |
+| `PUT worktrees/{id}` | `{"root", "host", "origin", "default_branch", "ref", "head"}` | `{}` |
+| `POST worktrees/{id}/changes` | `{"ref", "head", "upstream", "ahead", "session_id", "full", "upserts": [{"path", "sha256", "size", "mode", "lang", "git_oid", "dirty", "unpushed"}], "deletes": ["<path>"]}`, at most `maxBatch` upserts and deletes together | `{"seq": <the change's position in the project's change log>}` |
+| `PUT worktrees/{id}/sessions/{session_id}` | `{"ended": false}` | `{}` |
+| `DELETE worktrees/{id}` | | `{}` |
+
+Checks run in this order: the token's account (401 `unauthorized`), the slug
+(section 7.2; 400 `invalid`), the token's projects (403 `forbidden`), the
+server's namespace for the account and slug, and opening the store (an
+error answers with its own status, or 400 `invalid`, 403 `forbidden`, 404
+`not_found` "unknown project", else 502 `store`). Then the route validates
+its input, asks the embedding server's `BeforeCodeWrite` (every route but
+`capabilities`) and writes.
+
+- **Validation.** A JSON body is at most 16 MiB, one object with no unknown
+  field and nothing after it (400 `invalid`; 413 `too_large` over the
+  limit). `{sha256}` and every hash are 64 lowercase hex characters;
+  `head`, `upstream` and `git_oid` are empty or a git object id of 40 or 64
+  lowercase hex characters (SHA-1 or SHA-256 repositories); `{id}` is `wt_`
+  and 16 lowercase hex characters (a client's checkout) or `gh_` and a
+  GitHub repository id; `ref` and `default_branch` are a branch name git
+  accepts (`git check-ref-format --branch`) or `detached@<7 to 64 hex>`, at
+  most 1,024 bytes; a path is non-empty, at most 1,024 bytes of UTF-8, with
+  no NUL or backslash, slash-separated, already clean and local (no `..`,
+  not absolute); `session_id` is 1 to 128 letters, digits, `-`, `_` and
+  `.`; `mode` is empty or up to six octal digits (`100644`, `100755`,
+  `120000`); `lang` at most 64 bytes, `root` 4,096, `host` 255 and `origin`
+  2,048, without control characters; `ahead` and `size` are not negative.
+- **Entries.** An upsert with `sha256: ""` records that a file exists
+  without its content (a binary, a symbolic link, a file over the cap, a
+  blob the server refused); `size` is still the file's. A clean entry
+  (`dirty: false`) needs its `git_oid`, and an entry with `unpushed: false`
+  needs a change with an `upstream` (both 400 `invalid` otherwise). An
+  upsert naming a blob the server does not hold is 409 `conflict` ("…;
+  upload the blob and retry"): upload it and commit again. `full: true`
+  replaces the (worktree, ref) tree with the change's upserts (deletes
+  are then redundant); otherwise upserts and deletes apply to it. Each
+  change is appended to the project's change log with the next `seq`.
+- **Owner and session are stamped by the server.** The owner of a worktree
+  and of each change is the token's account; a body carrying `owner`, or an
+  upsert carrying `session`, is 400 `invalid`. Each upsert's `session` is the
+  change's `session_id`. A worktree created by another account answers 404
+  `not_found` ("worktree <id> not found") to `PUT worktrees/{id}` and to
+  every route under it, exactly like an unknown one, so a member of a shared
+  namespace can neither overwrite nor discover another member's checkout.
+  `changes`, `sessions/…` and `DELETE` on an unknown worktree are 404
+  `not_found` too; the client registers it with `PUT worktrees/{id}` and
+  retries.
+- **`PUT blobs/{sha256}`** verifies that the bytes hash to `{sha256}` (400
+  `invalid`, "the content hashes to …"); more than `maxFileBytes` (by
+  `Content-Length` or as read) is 413 `too_large`. A blob is stored once per
+  project, whichever worktrees and refs name it.
+- **`PUT worktrees/{id}`** creates the worktree or updates its `root`,
+  `host`, `origin` and `default_branch`, adds `ref` to its refs and clears
+  an earlier removal; `head` is validated and not stored. A commit with a
+  `session_id` also records that session's activity. **`PUT …/sessions/{session_id}`** records the
+  session's first and last activity on the worktree, and its end with
+  `"ended": true`. **`DELETE worktrees/{id}`** marks the worktree removed and
+  appends a tombstone change to the log.
+- **Limits.** `maxBatch` (5,000) caps a manifest's hashes and a change's
+  upserts plus deletes (413 `too_large` beyond); `maxFileBytes` (1 MiB, or
+  `CluedOptions.CodeMaxFileBytes`) caps a blob. A client never sends more
+  than `capabilities` reports, and sends the larger files as entries
+  without content. The generated nginx front-end allows 16 MiB bodies.
+- **Refusals by the embedding server.** `BeforeCodeWrite` sees the
+  namespaced project and the bytes a write adds (a new blob's size, else 0)
+  and may refuse it: 403 `forbidden` (no entitlement, a metadata-only
+  account; any error it returns that is not one of the next two is 403 too,
+  so it fails closed), 413 `quota` (the account's code storage is full), or
+  its own status and kind. The self-hosted server sets none. Clued Cloud
+  uses it for its plan entitlement and byte quota.
+- **`github`** in `capabilities` is true on a project whose pushed code a
+  GitHub installation supplies (Clued Cloud; `CluedOptions.GitHubBacked`);
+  a change there may send clean, pushed entries with `sha256: ""` and their
+  `git_oid`, and the server takes the content from the GitHub copy.
+- **Not served.** A server without a code store answers every route under
+  the prefix 404 `not_found` with the message `no route for <method>
+  <path>`, and so does a route or method this table does not list; a
+  client takes that as "this server collects no code" (section 4.4.1).
+
+On the server, `--code-store mongo` keeps each namespaced project in the
+session config's MongoDB database (`CLUED_MONGO_URL`, `CLUED_DB_NAME`) in
+collections named `<project key>_code_blobs` (`_id` the SHA-256, `size`,
+`content`), `_code_trees` (one document per entry of a (worktree, ref)
+tree), `_code_worktrees`, `_code_changes` (the change log, by `seq`),
+`_code_events` and `_code_counters`; writes that touch several of them run
+in a transaction when the deployment supports one (a replica set) and are
+ordered to be idempotent on a retry otherwise. `--code-store memory` keeps
+them in the process.
+
 ## 8. The remote client
 
 `remote.Client` (`remote/client.go`) is what every remote adapter uses:
@@ -1467,7 +1710,46 @@ context <session>                         full <session>                        
 restore <session> [--project-path p] [--projects-dir d]                          backfill
 memory-ingest …                            (retired: a hidden no-op that exits 0)
 login --server URL [--name NAME] [--ca-file PEM] [--insecure] [--wait 15m]      logout [--keep-config]      config-pull [--quiet]
+code-sync [--full] [--dry-run] [--path DIR]                                      code-sync status [--path DIR]
 ```
+
+`session code-sync` runs the code sync of section 4.4.1 for the worktree
+containing `--path` (the working directory by default) with no time or
+size budget: a first import of a large repository, or a repair. Without
+`--full` it looks at what `git status` reports, the files the state holds
+as dirty and the pending queue (a changed ref, a missing state or a last
+full reconcile 6 hours old still makes it a full reconcile); `--full`
+reconciles every file; `--dry-run` works out what would be sent and sends
+and saves nothing (no server request at all). It needs remote mode
+(`BadRequest`, exit 2, "code sync needs remote mode: …" otherwise; a
+`--path` that is missing or not a directory is exit 2 too); a failed run is
+`StorageError`, exit 10, with the work left pending. It prints
+
+```json
+{"ok": true, "result": {"summary": "code sync wt_…@main: 12 upserts, 1 deletes, 3 uploaded (2048 bytes), 0 pending, full",
+ "worktree": "wt_…", "root": "…", "project": "…", "ref": "main", "head": "…", "full": true, "full_committed": true,
+ "upserts": 12, "deletes": 1, "hashed": 3, "hashed_bytes": 2048, "uploaded": 3, "uploaded_bytes": 2048,
+ "refused": 0, "pending": 0, "seq": 7, "backed_off": "quota", "dry_run": false}}
+```
+
+(`backed_off` only after a refusal: `unsupported`, `forbidden` or
+`quota`). When the run skipped, the result is `{"summary": "code sync
+skipped: <reason>", "skipped": "<reason>", "dry_run": …}` and the exit code
+0; the reasons are `code sync is off` (no `codeSync`, or `captureContent`
+false), `no capture (CLUED_NO_CAPTURE=1)`, `not in a git repository`,
+`repository opted out (codeSync: false)`, `worktree matches excludePaths`,
+`project has no origin or remote.project (directory-name slug)`, `no branch
+and no commit`, `another run holds the worktree's lock` and `backed off
+until a refusal expires`. Settings it cannot apply (a bad glob) are
+`warning: …` lines on stderr.
+
+`session code-sync status` reads only the state files (it asks the server
+nothing) and prints `{"enabled", "remote", "state_dir", "worktrees": [{"worktree",
+"root", "project", "ref", "head", "upstream", "ahead", "default_branch",
+"files", "synced", "dirty", "unpushed", "pending_upserts": […],
+"pending_deletes": […], "refused": […], "last_full"?, "unsupported_until"?}]}`;
+with `--path`, only the worktree containing that directory (an empty list
+when it was never synced; exit 2 outside a git repository).
 
 `session export` writes one session as Markdown (`md`), a self-contained
 HTML page (`html`, inline CSS, no scripts) or Claude Code's JSONL (`jsonl`,
@@ -1489,7 +1771,7 @@ session the store did not hold, and it prints `{"sessions", "lines",
 Server (`mind-palace server …`):
 
 ```
-run [--addr host:port] [--tls-cert file --tls-key file | --behind-proxy] [--tokens file] [--session-config file] [--store memory] [--version v]
+run [--addr host:port] [--tls-cert file --tls-key file | --behind-proxy] [--tokens file] [--session-config file] [--store memory] [--code-store mongo|memory|off] [--version v]
 token create --name <name> [--project <slug>]… [--account <id>] [--environment [--ttl 24h]] [--tokens file]
 token list | token revoke <name> | token grant <name> --project <slug>…
 device list | device approve <code> [--name n] [--project slug]… | device deny <code>   (each takes --server, --token, --ca-file, --insecure; defaults from the clued config)
@@ -1541,6 +1823,12 @@ an unknown OS). When nothing is pending and it did not remove, it GETs
 system roots alone and sets `verified` (and `verify_error`). `--dry-run`
 lists the steps and runs nothing. Exit 0 with pending steps; a CA file that
 cannot be read or is not a CA is `NotFound` (exit 4).
+
+`run --code-store` (`CLUED_SERVER_CODE_STORE`) chooses the code store behind
+the code transport (section 7.12): `mongo` (the default, and what `server
+init`'s stack sets) keeps it in the session config's MongoDB, `memory` (the
+default with `--store memory`) in the process, and `off` serves no code
+routes (each answers 404). Another value is `BadRequest`, exit 2.
 
 `run` reads the machine's plugin config for capture settings but clears its
 `serverUrl`, `serverToken` and `serverCaFile`: the server stores what it
@@ -1630,10 +1918,13 @@ the environment:
 | `serverCaFile` | `CLUED_SERVER_CA_FILE` | | extra CA certificate (PEM) |
 | `serverInsecure` | `CLUED_SERVER_INSECURE` | `false` | allow `http://` off loopback |
 | `primeOnStart` | `CLUED_PRIME_ON_START` | `true` | `hook prime` adds the prime report to every session start |
-| `redactAtCapture` | `CLUED_REDACT_AT_CAPTURE` | off (absent); `/clued-setup` writes `true` | Mask secrets before anything captured is written (the local store, or the request to the server): the rules `private-key` (PEM private keys), `api-key` (`sk-…`), `aws-key` (`AKIA…`), `jwt`, `github-token` (`ghp_…`, `github_pat_…`), `slack-token` (`xox?-…`), each match replaced by `[REDACTED:<rule>]`, and `<private>…</private>` spans (an unclosed one to the end of its line) by `[PRIVATE]`. Every string of a hook event, transcript and subagent line and text blob is masked; a masked document records the rules that fired under `redacted`. `server run` applies its own config's setting to what clients send |
+| `redactAtCapture` | `CLUED_REDACT_AT_CAPTURE` | off (absent); `/clued-setup` writes `true` | Mask secrets before anything captured is written (the local store, or the request to the server): the rules `private-key` (PEM private keys), `api-key` (`sk-…`), `aws-key` (`AKIA…`), `jwt`, `github-token` (`ghp_…`, `github_pat_…`), `slack-token` (`xox?-…`), each match replaced by `[REDACTED:<rule>]`, and `<private>…</private>` spans (an unclosed one to the end of its line) by `[PRIVATE]`. Every string of a hook event, transcript and subagent line and text blob is masked; a masked document records the rules that fired under `redacted`. Code sync masks each file's content the same way before hashing and uploading it. `server run` applies its own config's setting to what clients send |
 | `redactPatterns` | | `[]` | Extra regular expressions masked with `redactAtCapture` (`[REDACTED:pattern-<n>]`); one that does not compile is logged and skipped |
-| `excludePaths` | | `[]` | Globs (`filepath.Match`, `~` for the home directory) over a session's cwd and project path; a session in a matching directory, or below one, is never stored: its session record, hook events, lines and blobs are dropped |
+| `excludePaths` | | `[]` | Globs (`filepath.Match`, `~` for the home directory) over a session's cwd and project path; a session in a matching directory, or below one, is never stored: its session record, hook events, lines and blobs are dropped. Code sync also matches it against each file's absolute path, and skips a worktree whose root matches |
 | `captureContent` | `CLUED_CAPTURE_CONTENT` | `true` (absent) | `false` makes capture metadata-only: transcript and subagent lines and artifact files are not written or sent, hook events lose their content (`session.WithoutContent`: `prompt`, `tool_response`, `message`, `last_assistant_message`, `custom_instructions`, `tool_input` except `file_path`, a `MemorySaved` record's `memory.text`, the `privacy-redact-memory` enrichment) and a session's `title` and `title_kind` are not set; sessions, event and tool names, ids, file paths, timestamps, models, OpenTelemetry events and limit samples are still captured. In remote mode it is the server's hint, written by `session config-pull` from `GET /api/v1/me/config` and removed when the server sends no boolean; the server enforces its own policy whatever the client sends. `server run` applies its own config's setting to what clients send and serves it to them |
+| `codeSync` | `CLUED_CODE_SYNC` | off (absent) | `true` turns on code sync (section 4.4.1): in remote mode, `hook relay` uploads the source of every git repository Claude Code works in (tracked and untracked-but-not-ignored files, after the deny list, `excludePaths`, `codeSyncExclude` and the capture redaction) to the server's code store. It needs remote mode, and `captureContent: false` turns it off; a repository opts out with `codeSync: false` in its `mind-palace.config.yaml` (section 11.2). The variable takes a boolean (`1`, `true`, `0`, `false`); `session config-pull` writes the server's value when it sends one |
+| `codeSyncMaxFileBytes` | `CLUED_CODE_SYNC_MAX_FILE_BYTES` | `1048576` | The content cap per file; a larger file is sent as path and size only. The server's `capabilities` limit wins when it is lower. Must be a positive whole number |
+| `codeSyncExclude` | | `[]` | Extra globs (`path.Match` syntax) relative to the worktree root kept out of code sync: without a slash a glob matches a file or directory name at any depth (`*.gen.go`, `testdata`), with one it is anchored at the root (`web/dist`); a matching directory excludes everything below it. A glob that does not compile is skipped with a warning |
 | `retentionDays` | | `0` (keep) | MongoDB deletes captured documents that many days after they were stored (TTL indexes `retention_ttl` on `created_at`, and on `last_seen` for sessions); `0` drops the indexes |
 | `otelEndpoint` | `CLUED_OTEL_ENDPOINT` | (none) | An OTLP/HTTP collector (`http://localhost:4318`; `/v1/traces` is appended unless present). Each session's trace is sent when it ends: by the daemon 5 s after `SessionEnd` is stored, by `hook relay` right after its catch-up in remote mode, or by `session otel-export`. The trace: a root span `invoke_agent claude-code` (`gen_ai.operation.name`, `gen_ai.agent.name`, `gen_ai.conversation.id` = the session id, `clued.project_path`, `clued.git_origin`, …), a `turn` span per `UserPromptSubmit` (to the next one or the session's last event; `clued.turn.index`, `clued.prompt.chars`, and `gen_ai.usage.input_tokens`, `output_tokens`, `cache_read.input_tokens`, `cache_creation.input_tokens`, `gen_ai.response.model` from the `usage` enrichment, each message once; the session span holds the totals), an `execute_tool <name>` span per tool use from `PreToolUse` to `PostToolUse` or `PostToolUseFailure` (`gen_ai.tool.name`, `gen_ai.tool.call.id`; a failure has status error and `error.type`), and an `invoke_agent <agent_type>` span per subagent. Resource: `service.name` `claude-code`. Trace and span ids derive from the account and session, and `<config dir>/otel/<session>.json` records the spans sent, so each span is sent at most once and a resumed session adds only its new spans. A collector that is down costs a log line (the daemon log, or `relay.log`), never a hook; nothing is retried until the session is exported again |
 | `otelHeaders` | | `{}` | Headers sent with every OTLP request (`{"Authorization": "Bearer …"}`); secrets, never logged |
@@ -1650,6 +1941,9 @@ the environment:
 Session collections in MongoDB: `sessions`, `hook_events`,
 `transcript_lines`, `subagent_lines`, `blobs`.
 
+Code sync keeps its state in `<config dir>/codesync/` (section 4.4.1); the
+server's code collections are listed in section 7.12.
+
 ### 11.2 The repository config: `mind-palace.config.yaml`
 
 Per repository (`MIND_PALACE_CONFIG` or `--config` override the location):
@@ -1662,6 +1956,7 @@ storage:                     # every store writes fan out to; the first is the p
   - {name: clued-server, kind: clued, options: {url: …, token: …, project: …, caFile: …, insecure: …}}
 server:   {addr: 127.0.0.1:8080}
 remote:   {project: github.com__owner__repo}   # overrides the project slug derived from the git origin
+codeSync: false                                # keeps this repository out of code sync (section 4.4.1), whatever config.json says
 ```
 
 Storage kinds: `file`, `memory`, `mongodb` (alias `mongo`), `webdav`

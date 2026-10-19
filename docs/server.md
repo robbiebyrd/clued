@@ -16,6 +16,11 @@ How it fits together:
   `docs/stories` as the primary store; the server is appended as a secondary
   store (`clued-server`) and receives every write through the fan-out. After
   an outage `mind-palace sync --from file --to clued-server` reconciles.
+- **Code** (opt-in on each client, `codeSync`) is mirrored into the server's
+  code store: in remote mode the relay uploads the source of the
+  repositories Claude Code works in, content-addressed, per worktree and
+  branch, through a write-only API that serves none of it back. See
+  [Collected code](#collected-code).
 - **MCP** stays available through the plugin's stdio servers, which in remote
   mode read and write through the server, and additionally over HTTPS at
   `/mcp` for clients that want no local process at all.
@@ -52,6 +57,7 @@ be configured without arguments:
 | `--tokens` | `CLUED_SERVER_TOKENS` | `~/.clued-server/tokens.json` | The token file (shared with `server token`) |
 | `--config` | `MIND_PALACE_CONFIG` | `mind-palace.config.yaml` in the working directory | Plan and story storage, see below |
 | `--session-config` | | `~/.claude/plugins/data/clued/config.json` | Session storage and enrichers; `CLUED_MONGO_URL` and `CLUED_DB_NAME` override its `mongoUrl` and `dbName` |
+| `--code-store` | `CLUED_SERVER_CODE_STORE` | `mongo` (`memory` with `--store memory`) | Where collected code goes: `mongo`, `memory` or `off`; see [Collected code](#collected-code) |
 | `--version` | | the build's version | Reported by `/health` and `/api/v1/whoami` |
 
 Sessions always live in MongoDB: set `CLUED_MONGO_URL` (for example
@@ -430,6 +436,39 @@ with the generated compose file, mount a `config.json` holding them into
 `clued-server` and add `--session-config /etc/clued/config.json` through
 `command:`.
 
+### Collected code
+
+Clients that turn on `codeSync` upload the source of the repositories
+Claude Code works in to the code transport under
+`/api/v1/projects/{project}/code/` (PROTOCOL.md section 7.12). The server
+keeps it per namespaced project: each file's content once by SHA-256, a
+tree per worktree and branch, and an ordered change log, ready for a code
+graph indexer. No route serves the code back.
+
+| `--code-store` | What it does |
+|---|---|
+| `mongo` | The default. The session MongoDB (`CLUED_MONGO_URL`, `CLUED_DB_NAME`) holds it, in collections prefixed with the project key: `<project>_code_blobs`, `_code_trees`, `_code_worktrees`, `_code_changes`, `_code_events`, `_code_counters`. A replica set lets each commit run in a transaction; a standalone server works too, with writes ordered so a retry is harmless |
+| `memory` | In the process, lost on restart; the default with `--store memory`, for tests |
+| `off` | No code routes: every one answers 404, and clients back off for 24 hours |
+
+The stack `server init` generates sets `CLUED_SERVER_CODE_STORE=mongo` in
+both runtimes (compose file and `up.sh`), so collected code lives in the
+stack's `mongo:8` beside the sessions; no other container is needed. To
+turn it off in a stack, set the variable to `off` in the compose file (or
+`up.sh`) and restart the server. Blobs are capped at 1 MiB (a client sends
+larger files as path and size only) and batches at 5,000 entries, under
+the 16 MiB body limit of the generated nginx; a front-end of your own needs
+the same body limit (`client_max_body_size 16m`).
+
+Nothing on the server turns collection on: each client decides with
+`codeSync` in its `config.json` (or `CLUED_CODE_SYNC`), off by default, and
+a repository can opt out with `codeSync: false` in its
+`mind-palace.config.yaml`. Writes are stamped with the token's account, so
+the account that created a worktree is the only one that can write to it.
+An embedding server (Clued Cloud) can refuse writes per account with
+`CluedOptions.BeforeCodeWrite` (403 `forbidden`, 413 `quota`); the
+self-hosted server accepts every write a token's projects cover.
+
 ## Client setup
 
 ### `config.json`
@@ -444,6 +483,7 @@ so write it with mode 0600.
 | `serverToken` | `CLUED_SERVER_TOKEN` | The raw token `server token create` printed, or the one `session login` received |
 | `serverCaFile` | `CLUED_SERVER_CA_FILE` | Optional PEM bundle trusted in addition to the system roots (a private CA) |
 | `serverInsecure` | `CLUED_SERVER_INSECURE` | `true` allows a plain `http://` URL off loopback; never for a real deployment |
+| `codeSync` | `CLUED_CODE_SYNC` | `true` uploads the source of every repository Claude Code works in to the code store (off by default; see [What runs on the client](#what-runs-on-the-client)) |
 
 ```json
 {
@@ -504,8 +544,9 @@ the cloud (the host name by default); `--wait` bounds the wait (15 minutes).
 - `session config-pull` fetches the account's client settings
   (`GET /api/v1/me/config`: `enabledEnrichers`, `disabledEnrichers`,
   `projectsDir`, `fileHistoryDir`, `redactAtCapture`, `redactPatterns`,
-  `excludePaths`, and the `captureContent` hint, removed again when the
-  server stops sending it) into `config.json`; a key a workspace policy
+  `excludePaths`, `codeSync`, `codeSyncMaxFileBytes`, `codeSyncExclude`,
+  and the `captureContent` hint, removed again when the server stops
+  sending it) into `config.json`; a key a workspace policy
   manages (`managed`) replaces a local edit, with a note on stderr; `session-start` runs
   it with `--quiet` in remote mode, so settings changed in the cloud's web
   app reach every linked machine at its next session. Against a plain clued
@@ -536,6 +577,21 @@ Nothing stays resident. In remote mode:
   lines are not buffered, they are re-read from the file by offset. A failed
   catch-up leaves the offset unchanged, so the next hook retries from the
   same place.
+- With `codeSync` on, the relay then syncs the worktree the event changed
+  (an edit, a Bash command, `Stop`, `SessionStart`, …) to the code store,
+  last and with what is left of the budget, at most 3 s and 8 MiB of
+  changed content; the rest stays queued for the next hook. It sends what
+  `git ls-files -co --exclude-standard` lists (so `.gitignore` holds),
+  minus a built-in deny list of secret files (`.env*`, keys, `.npmrc`,
+  `credentials*.json`, …), `excludePaths` and `codeSyncExclude`, with the
+  capture redaction applied before hashing; binaries and files over 1 MiB
+  go as path and size only. Repositories without an origin (or
+  `remote.project`) are not synced. State lives under
+  `~/.claude/plugins/data/clued/codesync/` (paths and hashes, never
+  content); `scripts/clued session code-sync --full` does a first import
+  of a large repository in one go, and `session code-sync status` shows
+  each worktree's state. A server without a code store answers 404 and the
+  client stays quiet for 24 hours.
 - Sessions that ran before remote mode was configured are loaded by `session
   backfill` on the next session start, which walks `projectsDir` and upserts
   them through the server, exactly as it does for MongoDB.

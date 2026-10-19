@@ -437,6 +437,9 @@ clued keeps its own memory of the work, written as clued's own code (see
 | `redactPatterns` | `[]` | | More regular expressions to mask with `redactAtCapture` (e-mail addresses, internal host names) |
 | `excludePaths` | `[]` | | Globs over the session's directory (`["~/work/client-*"]`): sessions in or below a match are never stored |
 | `captureContent` | `true` | `CLUED_CAPTURE_CONTENT` | `false` captures metadata only: no transcript lines or artifact files, hook events without prompts, tool inputs (file paths aside) or responses, no session titles. In remote mode the server sets it (`session config-pull`) when it keeps metadata only for the account |
+| `codeSync` | off | `CLUED_CODE_SYNC` | Remote mode only: `true` uploads the source of every git repository Claude Code works in to the server's code store; see [Code sync](#code-sync) |
+| `codeSyncMaxFileBytes` | `1048576` | `CLUED_CODE_SYNC_MAX_FILE_BYTES` | Files larger than this are sent as path and size only |
+| `codeSyncExclude` | `[]` | | Globs relative to the repository root kept out of code sync (`["*.gen.go", "web/dist"]`) |
 | `retentionDays` | `0` | | MongoDB deletes captured documents after this many days |
 | `otelEndpoint` | (none) | `CLUED_OTEL_ENDPOINT` | An OTLP/HTTP collector (Grafana Alloy, Langfuse, Phoenix, an OpenTelemetry Collector) that receives each session as a trace when it ends: a span per prompt turn, tool use and subagent, with token usage, under the GenAI conventions |
 | `otelHeaders` | `{}` | | Headers for the collector (`Authorization`); never logged |
@@ -495,7 +498,7 @@ What runs on the client:
 |---|---|---|
 | Storage | MongoDB at `mongoUrl` | The server, over `remotesession` (sessions) and the `clued-server` store (plans and stories) |
 | Resident process | `mind-palace session daemon` on `127.0.0.1:<port>`, started by `session-start` | None |
-| Per hook event | `event-relay` POSTs to the daemon, WAL on failure | `event-relay` runs `scripts/clued hook relay`: stores the event, pushes the transcript delta and changed artifact files (catch-up state under `~/.claude/plugins/data/clued/catchup/`), replays the WAL; failures go to `~/.claude/plugins/data/clued/relay.log`; 5 s budget, never fails the hook |
+| Per hook event | `event-relay` POSTs to the daemon, WAL on failure | `event-relay` runs `scripts/clued hook relay`: stores the event, pushes the transcript delta and changed artifact files (catch-up state under `~/.claude/plugins/data/clued/catchup/`), replays the WAL and, with `codeSync` on, syncs the worktree's code ([Code sync](#code-sync)); failures go to `~/.claude/plugins/data/clued/relay.log`; 5 s budget, never fails the hook |
 | Session start | Starts or restarts the daemon, then `session backfill` | Relays the SessionStart event, then `session backfill` against the server |
 | `check-setup` | Config file and binary present | Also `session whoami`: warns once per session when the server is unreachable, the token is rejected, or the token does not cover this repository's project (with the `server token grant` command to run) |
 | Plans and stories | Files in the repository, plus the stores of `mind-palace.config.yaml` | Files stay primary; every write also goes to the server, and `mind-palace sync --from file --to clued-server` reconciles after an outage |
@@ -506,6 +509,60 @@ session …` work the same in both modes. `mind-palace session whoami` is the
 connectivity probe: it prints the token's name, account and projects, exits
 2 when no server is configured and 10 when the server is unreachable or
 rejects the token.
+
+### Code sync
+
+In remote mode clued can also mirror the code Claude Code works on to the
+server, for a code graph built there later. It is **off** until you turn it
+on: `"codeSync": true` in `config.json` (or `CLUED_CODE_SYNC=true`), which
+`/clued-setup` asks about. Turned on, **the source of every git repository
+Claude Code works in on this machine is uploaded to the clued server**, and
+kept up to date as files are added, edited and deleted:
+
+- **What is uploaded.** For each repository (each worktree and branch apart),
+  every file `git ls-files -co --exclude-standard` lists: tracked files and
+  untracked ones that are not ignored, so `.gitignore` is respected. With
+  each file go its path, size, mode, language, git blob id and whether it is
+  committed and pushed; with each worktree its root path, host name, origin
+  URL (credentials removed), branch, HEAD and upstream commits and the
+  sessions that worked in it. Content is stored once per project by
+  SHA-256, so branches and repeated syncs cost only what changed.
+- **What is not.** A built-in deny list that cannot be switched off: `.env`,
+  `.env.*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*`, `id_ed25519*`,
+  `*.kdbx`, `.npmrc`, `.pypirc`, `.netrc`, `credentials*.json` (in any
+  directory, any case) and any name containing `secret` under a `config/`
+  directory; these are not sent at all, not even their names. Files under
+  `excludePaths` and `codeSyncExclude` are left out the same way. Binary
+  files (a NUL byte in the first 8 KiB, or not UTF-8), symbolic links (never
+  followed) and files over `codeSyncMaxFileBytes` (1 MiB) go as path and
+  size only. With `redactAtCapture` on, file content passes through the
+  same redaction as transcripts (API keys, tokens, private keys,
+  `redactPatterns`, `<private>…</private>` spans) before it is hashed and
+  sent. Repositories without a git origin (and no `remote.project`) are not
+  synced at all.
+- **When.** On the hook events that change files: an edit (`Write`,
+  `Edit`, `MultiEdit`, `NotebookEdit`), after each Bash command (moves,
+  deletes, generators, commits, pushes), `Stop`, `SessionStart`,
+  `SessionEnd`, `FileChanged`, `CwdChanged` and the removal of a worktree.
+  Each run takes at most 3 s and 8 MiB of changed content inside the
+  relay's 5 s; the rest waits in a queue for the next hook, and the
+  first hook 6 hours after the last full reconcile runs another. `scripts/clued session code-sync --full`
+  imports a large repository in one go, `--dry-run` shows what would be
+  sent, and `scripts/clued session code-sync status` shows the local state
+  (`~/.claude/plugins/data/clued/codesync/`, paths and hashes only).
+- **Opting out.** Leave `codeSync` unset or set it to `false` for the whole
+  machine; put `codeSync: false` in a repository's
+  `mind-palace.config.yaml` to keep that repository out whatever the
+  machine says; `captureContent: false` turns it off too. A clued cloud
+  can set `codeSync` for an account (`session config-pull`). A server
+  without a code store (`server run --code-store off`) answers 404 and the
+  client stops trying for 24 hours.
+- **On the server.** The code goes to the code store of the project
+  (`--code-store`, MongoDB by default; see
+  [`docs/server.md`](docs/server.md#collected-code)) through a write-only
+  API: no route returns code, so a leaked client token cannot read any
+  back. The routes and the state format are in
+  [`PROTOCOL.md`](PROTOCOL.md) sections 7.12 and 4.4.1.
 
 ### Running the daemon by hand
 
