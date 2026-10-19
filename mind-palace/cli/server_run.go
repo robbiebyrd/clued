@@ -26,6 +26,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/codegraph/falkor"
 	"github.com/robbiebyrd/clued/mind-palace/codegraph/memgraph"
 	"github.com/robbiebyrd/clued/mind-palace/codeindex"
+	"github.com/robbiebyrd/clued/mind-palace/codeparse"
 	"github.com/robbiebyrd/clued/mind-palace/config"
 	"github.com/robbiebyrd/clued/mind-palace/remote"
 	"github.com/robbiebyrd/clued/mind-palace/server"
@@ -368,10 +369,12 @@ func newRunIndexer(stores *codeStores, graphs codegraph.Opener, logger *slog.Log
 		codeindex.Cursors
 		codeindex.CursorPeeker
 	} = codeindex.NewMemCursors(nil)
+	var cache codeparse.Cache
 	if stores.db != nil {
 		cursors = codeindex.NewMongoCursors(stores.db, "", nil)
+		cache = newParseCache(context.Background(), stores.db, logger)
 	}
-	svc, err := graphIndexer(&graphEnv{Projects: stores.Projects, Code: stores.Open, Graphs: graphs, Cursors: cursors}, logger)
+	svc, err := graphIndexer(&graphEnv{Projects: stores.Projects, Code: stores.Open, Graphs: graphs, Cursors: cursors, Cache: cache}, logger)
 	if err != nil {
 		return nil, nil, err
 	}
