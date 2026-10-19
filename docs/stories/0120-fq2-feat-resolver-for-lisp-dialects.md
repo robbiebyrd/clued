@@ -7,7 +7,7 @@ status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:25.537Z"
-updated: "2026-10-19T21:11:39.484Z"
+updated: "2026-10-19T21:17:47.774Z"
 started: "2026-10-19T21:06:15.755Z"
 completed: "2026-10-19T21:11:39.484Z"
 tags:
@@ -93,3 +93,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 ## Work Log
 
 ### 2026-10-19T21:11:33.283Z - Added codeindex/resolvers/lisp.go (family lisp: Common Lisp in-package/defpackage :use (open) and :import-from (names) applied package-wide, a file whose only package form is one defpackage belongs to that package, pkg:name/pkg::name to any project package; Clojure ns, :require spec and :as as qualifiers, :refer as names, :import skipped, ns/name to any project namespace; Emacs Lisp one global namespace; Scheme/Racket file modules keyed by path or declared library name, relative/library/collection-path lookup, prefix as qualifier, only as names, whole import opens). Keys are '<dialect group>:<name>'; Visible keeps candidates in the same dialect group (racket+scheme share). Rules: separators : :: /, case-insensitive, name fallback on, member fallback off. Package-name spellings fold so CL qualifiers/names match any case. Tests in lisp_test.go: 7 tests (4 end-to-end through codeindex.NewResolver over memcode+memgraph with hand-built facts per dialect, since 0099 extraction and its testdata/lisp goldens are not in the branch; plus package keys, scope, name helpers), all pass; gofmt/vet/build clean, go test -race ./codeindex/... ok. Status set in_progress with --force (0099-1pa still open). Only the two listed files changed.
+
+### 2026-10-19T21:17:47.774Z - Retested against the merged 0099 extraction: TestResolve_lispGoldens resolves codeparse/testdata/lisp facts (geometry.lisp, legacy.lisp, geometry.asd, shapes.clj, util.cljc, shapes.rkt, queue.scm, modules.ss, tidy-mode.el) beside hand-built import targets. Fixes: CL :local-nicknames (use + alias) bind a qualifier instead of opening; a Scheme file's package comes from its top-level define-library/define-module symbol when Facts.Package is empty; only Lisp extensions mark a file spec (chicken.string is a module). Test helpers prefixed lisp*. 8 lisp tests pass (-count=10 stable); go vet ./codeindex/... and go test -race ./codeindex/... ok after merging claude/sharp-gates-45zpak. Known limits outside this story's files: Racket/Scheme prefixed refs (str:string-join, util:ensure-queue) arrive as bare names without a qualifier, so they stay unresolved; define-library definitions are nested under the library symbol (not top level), so imports of them resolve by name fallback (confidence name) rather than exact; family Rules are case-insensitive for all dialects (Rules has no per-dialect switch).
