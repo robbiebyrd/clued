@@ -3,11 +3,13 @@ id: 0079-zwm
 title: '`codeparse` contract: facts, detection, profiles, cache'
 purpose: Fixes the shapes the extractor, the 19 language stories, the cache and the indexer build on.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:07:11.562Z"
-updated: "2026-10-19T18:28:45.650Z"
+updated: "2026-10-19T19:06:44.847Z"
+started: "2026-10-19T18:57:57.812Z"
+completed: "2026-10-19T19:06:44.847Z"
 tags:
   - plan-0012-cgi
   - wave-1
@@ -32,15 +34,15 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # `codeparse` contract: facts, detection, profiles, cache
@@ -77,9 +79,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -90,3 +92,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/contract_test.go` - detection and profile loading
 
 ## Work Log
+
+### 2026-10-19T19:06:39.764Z - Added mind-palace/codeparse: facts.go (Facts, Symbol, Import, Ref, Chunk, Pos, Version="1", kind constants, SymbolID/ChunkID/HashText, Facts.Validate, Clone, ParseError causes), detect.go (Languages table of the 20 language IDs = queries/ directory names with family, extensions, filenames and per-extension dialects: tsx, ocaml interface, Lisp commonlisp/elisp/clojure/scheme/racket; Detect(path, content, neighbours) by filename, longest extension (.d.ts), Markdown; .h by content outside comments/strings (ObjC forms first, then C++ forms) then neighbours (.m/.mm > C++ sources > .c) then C; .m always ObjC), profiles.go (LoadProfiles(fs.FS) over <lang>/profile.yaml, strict camelCase YAML checked against the table, grammar/query/dialect defaults, kinds over DefaultKinds, definingForms, scope separators/packageBy/exported/caseInsensitive/options, per-language digest -> Profile.FactsVersion(dialect) so a language's data change re-parses only its files; TextFactsVersion for text/Markdown), cache.go (Key{SHA256, Version}, ContentKey, Cache port, Cached parse-on-miss helper, LRU MemoryCache that copies in and out). No embed of queries/ here (no files there yet): the extractor (0080) embeds it and passes fs.Sub. Runtime-agnostic: nothing depends on the parser runtime. go test -race ./codeparse/...: 20 tests (about 60 subtests) pass; gofmt, go vet ./..., go build ./... clean. Only the five listed files changed; no go.mod change (yaml.v3 already required).
