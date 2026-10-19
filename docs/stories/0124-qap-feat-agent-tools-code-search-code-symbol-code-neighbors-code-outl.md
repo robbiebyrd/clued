@@ -3,11 +3,13 @@ id: 0124-qap
 title: 'Agent tools: `code_search`, `code_symbol`, `code_neighbors`, `code_outline`, `code_context`'
 purpose: Gives agents compact answers with `path:line` instead of grep and whole-file reads.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:48.239Z"
-updated: "2026-10-19T18:33:37.338Z"
+updated: "2026-10-19T20:26:02.557Z"
+started: "2026-10-19T19:58:24.955Z"
+completed: "2026-10-19T20:26:02.557Z"
 tags:
   - plan-0012-cgi
   - wave-8
@@ -33,13 +35,13 @@ links:
     - ["0012-cgi", "included", ["4.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Agent tools: `code_search`, `code_symbol`, `code_neighbors`, `code_outline`, `code_context`
@@ -72,9 +74,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/sessionmcp/... ./code/remotecode/... && go test ./plugin/
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/sessionmcp/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./session/sessionmcp/... ./code/remotecode/... && go test ./plugin/
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/sessionmcp/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -85,3 +87,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/plugin/code_tools_test.go` - plugin test against a server with `memgraph`
 
 ## Work Log
+
+### 2026-10-19T20:25:57.022Z - Built the code tools. code/remotecode/graph.go: typed client for the graph read routes (Store.Search/Symbol/Neighbors/Outline/Context returning SearchResult, codeapi.SymbolResult, NeighborsResult, OutlineResult, ContextResult) plus ErrUnavailable (503) and ErrUnknownSession (404 for the view's session). session/sessionmcp/code_tools.go: code_search, code_symbol, code_neighbors, code_outline, code_context; each passes the current session as the view (CLAUDE_SESSION_ID, else the newest session captured in the working directory; on ErrUnknownSession it reads the working directory's branch and says so in note; an explicit ref arg reads that branch), answers with path:line ('at') for every hit, child, edge end and body, and takes max_tokens/cursor through budgetSchema (2000 tokens, 6000 for code_context), passed to the routes. Tools fields CodeGraph, CodeView, CodeProbeTimeout, CodeRecheck. Listing (sessionmcp.go AddTools -> addCodeTools): only for the stdio set in remote mode (never the server's remote subset); a probe POST graph/search lists them when status is ready or indexing; 404 no route (no --graph), 403, 401 never list them; empty or 503 rechecks every 2 min and adds them with tools/list_changed. Capability detection is by the graph route's answer, since codeapi's capabilities (server/codeapi/codeapi.go) is outside this story's files. Tests: 7 in session/sessionmcp/code_tools_test.go (codeapi + memgraph over httptest), 1 plugin test (plugin/code_tools_test.go) running mind-palace server run --store memory --code-store memory --graph memory, codesync.Run, and the shim's session mcp over stdio. Deviation: the server's indexer has no parser wired (codeindex FileApplier without Parse: files indexed as text), so the plugin test checks the listing, the session view, outline files and errors end to end; symbol-level path:line answers are covered by the unit tests. VERIFY 1 and 2 pass; with MIND_PALACE_TEST_MONGODB_URI the pre-existing mongosession subtests of sessionmcp time out under the shared MongoDB's load (unrelated to these files).
