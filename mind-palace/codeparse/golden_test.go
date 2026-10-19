@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"strings"
@@ -26,11 +27,19 @@ var update = flag.Bool("update", false, "rewrite testdata/<lang>/*.facts.json fr
 
 const goldenSuffix = ".facts.json"
 
+// engineForTest is the engine over the compiled-in query files with a
+// generous parse timeout: goldens pin what the queries extract, and a
+// loaded machine running -race must not turn a large input into a
+// timeout's text fallback (TestParseTimeout covers the cut-off).
 func engineForTest(t *testing.T) *Engine {
 	t.Helper()
-	e, err := Default()
+	sub, err := fs.Sub(embeddedQueries, "queries")
 	if err != nil {
-		t.Fatalf("Default: %v", err)
+		t.Fatal(err)
+	}
+	e, err := NewEngine(sub, Options{Timeout: time.Minute})
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
 	}
 	return e
 }
