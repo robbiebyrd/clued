@@ -7,7 +7,7 @@ status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:06:24.077Z"
-updated: "2026-10-19T19:38:51.911Z"
+updated: "2026-10-19T19:40:17.668Z"
 started: "2026-10-19T19:33:02.595Z"
 completed: "2026-10-19T19:38:51.911Z"
 tags:
@@ -89,3 +89,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 ## Work Log
 
 ### 2026-10-19T19:38:46.186Z - codeapi: Options.GitHubBacked(ctx, key) and Capabilities.GitHub ("github" in GET capabilities); a change's upsert with sha256 "" is accepted only when git_oid is set, dirty false, unpushed false and the project is GitHub-backed (hook asked once per change), or when size exceeds MaxFileBytes (0010's over-the-cap entries, server-verifiable); otherwise 400 invalid. server.CluedOptions.GitHubBacked passes through with the namespaced key. remotecode.Capabilities documents and surfaces the flag (codeapi.Capabilities). Tests: TestGitHubBacked, capabilities JSON, TestValidation, TestCluedMountsCode; the HTTP conformance runs (codeapi, remotecode) use a GitHub-backed hook because codetest's content-less clean, pushed entries (logo.png, symlink) need it. Deviation: binary, symlink and refused content-less entries of 0010 on non-GitHub projects are now invalid, as the plan says; the 0010 client must upload them or the rule must be widened. Outside the list: code/remotecode/remotecode_test.go (conformance hook, capability assertion). go test -race ./server/... ./code/...: all ok.
+
+### 2026-10-19T19:40:17.668Z - Coordinator: the plan 0011 rule that rejected content-less entries outside GitHub-backed projects contradicted plan 0010 (binaries, symlinks, refused blobs and files over the cap are sent without content), so a client would stall on any repository with an image. codeapi now accepts an entry without sha256 everywhere; GitHubBacked only drives capabilities.github, and the indexer takes clean, pushed content-less entries from the GitHub-backed worktree by git_oid.

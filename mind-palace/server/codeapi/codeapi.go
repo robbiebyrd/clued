@@ -35,13 +35,13 @@
 // before the store sees them; store errors map to code.ErrInvalid 400
 // invalid, code.ErrNotFound 404 not_found, code.ErrMissingBlob 409 conflict.
 //
-// An upsert without content (sha256 "") is accepted in two cases only: the
-// file is over the size cap (size above MaxFileBytes, which the client
-// records without content), or the project is GitHub-backed
-// (Options.GitHubBacked) and the entry is clean and pushed with its
-// git_oid, so GitHub supplies the content under that blob id. Any other
-// content-less entry is 400 invalid. capabilities reports "github": true
-// for a GitHub-backed project, so a client knows to skip those uploads.
+// An upsert without content (sha256 "") records that the file exists
+// without its bytes: plan 0010 sends binaries, symlinks, files over the
+// size cap and blobs the server refused that way. On a GitHub-backed
+// project (Options.GitHubBacked) a clean, pushed entry is also sent
+// without content, and the indexer takes its content from the
+// GitHub-backed worktree by git_oid; capabilities reports "github": true
+// there so a client knows to skip those uploads.
 //
 // Options.BeforeWrite, when set, runs before every write (every route but
 // capabilities) once the request is valid; it refuses one by returning an
@@ -775,8 +775,6 @@ func (a *api) commit(w http.ResponseWriter, r *http.Request, req *request) {
 	if len(in.Upserts) > 0 {
 		c.Upserts = make([]code.Entry, 0, len(in.Upserts))
 	}
-	// github is asked once, for the first content-less entry that needs it.
-	github, asked := false, false
 	for i, e := range in.Upserts {
 		switch {
 		case e.Session != nil:
@@ -806,21 +804,6 @@ func (a *api) commit(w http.ResponseWriter, r *http.Request, req *request) {
 		case !e.Unpushed && in.Upstream == "":
 			invalid(w, "upserts[%d] %s: a branch with no upstream has only unpushed entries", i, e.Path)
 			return
-		}
-		if e.SHA256 == "" && e.Size <= a.opts.MaxFileBytes {
-			// Only GitHub may supply content the client left out, and
-			// only for a file GitHub holds under that blob id.
-			if e.GitOID == "" || e.Dirty || e.Unpushed {
-				invalid(w, "upserts[%d] %s: an entry without sha256 must be clean and pushed, with its git_oid, on a GitHub-backed project (or over the %d-byte cap)", i, e.Path, a.opts.MaxFileBytes)
-				return
-			}
-			if !asked {
-				github, asked = a.githubBacked(r.Context(), req.key), true
-			}
-			if !github {
-				invalid(w, "upserts[%d] %s: an entry without sha256 needs a GitHub-backed project (capabilities github) unless it is over the %d-byte cap; upload its content", i, e.Path, a.opts.MaxFileBytes)
-				return
-			}
 		}
 		c.Upserts = append(c.Upserts, code.Entry{
 			Path:     e.Path,

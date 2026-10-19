@@ -345,13 +345,13 @@ func TestGitHubBacked(t *testing.T) {
 		t.Fatalf("tree %#v", tree)
 	}
 	mu.Lock()
-	if len(asked) != 1 {
-		t.Fatalf("GitHubBacked asked %v for one change", asked)
+	if len(asked) != 0 {
+		t.Fatalf("GitHubBacked asked %v for a change (only capabilities asks)", asked)
 	}
 	mu.Unlock()
 
-	// Even on a GitHub-backed project, an entry GitHub cannot supply
-	// carries its content.
+	// An entry without content records a file without its bytes (a
+	// binary, a symlink, a refused blob): accepted whatever its flags.
 	for name, edit := range map[string]func(map[string]any){
 		"dirty":              func(e map[string]any) { e["dirty"] = true },
 		"unpushed":           func(e map[string]any) { e["unpushed"] = true },
@@ -359,17 +359,17 @@ func TestGitHubBacked(t *testing.T) {
 		"dirty and unpushed": func(e map[string]any) { e["dirty"] = true; e["unpushed"] = true },
 	} {
 		status, env = call(t, ts.URL, tokenAlice, "POST", codePath("worktrees/"+wt1+"/changes"), contentless(edit))
-		expect(t, "content-less "+name, status, env, 400, "invalid")
+		expect(t, "content-less "+name, status, env, 200, "")
 	}
 
-	// Not GitHub-backed: content-less entries are invalid unless they are
-	// over the size cap.
+	// Not GitHub-backed: content-less entries are accepted too (plan 0010
+	// sends binaries and files over the cap that way).
 	status, env = call(t, ts.URL, tokenAlice, "POST", otherPath("worktrees/"+wt1+"/changes"), contentless(nil))
-	expect(t, "content-less entry on a project GitHub does not back", status, env, 400, "invalid")
+	expect(t, "content-less entry on a project GitHub does not back", status, env, 200, "")
 	status, env = call(t, ts.URL, tokenAlice, "POST", otherPath("worktrees/"+wt1+"/changes"),
 		contentless(func(e map[string]any) { e["size"] = codeapi.DefaultMaxFileBytes + 1; e["dirty"] = true }))
 	expect(t, "content-less entry over the cap", status, env, 200, "")
-	if cs, _ := st.get("k__"+other).Changes(t.Context(), 0, 10); len(cs) != 1 {
+	if cs, _ := st.get("k__"+other).Changes(t.Context(), 0, 10); len(cs) != 2 {
 		t.Fatalf("other project changes %#v", cs)
 	}
 
@@ -378,7 +378,7 @@ func TestGitHubBacked(t *testing.T) {
 	ts2 := newServer(t, st2, codeapi.Options{})
 	call(t, ts2.URL, tokenAlice, "PUT", codePath("worktrees/"+wt1), worktreeBody())
 	status, env = call(t, ts2.URL, tokenAlice, "POST", codePath("worktrees/"+wt1+"/changes"), contentless(nil))
-	expect(t, "content-less entry without GitHubBacked", status, env, 400, "invalid")
+	expect(t, "content-less entry without GitHubBacked", status, env, 200, "")
 }
 
 // TestNoReadRoute: no GET (or other) route returns blobs, trees, worktrees
@@ -638,8 +638,6 @@ func TestValidation(t *testing.T) {
 		{"uppercase sha256", entry(func(e map[string]any) { e["sha256"] = strings.ToUpper(sha("a")) })},
 		{"malformed git oid", entry(func(e map[string]any) { e["git_oid"] = "xyz" })},
 		{"clean entry without git oid", entry(func(e map[string]any) { delete(e, "git_oid") })},
-		{"no content, not GitHub-backed", entry(func(e map[string]any) { delete(e, "sha256") })},
-		{"no content, dirty", entry(func(e map[string]any) { delete(e, "sha256"); e["dirty"] = true })},
 		{"negative size", entry(func(e map[string]any) { e["size"] = -1 })},
 		{"bad mode", entry(func(e map[string]any) { e["mode"] = "rwx" })},
 		{"control character in lang", entry(func(e map[string]any) { e["lang"] = "go\n" })},
@@ -920,11 +918,14 @@ func TestCluedMountsCode(t *testing.T) {
 
 		// GitHubBacked sees the namespaced key: alice's project is
 		// GitHub-backed, bob's is not.
-		contentless := changeBody(map[string]any{"path": "a.go", "size": 10, "git_oid": oid1})
-		status, env = call(t, ts.URL, tokenAlice, "POST", codePath("worktrees/"+wt1+"/changes"), contentless)
-		expect(t, "alice content-less", status, env, 200, "")
-		status, env = call(t, ts.URL, tokenBob, "POST", codePath("worktrees/"+wt1+"/changes"), contentless)
-		expect(t, "bob content-less", status, env, 400, "invalid")
+		_, env = call(t, ts.URL, tokenAlice, "GET", codePath("capabilities"), nil)
+		if !strings.HasSuffix(string(env.Result), `"github":true}`) {
+			t.Fatalf("alice capabilities %s", env.Result)
+		}
+		_, env = call(t, ts.URL, tokenBob, "GET", codePath("capabilities"), nil)
+		if !strings.HasSuffix(string(env.Result), `"github":false}`) {
+			t.Fatalf("bob capabilities %s", env.Result)
+		}
 
 		status, env = call(t, ts.URL, tokenAlice, "PUT", codePath("blobs/"+sha(strings.Repeat("x", 65))), strings.Repeat("x", 65))
 		expect(t, "over CodeMaxFileBytes", status, env, 413, "too_large")
