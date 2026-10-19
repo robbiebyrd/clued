@@ -176,6 +176,14 @@ type CluedOptions struct {
 	// (codeapi.DefaultMaxFileBytes when zero); clients read it from the
 	// capabilities route.
 	CodeMaxFileBytes int64
+	// Graph, when set with Code, serves the typed, token-capped graph read
+	// routes (codeapi.MountGraph) under
+	// storeapi.Prefix/{project}/code/graph/: search, symbol, neighbors,
+	// outline and context over the project's code graph (Graph.Graphs,
+	// opened under the same namespaced key as Code), each answering for the
+	// caller's own view. Nil (or no Code) leaves them unserved (404), as
+	// `server run` does without --graph.
+	Graph *codeapi.GraphOptions
 	// Semantic, when set, offers search_semantic on the MCP endpoint.
 	// The enrichment that stores the vectors is one of Enrichers
 	// (enrichers.Embedding over the same Embedder).
@@ -208,8 +216,9 @@ type Clued struct {
 // transport under sessionapi.Prefix, Claude Code's OTLP/HTTP logs and
 // metrics at otlp.PathLogs and otlp.PathMetrics (stored under the token's
 // account for the sessions it holds), the store transport under
-// storeapi.Prefix, the write-only code transport under
-// storeapi.Prefix/{project}/code/ when Code is set (codeapi), and, for the project each request names (see
+// storeapi.Prefix, the code transport under storeapi.Prefix/{project}/code/
+// when Code is set (codeapi: write-only, plus the graph read routes when
+// Graph is set too), and, for the project each request names (see
 // RequestProject), the service API under httpapi.Prefix, the WebSocket at
 // PathWS and the MCP endpoint at PathMCP. The MCP endpoint serves the plan
 // and story tools plus the session tools that need no local disk
@@ -303,11 +312,12 @@ func NewClued(opts CluedOptions) *Clued {
 		BeforePut: opts.BeforePut,
 	}))
 	// The code prefix answers 404 in the envelope on its own, so a server
-	// without Code, or a route the code transport does not have (it has no
-	// read route), never falls through to storeapi.
+	// without Code, or a route the code transport does not have (its only
+	// reads are the graph routes, served with Graph), never falls through
+	// to storeapi.
 	protected.HandleFunc(codeapi.Pattern, codeapi.NotFound)
 	if opts.Code != nil {
-		codeapi.Mount(protected, codeapi.Options{
+		codeOpts := codeapi.Options{
 			Open: opts.Code,
 			Namespace: func(ctx context.Context, project string) (string, error) {
 				p, ok := auth.FromContext(ctx)
@@ -323,7 +333,11 @@ func NewClued(opts CluedOptions) *Clued {
 			BeforeWrite:  opts.BeforeCodeWrite,
 			GitHubBacked: opts.GitHubBacked,
 			MaxFileBytes: opts.CodeMaxFileBytes,
-		})
+		}
+		codeapi.Mount(protected, codeOpts)
+		if opts.Graph != nil && opts.Graph.Graphs != nil {
+			codeapi.MountGraph(protected, codeOpts, *opts.Graph)
+		}
 	}
 	protected.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusNotFound, "not_found", fmt.Sprintf("no route for %s %s", r.Method, r.URL.Path))
