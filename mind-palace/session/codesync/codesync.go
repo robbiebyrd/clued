@@ -131,6 +131,12 @@ type Report struct {
 	UploadedBytes int64
 	// Refused counts the blobs the server refused as too large.
 	Refused int
+	// GitHub is true when the project is GitHub-backed (capabilities.github,
+	// as the last full reconcile read it), and Omitted counts the clean,
+	// pushed files the run left to GitHub: neither read, hashed nor
+	// uploaded, their entries carry the git object id and size only.
+	GitHub  bool
+	Omitted int
 	// Pending counts the paths left for the next run.
 	Pending int
 	// Seq is the log position of the last change committed.
@@ -456,6 +462,9 @@ type run struct {
 	git   *gitFacts
 	opts  codefilter.Options
 	batch int
+	// github: clean, pushed entries are sent without content (plan 0011,
+	// "Clients on a GitHub-backed project").
+	github bool
 
 	headMoved, upMoved bool
 	hashedBytes        int64
@@ -512,9 +521,11 @@ func (r *run) sync(ctx context.Context) error {
 		if r.store, err = r.req.open(t.project); err != nil {
 			return err
 		}
-		if c, ok := r.store.(interface {
+		c, ok := r.store.(interface {
 			Capabilities(context.Context) (codeapi.Capabilities, error)
-		}); ok && (full || refChanged) {
+		})
+		switch {
+		case ok && (full || refChanged):
 			caps, err := c.Capabilities(ctx)
 			if err != nil {
 				return r.refusal(err)
@@ -525,8 +536,14 @@ func (r *run) sync(ctx context.Context) error {
 			if caps.Code.MaxBatch > 0 {
 				r.batch = caps.Code.MaxBatch
 			}
+			r.setGitHub(caps.GitHub)
+		case !ok && full:
+			// A store without capabilities gets no code from GitHub.
+			r.setGitHub(false)
 		}
 	}
+	r.github = st.GitHub
+	r.rep.GitHub = r.github
 
 	// The paths to look at.
 	r.git = &gitFacts{root: t.root, upstream: t.upstream}
@@ -673,16 +690,50 @@ func (r *run) sync(ctx context.Context) error {
 	return nil
 }
 
+// setGitHub records the project's capabilities.github, read on a full
+// reconcile. When it turns false, the entries sent without content because
+// GitHub supplied it lose their stamp and synced mark, so this reconcile
+// reads, uploads and commits them again.
+func (r *run) setGitHub(on bool) {
+	st := r.st
+	if st.GitHub && !on {
+		for p, f := range st.Files {
+			if omitted(f) {
+				f.MTime, f.Synced = time.Time{}, false
+				st.Files[p] = f
+			}
+		}
+	}
+	st.GitHub = on
+}
+
+// omitted reports whether f, on a GitHub-backed project, is an entry sent
+// without content because GitHub supplies it: clean, pushed and in git.
+func omitted(f FileState) bool {
+	return f.SHA256 == "" && f.GitOID != "" && !f.Dirty && !f.Unpushed
+}
+
 // entry builds the tree entry of rel: its content hash (reused from the
 // state when the stamp is unchanged, else read, filtered, redacted and
-// hashed) and its git facts. deferred is true when the budget is spent and
-// rel waits for the next run.
+// hashed) and its git facts. On a GitHub-backed project a clean, pushed
+// file is neither read nor hashed: its entry carries the git object id and
+// size only. deferred is true when the budget is spent and rel waits for
+// the next run.
 func (r *run) entry(ctx context.Context, rel string, disk onDisk, dec codefilter.Decision) (upsert, bool, error) {
 	st := r.st
 	info := disk.info
 	size, mtime := info.Size(), info.ModTime()
 	f := FileState{Size: size, MTime: mtime}
 	old, known := st.Files[rel]
+	if r.github {
+		if err := r.gitFactsOf(ctx, rel, old, known, &f); err != nil {
+			return upsert{}, false, err
+		}
+		if omitted(f) {
+			r.rep.Omitted++
+			return r.upsertOf(rel, disk, f, nil), false, nil
+		}
+	}
 	var content []byte
 	switch {
 	case disk.mode == "120000" || dec != codefilter.Content:
@@ -690,7 +741,10 @@ func (r *run) entry(ctx context.Context, rel string, disk onDisk, dec codefilter
 		// path and size only.
 	case st.IsRefused(rel, Stamp(size, mtime)):
 		// The server refused this very version as too large.
-	case known && old.Size == size && old.MTime.Equal(mtime) && (old.Synced || old.SHA256 == ""):
+	case known && old.Size == size && old.MTime.Equal(mtime) && (old.Synced || old.SHA256 == "") &&
+		!(r.github && omitted(old)):
+		// (An entry GitHub supplied has no hash to reuse: now dirty or
+		// unpushed, it is read.)
 		f.SHA256 = old.SHA256
 	default:
 		if r.pastDeadline() || (r.maxBytes() > 0 && r.hashedBytes > 0 && r.hashedBytes+size > r.maxBytes()) {
@@ -716,6 +770,17 @@ func (r *run) entry(ctx context.Context, rel string, disk onDisk, dec codefilter
 		}
 	}
 
+	if !r.github {
+		if err := r.gitFactsOf(ctx, rel, old, known, &f); err != nil {
+			return upsert{}, false, err
+		}
+	}
+	return r.upsertOf(rel, disk, f, content), false, nil
+}
+
+// gitFactsOf fills f's git object id, dirty and unpushed flags, reusing the
+// state's (old) when nothing they depend on moved.
+func (r *run) gitFactsOf(ctx context.Context, rel string, old FileState, known bool, f *FileState) error {
 	var err error
 	// The state's facts of a queued path may predate a commit or a push
 	// the run that queued it saw; they are read again.
@@ -723,22 +788,27 @@ func (r *run) entry(ctx context.Context, rel string, disk onDisk, dec codefilter
 	if cached && !r.headMoved {
 		f.GitOID = old.GitOID
 	} else if f.GitOID, err = r.git.gitOID(ctx, rel); err != nil {
-		return upsert{}, false, err
+		return err
 	}
 	f.Dirty = r.git.dirty(rel) || f.GitOID == ""
 	if cached && !r.upMoved {
 		f.Unpushed = old.Unpushed
 	} else if f.Unpushed, err = r.git.isUnpushed(ctx, rel); err != nil {
-		return upsert{}, false, err
+		return err
 	}
 	if r.t.upstream == "" {
 		f.Unpushed = true
 	}
+	return nil
+}
+
+// upsertOf is the upsert of rel with the facts f and the content to upload.
+func (r *run) upsertOf(rel string, disk onDisk, f FileState, content []byte) upsert {
 	return upsert{
 		entry: code.Entry{
 			Path:     rel,
 			SHA256:   f.SHA256,
-			Size:     size,
+			Size:     f.Size,
 			Mode:     disk.mode,
 			Lang:     session.ExtToLang(path.Base(rel)),
 			GitOID:   f.GitOID,
@@ -747,7 +817,7 @@ func (r *run) entry(ctx context.Context, rel string, disk onDisk, dec codefilter
 		},
 		file:    f,
 		content: content,
-	}, false, nil
+	}
 }
 
 func (r *run) maxBytes() int64 {
@@ -1004,6 +1074,9 @@ func (rep Report) String() string {
 		rep.Worktree, rep.Ref, rep.Upserts, rep.Deletes, rep.Uploaded, rep.UploadedBytes, rep.Pending)
 	if rep.FullCommitted {
 		b.WriteString(", full")
+	}
+	if rep.GitHub {
+		fmt.Fprintf(&b, ", %d left to GitHub", rep.Omitted)
 	}
 	if rep.BackedOff != "" {
 		b.WriteString(", backed off (" + rep.BackedOff + ")")

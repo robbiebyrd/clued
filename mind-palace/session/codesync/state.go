@@ -125,6 +125,9 @@ type State struct {
 	// UnsupportedUntil is set when the server has no code support, the
 	// account no entitlement or no quota left; no sync runs before it.
 	UnsupportedUntil time.Time `json:"unsupportedUntil,omitzero"`
+	// GitHub is the project's capabilities.github as the last full
+	// reconcile read it: clean, pushed entries are sent without content.
+	GitHub bool `json:"github,omitempty"`
 }
 
 // FullAfter is how old the last full reconcile may get before a run
