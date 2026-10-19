@@ -1,0 +1,109 @@
+{
+  "lang": "lisp",
+  "dialect": "commonlisp",
+  "symbols": [
+    {
+      "id": "geometry",
+      "kind": "module",
+      "name": "geometry",
+      "qualName": "geometry",
+      "signature": "(asdf:defsystem #:geometry",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 19
+      },
+      "end": {
+        "line": 8,
+        "column": 59,
+        "offset": 254
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "alexandria",
+      "kind": "depends_on",
+      "start": {
+        "line": 6,
+        "column": 15,
+        "offset": 121
+      }
+    },
+    {
+      "spec": "split-sequence",
+      "kind": "depends_on",
+      "start": {
+        "line": 6,
+        "column": 29,
+        "offset": 135
+      }
+    },
+    {
+      "spec": "cl-ppcre",
+      "kind": "depends_on",
+      "start": {
+        "line": 6,
+        "column": 45,
+        "offset": 151
+      }
+    },
+    {
+      "spec": "geometry",
+      "kind": "depends_on",
+      "start": {
+        "line": 11,
+        "column": 15,
+        "offset": 299
+      }
+    },
+    {
+      "spec": "fiveam",
+      "kind": "depends_on",
+      "start": {
+        "line": 11,
+        "column": 26,
+        "offset": 310
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "o",
+      "kind": "call",
+      "start": {
+        "line": 12,
+        "column": 21,
+        "offset": 341
+      }
+    },
+    {
+      "name": "symbol-call",
+      "kind": "call",
+      "start": {
+        "line": 12,
+        "column": 27,
+        "offset": 347
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 12,
+        "column": 67,
+        "offset": 387
+      },
+      "text": ";;;; geometry.asd\n\n(asdf:defsystem #:geometry\n  :description \"Shapes and their areas.\"\n  :version \"0.3.0\"\n  :depends-on (\"alexandria\" #:split-sequence :cl-ppcre)\n  :components ((:file \"package\")\n               (:file \"geometry\" :depends-on (\"package\"))))\n\n(defsystem \"geometry/tests\"\n  :depends-on (\"geometry\" \"fiveam\")\n  :perform (test-op (o c) (symbol-call :fiveam '#:run! :geometry)))",
+      "hash": "92ab5271b58452cb928733e9a9b1510e9a85380e75e70712487bc6564c6b9014"
+    }
+  ]
+}

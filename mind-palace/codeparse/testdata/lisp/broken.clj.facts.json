@@ -1,0 +1,147 @@
+{
+  "lang": "lisp",
+  "dialect": "clojure",
+  "package": "geometry.broken",
+  "symbols": [
+    {
+      "id": "geometry.broken:fine",
+      "kind": "function",
+      "name": "fine",
+      "qualName": "geometry.broken:fine",
+      "signature": "(defn fine [x]",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 60
+      },
+      "end": {
+        "line": 5,
+        "column": 15,
+        "offset": 90
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry.broken:after",
+      "kind": "var",
+      "name": "after",
+      "qualName": "geometry.broken:after",
+      "signature": "(def after (make-thing))",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 148
+      },
+      "end": {
+        "line": 11,
+        "column": 24,
+        "offset": 172
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "clojure.string",
+      "alias": "str",
+      "kind": "require",
+      "start": {
+        "line": 2,
+        "column": 12,
+        "offset": 32
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "trim",
+      "qualifier": "str",
+      "kind": "call",
+      "start": {
+        "line": 5,
+        "column": 7,
+        "offset": 82
+      },
+      "enclosing": "geometry.broken:fine"
+    },
+    {
+      "name": "compute",
+      "kind": "call",
+      "start": {
+        "line": 8,
+        "column": 11,
+        "offset": 121
+      }
+    },
+    {
+      "name": "frob",
+      "kind": "call",
+      "start": {
+        "line": 9,
+        "column": 5,
+        "offset": 138
+      }
+    },
+    {
+      "name": "make-thing",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 12,
+        "offset": 160
+      },
+      "enclosing": "geometry.broken:after"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 2,
+        "column": 38,
+        "offset": 58
+      },
+      "text": "(ns geometry.broken\n  (:require [clojure.string :as str]))",
+      "hash": "6e8e490ab3ae544041c8747155d571574d9eb71cad179d2fd4875bf40a5e05f8"
+    },
+    {
+      "id": "geometry.broken:fine#1",
+      "kind": "symbol",
+      "symbolId": "geometry.broken:fine",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 60
+      },
+      "end": {
+        "line": 5,
+        "column": 15,
+        "offset": 90
+      },
+      "text": "(defn fine [x]\n  (str/trim x))",
+      "hash": "d3b3049181d99aa0e76e54ffa799c778190b1f7fa3e5865c307d4dafdb03c212"
+    },
+    {
+      "id": "L7#1",
+      "kind": "window",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 92
+      },
+      "end": {
+        "line": 11,
+        "column": 24,
+        "offset": 172
+      },
+      "text": "(defn unclosed [y\n  (let [z (compute y)]\n    (frob z))\n\n(def after (make-thing))",
+      "hash": "e9ead0a8a7f1b2f95e74c34c77489a723d7fef91b2cd1b0c4acf3ec0ada82fe7"
+    }
+  ]
+}
