@@ -3,11 +3,13 @@ id: 0095-451
 title: Extraction for SQL
 purpose: 'Adds SQL to the indexer: files .sql.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-19T18:09:07.704Z"
-updated: "2026-10-19T18:30:28.725Z"
+updated: "2026-10-19T21:06:48.234Z"
+started: "2026-10-19T20:46:38.235Z"
+completed: "2026-10-19T21:06:48.234Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for SQL
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/sql'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/sql'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/sql'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/sql'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/sql.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T21:06:40.795Z - Added SQL: grammars/sql.go registers gotreesitter's sql grammar (m-novikov/tree-sitter-sql; the only SQL grammar gotreesitter v0.56.0 ships, so DerekStride via ts2go was not added: it would mean generating a grammar outside this story's files). queries/sql/tags.scm captures schema, table, column (incl. ALTER TABLE ADD COLUMN), view (incl. materialized), function, procedure (told apart by keyword with #match?), trigger (owned by its table via @receiver), index, enum, type, domain, sequence; schema-qualified names via @receiver (s.t); quotes stripped with #strip!. References: table refs (reference.table -> type) from FROM, JOIN, INSERT INTO, UPDATE (UPDATE s.t recovered from its error node), DELETE, ALTER TABLE, CREATE INDEX ON, trigger ON, REFERENCES; calls from function_call (built-ins filtered), trigger EXECUTE FUNCTION and CALL (recovered from the error node's text, since the grammar cannot parse CALL); user types. Imports: CREATE EXTENSION (kind extension), psql \i/\ir (kind include). @package: USE <db> (MySQL/T-SQL), recovered from its error node. profile.yaml: family sql, .sql, separators ., packageBy declaration, exported all, caseInsensitive. Goldens (5): schema.sql (every kind), queries.sql (references, includes, CALL), migration.sql (Prisma-generated, quoted identifiers), mysql.sql (dialect quirks), broken.sql (syntax error). Limits documented in tags.scm: routine bodies are strings to this grammar; consecutive unparsable statements merge into one error node so only the first CALL is seen; CTE names show up as table refs. Verify: gofmt/vet/build clean; go test -race ./codeparse/ -run TestGolden/sql 5/5 pass. go test -race ./codeparse/... fails only TestGolden/go/large.go (the Go reference) on this host (load average ~60 on 4 CPUs: the 2 s parse cut-off fires under -race); it passes without -race and is untouched by this story. No file outside the story's three paths changed.
