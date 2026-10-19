@@ -250,6 +250,7 @@ func TestResolve_ocaml(t *testing.T) {
 		"lib/config.ml":      "type t = { host : string }\n",
 		"bin/dune":           "(executable (name main) (libraries geo))\n",
 		"bin/helper.ml":      "let greet name = \"hello \" ^ name\n",
+		"bin/full.ml":        "let area_of s = Geo.Shapes.area s\n", // no open: the library's path
 		"bin/main.ml": "open Geo\n\n" +
 			"let run () =\n  let c = Units.cm 2.0 in\n  Helper.greet (Shapes.describe (Shapes.Circle ({ x = c; y = 0. }, 1.)))\n\n" +
 			"let area_of (s : Shapes.shape) = Shapes.area s\n\n" +
@@ -333,6 +334,8 @@ func TestResolve_ocaml(t *testing.T) {
 		"lib/shapes.ml#describe": "exact",
 	})
 	want("callees of main.area_of", neighbors(codegraph.RelCallees, "bin/main.ml#area_of", true),
+		map[string]string{"lib/shapes.ml#area": "exact"})
+	want("callees of full.area_of", neighbors(codegraph.RelCallees, "bin/full.ml#area_of", true),
 		map[string]string{"lib/shapes.ml#area": "exact"})
 	want("callees of main.first", neighbors(codegraph.RelCallees, "bin/main.ml#first", true),
 		map[string]string{"lib/store.ml#keys": "exact"})

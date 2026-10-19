@@ -100,11 +100,11 @@ func TestResolve_golang_Rules(t *testing.T) {
 // for a call through a receiver, in the package and through an import.
 func TestResolve_golang_ReceiverMembers(t *testing.T) {
 	callees := golangCallees(t, map[string]string{
-		"go.mod":           "module example.com/m\n",
-		"srv/types.go":     "package srv\n\ntype Server struct{}\n",
-		"srv/serve.go":     "package srv\n\nfunc (s *Server) Serve() {}\n\nfunc (s *Server) stop() {}\n",
-		"srv/run.go":       "package srv\n\nfunc Run(s *Server) {\n\ts.Serve()\n\ts.stop()\n}\n",
-		"app/main.go":      "package main\n\nimport \"example.com/m/srv\"\n\nfunc main() {\n\tvar s srv.Server\n\ts.Serve()\n\ts.stop()\n}\n",
+		"go.mod":       "module example.com/m\n",
+		"srv/types.go": "package srv\n\ntype Server struct{}\n",
+		"srv/serve.go": "package srv\n\nfunc (s *Server) Serve() {}\n\nfunc (s *Server) stop() {}\n",
+		"srv/run.go":   "package srv\n\nfunc Run(s *Server) {\n\ts.Serve()\n\ts.stop()\n}\n",
+		"app/main.go":  "package main\n\nimport \"example.com/m/srv\"\n\nfunc main() {\n\tvar s srv.Server\n\ts.Serve()\n\ts.stop()\n}\n",
 	})
 	if got, want := callees("srv/run.go", "srv.Run"), []string{
 		"srv/serve.go#srv.Server.Serve name",
