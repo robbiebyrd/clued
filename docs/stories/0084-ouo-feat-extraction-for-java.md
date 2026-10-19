@@ -3,11 +3,13 @@ id: 0084-ouo
 title: Extraction for Java
 purpose: 'Adds Java to the indexer: files .java.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:07:36.735Z"
-updated: "2026-10-19T18:29:18.237Z"
+updated: "2026-10-19T20:53:51.543Z"
+started: "2026-10-19T20:44:52.930Z"
+completed: "2026-10-19T20:53:48.342Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for Java
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/java'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/java'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/java'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/java'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/java.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:53:51.543Z - Added Java: grammars/java.go (gotreesitter grammars/java), queries/java/profile.yaml (family jvm, packageBy declaration, exported declared, options implicitImports java.lang and the import kinds) and queries/java/tags.scm (classes, interfaces, enums, records, annotation types (kind annotation), module-info modules; methods, constructors (kind constructor, compact ones too), fields, enum and interface constants, record components; imports single/on_demand/static/static_on_demand with the simple name, module requires; refs: calls, object creation, method references, types, extends/implements, annotations, field accesses). Lower-case type names and package-path field accesses are left out (Java naming convention) so java.io.File gives no 'java'/'io' refs. Goldens: Inventory.java, OrderService.java, ShapeProto.java (generated, nested/local types, sealed), module-info.java, Broken.java.in; TestGolden/java 5/5 pass with -race; gofmt, vet, build clean. No shared file touched. Note: TestGolden/go/large.go fails under -race only while the host is overloaded (load ~50 on 4 CPUs; the 2 s parse cut-off), unrelated to Java; passes without -race.
