@@ -42,7 +42,7 @@
       "kind": "field",
       "name": "users",
       "qualName": "UserService.users",
-      "signature": "@Observable",
+      "signature": "users: Map\u003cstring, User\u003e = new Map()",
       "start": {
         "line": 10,
         "column": 2,

@@ -35,13 +35,14 @@ role capture and the captures that describe it:
 | `@definition.form` | A definition written as a call (Lisp `defun`, Ruby `attr_reader`); `@form` is its head, looked up in `definingForms`. A head not listed becomes a call reference. |
 | `@reference.<kind>` | A reference: `call` (`send`, `macro`), `type` (`class`, `interface`, `struct`, `enum`, `trait`, `module`), `extends` (`superclass`, `inherits`, `mixin`), `implements` (`implementation`), `value` (`variable`, `constant`, `field`, `property`); a profile's `kinds` may map another `reference.<word>` to one of `call`, `type`, `extends`, `implements`, `value`. |
 | `@name` | The defined or referenced name (required for both). |
-| `@doc` | The doc comment or docstring (repeatable). Without it, the comments standing on the lines just above the definition are its doc. Comment markers and string quotes are stripped. |
-| `@signature` | The node whose text is the signature. Without it, the definition's text up to its `body` field, or its first line. |
+| `@name.part` | A piece of a name written in several places, in place of `@name` (Objective-C captures each selector keyword and its colon). The pieces of every match of one definition or reference node (same kind) are joined in source order without white space: `initWithName:sides:`. |
+| `@doc` | The doc comment or docstring (repeatable). Without it, the comments standing on the lines just above the definition are its doc, past any attribute, decorator or annotation nodes between them (`#[derive]`, `@decorator`). Comment markers and string quotes are stripped. |
+| `@signature` | The node whose text is the signature. Without it, the definition's text up to its `body` field, or its first line, less the lines before it that hold only annotations (`@Deprecated(...)`, `#[derive(...)]`, `[Serializable]`). |
 | `@receiver` | The type a definition written outside it belongs to (a Go method's receiver, `A` in C++'s `A::f`): it becomes the symbol's parent and qualifies its name. |
 | `@qualifier` | What a reference is reached through (`pkg` in `pkg.F`, the receiver expression in `s.f()`). |
 | `@exported` | Present when a definition is exported, for `scope.exported: declared`. |
 | `@import` | A whole import, include, use or require form, with `@import.spec` (the path or module; quotes and angle brackets are stripped; the whole form when absent), `@import.alias`, `@import.name` (repeatable) and `(#set! import.kind "<word>")` (`include_system`, `require`, ...). Matches of one node merge. |
-| `@package` | The file's package, module or namespace declaration (`Facts.Package`, the prefix of qualified names). |
+| `@package` | The file's package, module or namespace declaration (`Facts.Package`, the first one, is the prefix of qualified names). One whose declaration has no body (Perl's `package A;`, PHP's `namespace A;`) qualifies the definitions from there to the next one. A receiver that already holds a separator (`sub Other::f`) is not prefixed. |
 | `@_anything` | Free for predicates; ignored. |
 
 The extractor nests definitions by position (a field in its struct, a

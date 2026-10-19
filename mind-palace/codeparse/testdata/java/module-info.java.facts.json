@@ -6,7 +6,7 @@
       "kind": "module",
       "name": "com.example.store",
       "qualName": "com.example.store",
-      "signature": "@Deprecated(since = \"2\") open module com.example.store",
+      "signature": "open module com.example.store",
       "doc": "The store module: inventory and its services.",
       "start": {
         "line": 2,

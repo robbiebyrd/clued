@@ -356,7 +356,7 @@
       "kind": "struct",
       "name": "LayerBuilder",
       "qualName": "LayerBuilder",
-      "signature": "@resultBuilder struct LayerBuilder",
+      "signature": "struct LayerBuilder",
       "start": {
         "line": 51,
         "column": 0,

@@ -62,7 +62,7 @@
       "kind": "class",
       "name": "Order",
       "qualName": "Demo.Orders.Order",
-      "signature": "[Table(\"orders\")] public class Order : Entity, IComparable\u003cOrder\u003e, Demo.Data.IAudited",
+      "signature": "public class Order : Entity, IComparable\u003cOrder\u003e, Demo.Data.IAudited",
       "start": {
         "line": 17,
         "column": 4,
@@ -229,7 +229,7 @@
       "kind": "method",
       "name": "Get",
       "qualName": "Demo.Orders.OrderService.Get",
-      "signature": "[HttpGet] public Order Get(Guid id)",
+      "signature": "public Order Get(Guid id)",
       "start": {
         "line": 38,
         "column": 8,
