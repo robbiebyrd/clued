@@ -3,11 +3,13 @@ id: 0122-zmf
 title: Indexer lifecycle and `server graph rebuild|status`
 purpose: Keeps graphs bounded and recoverable.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:36.504Z"
-updated: "2026-10-19T18:33:24.011Z"
+updated: "2026-10-19T19:52:30.572Z"
+started: "2026-10-19T19:41:07.444Z"
+completed: "2026-10-19T19:52:30.572Z"
 tags:
   - plan-0012-cgi
   - wave-6
@@ -31,15 +33,15 @@ links:
     - ["0012-cgi", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Indexer lifecycle and `server graph rebuild|status`
@@ -76,9 +78,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/... ./cli/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/... ./cli/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/... ./cli/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/... ./cli/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -87,3 +89,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/lifecycle_test.go` - rebuild equals incremental
 
 ## Work Log
+
+### 2026-10-19T19:52:25.102Z - Added codeindex/lifecycle.go: DropIdleOverlays (OverlayIdle 14 days: an overlay with no file and no worktree activity is left out of the selection, applied in selectPlan), Service.Rebuild (lease kept alive in the background; catches the cursor's tree states up with the log metadata, drops the graph and writes Diff(empty, selection of current trees) through the same Applier, saves the cursor at the end of the log), Service.Purge (drop graph + delete cursor), Service.Check (per-layer file counts, FilesHash and layer nodes vs the selection, 'behind' when the log is ahead, repair writes Diff(graph, selection)), Service.RunChecks (periodic, logs drift), Service.Status and CursorPeeker (Peek on MemCursors and MongoCursors). Worktree removal and GitHub branch deletion already drop layers through the incremental path; tests cover them. cli/server_graph.go: 'mind-palace server graph rebuild <project>... [--wait]' and 'status <project>... [--check [--repair]]' with persistent --graph (env CLUED_SERVER_GRAPH), --code-store (CLUED_SERVER_CODE_STORE, mongo only) and --session-config; code stores and cursors (code_index_cursors) in the session config's MongoDB, graph via falkor.New. Tests: lifecycle_test.go 13 tests (rebuild equals incremental from the cursor and from no cursor, on memgraph and FalkorDB; idle drop; removal/branch deletion; purge; drift check+repair; lease; keep-alive; RunChecks; Peek on Mem and Mongo), cli/server_graph_test.go 4 tests (memory env, refusals, options, real MongoDB+FalkorDB). go test -race ./codeindex/... ./cli/... ./codegraph/... pass with MIND_PALACE_TEST_FALKORDB_URL and MIND_PALACE_TEST_MONGODB_URI set and without; gofmt/vet/build clean. Files outside the list: codeindex/service.go (one line in selectPlan applying DropIdleOverlays, plus its comment: the idle rule must be part of selection or every batch re-adds the overlay), cli/server.go (registers serverGraphCmd), cli/server_graph_test.go (new CLI tests). No real parser is wired yet (Parse nil: files indexed as text) until the extractor lands.
