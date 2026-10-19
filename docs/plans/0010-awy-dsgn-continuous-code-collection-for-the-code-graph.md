@@ -6,7 +6,7 @@ status: pending
 priority: "3"
 effort: XL
 created: "2026-10-16T19:52:58.427Z"
-updated: "2026-10-16T19:52:58.427Z"
+updated: "2026-10-19T17:06:47.722Z"
 tags:
   - code-graph
   - server
@@ -84,6 +84,9 @@ progress:
 - **Use git for enumeration (`ls-files -co --exclude-standard`, `status --porcelain`).** — Respects `.gitignore` for free, sees untracked new files, and catches renames and deletes done through Bash; repositories without git aren't synced (no stable project identity).
 - **Opt-in, off by default, with a per-repository opt-out and a cloud entitlement.** — Uploading source code is a much bigger privacy step than session capture; users and operators have to choose it.
 - **Redact before hashing, and never upload denied or binary content.** — The server should never hold a secret the client could have caught; hashing the redacted bytes keeps the content address honest.
+- **The code graph will be partitioned as one base graph per namespaced project plus overlays per (worktree, ref), with file-local facts cached by content (Option B plus the easy part of C; see "Partitioning for the indexer").** — A full graph per branch per user repeats almost the same graph many times and re-indexes everything on a new branch; a base plus overlays costs storage and indexing proportional to the diff. File-local facts depend only on a file's bytes, so caching them by SHA-256 lets every branch and user share one parse. Only cross-file resolution, which depends on the whole tree, is per layer. Collection records what this needs now (owner, committed vs uncommitted, the default branch) so nothing has to be re-collected when the indexer ships.
+- **The server stamps the owning account on worktrees and changes.** — In a workspace several members write into one namespace (`w<workspace>__<slug>`); overlays must belong to someone so their visibility can be decided, and the owner has to come from the token, never from the request body.
+- **Each entry records git's blob id and whether it differs from HEAD.** — The base graph must be built from committed content only, never from someone's in-progress edits; the SHA-256 of redacted content can't tell committed from uncommitted, git's blob id and a dirty flag can.
 
 ### Rejected alternatives
 
@@ -101,6 +104,24 @@ progress:
 - **Worktree**: `wt_` + the first 16 hex characters of SHA-256 of `host + "\x00" + absolute worktree root` (`git rev-parse --show-toplevel`). Linked git worktrees get their own id; the raw path and host are sent as metadata (`root`, `host`) because they are already captured on sessions.
 - **Ref**: the branch (`git branch --show-current`), or `detached@<short sha>`; plus the HEAD commit (`git rev-parse HEAD`) on every commit of changes. A branch switch is just a new ref on the same worktree: the tree is re-reconciled and unchanged blobs dedupe.
 - The server keys trees by (worktree, ref), so switching back to a branch resumes its tree instead of rewriting everything.
+- **Owner**: the account of the token that wrote it (`auth` principal), stamped by the server on the worktree and on every change; a value sent by the client is ignored. In a personal namespace it always equals the namespace's user; in a workspace namespace it tells members' worktrees apart. A worktree keeps the owner that created it: a write to it from another account is 404, as an unknown worktree.
+- **Default branch**: `gitprobe.DefaultBranch` (origin's HEAD, falling back to `main`/`master` when that ref is missing) sent with the worktree, so the indexer knows which branch the base graph follows.
+- **Committed or not**: every entry carries `git_oid`, the blob id of that path in HEAD (`git ls-tree -r -z HEAD`, empty for untracked files), and `dirty`, true when the working file differs from HEAD (it appears in `git status --porcelain`, modified, added or untracked). Because the SHA-256 names the *redacted* bytes, `git_oid` plus `dirty: false` is what proves an entry is the committed content.
+
+### Partitioning for the indexer
+
+This plan only collects, but the layout is chosen now so the collected data fits it without re-collecting.
+
+**Storage (this plan).** Namespace (`u<user>__<slug>` / `w<workspace>__<slug>`, the tenant boundary) → project → worktree (one checkout on one machine, with its owner) → ref → tree of entries; blobs are shared across the whole namespaced project by SHA-256, and the change log is per namespaced project.
+
+**Graph (the indexer plan, recorded here as the decision).**
+- **One FalkorDB graph per namespaced project** (the graph key is the namespace, e.g. `u…__github.com__owner__repo`), so tenancy stays physical: nothing in one key can reach another.
+- **Base layer**: the default branch at a commit, built only from entries with `dirty: false` whose `git_oid` matches that commit's tree. Any member's worktree on the default branch can supply it; it advances when a newer default-branch HEAD is seen. In a workspace the base is shared by every member.
+- **Overlay layers**: one per (worktree, ref), holding only the files whose content differs from the base (by `git_oid` for clean files, by SHA-256 for dirty ones), plus deletions. A new branch with no edits costs nothing; a feature branch costs its diff.
+- **File-local facts cached by content**: definitions, imports and the unresolved references a file makes are a pure function of its bytes, so they're parsed once per blob SHA-256 and reused by the base and every overlay, across branches and members.
+- **Cross-file edges per layer**: resolving a reference to a definition depends on the whole tree, so CALLS / REFERENCES / IMPLEMENTS edges are resolved for the base and re-resolved in an overlay only for the files it touches and those that reference them.
+- **A query for a view (worktree, ref)** reads the base minus the overlay's replaced and deleted files, plus the overlay. Nodes and edges carry a `layer` property (`base` or the overlay's id) and `File.path`, which is what that filter uses.
+- **Visibility**: the base is visible to everyone who can read the project; an overlay is visible to its owner only, by default (see Open Questions).
 
 ### Server model and the `code.Store` port
 
@@ -108,9 +129,9 @@ Package `mind-palace/code` (model and port only; no rules beyond validation):
 
 ```go
 type Blob struct { SHA256 string; Size int64; Content []byte } // content after client redaction
-type Entry struct { Path string; SHA256 string; Size int64; Mode string; Lang string } // Path: clean, slash-separated, filepath.IsLocal
-type Worktree struct { ID, Root, Host, Origin string; Refs []string; Removed bool; UpdatedAt time.Time }
-type Change struct { Seq int64; Worktree, Ref, Head, SessionID string; Upserts []Entry; Deletes []string; Full bool; At time.Time }
+type Entry struct { Path string; SHA256 string; Size int64; Mode string; Lang string; GitOID string; Dirty bool } // Path: clean, slash-separated, filepath.IsLocal; GitOID: blob id in HEAD ("" if untracked)
+type Worktree struct { ID, Owner, Root, Host, Origin, DefaultBranch string; Refs []string; Removed bool; UpdatedAt time.Time } // Owner stamped by the server
+type Change struct { Seq int64; Owner, Worktree, Ref, Head, SessionID string; Upserts []Entry; Deletes []string; Full bool; At time.Time } // Owner stamped by the server
 
 type Store interface {
     MissingBlobs(ctx, shas []string) ([]string, error)
@@ -119,6 +140,7 @@ type Store interface {
     Commit(ctx, c Change) (seq int64, err error)      // applies to the (worktree, ref) tree and appends to the log atomically; Full replaces the tree
     RemoveWorktree(ctx, id string) error              // marks removed, appends a tombstone change
     // read side, for codetest and the future indexer only (no HTTP route):
+    Worktrees(ctx) ([]Worktree, error)
     Tree(ctx, worktree, ref string) ([]Entry, error)
     Changes(ctx, afterSeq int64, limit int) ([]Change, error)
     Blob(ctx, sha string) (Blob, error)
@@ -127,7 +149,7 @@ type Store interface {
 ```
 
 - One `Store` per namespaced project, opened by `CluedOptions.Code(ctx, namespacedProject)`, exactly like `Open` for plans and stories.
-- **Mongo** (`code/mongocode`): collections `code_blobs` (`_id` sha, size, content), `code_trees` (`{worktree, ref, path}` unique, sha, size, lang), `code_worktrees`, `code_changes` (`seq` from a per-project counter document, indexed). `Commit` runs in a transaction when the deployment supports one, otherwise orders the writes so a retried commit is idempotent (see Error handling). Collection names are prefixed by the namespaced project like the existing Mongo store plugin, or carry a `project` field; follow `store/mongostore`'s convention.
+- **Mongo** (`code/mongocode`): collections `code_blobs` (`_id` sha, size, content), `code_trees` (`{worktree, ref, path}` unique, sha, size, lang, git_oid, dirty; a second index on `git_oid` for building the base), `code_worktrees` (with `owner`, `default_branch`), `code_changes` (`seq` from a per-project counter document, indexed). `Commit` runs in a transaction when the deployment supports one, otherwise orders the writes so a retried commit is idempotent (see Error handling). Collection names are prefixed by the namespaced project like the existing Mongo store plugin, or carry a `project` field; follow `store/mongostore`'s convention.
 - **Memory** (`code/memcode`) for tests and `--store memory`.
 - The change log is the contract for the indexer: it replays `Changes(afterSeq)` and fetches blobs; FalkorDB is never written by the transport.
 
@@ -139,12 +161,14 @@ Mounted by `server.NewClued` under `/api/v1/projects/{project}/code/` when `Clue
 |---|---|---|
 | `POST manifest` | `{"shas": ["…"]}` (at most 5,000) | `{"missing": ["…"]}` |
 | `PUT blobs/{sha256}` | raw bytes (`Content-Type: application/octet-stream`), at most `maxFileBytes` | `{}`; 400 `invalid` on hash mismatch, 413 `too_large` |
-| `PUT worktrees/{id}` | `{root, host, origin, ref, head}` | `{}` |
-| `POST worktrees/{id}/changes` | `{ref, head, session_id, full, upserts: [Entry], deletes: [path]}` (at most 5,000 entries) | `{"seq": n}`; 409 `conflict` if an upsert names a blob the server does not hold |
-| `DELETE worktrees/{id}` | | `{}` |
+| `PUT worktrees/{id}` | `{root, host, origin, default_branch, ref, head}` | `{}`; 404 if the worktree exists under another owner |
+| `POST worktrees/{id}/changes` | `{ref, head, session_id, full, upserts: [{path, sha256, size, mode, lang, git_oid, dirty}], deletes: [path]}` (at most 5,000 entries) | `{"seq": n}`; 409 `conflict` if an upsert names a blob the server does not hold; 404 for another owner's worktree |
+| `DELETE worktrees/{id}` | | `{}`; 404 for another owner's worktree |
 | `GET capabilities` | | `{"code": {"maxFileBytes": n, "maxBatch": n}}`, so a client can detect the feature and its limits without reading data |
 
 - **No route returns code, paths or trees.** `capabilities` returns limits only. An unknown project is 404, as elsewhere.
+- **Owner stamping.** The handler sets `Owner` on worktrees and changes from the request's principal (`auth` account); an `owner` field in a body is rejected as `invalid`. A worktree id already held by another owner answers 404, so one member can neither overwrite nor learn of another member's worktree.
+- `git_oid` is validated as 40 or 64 lowercase hex (SHA-1 or SHA-256 repositories) or empty; an entry with `dirty: false` and an empty `git_oid` is `invalid`.
 - A server without `Code` returns 404 for the prefix; the client records `unsupported` and stops trying for 24 hours.
 - Paths are validated inline (`filepath.IsLocal` on the slash path, no `..`, no NUL, at most 1,024 bytes) at the point of use, as the CodeQL convention requires.
 - `server run --code-store mongo|memory|off` (default: the session store's backend) and `CLUED_SERVER_CODE_STORE`; `server init` turns it on in the generated stack (same `mongo:8`).
@@ -162,17 +186,18 @@ Mounted by `server.NewClued` under `/api/v1/projects/{project}/code/` when `Clue
 
 **State** (`<config dir>/codesync/<worktree id>.json`, temp-file and rename, mode 0600; `<id>.lock` with `O_EXCL`, stale after 60s, both modelled on `session/catchup/state.go`):
 ```json
-{"worktree":"wt_…","root":"…","project":"github.com__owner__repo","ref":"main","head":"…",
- "files":{"path":{"size":1,"mtime":"…","sha256":"…","synced":true}},
+{"worktree":"wt_…","root":"…","project":"github.com__owner__repo","defaultBranch":"main","ref":"main","head":"…",
+ "files":{"path":{"size":1,"mtime":"…","sha256":"…","gitOid":"…","dirty":false,"synced":true}},
  "pending":{"upserts":[…],"deletes":[…]},"lastFull":"…","refused":{"path":"size+mtime"},"unsupportedUntil":"…"}
 ```
 
 **One sync run** (`Run(ctx, Request{Cwd, SessionID, Paths, Full, Budget})`):
-1. Resolve root, ref, head, project, worktree id; skip if disabled, excluded, the slug is a bare directory name, or `unsupportedUntil` is in the future.
+1. Resolve root, ref, head, default branch, project, worktree id; skip if disabled, excluded, the slug is a bare directory name, or `unsupportedUntil` is in the future.
 2. If the ref changed since the state, or `Full`, or the last full reconcile is older than 6 hours, enumerate everything; otherwise only `Paths` from the event (plus `git status --porcelain -z` after a Bash call).
 3. Re-hash only files whose `(size, mtime)` stamp changed; vanished paths become deletes.
-4. `PUT worktrees/{id}` once per ref change; `POST manifest` in batches; `PUT blobs/{sha}` for the missing ones; `POST changes` with upserts and deletes (`full: true` on a full reconcile so the server drops paths it no longer sees).
-5. Mark entries synced and save the state. Whatever didn't fit the budget stays in `pending` for the next run.
+4. Fill `git_oid` and `dirty`: when HEAD moved since the state, read `git ls-tree -r -z HEAD` once (path → blob id) and recompute `dirty` for every path from `git status --porcelain -z`; otherwise only for the paths in this run. A commit that changes no file contents (HEAD moves, the files don't) still sends the affected entries again, so the server learns they are now committed.
+5. `PUT worktrees/{id}` once per ref change; `POST manifest` in batches; `PUT blobs/{sha}` for the missing ones; `POST changes` with upserts and deletes (`full: true` on a full reconcile so the server drops paths it no longer sees).
+6. Mark entries synced and save the state. Whatever didn't fit the budget stays in `pending` for the next run.
 
 **Budget.** `hook relay` has 5 seconds for everything. Code sync gets what is left after ingest and catch-up, capped at 3 seconds and 8 MiB per run, and always runs last. A full reconcile of a large repo therefore spreads over several hook events. `mind-palace session code-sync --full` runs it with no budget for a first import or a manual repair.
 
@@ -182,7 +207,7 @@ Mounted by `server.NewClued` under `/api/v1/projects/{project}/code/` when `Clue
 |---|---|
 | `SessionStart` | full reconcile if the ref changed or `lastFull` is older than 6 hours, else the pending queue |
 | `PostToolUse` with `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | the edited path (`tool_input.file_path` / `notebook_path`), validated to sit inside the worktree root |
-| `PostToolUse` with `Bash` | `git status --porcelain -z` delta (catches `mv`, `rm`, generators, `git checkout`) |
+| `PostToolUse` with `Bash` | `git status --porcelain -z` delta (catches `mv`, `rm`, generators, `git checkout`), and the HEAD check that refreshes `git_oid` / `dirty` after `git commit`, `git pull` or `git reset` |
 | `FileChanged` | the reported path |
 | `Stop`, `SubagentStop` | `git status` delta plus the pending queue |
 | `CwdChanged` | resolve the new worktree; reconcile it like SessionStart |
@@ -238,26 +263,38 @@ After the public module lands on main, pin it (`go get github.com/robbiebyrd/clu
 - A file that becomes ignored: the full reconcile deletes it on the server.
 - Very large monorepos: the first import is spread over hook runs or done once with `session code-sync --full`; the deny list and `codeSyncExclude` keep vendored trees out (`vendor/`, `node_modules/` are normally ignored already).
 - Generated files that are not ignored are synced; that's intended, since the graph may want them, and `codeSyncExclude` removes them.
+- Members with different redaction rules: the same committed file (one `git_oid`) can arrive as two SHA-256s. The base builder picks one blob per `git_oid`, preferring the one whose content hash the most members sent, and never mixes them; overlays always use their owner's own blob.
+- A dirty file whose bytes equal HEAD again (an edit undone): `git status` no longer lists it, so it goes back to `dirty: false` with its `git_oid` and drops out of the overlay.
+- A shallow clone or a default branch missing locally: `default_branch` falls back to `main`/`master`, or is empty; the indexer then can't build a base from that worktree, which is fine as long as another worktree supplies one.
+- SHA-256 git repositories (`objectformat=sha256`): `git_oid` is 64 hex characters, which validation accepts.
+
+## Open Questions
+
+- Should members of a workspace see each other's overlays (uncommitted and unpushed work)? This plan only records the owner; the default the indexer plan assumes is **private to the owner**, with an overlay becoming shared once its branch is pushed. (owner: Robbie)
 
 ## Considerations
 
-- **Security:** - Source code is sensitive: off by default, explicit opt-in in `/clued-setup`, per-repository opt-out, cloud entitlement, audit event when an account turns it on.
+- **Security:**
+- Source code is sensitive: off by default, explicit opt-in in `/clued-setup`, per-repository opt-out, cloud entitlement, audit event when an account turns it on.
+- Owner is stamped from the token and a worktree can be written only by its owner, so a workspace member can't overwrite or probe another member's checkout.
 - Built-in deny list for secret-bearing files, `.gitignore` respected, `excludePaths` per file, redaction rules applied before upload, binary content never uploaded.
 - Tenancy: the code store is opened only through `NamespaceCtx` (fail closed), so code from one account or workspace never lands in another's namespace; unknown projects are 404.
 - No read route, so a leaked client token can write code into the account but cannot read any back.
 - Hash verification on `PUT blobs/{sha}` prevents a client poisoning another file's content address; paths are validated inline at the point of use.
 - State files are mode 0600 and hold paths and hashes, never content or the token; nothing logs the token.
-- **Performance:** - The stamp cache makes an edit-triggered run one `stat`, one hash and three small requests; reconciles re-hash only changed stamps.
+- **Performance:**
+- The stamp cache makes an edit-triggered run one `stat`, one hash and three small requests; reconciles re-hash only changed stamps.
 - The 3 s / 8 MiB budget per relay run and the `pending` queue keep hooks fast on large repositories; `session code-sync --full` does a first import without the budget.
 - Manifest and change batches are capped at 5,000 entries; blobs at `maxFileBytes`, well under the 16 MiB body and Mongo document limits.
-- Mongo indexes: `code_trees {worktree, ref, path}` unique, `code_changes {seq}`, `code_blobs _id`.
+- Mongo indexes: `code_trees {worktree, ref, path}` unique, `code_trees {git_oid}`, `code_changes {seq}`, `code_blobs _id`.
+- `git ls-tree -r HEAD` runs only when HEAD moves; otherwise `git_oid` comes from the state file, so an edit-triggered run adds no git call beyond the existing status check.
 - Server load is bounded per account by the cloud quota and the existing rate limiting at the front-end.
 
 ## Testing
 
-- `code/codetest` conformance suite: blob verification, missing-blob diff, commit applies upserts/deletes, `Full` replaces the tree, refs are isolated, the log is ordered and replayable, remove-worktree tombstones, idempotent retries, path validation. `memcode` and `mongocode` (with `MIND_PALACE_TEST_MONGODB_URI`) pass it; `remotecode` passes it over `httptest` against `codeapi` (reads in the suite go through the server-side store handle, since the API has none).
-- `codeapi` tests: auth required, namespacing through `NamespaceCtx` (two accounts never see each other's trees), 404 when `Code` is nil, size and batch limits, hash mismatch, no GET route returns content.
-- `session/codesync` unit tests on temporary git repositories: enumeration respects `.gitignore`, deny list, binary skip, size cap, redaction before hashing, stamp cache, ref switch, rename, delete, budget and `pending`, lock takeover, back-off on 404/403/413.
+- `code/codetest` conformance suite: blob verification, missing-blob diff, commit applies upserts/deletes, `Full` replaces the tree, refs are isolated, the log is ordered and replayable, remove-worktree tombstones, idempotent retries, path validation, `git_oid`/`dirty` round-trip, `Worktrees` lists owner and default branch. `memcode` and `mongocode` (with `MIND_PALACE_TEST_MONGODB_URI`) pass it; `remotecode` passes it over `httptest` against `codeapi` (reads in the suite go through the server-side store handle, since the API has none).
+- `codeapi` tests: auth required, namespacing through `NamespaceCtx` (two accounts never see each other's trees), 404 when `Code` is nil, size and batch limits, hash mismatch, no GET route returns content; the owner comes from the token (a body `owner` is rejected), and two members of one workspace namespace get 404 on each other's worktrees.
+- `session/codesync` unit tests on temporary git repositories: enumeration respects `.gitignore`, deny list, binary skip, size cap, redaction before hashing, stamp cache, ref switch, rename, delete, budget and `pending`, lock takeover, back-off on 404/403/413; `git_oid` and `dirty` for clean, modified, staged, untracked and reverted files, refreshed after `git commit` and `git reset`; default branch from origin's HEAD and the fallback.
 - `plugin/` tests (real bash hooks, real server in the test, `jq` required): a session's Write/Edit/Bash/Stop events produce the expected trees and change log on the server; with `codeSync` off nothing is sent.
 - clued-cloud: entitlement and quota refusals, metadata-only refusal, purgers remove code for deleted accounts and workspaces, metrics counters increment.
 
@@ -315,7 +352,7 @@ After the public module lands on main, pin it (`go get github.com/robbiebyrd/clu
 **Interfaces:**
 - Produces: `code.Store`, `code.Blob`, `code.Entry`, `code.Worktree`, `code.Change`, `code.ValidPath`, `code.ValidSHA`, `codetest.Run(t, factory)`
 
-- [ ] **Step 1: Define the model and the `Store` port** — As in Design; validation helpers for paths (slash-separated, `filepath.IsLocal`, ≤ 1,024 bytes, no NUL), SHA-256 hex, worktree ids (`wt_` + 16 hex) and refs.
+- [ ] **Step 1: Define the model and the `Store` port** — As in Design, including `Owner`, `DefaultBranch`, `GitOID` and `Dirty`; validation helpers for paths (slash-separated, `filepath.IsLocal`, ≤ 1,024 bytes, no NUL), SHA-256 hex, git object ids (40 or 64 hex), worktree ids (`wt_` + 16 hex) and refs.
 - [ ] **Step 2: Write `codetest` covering every port behaviour listed under Testing**
 
 ### 1.2: Memory and Mongo stores
@@ -351,7 +388,7 @@ After the public module lands on main, pin it (`go get github.com/robbiebyrd/clu
 - Produces: `CluedOptions.Code func(ctx, project string) (code.Store, error)`, `CluedOptions.BeforeCodeWrite`, routes under `/api/v1/projects/{project}/code/`
 
 - [ ] **Step 1: Implement the six routes with the envelope, limits, hash verification and inline path validation**
-- [ ] **Step 2: Mount in `NewClued` when `Code` is set; namespace like storeapi; add `BeforeCodeWrite(ctx, project, bytes)` for the composer's quota/entitlement check**
+- [ ] **Step 2: Mount in `NewClued` when `Code` is set; namespace like storeapi; stamp `Owner` from the principal and answer 404 for another owner's worktree; add `BeforeCodeWrite(ctx, project, bytes)` for the composer's quota/entitlement check**
 - [ ] **Step 3: `server run --code-store` / `CLUED_SERVER_CODE_STORE`; `server init` enables it in the generated stack**
 
 ### 2.2: Remote adapter
@@ -387,12 +424,13 @@ After the public module lands on main, pin it (`go get github.com/robbiebyrd/clu
 - Create: `mind-palace/session/codesync/filter.go`
 - Create: `mind-palace/session/codesync/state.go`
 - Modify: `mind-palace/session/gitinfo/gitinfo.go`
+- Modify: `mind-palace/collect/gitprobe/gitprobe.go`
 - Modify: `mind-palace/session/redact/redact.go`
 - Test: `mind-palace/session/codesync/codesync_test.go`
 
 **Depends on:** 2.2, 3.1
 
-- [ ] **Step 1: gitinfo: `Root`, `Head`, `StatusPaths`, `ListFiles` (all with the existing 2 s timeout)**
+- [ ] **Step 1: gitinfo: `Root`, `Head`, `StatusPaths`, `ListFiles`, `TreeOIDs` (`ls-tree -r -z HEAD`) and `DefaultBranch` (shared with `gitprobe` rather than duplicated), all with the existing 2 s timeout**
 - [ ] **Step 2: Filters: deny list, `excludePaths` per file, `codeSyncExclude`, size cap, binary detection**
 - [ ] **Step 3: State and lock (reuse catch-up's helpers if they can be lifted into a shared package, otherwise mirror them)**
 - [ ] **Step 4: `Run` as in Design, with budget, `pending`, `refused` and back-off**
@@ -462,6 +500,8 @@ After the public module lands on main, pin it (`go get github.com/robbiebyrd/clu
 - [ ] With `codeSync` off (the default), per-repository `codeSync: false`, `captureContent: false` or `CLUED_NO_CAPTURE=1`, nothing is sent.
 - [ ] No HTTP route, MCP tool or web page returns collected code, paths or trees; `capabilities` returns limits only.
 - [ ] Code written by one account or workspace is stored only under its namespace; `codetest` passes for `memcode`, `mongocode` and `remotecode`.
+- [ ] Every worktree and change records the owning account from the token, and a workspace member can't write to or detect another member's worktree.
+- [ ] Every entry records `git_oid` and `dirty` correctly, refreshed when HEAD moves, and every worktree records its default branch, so a base graph can be built from committed content only.
 - [ ] clued-cloud refuses code writes without the entitlement, past the quota or for metadata-only accounts, counts them in metrics, and purges code with the account or workspace.
 - [ ] PROTOCOL.md, docs/server.md and README describe the routes, keys, state files and what is uploaded; `gofmt`, `go vet` and `go test -race ./...` pass in both repositories, with and without MongoDB.
 
@@ -474,11 +514,15 @@ After the public module lands on main, pin it (`go get github.com/robbiebyrd/clu
 | Don't expose any of the collected data yet | 2.1, Step 1 (write-only routes) |
 | Ready for FalkorDB indexing later | 1.1 (change log and read side of the port) |
 | Hosted service tenancy and limits | 5.1 |
+| Partitioning: base per project plus overlays per (worktree, ref), file-local facts by content | Design, "Partitioning for the indexer"; 1.1, Step 1 |
+| Owner per worktree and change (workspace members) | 2.1, Step 2 |
+| Committed vs uncommitted (`git_oid`, `dirty`) and the default branch | 1.1, Step 1; 3.2, Steps 1 and 4 |
+
 **Residual risk:** Uploading source is a significant trust step even opt-in; the deny list and redaction reduce but cannot eliminate secret exposure in code. Mongo storage of every file version grows without GC until a sweep is added. Edits outside Claude Code lag until the next reconcile.
 
 ## Next Steps
 
-1. Plan the FalkorDB indexer: graph schema (Repo, File, Package, Symbol; CONTAINS, DEFINES, IMPORTS, CALLS, REFERENCES, IMPLEMENTS), parsers, the FalkorDB container in the `server init` stack and in clued-cloud, one graph per namespaced project and ref.
+1. Plan the FalkorDB indexer on the partitioning decided here: one graph per namespaced project, a base layer for the default branch built from committed entries, overlays per (worktree, ref), file-local facts cached by blob SHA-256, cross-file edges resolved per layer; graph schema (Repo, File, Package, Symbol; CONTAINS, DEFINES, IMPORTS, CALLS, REFERENCES, IMPLEMENTS), parsers, and the FalkorDB container in the `server init` stack and in clued-cloud.
 2. Blob garbage collection and per-account usage reporting.
 3. A local-mode backend for `code.Store`.
 4. Read APIs and visualizations once the graph exists.
