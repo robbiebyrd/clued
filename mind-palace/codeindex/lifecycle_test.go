@@ -490,7 +490,8 @@ func TestRunChecksRepairsInTheBackground(t *testing.T) {
 	go func() { done <- e.svc.RunChecks(ctx, 20*time.Millisecond, true) }()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if rep, err := e.svc.Check(e.ctx, e.project, false); err == nil && rep.Consistent {
+		// The repair lands before its log line: wait for both.
+		if rep, err := e.svc.Check(e.ctx, e.project, false); err == nil && rep.Consistent && strings.Contains(logs.String(), "drifted") {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
