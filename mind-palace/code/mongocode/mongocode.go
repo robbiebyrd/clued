@@ -11,13 +11,16 @@
 //	code_worktrees  _id worktree id, owner, source, root, host, origin,
 //	                default_branch, refs, sessions, removed, updated_at
 //	code_changes    the change log: seq (unique, indexed) and the change
-//	code_counters   the project's change sequence (one document, _id "changes")
+//	code_events     the activity log: seq (unique, indexed) and the event
+//	code_counters   the project's sequences (_id "changes" and "events")
 //
-// Commit and RemoveWorktree run in a transaction when the deployment supports
+// Commit, RemoveWorktree, RemoveRef and AppendEvents run in a transaction when the deployment supports
 // one (a replica set or a sharded cluster). On a standalone server they order
 // their writes so a retried call is idempotent: the tree first, then the
 // worktree, then the log entry, so a failure part-way leaves at most entries
 // the retry writes again and the retry appends at most a duplicate log entry.
+// AppendEvents then reserves its block of seqs before inserting the events,
+// so a failure part-way leaves at most a gap in the activity log's seqs.
 package mongocode
 
 import (
@@ -42,10 +45,14 @@ const (
 	worktreesName = "code_worktrees"
 	changesName   = "code_changes"
 	countersName  = "code_counters"
+	eventsName    = "code_events"
 )
 
-// changesCounter is the _id of the counter document behind Change.Seq.
-const changesCounter = "changes"
+// The _ids of the counter documents behind Change.Seq and Event.Seq.
+const (
+	changesCounter = "changes"
+	eventsCounter  = "events"
+)
 
 // ProjectPrefix returns the collection prefix of a namespaced project: base
 // (an operator's configured prefix, often empty) followed by the project and
@@ -56,7 +63,8 @@ func ProjectPrefix(base, project string) string { return base + project + "_" }
 // Option changes how Open sets a store up.
 type Option func(*Store)
 
-// WithoutTransactions makes Commit and RemoveWorktree use the ordered,
+// WithoutTransactions makes Commit, RemoveWorktree, RemoveRef and
+// AppendEvents use the ordered,
 // idempotent writes of a standalone server even when the deployment supports
 // transactions.
 func WithoutTransactions() Option { return func(s *Store) { s.noTx = true } }
@@ -69,6 +77,7 @@ type Store struct {
 	worktrees *mongo.Collection
 	changes   *mongo.Collection
 	counters  *mongo.Collection
+	events    *mongo.Collection
 	noTx      bool
 	tx        bool
 }
@@ -86,6 +95,7 @@ func Open(ctx context.Context, db *mongo.Database, prefix string, opts ...Option
 		worktrees: db.Collection(prefix + worktreesName),
 		changes:   db.Collection(prefix + changesName),
 		counters:  db.Collection(prefix + countersName),
+		events:    db.Collection(prefix + eventsName),
 	}
 	for _, o := range opts {
 		o(s)
@@ -96,10 +106,12 @@ func Open(ctx context.Context, db *mongo.Database, prefix string, opts ...Option
 	}); err != nil {
 		return nil, fmt.Errorf("mongocode: index %s: %w", s.trees.Name(), err)
 	}
-	if _, err := s.changes.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys: bson.D{{Key: "seq", Value: 1}}, Options: options.Index().SetUnique(true),
-	}); err != nil {
-		return nil, fmt.Errorf("mongocode: index %s: %w", s.changes.Name(), err)
+	for _, c := range []*mongo.Collection{s.changes, s.events} {
+		if _, err := c.Indexes().CreateOne(ctx, mongo.IndexModel{
+			Keys: bson.D{{Key: "seq", Value: 1}}, Options: options.Index().SetUnique(true),
+		}); err != nil {
+			return nil, fmt.Errorf("mongocode: index %s: %w", c.Name(), err)
+		}
 	}
 	// Transactions need the collections to exist on servers before 4.4.
 	for _, c := range []*mongo.Collection{s.blobs, s.worktrees, s.counters} {
@@ -117,8 +129,8 @@ func Open(ctx context.Context, db *mongo.Database, prefix string, opts ...Option
 	return s, nil
 }
 
-// Transactions reports whether Commit and RemoveWorktree run in a
-// transaction.
+// Transactions reports whether Commit, RemoveWorktree, RemoveRef and
+// AppendEvents run in a transaction.
 func (s *Store) Transactions() bool { return s.tx }
 
 // supportsTransactions asks the server whether it is a replica set member or
@@ -222,6 +234,56 @@ type changeDoc struct {
 	Deletes   []string   `bson:"deletes"`
 	Full      bool       `bson:"full"`
 	At        time.Time  `bson:"at"`
+}
+
+type eventDoc struct {
+	Seq         int64     `bson:"seq"`
+	Kind        string    `bson:"kind"`
+	Delivery    string    `bson:"delivery"`
+	Worktree    string    `bson:"worktree"`
+	Repo        string    `bson:"repo"`
+	Ref         string    `bson:"ref"`
+	Commit      string    `bson:"commit"`
+	Before      string    `bson:"before"`
+	Commits     int       `bson:"commits"`
+	Forced      bool      `bson:"forced"`
+	Actor       string    `bson:"actor"`
+	PR          int       `bson:"pr"`
+	BaseRef     string    `bson:"base_ref"`
+	BaseCommit  string    `bson:"base_commit"`
+	Merged      bool      `bson:"merged"`
+	MergeCommit string    `bson:"merge_commit"`
+	Name        string    `bson:"name"`
+	Status      string    `bson:"status"`
+	Conclusion  string    `bson:"conclusion"`
+	URL         string    `bson:"url"`
+	DocKind     string    `bson:"doc_kind"`
+	DocID       string    `bson:"doc_id"`
+	Path        string    `bson:"path"`
+	Action      string    `bson:"action"`
+	Problems    []string  `bson:"problems"`
+	At          time.Time `bson:"at"`
+}
+
+func toEventDoc(e code.Event) eventDoc {
+	problems := append([]string{}, e.Problems...)
+	return eventDoc{Seq: e.Seq, Kind: e.Kind, Delivery: e.Delivery, Worktree: e.Worktree, Repo: e.Repo,
+		Ref: e.Ref, Commit: e.Commit, Before: e.Before, Commits: e.Commits, Forced: e.Forced, Actor: e.Actor,
+		PR: e.PR, BaseRef: e.BaseRef, BaseCommit: e.BaseCommit, Merged: e.Merged, MergeCommit: e.MergeCommit,
+		Name: e.Name, Status: e.Status, Conclusion: e.Conclusion, URL: e.URL, DocKind: e.DocKind,
+		DocID: e.DocID, Path: e.Path, Action: e.Action, Problems: problems, At: e.At}
+}
+
+func (d eventDoc) event() code.Event {
+	e := code.Event{Seq: d.Seq, Kind: d.Kind, Delivery: d.Delivery, Worktree: d.Worktree, Repo: d.Repo,
+		Ref: d.Ref, Commit: d.Commit, Before: d.Before, Commits: d.Commits, Forced: d.Forced, Actor: d.Actor,
+		PR: d.PR, BaseRef: d.BaseRef, BaseCommit: d.BaseCommit, Merged: d.Merged, MergeCommit: d.MergeCommit,
+		Name: d.Name, Status: d.Status, Conclusion: d.Conclusion, URL: d.URL, DocKind: d.DocKind,
+		DocID: d.DocID, Path: d.Path, Action: d.Action, At: d.At}
+	if len(d.Problems) > 0 {
+		e.Problems = d.Problems
+	}
+	return e
 }
 
 func treeID(worktree, ref, path string) string { return worktree + "\x00" + ref + "\x00" + path }
@@ -546,13 +608,19 @@ func (s *Store) atomically(ctx context.Context, fn func(ctx context.Context) (in
 
 // nextSeq takes the next number of the project's change sequence.
 func (s *Store) nextSeq(ctx context.Context) (int64, error) {
+	return s.reserve(ctx, changesCounter, 1)
+}
+
+// reserve takes the next n numbers of the counter's sequence and returns the
+// last of them.
+func (s *Store) reserve(ctx context.Context, counter string, n int64) (int64, error) {
 	var d struct {
 		Seq int64 `bson:"seq"`
 	}
-	err := s.counters.FindOneAndUpdate(ctx, bson.M{"_id": changesCounter}, bson.M{"$inc": bson.M{"seq": int64(1)}},
+	err := s.counters.FindOneAndUpdate(ctx, bson.M{"_id": counter}, bson.M{"$inc": bson.M{"seq": n}},
 		options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)).Decode(&d)
 	if err != nil {
-		return 0, fmt.Errorf("mongocode: next seq: %w", err)
+		return 0, fmt.Errorf("mongocode: next %s seq: %w", counter, err)
 	}
 	return d.Seq, nil
 }
@@ -684,6 +752,107 @@ func (s *Store) RemoveWorktree(ctx context.Context, id string) error {
 	return err
 }
 
+// RemoveRef drops the (worktree, ref) tree, removes ref from the worktree's
+// refs and appends a ref tombstone, in that order when there is no
+// transaction.
+func (s *Store) RemoveRef(ctx context.Context, worktree, ref string) error {
+	if !code.ValidWorktreeID(worktree) {
+		return invalid("worktree id %q", worktree)
+	}
+	if !code.ValidRef(ref) {
+		return invalid("ref %q", ref)
+	}
+	_, err := s.atomically(ctx, func(ctx context.Context) (int64, error) {
+		if _, err := s.worktreeExists(ctx, worktree); err != nil {
+			return 0, err
+		}
+		if _, err := s.trees.DeleteMany(ctx, bson.M{"worktree": worktree, "ref": ref}); err != nil {
+			return 0, err
+		}
+		now := time.Now().UTC()
+		var d struct {
+			Owner string `bson:"owner"`
+		}
+		// $pull matches ref as a value, so a ref starting with "$" is data.
+		err := s.worktrees.FindOneAndUpdate(ctx, bson.M{"_id": worktree},
+			bson.M{"$pull": bson.M{"refs": ref}, "$set": bson.M{"updated_at": now}},
+			options.FindOneAndUpdate().SetProjection(bson.M{"owner": 1})).Decode(&d)
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return 0, fmt.Errorf("%w: worktree %s", code.ErrNotFound, worktree)
+		}
+		if err != nil {
+			return 0, err
+		}
+		return s.appendChange(ctx, changeDoc{Owner: d.Owner, Worktree: worktree, Ref: ref, Full: true, At: now})
+	})
+	return err
+}
+
+// Events.
+
+// AppendEvents validates every event, then reserves their seqs and inserts
+// them in order.
+func (s *Store) AppendEvents(ctx context.Context, events []code.Event) error {
+	for _, e := range events {
+		if err := e.Validate(); err != nil {
+			return err
+		}
+	}
+	if len(events) == 0 {
+		return nil
+	}
+	_, err := s.atomically(ctx, func(ctx context.Context) (int64, error) {
+		last, err := s.reserve(ctx, eventsCounter, int64(len(events)))
+		if err != nil {
+			return 0, err
+		}
+		now := time.Now().UTC()
+		docs := make([]any, 0, len(events))
+		for i, e := range events {
+			e.Seq = last - int64(len(events)) + 1 + int64(i)
+			if e.At.IsZero() {
+				e.At = now
+			}
+			docs = append(docs, toEventDoc(e))
+		}
+		_, err = s.events.InsertMany(ctx, docs, options.InsertMany().SetOrdered(true))
+		return last, err
+	})
+	return err
+}
+
+// SHA256ForGitOID maps each git blob id held by a clean entry with content
+// to that content's SHA-256, through the git_oid index of code_trees.
+func (s *Store) SHA256ForGitOID(ctx context.Context, gitOIDs []string) (map[string]string, error) {
+	for _, o := range gitOIDs {
+		if !code.ValidGitOID(o) {
+			return nil, invalid("git oid %q", o)
+		}
+	}
+	out := map[string]string{}
+	if len(gitOIDs) == 0 {
+		return out, nil
+	}
+	cur, err := s.trees.Aggregate(ctx, mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"git_oid": bson.M{"$in": gitOIDs}, "dirty": false, "sha256": bson.M{"$ne": ""}}}},
+		{{Key: "$group", Value: bson.M{"_id": "$git_oid", "sha256": bson.M{"$first": "$sha256"}}}},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		GitOID string `bson:"_id"`
+		SHA256 string `bson:"sha256"`
+	}
+	if err := cur.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.GitOID] = r.SHA256
+	}
+	return out, nil
+}
+
 // Reads.
 
 // Tree returns the entries of the (worktree, ref) tree sorted by path.
@@ -721,6 +890,28 @@ func (s *Store) Changes(ctx context.Context, afterSeq int64, limit int) ([]code.
 	out := make([]code.Change, 0, len(docs))
 	for _, d := range docs {
 		out = append(out, d.change())
+	}
+	return out, nil
+}
+
+// Events returns up to limit events with Seq greater than afterSeq, in Seq
+// order; a limit below 1 returns none.
+func (s *Store) Events(ctx context.Context, afterSeq int64, limit int) ([]code.Event, error) {
+	if limit < 1 {
+		return []code.Event{}, nil
+	}
+	cur, err := s.events.Find(ctx, bson.M{"seq": bson.M{"$gt": afterSeq}},
+		options.Find().SetSort(bson.D{{Key: "seq", Value: 1}}).SetLimit(int64(limit)))
+	if err != nil {
+		return nil, err
+	}
+	var docs []eventDoc
+	if err := cur.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+	out := make([]code.Event, 0, len(docs))
+	for _, d := range docs {
+		out = append(out, d.event())
 	}
 	return out, nil
 }

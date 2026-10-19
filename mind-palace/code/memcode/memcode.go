@@ -1,5 +1,5 @@
-// Package memcode is the in-memory code.Store: blobs, trees, worktrees and
-// the change log of one namespaced project held in maps behind a mutex. It
+// Package memcode is the in-memory code.Store: blobs, trees, worktrees, the
+// change log and the activity log of one namespaced project held in maps behind a mutex. It
 // backs tests (transport, client, indexer) and `server run --store memory`;
 // nothing survives the process.
 //
@@ -32,6 +32,7 @@ type Store struct {
 	worktrees map[string]*code.Worktree
 	trees     map[treeKey]map[string]code.Entry
 	log       []code.Change
+	events    []code.Event
 	now       func() time.Time
 }
 
@@ -243,6 +244,90 @@ func (s *Store) TouchSession(ctx context.Context, worktree, sessionID string, en
 	return nil
 }
 
+// RemoveRef drops the (worktree, ref) tree, removes ref from the worktree's
+// refs and appends a ref tombstone.
+func (s *Store) RemoveRef(ctx context.Context, worktree, ref string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !code.ValidWorktreeID(worktree) {
+		return fmt.Errorf("%w: worktree id %q", code.ErrInvalid, worktree)
+	}
+	if !code.ValidRef(ref) {
+		return fmt.Errorf("%w: ref %q", code.ErrInvalid, ref)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	w, ok := s.worktrees[worktree]
+	if !ok {
+		return fmt.Errorf("%w: worktree %s", code.ErrNotFound, worktree)
+	}
+	now := s.now()
+	delete(s.trees, treeKey{worktree, ref})
+	w.Refs = slices.DeleteFunc(w.Refs, func(r string) bool { return r == ref })
+	w.UpdatedAt = now
+	s.log = append(s.log, code.Change{
+		Seq:      int64(len(s.log)) + 1,
+		Owner:    w.Owner,
+		Worktree: worktree,
+		Ref:      ref,
+		Full:     true,
+		At:       now,
+	})
+	return nil
+}
+
+// AppendEvents validates every event, then appends them in order with their
+// Seq and, when zero, At.
+func (s *Store) AppendEvents(ctx context.Context, events []code.Event) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	for _, e := range events {
+		if err := e.Validate(); err != nil {
+			return err
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+	for _, e := range events {
+		e.Seq = int64(len(s.events)) + 1
+		if e.At.IsZero() {
+			e.At = now
+		}
+		e.Problems = slices.Clone(e.Problems)
+		s.events = append(s.events, e)
+	}
+	return nil
+}
+
+// SHA256ForGitOID maps each git blob id held by a clean entry with content
+// to that content's SHA-256.
+func (s *Store) SHA256ForGitOID(ctx context.Context, gitOIDs []string) (map[string]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	want := make(map[string]bool, len(gitOIDs))
+	for _, o := range gitOIDs {
+		if !code.ValidGitOID(o) {
+			return nil, fmt.Errorf("%w: git oid %q", code.ErrInvalid, o)
+		}
+		want[o] = true
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := map[string]string{}
+	for _, t := range s.trees {
+		for _, e := range t {
+			if want[e.GitOID] && !e.Dirty && e.SHA256 != "" {
+				out[e.GitOID] = e.SHA256
+			}
+		}
+	}
+	return out, nil
+}
+
 // Worktrees lists every worktree, removed ones included, sorted by ID.
 func (s *Store) Worktrees(ctx context.Context) ([]code.Worktree, error) {
 	if err := ctx.Err(); err != nil {
@@ -320,6 +405,28 @@ func (s *Store) Usage(ctx context.Context) (int64, int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return int64(len(s.blobs)), s.blobBytes, nil
+}
+
+// Events returns up to limit events with Seq greater than afterSeq, in Seq
+// order; a limit of zero or less returns none.
+func (s *Store) Events(ctx context.Context, afterSeq int64, limit int) ([]code.Event, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Seqs are dense from 1, as in the change log.
+	start := max(afterSeq, 0)
+	if limit <= 0 || start >= int64(len(s.events)) {
+		return nil, nil
+	}
+	end := min(start+int64(limit), int64(len(s.events)))
+	out := make([]code.Event, 0, end-start)
+	for _, e := range s.events[start:end] {
+		e.Problems = slices.Clone(e.Problems)
+		out = append(out, e)
+	}
+	return out, nil
 }
 
 // validChange checks every client-set field of c the store relies on.

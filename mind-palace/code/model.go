@@ -15,7 +15,10 @@
 // token's principal and the change being committed) or the store itself.
 package code
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Worktree sources: who writes a worktree. An empty Source means
 // SourceClient.
@@ -112,7 +115,8 @@ type Worktree struct {
 	DefaultBranch string
 	// Refs lists the refs seen on the worktree, kept by the store: it adds
 	// the refs a PutWorktree carries (the transport sends the current ref)
-	// and the ref of every Commit, and never drops one.
+	// and the ref of every Commit, and drops one only on RemoveRef (a
+	// branch deleted on GitHub).
 	Refs []string
 	// Sessions are the Claude Code sessions seen on the worktree, kept by
 	// the store from TouchSession and Commit.
@@ -142,7 +146,10 @@ type SessionSeen struct {
 //
 // A tombstone, appended by the store on RemoveWorktree, has the worktree's
 // ID and Owner, an empty Ref, Full true and no Upserts or Deletes: every
-// tree of that worktree is gone.
+// tree of that worktree is gone. A ref tombstone, appended on RemoveRef, is
+// the same with the removed Ref set (and no Head): that one tree is gone and
+// the ref is no longer among the worktree's Refs. Replaying either as a Full
+// change with no upserts gives the same (empty) tree.
 type Change struct {
 	// Seq is the change's position in the project's log, assigned by the
 	// store on Commit (increasing, starting at 1); the client sends 0.
@@ -178,4 +185,144 @@ type Change struct {
 	Full bool
 	// At is when the change was committed, set by the store.
 	At time.Time
+}
+
+// Activity event kinds (Event.Kind) the GitHub sync records. The store
+// accepts any non-empty kind; these name the allow-listed ones of plan 0011.
+const (
+	// EventPush is a push to a branch: Ref, Before, Commit (the new tip),
+	// Commits, Forced, Actor.
+	EventPush = "push"
+	// EventBranchCreated and EventBranchDeleted are a branch created or
+	// deleted on GitHub: Ref, Commit (created only), Actor.
+	EventBranchCreated = "branch_created"
+	EventBranchDeleted = "branch_deleted"
+	// EventPRPrefix starts the kinds of pull request events ("pr_opened",
+	// "pr_synchronize", "pr_closed", "pr_reopened", "pr_ready_for_review"):
+	// PR, Ref and Commit (head), BaseRef and BaseCommit, Merged,
+	// MergeCommit, Actor, URL.
+	EventPRPrefix = "pr_"
+	// EventCI is a completed check suite, check run or workflow run, or a
+	// commit status: Commit, Name, Status, Conclusion, URL.
+	EventCI = "ci"
+	// EventRepoPrefix starts the kinds of repository events ("repo_renamed",
+	// "repo_transferred", "repo_archived", "repo_deleted"): Repo, Actor.
+	EventRepoPrefix = "repo_"
+	// EventPlanSync, EventPlanSyncConflict and EventPlanSyncProblem are the
+	// outcomes of the plan and story sync from the default branch (see
+	// ghsync's DocsEvent): Commit, DocKind, DocID, Path, Action and, for a
+	// problem, Problems.
+	EventPlanSync         = "plan_sync"
+	EventPlanSyncConflict = "plan_sync_conflict"
+	EventPlanSyncProblem  = "plan_sync_problem"
+)
+
+// MaxEventKindBytes is the longest Event.Kind, in bytes.
+const MaxEventKindBytes = 64
+
+// Event is one record of a project's write-only activity log
+// (Store.AppendEvents): an allow-listed subset of a GitHub webhook payload
+// or of a sync outcome, never the payload itself. Actor logins are kept,
+// e-mail addresses never. Every field but Seq is set by the writer (the
+// GitHub sync); fields that do not apply to a Kind stay empty.
+type Event struct {
+	// Seq is the event's position in the project's activity log, assigned
+	// by the store on AppendEvents (increasing, starting at 1, its own
+	// sequence apart from the change log's); the writer sends 0.
+	Seq int64
+	// Kind is what happened: one of the Event* kinds above (non-empty, at
+	// most MaxEventKindBytes).
+	Kind string
+	// Delivery is the GitHub webhook delivery id the event came from, empty
+	// for an import or a reconcile.
+	Delivery string
+	// Worktree is the GitHub-backed worktree the event concerns (gh_<id>,
+	// see ValidWorktreeID), empty when none applies.
+	Worktree string
+	// Repo is the repository as owner/repo.
+	Repo string
+	// Ref is the branch (a push, a branch event, a pull request's head),
+	// see ValidRef; empty when none applies.
+	Ref string
+	// Commit is the commit the event is about (40 or 64 lowercase hex, see
+	// ValidGitOID): a push's new tip, a pull request's head, a CI run's
+	// commit, the commit a plan sync read.
+	Commit string
+	// Before is a push's previous tip (all zeros for a new branch).
+	Before string
+	// Commits is the number of commits a push carried.
+	Commits int
+	// Forced is true for a force push.
+	Forced bool
+	// Actor is the GitHub login that caused the event (pusher, sender).
+	Actor string
+	// PR is the pull request number, 0 when none applies.
+	PR int
+	// BaseRef and BaseCommit are a pull request's base branch and commit.
+	BaseRef    string
+	BaseCommit string
+	// Merged is true for a pull request closed by a merge, and MergeCommit
+	// its merge commit.
+	Merged      bool
+	MergeCommit string
+	// Name is a CI check's, check suite's app or workflow's name, or a
+	// commit status's context.
+	Name string
+	// Status and Conclusion are a CI run's status ("completed") and
+	// conclusion ("success", "failure", ...), or a commit status's state in
+	// Status.
+	Status     string
+	Conclusion string
+	// URL is the event's page on GitHub (the pull request, the run).
+	URL string
+	// DocKind is a plan sync event's document kind (plan, story), empty for
+	// a problem with the config file.
+	DocKind string
+	// DocID is the plan or story id, empty when the file names none.
+	DocID string
+	// Path is a plan sync event's repository path.
+	Path string
+	// Action is what a plan_sync did: created, updated or archived.
+	Action string
+	// Problems are a plan_sync_problem's validation messages.
+	Problems []string
+	// At is when the event happened (or the sync ran), set by the writer;
+	// the store sets the time of the append when it is zero.
+	At time.Time
+}
+
+// Validate checks the fields of e a store relies on, wrapping ErrInvalid:
+// Kind is non-empty, at most MaxEventKindBytes of lowercase letters, digits
+// and "_"; Worktree, Ref, BaseRef, the commits and Path are empty or well
+// formed (ValidWorktreeID, ValidRef, ValidGitOID, ValidPath); Commits and
+// PR are not negative.
+func (e Event) Validate() error {
+	if e.Kind == "" || len(e.Kind) > MaxEventKindBytes {
+		return fmt.Errorf("%w: event kind %q", ErrInvalid, e.Kind)
+	}
+	for i := 0; i < len(e.Kind); i++ {
+		if c := e.Kind[i]; (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '_' {
+			return fmt.Errorf("%w: event kind %q", ErrInvalid, e.Kind)
+		}
+	}
+	if e.Worktree != "" && !ValidWorktreeID(e.Worktree) {
+		return fmt.Errorf("%w: event worktree %q", ErrInvalid, e.Worktree)
+	}
+	for _, r := range []string{e.Ref, e.BaseRef} {
+		if r != "" && !ValidRef(r) {
+			return fmt.Errorf("%w: event ref %q", ErrInvalid, r)
+		}
+	}
+	for _, c := range []string{e.Commit, e.Before, e.BaseCommit, e.MergeCommit} {
+		if c != "" && !ValidGitOID(c) {
+			return fmt.Errorf("%w: event commit %q", ErrInvalid, c)
+		}
+	}
+	if e.Path != "" && !ValidPath(e.Path) {
+		return fmt.Errorf("%w: event path %q", ErrInvalid, e.Path)
+	}
+	if e.Commits < 0 || e.PR < 0 {
+		return fmt.Errorf("%w: event commits %d, pull request %d", ErrInvalid, e.Commits, e.PR)
+	}
+	return nil
 }
