@@ -127,7 +127,10 @@ func (p *Palace) StoreNames() []string {
 	return []string{p.store.Name() + " (" + p.store.Driver() + ")"}
 }
 
-// Sync copies every document and template from one configured store to another.
+// Sync copies every document and template from one configured store to
+// another. mode is a store.ParseConflictMode name: error, skip, overwrite or
+// newer (the source copy wins only when its updated timestamp is the same or
+// later).
 func (p *Palace) Sync(ctx context.Context, from, to string, mode string) (*store.SyncReport, error) {
 	m, ok := p.store.(*store.MultiStore)
 	if !ok {
