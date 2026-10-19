@@ -1,0 +1,789 @@
+{
+  "lang": "python",
+  "symbols": [
+    {
+      "id": "memoize",
+      "kind": "function",
+      "name": "memoize",
+      "qualName": "memoize",
+      "signature": "def memoize(fn):",
+      "doc": "Caches fn's results.",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 141
+      },
+      "end": {
+        "line": 18,
+        "column": 18,
+        "offset": 366
+      },
+      "exported": true
+    },
+    {
+      "id": "memoize.wrapper",
+      "kind": "function",
+      "name": "wrapper",
+      "qualName": "memoize.wrapper",
+      "signature": "def wrapper(*args):",
+      "start": {
+        "line": 13,
+        "column": 4,
+        "offset": 234
+      },
+      "end": {
+        "line": 16,
+        "column": 26,
+        "offset": 346
+      },
+      "parent": "memoize",
+      "exported": true
+    },
+    {
+      "id": "make_counter",
+      "kind": "function",
+      "name": "make_counter",
+      "qualName": "make_counter",
+      "signature": "def make_counter(start=0):",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 369
+      },
+      "end": {
+        "line": 34,
+        "column": 27,
+        "offset": 629
+      },
+      "exported": true
+    },
+    {
+      "id": "make_counter.Counter",
+      "kind": "class",
+      "name": "Counter",
+      "qualName": "make_counter.Counter",
+      "signature": "class Counter:",
+      "start": {
+        "line": 24,
+        "column": 4,
+        "offset": 419
+      },
+      "end": {
+        "line": 28,
+        "column": 24,
+        "offset": 537
+      },
+      "parent": "make_counter",
+      "exported": true
+    },
+    {
+      "id": "make_counter.Counter.increment",
+      "kind": "method",
+      "name": "increment",
+      "qualName": "make_counter.Counter.increment",
+      "signature": "def increment(self):",
+      "start": {
+        "line": 25,
+        "column": 8,
+        "offset": 442
+      },
+      "end": {
+        "line": 28,
+        "column": 24,
+        "offset": 537
+      },
+      "parent": "make_counter.Counter",
+      "exported": true
+    },
+    {
+      "id": "make_counter.reset",
+      "kind": "function",
+      "name": "reset",
+      "qualName": "make_counter.reset",
+      "signature": "def reset():",
+      "start": {
+        "line": 30,
+        "column": 4,
+        "offset": 543
+      },
+      "end": {
+        "line": 32,
+        "column": 21,
+        "offset": 600
+      },
+      "parent": "make_counter",
+      "exported": true
+    },
+    {
+      "id": "now",
+      "kind": "function",
+      "name": "now",
+      "qualName": "now",
+      "signature": "def now():",
+      "start": {
+        "line": 38,
+        "column": 4,
+        "offset": 668
+      },
+      "end": {
+        "line": 39,
+        "column": 20,
+        "offset": 699
+      },
+      "exported": true
+    },
+    {
+      "id": "now~2",
+      "kind": "function",
+      "name": "now",
+      "qualName": "now",
+      "signature": "def now():",
+      "start": {
+        "line": 41,
+        "column": 4,
+        "offset": 710
+      },
+      "end": {
+        "line": 42,
+        "column": 20,
+        "offset": 741
+      },
+      "exported": true
+    },
+    {
+      "id": "speedup",
+      "kind": "var",
+      "name": "speedup",
+      "qualName": "speedup",
+      "signature": "speedup = None",
+      "start": {
+        "line": 47,
+        "column": 4,
+        "offset": 801
+      },
+      "end": {
+        "line": 47,
+        "column": 18,
+        "offset": 815
+      },
+      "exported": true
+    },
+    {
+      "id": "FALLBACK",
+      "kind": "const",
+      "name": "FALLBACK",
+      "qualName": "FALLBACK",
+      "signature": "FALLBACK = True",
+      "start": {
+        "line": 48,
+        "column": 4,
+        "offset": 820
+      },
+      "end": {
+        "line": 48,
+        "column": 19,
+        "offset": 835
+      },
+      "exported": true
+    },
+    {
+      "id": "Outer",
+      "kind": "class",
+      "name": "Outer",
+      "qualName": "Outer",
+      "signature": "class Outer:",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 838
+      },
+      "end": {
+        "line": 62,
+        "column": 35,
+        "offset": 1089
+      },
+      "exported": true
+    },
+    {
+      "id": "Outer.Inner",
+      "kind": "class",
+      "name": "Inner",
+      "qualName": "Outer.Inner",
+      "signature": "class Inner:",
+      "start": {
+        "line": 52,
+        "column": 4,
+        "offset": 855
+      },
+      "end": {
+        "line": 56,
+        "column": 36,
+        "offset": 955
+      },
+      "parent": "Outer",
+      "exported": true
+    },
+    {
+      "id": "Outer.Inner.VALUE",
+      "kind": "field",
+      "name": "VALUE",
+      "qualName": "Outer.Inner.VALUE",
+      "signature": "VALUE = 1",
+      "start": {
+        "line": 53,
+        "column": 8,
+        "offset": 876
+      },
+      "end": {
+        "line": 53,
+        "column": 17,
+        "offset": 885
+      },
+      "parent": "Outer.Inner",
+      "exported": true
+    },
+    {
+      "id": "Outer.Inner.inner_method",
+      "kind": "method",
+      "name": "inner_method",
+      "qualName": "Outer.Inner.inner_method",
+      "signature": "def inner_method(self):",
+      "start": {
+        "line": 55,
+        "column": 8,
+        "offset": 895
+      },
+      "end": {
+        "line": 56,
+        "column": 36,
+        "offset": 955
+      },
+      "parent": "Outer.Inner",
+      "exported": true
+    },
+    {
+      "id": "Outer.platform_method",
+      "kind": "function",
+      "name": "platform_method",
+      "qualName": "Outer.platform_method",
+      "signature": "def platform_method(self):",
+      "start": {
+        "line": 59,
+        "column": 8,
+        "offset": 997
+      },
+      "end": {
+        "line": 60,
+        "column": 28,
+        "offset": 1052
+      },
+      "parent": "Outer",
+      "exported": true
+    },
+    {
+      "id": "Outer.handler",
+      "kind": "field",
+      "name": "handler",
+      "qualName": "Outer.handler",
+      "signature": "handler = lambda self, x: x * 2",
+      "start": {
+        "line": 62,
+        "column": 4,
+        "offset": 1058
+      },
+      "end": {
+        "line": 62,
+        "column": 35,
+        "offset": 1089
+      },
+      "parent": "Outer",
+      "exported": true
+    },
+    {
+      "id": "a",
+      "kind": "var",
+      "name": "a",
+      "qualName": "a",
+      "signature": "a = b = c = 0",
+      "start": {
+        "line": 65,
+        "column": 0,
+        "offset": 1092
+      },
+      "end": {
+        "line": 65,
+        "column": 13,
+        "offset": 1105
+      },
+      "exported": true
+    },
+    {
+      "id": "square",
+      "kind": "var",
+      "name": "square",
+      "qualName": "square",
+      "signature": "square = lambda x: x * x",
+      "start": {
+        "line": 66,
+        "column": 0,
+        "offset": 1106
+      },
+      "end": {
+        "line": 66,
+        "column": 24,
+        "offset": 1130
+      },
+      "exported": true
+    },
+    {
+      "id": "fib",
+      "kind": "var",
+      "name": "fib",
+      "qualName": "fib",
+      "signature": "fib = memoize(lambda n: n if n \u003c 2 else fib(n - 1) + fib(n - 2))",
+      "start": {
+        "line": 67,
+        "column": 0,
+        "offset": 1131
+      },
+      "end": {
+        "line": 67,
+        "column": 64,
+        "offset": 1195
+      },
+      "exported": true
+    },
+    {
+      "id": "cached",
+      "kind": "function",
+      "name": "cached",
+      "qualName": "cached",
+      "signature": "def cached(n):",
+      "start": {
+        "line": 72,
+        "column": 0,
+        "offset": 1242
+      },
+      "end": {
+        "line": 73,
+        "column": 12,
+        "offset": 1269
+      },
+      "exported": true
+    },
+    {
+      "id": "overloaded",
+      "kind": "function",
+      "name": "overloaded",
+      "qualName": "overloaded",
+      "signature": "def overloaded(x: int) -\u003e int:",
+      "start": {
+        "line": 76,
+        "column": 0,
+        "offset": 1272
+      },
+      "end": {
+        "line": 76,
+        "column": 34,
+        "offset": 1306
+      },
+      "exported": true
+    },
+    {
+      "id": "overloaded~2",
+      "kind": "function",
+      "name": "overloaded",
+      "qualName": "overloaded",
+      "signature": "def overloaded(x: str) -\u003e str:",
+      "start": {
+        "line": 77,
+        "column": 0,
+        "offset": 1307
+      },
+      "end": {
+        "line": 77,
+        "column": 34,
+        "offset": 1341
+      },
+      "exported": true
+    },
+    {
+      "id": "main_result",
+      "kind": "var",
+      "name": "main_result",
+      "qualName": "main_result",
+      "signature": "main_result = make_counter(1)",
+      "start": {
+        "line": 81,
+        "column": 4,
+        "offset": 1375
+      },
+      "end": {
+        "line": 81,
+        "column": 33,
+        "offset": 1404
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "functools",
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 111
+      }
+    },
+    {
+      "spec": "sys",
+      "kind": "import",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 128
+      }
+    },
+    {
+      "spec": "fast",
+      "names": [
+        "speedup"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 45,
+        "column": 4,
+        "offset": 752
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "wraps",
+      "qualifier": "functools",
+      "kind": "call",
+      "start": {
+        "line": 12,
+        "column": 15,
+        "offset": 220
+      },
+      "enclosing": "memoize"
+    },
+    {
+      "name": "fn",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 26,
+        "offset": 310
+      },
+      "enclosing": "memoize.wrapper"
+    },
+    {
+      "name": "Counter",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 11,
+        "offset": 613
+      },
+      "enclosing": "make_counter"
+    },
+    {
+      "name": "ImportError",
+      "kind": "type",
+      "start": {
+        "line": 46,
+        "column": 7,
+        "offset": 784
+      }
+    },
+    {
+      "name": "memoize",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 6,
+        "offset": 1137
+      },
+      "enclosing": "fib"
+    },
+    {
+      "name": "fib",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 40,
+        "offset": 1171
+      },
+      "enclosing": "fib"
+    },
+    {
+      "name": "fib",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 53,
+        "offset": 1184
+      },
+      "enclosing": "fib"
+    },
+    {
+      "name": "memoize",
+      "kind": "call",
+      "start": {
+        "line": 70,
+        "column": 1,
+        "offset": 1199
+      }
+    },
+    {
+      "name": "lru_cache",
+      "qualifier": "functools",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 11,
+        "offset": 1218
+      }
+    },
+    {
+      "name": "make_counter",
+      "kind": "call",
+      "start": {
+        "line": 81,
+        "column": 18,
+        "offset": 1389
+      },
+      "enclosing": "main_result"
+    },
+    {
+      "name": "cached",
+      "kind": "call",
+      "start": {
+        "line": 82,
+        "column": 10,
+        "offset": 1415
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 5,
+        "column": 10,
+        "offset": 138
+      },
+      "text": "#!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n# Generated by codegen 1.2; nested and conditional definitions.\nimport functools\nimport sys",
+      "hash": "fc9014c29577fdc2db8c8ea134805e76c7705ef8762f836e3cd9120d966e41dc"
+    },
+    {
+      "id": "memoize#1",
+      "kind": "symbol",
+      "symbolId": "memoize",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 141
+      },
+      "end": {
+        "line": 18,
+        "column": 18,
+        "offset": 366
+      },
+      "text": "def memoize(fn):\n    \"\"\"Caches fn's results.\"\"\"\n    cache = {}\n\n    @functools.wraps(fn)\n    def wrapper(*args):\n        if args not in cache:\n            cache[args] = fn(*args)\n        return cache[args]\n\n    return wrapper",
+      "hash": "167c994d7ec51542c16e2c35a7eb24d6902b99b71202ab2b3843a729356ddb65"
+    },
+    {
+      "id": "make_counter#1",
+      "kind": "symbol",
+      "symbolId": "make_counter",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 369
+      },
+      "end": {
+        "line": 34,
+        "column": 27,
+        "offset": 629
+      },
+      "text": "def make_counter(start=0):\n    count = start\n\n    class Counter:\n        def increment(self):\n            nonlocal count\n            count += 1\n            return count\n\n    def reset():\n        nonlocal count\n        count = start\n\n    return Counter(), reset",
+      "hash": "c11cb47de69552c248d6c0c3396edafee3e1684dc76e2e2bc107478f03cd8e17"
+    },
+    {
+      "id": "L37#1",
+      "kind": "window",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 632
+      },
+      "end": {
+        "line": 37,
+        "column": 31,
+        "offset": 663
+      },
+      "text": "if sys.version_info \u003e= (3, 11):",
+      "hash": "07f877c40c328b0f0d324488c9a0eff04004c6f8a15a4abf90ef4cd462b8ffce"
+    },
+    {
+      "id": "now#1",
+      "kind": "symbol",
+      "symbolId": "now",
+      "start": {
+        "line": 38,
+        "column": 0,
+        "offset": 664
+      },
+      "end": {
+        "line": 39,
+        "column": 20,
+        "offset": 699
+      },
+      "text": "    def now():\n        return \"new\"",
+      "hash": "d61e87d67b140c64f890a6ae17fc6525b76fe0aa50e844f8ba49e9ae90188bc4"
+    },
+    {
+      "id": "now~2#1",
+      "kind": "symbol",
+      "symbolId": "now~2",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 706
+      },
+      "end": {
+        "line": 42,
+        "column": 20,
+        "offset": 741
+      },
+      "text": "    def now():\n        return \"old\"",
+      "hash": "6a5ef309a81e6684d90c6f4078eefeb6a8a4a83801dbb21bbbdcf397333a011c"
+    },
+    {
+      "id": "L44#1",
+      "kind": "window",
+      "start": {
+        "line": 44,
+        "column": 0,
+        "offset": 743
+      },
+      "end": {
+        "line": 48,
+        "column": 19,
+        "offset": 835
+      },
+      "text": "try:\n    from fast import speedup\nexcept ImportError:\n    speedup = None\n    FALLBACK = True",
+      "hash": "186890cb3b7a5a6f299a8a609facd5b0aaa4edf2d218fa54ae9e1d9e60889072"
+    },
+    {
+      "id": "Outer#1",
+      "kind": "symbol",
+      "symbolId": "Outer",
+      "start": {
+        "line": 51,
+        "column": 0,
+        "offset": 838
+      },
+      "end": {
+        "line": 62,
+        "column": 35,
+        "offset": 1089
+      },
+      "text": "class Outer:\n    class Inner:\n        VALUE = 1\n\n        def inner_method(self):\n            return Outer.Inner.VALUE\n\n    if sys.platform == \"win32\":\n        def platform_method(self):\n            return \"windows\"\n\n    handler = lambda self, x: x * 2",
+      "hash": "b0ce7d942fed0e33857d7958f7fdfea6abe8450c56713ee1de049d9069c8b746"
+    },
+    {
+      "id": "L65#1",
+      "kind": "window",
+      "start": {
+        "line": 65,
+        "column": 0,
+        "offset": 1092
+      },
+      "end": {
+        "line": 71,
+        "column": 34,
+        "offset": 1241
+      },
+      "text": "a = b = c = 0\nsquare = lambda x: x * x\nfib = memoize(lambda n: n if n \u003c 2 else fib(n - 1) + fib(n - 2))\n\n\n@memoize\n@functools.lru_cache(maxsize=None)",
+      "hash": "212ac23970ca4e0fb140a13df1a927dedb7b7f96ffafa3e1cdf93e1cc618d014"
+    },
+    {
+      "id": "cached#1",
+      "kind": "symbol",
+      "symbolId": "cached",
+      "start": {
+        "line": 72,
+        "column": 0,
+        "offset": 1242
+      },
+      "end": {
+        "line": 73,
+        "column": 12,
+        "offset": 1269
+      },
+      "text": "def cached(n):\n    return n",
+      "hash": "bd48d23b1d06509f5c4e32956eb96253ad7b4351ebc90b770c78e2dbab81bfc5"
+    },
+    {
+      "id": "overloaded#1",
+      "kind": "symbol",
+      "symbolId": "overloaded",
+      "start": {
+        "line": 76,
+        "column": 0,
+        "offset": 1272
+      },
+      "end": {
+        "line": 76,
+        "column": 34,
+        "offset": 1306
+      },
+      "text": "def overloaded(x: int) -\u003e int: ...",
+      "hash": "276c925486e9f7d43383bd43c18d3dfd49f4dd5fd62a49fe6b10d93630a522dc"
+    },
+    {
+      "id": "overloaded~2#1",
+      "kind": "symbol",
+      "symbolId": "overloaded~2",
+      "start": {
+        "line": 77,
+        "column": 0,
+        "offset": 1307
+      },
+      "end": {
+        "line": 77,
+        "column": 34,
+        "offset": 1341
+      },
+      "text": "def overloaded(x: str) -\u003e str: ...",
+      "hash": "35f4909575cee8c7de179bba90a589af1b8764be3f90b90bab960b5dde382b1c"
+    },
+    {
+      "id": "L80#1",
+      "kind": "window",
+      "start": {
+        "line": 80,
+        "column": 0,
+        "offset": 1344
+      },
+      "end": {
+        "line": 82,
+        "column": 20,
+        "offset": 1425
+      },
+      "text": "if __name__ == \"__main__\":\n    main_result = make_counter(1)\n    print(cached(3))",
+      "hash": "e13e70d514a55055b12a593c15ac337ef30ed17d0bad9928bc62f2de597c70b0"
+    }
+  ]
+}

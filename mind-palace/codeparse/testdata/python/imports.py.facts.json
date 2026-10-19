@@ -1,0 +1,305 @@
+{
+  "lang": "python",
+  "symbols": [
+    {
+      "id": "lazy",
+      "kind": "function",
+      "name": "lazy",
+      "qualName": "lazy",
+      "signature": "def lazy():",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 556
+      },
+      "end": {
+        "line": 31,
+        "column": 36,
+        "offset": 661
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "os",
+      "kind": "import",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 42
+      }
+    },
+    {
+      "spec": "os.path",
+      "kind": "import",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 52
+      }
+    },
+    {
+      "spec": "json",
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 67
+      }
+    },
+    {
+      "spec": "sys",
+      "alias": "system",
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 67
+      }
+    },
+    {
+      "spec": "xml.etree.ElementTree",
+      "alias": "ET",
+      "kind": "import",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 94
+      }
+    },
+    {
+      "spec": "collections",
+      "names": [
+        "OrderedDict",
+        "defaultdict"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 129
+      }
+    },
+    {
+      "spec": "collections.abc",
+      "names": [
+        "Mapping"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 178
+      }
+    },
+    {
+      "spec": "collections.abc",
+      "alias": "Seq",
+      "names": [
+        "Sequence"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 9,
+        "column": 4,
+        "offset": 225
+      }
+    },
+    {
+      "spec": ".",
+      "names": [
+        "sibling"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 244
+      }
+    },
+    {
+      "spec": "..",
+      "alias": "pm",
+      "names": [
+        "parent_mod"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 12,
+        "column": 15,
+        "offset": 281
+      }
+    },
+    {
+      "spec": ".models",
+      "names": [
+        "Item",
+        "make_item"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 298
+      }
+    },
+    {
+      "spec": "..pkg.sub",
+      "names": [
+        "helper"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 334
+      }
+    },
+    {
+      "spec": "typing",
+      "names": [
+        "*"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 363
+      }
+    },
+    {
+      "spec": "__future__",
+      "names": [
+        "annotations"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 384
+      }
+    },
+    {
+      "spec": "ujson",
+      "alias": "fastjson",
+      "kind": "import",
+      "start": {
+        "line": 19,
+        "column": 4,
+        "offset": 429
+      }
+    },
+    {
+      "spec": "json",
+      "alias": "fastjson",
+      "kind": "import",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 478
+      }
+    },
+    {
+      "spec": ".service",
+      "names": [
+        "Service"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 24,
+        "column": 4,
+        "offset": 525
+      }
+    },
+    {
+      "spec": "numpy",
+      "alias": "np",
+      "kind": "import",
+      "start": {
+        "line": 28,
+        "column": 4,
+        "offset": 572
+      }
+    },
+    {
+      "spec": "pandas",
+      "names": [
+        "DataFrame"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 29,
+        "column": 4,
+        "offset": 595
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "ImportError",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 7,
+        "offset": 461
+      }
+    },
+    {
+      "name": "array",
+      "qualifier": "np",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 14,
+        "offset": 639
+      },
+      "enclosing": "lazy"
+    },
+    {
+      "name": "DataFrame",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 25,
+        "offset": 650
+      },
+      "enclosing": "lazy"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 24,
+        "column": 32,
+        "offset": 553
+      },
+      "text": "\"\"\"Every way a module imports another.\"\"\"\nimport os\nimport os.path\nimport sys as system, json\nimport xml.etree.ElementTree as ET\nfrom collections import OrderedDict, defaultdict\nfrom collections.abc import (\n    Mapping,\n    Sequence as Seq,\n)\nfrom . import sibling\nfrom .. import parent_mod as pm\nfrom .models import Item, make_item\nfrom ..pkg.sub import helper\nfrom typing import *\nfrom __future__ import annotations\n\ntry:\n    import ujson as fastjson\nexcept ImportError:\n    import json as fastjson\n\nif TYPE_CHECKING:\n    from .service import Service",
+      "hash": "b136ba0f9339644a88a1f6a503ec402ecc5dc8b1d4e086e33ba577795354e042"
+    },
+    {
+      "id": "lazy#1",
+      "kind": "symbol",
+      "symbolId": "lazy",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 556
+      },
+      "end": {
+        "line": 31,
+        "column": 36,
+        "offset": 661
+      },
+      "text": "def lazy():\n    import numpy as np\n    from pandas import DataFrame\n\n    return np.array([]), DataFrame()",
+      "hash": "addf5cd3c36e01bf68e30262d2a35dc6b18b4a128f7816c6714b8f8ccccc80df"
+    }
+  ]
+}

@@ -1,0 +1,793 @@
+{
+  "lang": "python",
+  "symbols": [
+    {
+      "id": "log",
+      "kind": "var",
+      "name": "log",
+      "qualName": "log",
+      "signature": "log = logging.getLogger(__name__)",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 168
+      },
+      "end": {
+        "line": 10,
+        "column": 33,
+        "offset": 201
+      },
+      "exported": true
+    },
+    {
+      "id": "T",
+      "kind": "const",
+      "name": "T",
+      "qualName": "T",
+      "signature": "T = TypeVar(\"T\")",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 202
+      },
+      "end": {
+        "line": 11,
+        "column": 16,
+        "offset": 218
+      },
+      "exported": true
+    },
+    {
+      "id": "ServiceError",
+      "kind": "class",
+      "name": "ServiceError",
+      "qualName": "ServiceError",
+      "signature": "class ServiceError(Exception):",
+      "doc": "Raised when a call to the service fails.",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 221
+      },
+      "end": {
+        "line": 15,
+        "column": 50,
+        "offset": 302
+      },
+      "exported": true
+    },
+    {
+      "id": "Repository",
+      "kind": "class",
+      "name": "Repository",
+      "qualName": "Repository",
+      "signature": "class Repository(ABC, Generic[T]):",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 305
+      },
+      "end": {
+        "line": 23,
+        "column": 50,
+        "offset": 479
+      },
+      "exported": true
+    },
+    {
+      "id": "Repository.get",
+      "kind": "method",
+      "name": "get",
+      "qualName": "Repository.get",
+      "signature": "def get(self, key: str) -\u003e Optional[T]:",
+      "start": {
+        "line": 20,
+        "column": 4,
+        "offset": 364
+      },
+      "end": {
+        "line": 20,
+        "column": 47,
+        "offset": 407
+      },
+      "parent": "Repository",
+      "exported": true
+    },
+    {
+      "id": "Repository.put",
+      "kind": "method",
+      "name": "put",
+      "qualName": "Repository.put",
+      "signature": "def put(self, key: str, value: T) -\u003e None:",
+      "start": {
+        "line": 23,
+        "column": 4,
+        "offset": 433
+      },
+      "end": {
+        "line": 23,
+        "column": 50,
+        "offset": 479
+      },
+      "parent": "Repository",
+      "exported": true
+    },
+    {
+      "id": "ItemRepository",
+      "kind": "class",
+      "name": "ItemRepository",
+      "qualName": "ItemRepository",
+      "signature": "class ItemRepository(Repository[Item], store.Base, metaclass=store.Registry):",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 482
+      },
+      "end": {
+        "line": 45,
+        "column": 64,
+        "offset": 1301
+      },
+      "exported": true
+    },
+    {
+      "id": "ItemRepository.__init__",
+      "kind": "method",
+      "name": "__init__",
+      "qualName": "ItemRepository.__init__",
+      "signature": "def __init__(self, session: requests.Session, base_url: str) -\u003e None:",
+      "start": {
+        "line": 27,
+        "column": 4,
+        "offset": 564
+      },
+      "end": {
+        "line": 30,
+        "column": 32,
+        "offset": 724
+      },
+      "parent": "ItemRepository"
+    },
+    {
+      "id": "ItemRepository.get",
+      "kind": "method",
+      "name": "get",
+      "qualName": "ItemRepository.get",
+      "signature": "def get(self, key: str) -\u003e Optional[Item]:",
+      "start": {
+        "line": 32,
+        "column": 4,
+        "offset": 730
+      },
+      "end": {
+        "line": 41,
+        "column": 36,
+        "offset": 1129
+      },
+      "parent": "ItemRepository",
+      "exported": true
+    },
+    {
+      "id": "ItemRepository.put",
+      "kind": "method",
+      "name": "put",
+      "qualName": "ItemRepository.put",
+      "signature": "def put(self, key: str, value: Item) -\u003e None:",
+      "start": {
+        "line": 43,
+        "column": 4,
+        "offset": 1135
+      },
+      "end": {
+        "line": 45,
+        "column": 64,
+        "offset": 1301
+      },
+      "parent": "ItemRepository",
+      "exported": true
+    },
+    {
+      "id": "encode",
+      "kind": "function",
+      "name": "encode",
+      "qualName": "encode",
+      "signature": "def encode(item: Sized) -\u003e dict[str, \"store.Value\"]:",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 1304
+      },
+      "end": {
+        "line": 49,
+        "column": 66,
+        "offset": 1423
+      },
+      "exported": true
+    },
+    {
+      "id": "sync",
+      "kind": "function",
+      "name": "sync",
+      "qualName": "sync",
+      "signature": "def sync(repo: ItemRepository, items: list[Item]) -\u003e int:",
+      "start": {
+        "line": 54,
+        "column": 0,
+        "offset": 1453
+      },
+      "end": {
+        "line": 60,
+        "column": 16,
+        "offset": 1639
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "logging",
+      "kind": "import",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    },
+    {
+      "spec": "abc",
+      "names": [
+        "ABC",
+        "abstractmethod"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 15
+      }
+    },
+    {
+      "spec": "typing",
+      "names": [
+        "Generic",
+        "Optional",
+        "TypeVar"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 51
+      }
+    },
+    {
+      "spec": "requests",
+      "kind": "import",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 98
+      }
+    },
+    {
+      "spec": ".models",
+      "names": [
+        "Item",
+        "Sized"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 115
+      }
+    },
+    {
+      "spec": ".",
+      "names": [
+        "store"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 147
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "getLogger",
+      "qualifier": "logging",
+      "kind": "call",
+      "start": {
+        "line": 10,
+        "column": 14,
+        "offset": 182
+      },
+      "enclosing": "log"
+    },
+    {
+      "name": "TypeVar",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 4,
+        "offset": 206
+      },
+      "enclosing": "T"
+    },
+    {
+      "name": "Exception",
+      "kind": "extends",
+      "start": {
+        "line": 14,
+        "column": 19,
+        "offset": 240
+      },
+      "enclosing": "ServiceError"
+    },
+    {
+      "name": "ABC",
+      "kind": "extends",
+      "start": {
+        "line": 18,
+        "column": 17,
+        "offset": 322
+      },
+      "enclosing": "Repository"
+    },
+    {
+      "name": "Generic",
+      "kind": "extends",
+      "start": {
+        "line": 18,
+        "column": 22,
+        "offset": 327
+      },
+      "enclosing": "Repository"
+    },
+    {
+      "name": "abstractmethod",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 5,
+        "offset": 345
+      },
+      "enclosing": "Repository"
+    },
+    {
+      "name": "Optional",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 31,
+        "offset": 391
+      },
+      "enclosing": "Repository.get"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 40,
+        "offset": 400
+      },
+      "enclosing": "Repository.get"
+    },
+    {
+      "name": "abstractmethod",
+      "kind": "call",
+      "start": {
+        "line": 22,
+        "column": 5,
+        "offset": 414
+      },
+      "enclosing": "Repository"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 35,
+        "offset": 464
+      },
+      "enclosing": "Repository.put"
+    },
+    {
+      "name": "Repository",
+      "kind": "extends",
+      "start": {
+        "line": 26,
+        "column": 21,
+        "offset": 503
+      },
+      "enclosing": "ItemRepository"
+    },
+    {
+      "name": "Base",
+      "qualifier": "store",
+      "kind": "extends",
+      "start": {
+        "line": 26,
+        "column": 45,
+        "offset": 527
+      },
+      "enclosing": "ItemRepository"
+    },
+    {
+      "name": "Session",
+      "qualifier": "requests",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 41,
+        "offset": 601
+      },
+      "enclosing": "ItemRepository.__init__"
+    },
+    {
+      "name": "__init__",
+      "qualifier": "super()",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 16,
+        "offset": 650
+      },
+      "enclosing": "ItemRepository.__init__"
+    },
+    {
+      "name": "Optional",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 31,
+        "offset": 757
+      },
+      "enclosing": "ItemRepository.get"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 40,
+        "offset": 766
+      },
+      "enclosing": "ItemRepository.get"
+    },
+    {
+      "name": "get",
+      "qualifier": "self.session",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 32,
+        "offset": 818
+      },
+      "enclosing": "ItemRepository.get"
+    },
+    {
+      "name": "raise_for_status",
+      "qualifier": "resp",
+      "kind": "call",
+      "start": {
+        "line": 35,
+        "column": 17,
+        "offset": 865
+      },
+      "enclosing": "ItemRepository.get"
+    },
+    {
+      "name": "HTTPError",
+      "qualifier": "requests",
+      "kind": "type",
+      "start": {
+        "line": 36,
+        "column": 25,
+        "offset": 909
+      },
+      "enclosing": "ItemRepository.get"
+    },
+    {
+      "name": "ConnectionError",
+      "kind": "type",
+      "start": {
+        "line": 36,
+        "column": 36,
+        "offset": 920
+      },
+      "enclosing": "ItemRepository.get"
+    },
+    {
+      "name": "warning",
+      "qualifier": "log",
+      "kind": "call",
+      "start": {
+        "line": 37,
+        "column": 16,
+        "offset": 961
+      },
+      "enclosing": "ItemRepository.get"
+    },
+    {
+      "name": "ServiceError",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 18,
+        "offset": 1011
+      },
+      "enclosing": "ItemRepository.get"
+    },
+    {
+      "name": "NotFound",
+      "qualifier": "store",
+      "kind": "type",
+      "start": {
+        "line": 39,
+        "column": 21,
+        "offset": 1059
+      },
+      "enclosing": "ItemRepository.get"
+    },
+    {
+      "name": "parse",
+      "qualifier": "Item",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 20,
+        "offset": 1113
+      },
+      "enclosing": "ItemRepository.get"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 43,
+        "column": 35,
+        "offset": 1166
+      },
+      "enclosing": "ItemRepository.put"
+    },
+    {
+      "name": "Value",
+      "qualifier": "store",
+      "kind": "type",
+      "start": {
+        "line": 44,
+        "column": 33,
+        "offset": 1214
+      },
+      "enclosing": "ItemRepository.put"
+    },
+    {
+      "name": "encode",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 42,
+        "offset": 1223
+      },
+      "enclosing": "ItemRepository.put"
+    },
+    {
+      "name": "put",
+      "qualifier": "self.session",
+      "kind": "call",
+      "start": {
+        "line": 45,
+        "column": 21,
+        "offset": 1258
+      },
+      "enclosing": "ItemRepository.put"
+    },
+    {
+      "name": "Sized",
+      "kind": "type",
+      "start": {
+        "line": 48,
+        "column": 17,
+        "offset": 1321
+      },
+      "enclosing": "encode"
+    },
+    {
+      "name": "size",
+      "qualifier": "item",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 25,
+        "offset": 1382
+      },
+      "enclosing": "encode"
+    },
+    {
+      "name": "checksum",
+      "qualifier": "store",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 51,
+        "offset": 1408
+      },
+      "enclosing": "encode"
+    },
+    {
+      "name": "catch",
+      "qualifier": "log",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 5,
+        "offset": 1431
+      }
+    },
+    {
+      "name": "retry",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 1,
+        "offset": 1438
+      }
+    },
+    {
+      "name": "ItemRepository",
+      "kind": "type",
+      "start": {
+        "line": 54,
+        "column": 15,
+        "offset": 1468
+      },
+      "enclosing": "sync"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 54,
+        "column": 43,
+        "offset": 1496
+      },
+      "enclosing": "sync"
+    },
+    {
+      "name": "put",
+      "qualifier": "repo",
+      "kind": "call",
+      "start": {
+        "line": 57,
+        "column": 13,
+        "offset": 1561
+      },
+      "enclosing": "sync"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 11,
+        "column": 16,
+        "offset": 218
+      },
+      "text": "import logging\nfrom abc import ABC, abstractmethod\nfrom typing import Generic, Optional, TypeVar\n\nimport requests\n\nfrom .models import Item, Sized\nfrom . import store\n\nlog = logging.getLogger(__name__)\nT = TypeVar(\"T\")",
+      "hash": "ded68673db3fc3ca61cd53feb0d710a2a12e14ad3f42f5103bfc8573720d78e4"
+    },
+    {
+      "id": "ServiceError#1",
+      "kind": "symbol",
+      "symbolId": "ServiceError",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 221
+      },
+      "end": {
+        "line": 15,
+        "column": 50,
+        "offset": 302
+      },
+      "text": "class ServiceError(Exception):\n    \"\"\"Raised when a call to the service fails.\"\"\"",
+      "hash": "90012d0ed82f26085aae8cea654e37bc81a84da70dcab4733f5a9edc074365b2"
+    },
+    {
+      "id": "Repository#1",
+      "kind": "symbol",
+      "symbolId": "Repository",
+      "start": {
+        "line": 18,
+        "column": 0,
+        "offset": 305
+      },
+      "end": {
+        "line": 23,
+        "column": 50,
+        "offset": 479
+      },
+      "text": "class Repository(ABC, Generic[T]):\n    @abstractmethod\n    def get(self, key: str) -\u003e Optional[T]: ...\n\n    @abstractmethod\n    def put(self, key: str, value: T) -\u003e None: ...",
+      "hash": "a8b820b5ec82f3df49d0ab496966dd1031edc1529e5b6da4431de4307f6f070d"
+    },
+    {
+      "id": "ItemRepository#1",
+      "kind": "symbol",
+      "symbolId": "ItemRepository",
+      "start": {
+        "line": 26,
+        "column": 0,
+        "offset": 482
+      },
+      "end": {
+        "line": 45,
+        "column": 64,
+        "offset": 1301
+      },
+      "text": "class ItemRepository(Repository[Item], store.Base, metaclass=store.Registry):\n    def __init__(self, session: requests.Session, base_url: str) -\u003e None:\n        super().__init__()\n        self.session = session\n        self.base_url = base_url\n\n    def get(self, key: str) -\u003e Optional[Item]:\n        try:\n            resp = self.session.get(f\"{self.base_url}/{key}\")\n            resp.raise_for_status()\n        except (requests.HTTPError, ConnectionError) as exc:\n            log.warning(\"get %s: %s\", key, exc)\n            raise ServiceError(key) from exc\n        except store.NotFound:\n            return None\n        return Item.parse(resp.text)\n\n    def put(self, key: str, value: Item) -\u003e None:\n        payload: dict[str, store.Value] = encode(value)\n        self.session.put(f\"{self.base_url}/{key}\", json=payload)",
+      "hash": "f7c999e75f8958baacd42d6c51d62a742e63154ff9559bdeac9436bd16ba9d31"
+    },
+    {
+      "id": "encode#1",
+      "kind": "symbol",
+      "symbolId": "encode",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 1304
+      },
+      "end": {
+        "line": 49,
+        "column": 66,
+        "offset": 1423
+      },
+      "text": "def encode(item: Sized) -\u003e dict[str, \"store.Value\"]:\n    return {\"size\": item.size(), \"checksum\": store.checksum(item)}",
+      "hash": "3dd3a0942de81fba32979389a70c9e70ba36923d9b2af1961e347448fd9f3a8e"
+    },
+    {
+      "id": "L52#1",
+      "kind": "window",
+      "start": {
+        "line": 52,
+        "column": 0,
+        "offset": 1426
+      },
+      "end": {
+        "line": 53,
+        "column": 15,
+        "offset": 1452
+      },
+      "text": "@log.catch\n@retry(times=3)",
+      "hash": "4ce6619ad0da380cc4c2723a4cb0641be19068f82e75ef936561551dda74b2f2"
+    },
+    {
+      "id": "sync#1",
+      "kind": "symbol",
+      "symbolId": "sync",
+      "start": {
+        "line": 54,
+        "column": 0,
+        "offset": 1453
+      },
+      "end": {
+        "line": 60,
+        "column": 16,
+        "offset": 1639
+      },
+      "text": "def sync(repo: ItemRepository, items: list[Item]) -\u003e int:\n    count = 0\n    for item in items:\n        repo.put(item.name, item)\n        count += 1\n    print(len(items))\n    return count",
+      "hash": "eeac23d0c9e48cb2a8edc59c22adedf645a295754c9d6b656bbe872c13e51740"
+    }
+  ]
+}

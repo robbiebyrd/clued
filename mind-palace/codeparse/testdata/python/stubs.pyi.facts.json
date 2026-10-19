@@ -1,0 +1,322 @@
+{
+  "lang": "python",
+  "symbols": [
+    {
+      "id": "TIMEOUT",
+      "kind": "const",
+      "name": "TIMEOUT",
+      "qualName": "TIMEOUT",
+      "signature": "TIMEOUT: float",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 99
+      },
+      "end": {
+        "line": 5,
+        "column": 14,
+        "offset": 113
+      },
+      "exported": true
+    },
+    {
+      "id": "default_client",
+      "kind": "var",
+      "name": "default_client",
+      "qualName": "default_client",
+      "signature": "default_client: Client",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 114
+      },
+      "end": {
+        "line": 6,
+        "column": 22,
+        "offset": 136
+      },
+      "exported": true
+    },
+    {
+      "id": "Client",
+      "kind": "class",
+      "name": "Client",
+      "qualName": "Client",
+      "signature": "class Client:",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 138
+      },
+      "end": {
+        "line": 15,
+        "column": 38,
+        "offset": 401
+      },
+      "exported": true
+    },
+    {
+      "id": "Client.base_url",
+      "kind": "field",
+      "name": "base_url",
+      "qualName": "Client.base_url",
+      "signature": "base_url: str",
+      "start": {
+        "line": 9,
+        "column": 4,
+        "offset": 156
+      },
+      "end": {
+        "line": 9,
+        "column": 17,
+        "offset": 169
+      },
+      "parent": "Client",
+      "exported": true
+    },
+    {
+      "id": "Client.__init__",
+      "kind": "method",
+      "name": "__init__",
+      "qualName": "Client.__init__",
+      "signature": "def __init__(self, base_url: str, *, timeout: float = ...) -\u003e None:",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 174
+      },
+      "end": {
+        "line": 10,
+        "column": 75,
+        "offset": 245
+      },
+      "parent": "Client"
+    },
+    {
+      "id": "Client.get",
+      "kind": "method",
+      "name": "get",
+      "qualName": "Client.get",
+      "signature": "def get(self, key: int) -\u003e Item:",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 264
+      },
+      "end": {
+        "line": 12,
+        "column": 40,
+        "offset": 300
+      },
+      "parent": "Client",
+      "exported": true
+    },
+    {
+      "id": "Client.get~2",
+      "kind": "method",
+      "name": "get",
+      "qualName": "Client.get",
+      "signature": "def get(self, key: str) -\u003e Item | None:",
+      "start": {
+        "line": 14,
+        "column": 4,
+        "offset": 319
+      },
+      "end": {
+        "line": 14,
+        "column": 47,
+        "offset": 362
+      },
+      "parent": "Client",
+      "exported": true
+    },
+    {
+      "id": "Client.close",
+      "kind": "method",
+      "name": "close",
+      "qualName": "Client.close",
+      "signature": "async def close(self) -\u003e None:",
+      "start": {
+        "line": 15,
+        "column": 4,
+        "offset": 367
+      },
+      "end": {
+        "line": 15,
+        "column": 38,
+        "offset": 401
+      },
+      "parent": "Client",
+      "exported": true
+    },
+    {
+      "id": "connect",
+      "kind": "function",
+      "name": "connect",
+      "qualName": "connect",
+      "signature": "def connect(url: str, **kwargs: Any) -\u003e Client:",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 403
+      },
+      "end": {
+        "line": 17,
+        "column": 51,
+        "offset": 454
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "typing",
+      "names": [
+        "Any",
+        "overload"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 40
+      }
+    },
+    {
+      "spec": ".models",
+      "names": [
+        "Item"
+      ],
+      "kind": "from",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 73
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Client",
+      "kind": "type",
+      "start": {
+        "line": 6,
+        "column": 16,
+        "offset": 130
+      },
+      "enclosing": "default_client"
+    },
+    {
+      "name": "overload",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 5,
+        "offset": 251
+      },
+      "enclosing": "Client"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 31,
+        "offset": 291
+      },
+      "enclosing": "Client.get"
+    },
+    {
+      "name": "overload",
+      "kind": "call",
+      "start": {
+        "line": 13,
+        "column": 5,
+        "offset": 306
+      },
+      "enclosing": "Client"
+    },
+    {
+      "name": "Item",
+      "kind": "type",
+      "start": {
+        "line": 14,
+        "column": 31,
+        "offset": 346
+      },
+      "enclosing": "Client.get~2"
+    },
+    {
+      "name": "Any",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 32,
+        "offset": 435
+      },
+      "enclosing": "connect"
+    },
+    {
+      "name": "Client",
+      "kind": "type",
+      "start": {
+        "line": 17,
+        "column": 40,
+        "offset": 443
+      },
+      "enclosing": "connect"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 6,
+        "column": 22,
+        "offset": 136
+      },
+      "text": "\"\"\"Type stubs for the client module.\"\"\"\nfrom typing import Any, overload\nfrom .models import Item\n\nTIMEOUT: float\ndefault_client: Client",
+      "hash": "e5f0322a6d3f70cc67643b3b82140a940605678c7659a77c34e84358c51c6516"
+    },
+    {
+      "id": "Client#1",
+      "kind": "symbol",
+      "symbolId": "Client",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 138
+      },
+      "end": {
+        "line": 15,
+        "column": 38,
+        "offset": 401
+      },
+      "text": "class Client:\n    base_url: str\n    def __init__(self, base_url: str, *, timeout: float = ...) -\u003e None: ...\n    @overload\n    def get(self, key: int) -\u003e Item: ...\n    @overload\n    def get(self, key: str) -\u003e Item | None: ...\n    async def close(self) -\u003e None: ...",
+      "hash": "77e1378be1d331d30cf15aae5894db492222320690b689fecdaff51fc9c2b64c"
+    },
+    {
+      "id": "connect#1",
+      "kind": "symbol",
+      "symbolId": "connect",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 403
+      },
+      "end": {
+        "line": 17,
+        "column": 51,
+        "offset": 454
+      },
+      "text": "def connect(url: str, **kwargs: Any) -\u003e Client: ...",
+      "hash": "237613fd4e3992b541fa5cef7d295c577e312f3865b079e109d09766b849546a"
+    }
+  ]
+}
