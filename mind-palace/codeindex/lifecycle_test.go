@@ -462,8 +462,8 @@ func TestRebuildKeepsItsLeaseAlive(t *testing.T) {
 	want := dumpGraph(t, e.ctx, e.g)
 	// The incremental path saves the cursor after every batch; a rebuild
 	// writes the whole graph in one go, so it extends the lease itself.
-	e.svc.opts.Lease = 60 * time.Millisecond
-	e.svc.opts.Apply = slowApplier{Applier: FileApplier{}, delay: 250 * time.Millisecond}
+	e.svc.opts.Lease = 300 * time.Millisecond
+	e.svc.opts.Apply = slowApplier{Applier: FileApplier{}, delay: time.Second}
 	res, err := e.svc.Rebuild(e.ctx, e.project)
 	if err != nil {
 		t.Fatalf("Rebuild with a short lease = %v", err)
@@ -490,7 +490,8 @@ func TestRunChecksRepairsInTheBackground(t *testing.T) {
 	go func() { done <- e.svc.RunChecks(ctx, 20*time.Millisecond, true) }()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if rep, err := e.svc.Check(e.ctx, e.project, false); err == nil && rep.Consistent {
+		// The repair lands before its log line: wait for both.
+		if rep, err := e.svc.Check(e.ctx, e.project, false); err == nil && rep.Consistent && strings.Contains(logs.String(), "drifted") {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)

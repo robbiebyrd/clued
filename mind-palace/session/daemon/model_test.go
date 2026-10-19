@@ -38,17 +38,23 @@ func TestTranscriptModelIsRecordedOnTheSession(t *testing.T) {
 		}
 		fh.Close()
 		eventually(t, "session model", func() bool { return sessionDoc(f.store, "sess-model")["model"] == "claude-b" })
-		full, err := f.store.FullSession(context.Background(), testAccount, "sess-model")
-		if err != nil {
-			t.Fatal(err)
-		}
-		// The memory store joins typed documents, MongoDB decoded ones.
+		// The session's model and the ModelChanged events are separate
+		// writes: wait for both changes rather than the first one seen.
 		var changes []session.Doc
-		for _, ev := range joined(full["hook_events"]) {
-			if ev["hook_event_name"] == session.ModelChangedEventName {
-				changes = append(changes, ev)
+		eventually(t, "model changes", func() bool {
+			full, err := f.store.FullSession(context.Background(), testAccount, "sess-model")
+			if err != nil {
+				return false
 			}
-		}
+			changes = nil
+			// The memory store joins typed documents, MongoDB decoded ones.
+			for _, ev := range joined(full["hook_events"]) {
+				if ev["hook_event_name"] == session.ModelChangedEventName {
+					changes = append(changes, ev)
+				}
+			}
+			return len(changes) >= 2
+		})
 		if len(changes) != 2 || changes[0]["to"] != "claude-a" || changes[1]["from"] != "claude-a" || changes[1]["to"] != "claude-b" || fmt.Sprint(changes[1]["seq"]) != "3" {
 			t.Fatalf("model changes = %v", changes)
 		}

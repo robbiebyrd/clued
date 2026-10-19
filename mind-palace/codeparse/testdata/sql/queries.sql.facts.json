@@ -1,0 +1,213 @@
+{
+  "lang": "sql",
+  "imports": [
+    {
+      "spec": "schema.sql",
+      "kind": "include",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 35
+      }
+    },
+    {
+      "spec": "helpers/dates.sql",
+      "kind": "include",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 49
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "users",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 5,
+        "column": 20,
+        "offset": 94
+      }
+    },
+    {
+      "name": "invoices",
+      "kind": "type",
+      "start": {
+        "line": 7,
+        "column": 12,
+        "offset": 161
+      }
+    },
+    {
+      "name": "money_amount",
+      "kind": "type",
+      "start": {
+        "line": 7,
+        "column": 68,
+        "offset": 217
+      }
+    },
+    {
+      "name": "users",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 9,
+        "column": 14,
+        "offset": 247
+      }
+    },
+    {
+      "name": "invoices",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 7,
+        "offset": 295
+      }
+    },
+    {
+      "name": "payments",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 41,
+        "offset": 329
+      }
+    },
+    {
+      "name": "sessions",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 12,
+        "offset": 392
+      }
+    },
+    {
+      "name": "send_reminders",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 428
+      }
+    },
+    {
+      "name": "user_total",
+      "qualifier": "billing",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 24,
+        "offset": 477
+      }
+    },
+    {
+      "name": "format_money",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 51,
+        "offset": 504
+      }
+    },
+    {
+      "name": "active_users",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 18,
+        "column": 13,
+        "offset": 539
+      }
+    },
+    {
+      "name": "invoices",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 10,
+        "offset": 564
+      }
+    },
+    {
+      "name": "invoices",
+      "kind": "type",
+      "start": {
+        "line": 25,
+        "column": 16,
+        "offset": 679
+      }
+    },
+    {
+      "name": "recent",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 21,
+        "offset": 753
+      }
+    },
+    {
+      "name": "teams",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 41,
+        "offset": 773
+      }
+    },
+    {
+      "name": "mood",
+      "qualifier": "billing",
+      "kind": "type",
+      "start": {
+        "line": 29,
+        "column": 20,
+        "offset": 811
+      }
+    },
+    {
+      "name": "events",
+      "qualifier": "audit",
+      "kind": "type",
+      "start": {
+        "line": 29,
+        "column": 46,
+        "offset": 837
+      }
+    },
+    {
+      "name": "refresh_totals",
+      "qualifier": "billing",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 0,
+        "offset": 846
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 31,
+        "column": 30,
+        "offset": 876
+      },
+      "text": "-- Reports run by the nightly job.\n\\i schema.sql\n\\ir 'helpers/dates.sql'\n\nINSERT INTO billing.users (email, team_id) VALUES ('ada@example.com', 1);\n\nINSERT INTO invoices (user_id, total) VALUES (1, ROW(12.50, 'EUR')::money_amount);\n\nUPDATE billing.users SET mood = 'happy' WHERE id = 1;\n\nUPDATE invoices SET paid_at = now() FROM payments WHERE payments.invoice_id = invoices.id;\n\nDELETE FROM sessions WHERE expires_at \u003c now();\n\nCALL send_reminders(7);\n\nSELECT u.email, billing.user_total(u.id) AS total, format_money(i.total)\nFROM billing.active_users u\nLEFT JOIN invoices i ON i.user_id = u.id\nWHERE u.team_id = 1\nORDER BY total DESC\nLIMIT 10;\n\nWITH recent AS (\n  SELECT * FROM invoices WHERE paid_at \u003e now() - interval '7 days'\n)\nSELECT count(*) FROM recent JOIN billing.teams t ON true;\n\nSELECT 'x'::billing.mood, COUNT(*) FROM audit.events;\n\nCALL billing.refresh_totals();",
+      "hash": "a4f8c44af8cf401626880c9653fa994b0ed69546091f54b36ef62263f529d8ca"
+    }
+  ]
+}
