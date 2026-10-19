@@ -59,15 +59,22 @@ import (
 //     non-member whose signature starts with static) is visible only in its
 //     own file and to files that include it.
 //
-// Objective-C messages ([Shape shapeNamed:]) are references named by their
-// selector's first keyword and qualified by the receiver, so a class
-// receiver resolves through the qualified name (Shape.shapeNamed) and any
-// other through the member fallback.
+// Objective-C messages ([Shape shapeNamed:], [list insertObject:x
+// atIndex:0]) are references named by their full selector (shapeNamed:,
+// insertObject:atIndex:), as the methods are, and qualified by the
+// receiver, so a class receiver resolves through the qualified name
+// (Shape.insertObject:atIndex:) and any other through the member fallback;
+// two methods that share a first keyword never stand in for each other.
+//
+// A qualifier written from the root (::n::f) or a C++ qualified name
+// (n::A::f) is matched whole first (AbsoluteQualifiers, exact), and a
+// method defined out of line in another file than its class (no parent in
+// its file's facts) is a member of the class (ReceiverMembers).
 func init() { Register(codeparse.FamilyCFamily, cfamily{}) }
 
 type cfamily struct{}
 
-var cfamilyRules = Rules{Separators: []string{"::", "."}, NameFallback: true, MemberFallback: true}
+var cfamilyRules = Rules{Separators: []string{"::", "."}, NameFallback: true, MemberFallback: true, ReceiverMembers: true, AbsoluteQualifiers: true}
 
 // Import kinds of the C family's extractors.
 const (
