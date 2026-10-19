@@ -1,0 +1,34 @@
+# Ruby: no package declaration; a constant's scope is the lexical nesting
+# of its module and class bodies (Shop::Order), so names are qualified
+# with "::" by nesting. Files are pulled in by require (load path) and
+# require_relative (the requiring file's directory); include, extend and
+# prepend mix a module in (reference.mixin). Attribute macros, define_method
+# and Rake's namespace and task define symbols written as calls.
+name: Ruby
+family: ruby
+extensions: [.rb, .rake]
+filenames: [Gemfile]
+query: tags.scm
+definingForms:
+  - { form: attr_reader, kind: property }
+  - { form: attr_writer, kind: property }
+  - { form: attr_accessor, kind: property }
+  - { form: attr, kind: property }
+  - { form: define_method, kind: method }
+  - { form: define_singleton_method, kind: method }
+  - { form: alias_method, kind: method }
+  - { form: namespace, kind: namespace }
+  - { form: task, kind: task }
+scope:
+  separators: ["::", "#", "."]
+  packageBy: none
+  exported: all
+  options:
+    # require "a/b" resolves against the load path (lib/ by convention),
+    # require_relative "a/b" against the requiring file's directory.
+    loadPath: lib
+    requireRelative: file
+    # Constants resolve through the lexical nesting, then the ancestors
+    # (superclass and these mixins).
+    nesting: lexical
+    mixins: include,extend,prepend
