@@ -3,11 +3,13 @@ id: 0056-qbe
 title: MongoDB code store (`mongocode`)
 purpose: The server's real backend for collected code.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:05:13.803Z"
-updated: "2026-10-19T18:26:18.469Z"
+updated: "2026-10-19T19:16:27.601Z"
+started: "2026-10-19T19:12:23.222Z"
+completed: "2026-10-19T19:16:27.601Z"
 tags:
   - plan-0010-awy
   - wave-3
@@ -30,15 +32,15 @@ links:
     - ["0010-awy", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # MongoDB code store (`mongocode`)
@@ -75,9 +77,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./code/mongocode/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./code/mongocode/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./code/mongocode/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./code/mongocode/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -85,3 +87,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/code/mongocode/mongocode_test.go` - runs `codetest.Run` when `MIND_PALACE_TEST_MONGODB_URI` is set
 
 ## Work Log
+
+### 2026-10-19T19:16:21.931Z - Added code/mongocode: Open(ctx, db, prefix, ...Option) over collections <prefix>code_blobs, code_trees ({worktree,ref,path} unique, {git_oid}), code_worktrees, code_changes ({seq} unique) and code_counters (the per-project seq document); ProjectPrefix(base, project) = base+project+"_" as server/projects stamps mongostore. Commit and RemoveWorktree run in a transaction when hello reports a replica set or mongos (Transactions()), otherwise (or with WithoutTransactions()) write tree, then worktree, then the log entry so a retry is idempotent. Stores validate paths, refs, worktree ids, shas, git oids, head/upstream and blob size/hash (ErrInvalid) before the missing-blob check. Session ids and refs enter the update pipeline as $literal. RemoveWorktree also drops the worktree's trees (matches the tombstone's replay). Tests: codetest.Run with and without transactions (26 cases each), plus transaction detection, project-prefixed collections, a partial non-transactional commit completed by retry, and $-prefixed values; all pass with MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 (-race, -count=3). gofmt, go vet, go build clean. Only the two listed files changed.
