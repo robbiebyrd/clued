@@ -228,7 +228,7 @@ type WorkLogParams struct {
 type SyncParams struct {
 	From       string `json:"from" jsonschema:"Source store name"`
 	To         string `json:"to" jsonschema:"Target store name"`
-	OnConflict string `json:"onConflict,omitempty" jsonschema:"error (default), skip or overwrite"`
+	OnConflict string `json:"onConflict,omitempty" jsonschema:"error (default), skip, overwrite or newer"`
 }
 
 type Empty struct{}
@@ -538,7 +538,7 @@ func For(k *kind.Kind) *Registry {
 	}
 
 	// Storage and introspection
-	Register(r, &Op{Name: "sync", Group: "storage", Description: "Copy every plan, story and template from one configured store to another. onConflict: error (stop), skip (report) or overwrite (source wins)."},
+	Register(r, &Op{Name: "sync", Group: "storage", Description: "Copy every plan, story and template from one configured store to another. onConflict: error (stop), skip (report), overwrite (source wins) or newer (source wins when its updated timestamp is the same or later, else reported)."},
 		func(ctx context.Context, svc *service.Service, p SyncParams) (any, error) {
 			return svc.Palace().Sync(ctx, p.From, p.To, p.OnConflict)
 		})

@@ -1125,7 +1125,7 @@ func (kc *kindCommands) logCmd() *cobra.Command {
 
 func (a *App) syncCmd() *cobra.Command {
 	var p ops.SyncParams
-	c := &cobra.Command{Use: "sync --from <store> --to <store> [--on-conflict error|skip|overwrite]", Short: "Copy plans, stories and templates between configured stores", Args: cobra.NoArgs,
+	c := &cobra.Command{Use: "sync --from <store> --to <store> [--on-conflict error|skip|overwrite|newer]", Short: "Copy plans, stories and templates between configured stores", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if p.From == "" || p.To == "" {
 				return a.fail(&service.Error{Kind: service.KindBadRequest, Message: "--from and --to are required"})
@@ -1134,7 +1134,7 @@ func (a *App) syncCmd() *cobra.Command {
 		}}
 	c.Flags().StringVar(&p.From, "from", "", "source store name")
 	c.Flags().StringVar(&p.To, "to", "", "target store name")
-	c.Flags().StringVar(&p.OnConflict, "on-conflict", "error", "error, skip or overwrite")
+	c.Flags().StringVar(&p.OnConflict, "on-conflict", "error", "error, skip, overwrite or newer (the source wins when its updated timestamp is the same or later)")
 	return c
 }
 

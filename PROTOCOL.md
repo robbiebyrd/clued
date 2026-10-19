@@ -498,8 +498,9 @@ symbolic link of a parent directory). Failures are notes in `relay.log`
    worktree whose lock is held, and while a back-off runs.
 2. Take `<id>.lock`; read `<id>.json`. On a full reconcile (forced, a new
    ref, root or project, or the last one 6 hours old) or a ref change, ask
-   `GET capabilities`: a smaller `maxFileBytes` lowers the content cap, and
-   `maxBatch` sizes the batches.
+   `GET capabilities`: a smaller `maxFileBytes` lowers the content cap,
+   `maxBatch` sizes the batches, and `github` is kept in the state (see
+   GitHub-backed projects below).
 3. Collect the candidates: the pending queue, the event's paths, the status
    paths (Bash, Stop), and, on a full reconcile or when HEAD moved,
    everything `git ls-files -z -co --exclude-standard --full-name` lists
@@ -545,6 +546,18 @@ symbolic link of a parent directory). Failures are notes in `relay.log`
 7. Mark what was committed as synced and save the state; whatever did not
    fit stays in `pending` for the next run.
 
+**GitHub-backed projects.** When the last full reconcile read `"github":
+true` from `capabilities` (a project a claimed GitHub App installation
+supplies; section 7.12 and [docs/github-app.md](docs/github-app.md)), a
+file that is clean and pushed (it has a `git_oid`, `git status` does not
+list it and it is not in the upstream diff) is neither read, hashed nor
+uploaded: its upsert carries `sha256: ""`, its `git_oid`, `size`, `mode`
+and `lang`, and no blob goes with it. Dirty and unpushed files are hashed
+and uploaded as before, and a clean file that turns dirty or unpushed is
+read again. When a full reconcile reads `"github": false` (or the store
+has no `capabilities`), the files sent that way lose their stamp and synced
+mark, so that reconcile reads, uploads and commits them with content.
+
 **Budget.** A relay run stops reading and uploading at three quarters of its
 time (at most 3 s) so the commit still fits, and reads at most 8 MiB of
 changed content (the first file is always read); the rest stays pending.
@@ -580,7 +593,8 @@ paths, stamps and hashes, never content or the token:
 ```
 
 `files`, `gitOid`, `pending`'s lists, `lastFull`, `refused` and
-`unsupportedUntil` are left out when empty. A state file that cannot be
+`unsupportedUntil` are left out when empty, and so is `"github": true`
+(the project's `capabilities.github` as the last full reconcile read it). A state file that cannot be
 parsed is replaced by a full reconcile. `session code-sync status` prints a
 summary of these files (section 9).
 
@@ -1099,9 +1113,11 @@ marked verify or manual), `removeCriterion` (`position`).
 Work log (stories): `appendWorkLog` (`entry`); the service adds the
 timestamp and the section is append-only.
 
-Storage: `sync` (`from`, `to`, `onConflict`: `error`, `skip` or
-`overwrite`) copies every plan, story and template between two configured
-stores; `getConfig` returns the effective configuration (types, statuses
+Storage: `sync` (`from`, `to`, `onConflict`: `error`, `skip`,
+`overwrite` or `newer`) copies every plan, story and template between two
+configured stores (`newer`: the source copy replaces the target's when its
+`updated` timestamp is the same or later, else the id is reported as a
+conflict; a copy without a readable `updated` is never the newer one); `getConfig` returns the effective configuration (types, statuses
 and synonyms, workflow, priorities, efforts, stores); `getSchema` returns
 the kind's creation JSON Schema.
 
@@ -1609,9 +1625,16 @@ its input, asks the embedding server's `BeforeCodeWrite` (every route but
   its own status and kind. The self-hosted server sets none. Clued Cloud
   uses it for its plan entitlement and byte quota.
 - **`github`** in `capabilities` is true on a project whose pushed code a
-  GitHub installation supplies (Clued Cloud; `CluedOptions.GitHubBacked`);
-  a change there may send clean, pushed entries with `sha256: ""` and their
-  `git_oid`, and the server takes the content from the GitHub copy.
+  claimed, active GitHub App installation supplies (Clued Cloud, through
+  `CluedOptions.GitHubBacked`; always false on a self-hosted server). It
+  changes no validation: an entry without content (`sha256: ""`) is
+  accepted on every project under the rules of **Entries** above. It tells
+  the client to send clean, pushed entries (`dirty: false`, `unpushed:
+  false`, with `git_oid`, in a change with an `upstream`) that way and to
+  upload no blob for them (section 4.4.1); the content of such an entry is
+  the one the GitHub-backed worktree `gh_<repository id>` holds under the
+  same `git_oid`, written by the GitHub sync (`ghsync`,
+  [docs/github-app.md](docs/github-app.md)), not by this transport.
 - **Not served.** A server without a code store answers every route under
   the prefix 404 `not_found` with the message `no route for <method>
   <path>`, and so does a route or method this table does not list; a
@@ -1626,6 +1649,52 @@ tree), `_code_worktrees`, `_code_changes` (the change log, by `seq`),
 in a transaction when the deployment supports one (a replica set) and are
 ordered to be idempotent on a retry otherwise. `--code-store memory` keeps
 them in the process.
+
+### 7.13 GitHub App webhook: `POST /github/webhook` (Clued Cloud)
+
+The GitHub App's Webhook URL ([docs/github-app.md](docs/github-app.md)).
+Clued Cloud serves it (`cloud/github.go` in clued-cloud) over the public
+module's `ghapp` (verification, typed events) and `ghsync` (the job and the
+sync); `mind-palace server run` does not. It sits outside every auth
+middleware: GitHub's signature is the authentication. The request is
+GitHub's: the raw JSON body and the headers `X-Hub-Signature-256`
+(`sha256=` and the hex HMAC-SHA256 of the raw body under the webhook
+secret), `X-GitHub-Event` and `X-GitHub-Delivery`. Checks run in this
+order:
+
+| Condition | Status | Body |
+|---|---|---|
+| Not `POST` | 405 | `{"ok": false, "error": {"kind": "method", …}}` |
+| Body over 25 MiB (`ghapp.MaxWebhookBody`) | 413 | kind `too_large` |
+| Signature missing, malformed or not matching (`ghapp.Verify`, `hmac.Equal`), checked before the payload is read | 401 | kind `signature` |
+| `X-GitHub-Delivery` missing or not a UUID (hex digits and dashes), or a payload that does not decode for its event | 400 | kind `bad_request` |
+| An event the app does not handle, a `ping`, a payload naming no installation | 200 | `{"ok": true, "outcome": "dropped", "reason": "unsubscribed" \| "ping" \| "no_installation"}` |
+| A delivery id seen in the last 7 days | 200 | `{"ok": true, "outcome": "duplicate"}` |
+| An installation never recorded, unclaimed, removed, suspended, or whose account or workspace is not entitled | 200 | `{"ok": true, "outcome": "dropped", "reason": "unknown" \| "unclaimed" \| "removed" \| "suspended" \| "not_entitled"}` |
+| The account store or the queue failed | 500 | kind `storage` (GitHub shows the delivery as failed; it can be redelivered) |
+| Otherwise: the job is queued | 202 | `{"ok": true, "outcome": "queued"}` |
+
+An `installation` delivery records the installation's account, installer
+(from `installation.created`), suspension and removal before the dedupe,
+whether or not it is claimed; an `installation_repositories` delivery of a
+claimed, active installation records its selection (added repositories
+importing, removed ones removed). Neither changes a claim. The handled
+events are `push`, `create`, `delete`, `pull_request`, `check_suite`,
+`check_run`, `status`, `workflow_run`, `installation`,
+`installation_repositories` and `repository`.
+
+The queued job is a `ghsync.Job` of kind `delivery` whose `ghsync.Delivery`
+holds `id`, `event`, `action`, `installation`, `repository`,
+`repositoryName`, `ref`, `before`, `after`, `sender`, `receivedAt` and
+`payload`: the typed `ghapp` event re-encoded, so only the fields `ghapp`
+declares, never the raw body. No GitHub API call is made on the request
+path, and logs carry the delivery id, the event and the outcome only.
+Workers (`ghsync.Service.Work`) run one job per repository at a time,
+retry with back-off from 30 s doubling to 1 hour, dead-letter after 10
+attempts and pause an installation on a GitHub rate limit; what a job
+writes (the GitHub-backed worktree `gh_<repository id>`, the plans and
+stories, the activity log in `<project>_code_events`) is described in
+docs/github-app.md. Nothing is ever sent back to GitHub.
 
 ## 8. The remote client
 
@@ -1677,7 +1746,7 @@ criteria <doc>                                   check <doc> <position> [state] 
 log <doc> <entry>
 ```
 
-Cross-kind: `sync --from <store> --to <store> [--on-conflict error|skip|overwrite]`,
+Cross-kind: `sync --from <store> --to <store> [--on-conflict error|skip|overwrite|newer]` (aliases: `fail`, `abort`; `report`; `force`, `source`; `latest`),
 `call <operation> [--kind plan|story] [--params '{…}'|file|-]`, `ops`,
 `config`, `schema [--kind]`, `stores`, `serve [--addr]` (the plan and story
 service API, WebSocket and MCP over HTTP for one repository, without
@@ -1957,7 +2026,26 @@ storage:                     # every store writes fan out to; the first is the p
 server:   {addr: 127.0.0.1:8080}
 remote:   {project: github.com__owner__repo}   # overrides the project slug derived from the git origin
 codeSync: false                                # keeps this repository out of code sync (section 4.4.1), whatever config.json says
+github:   {branches: active, activeDays: 14, maxBranches: 200}   # the GitHub App's branch policy (below)
 ```
+
+`github:` is read only by the GitHub App sync (`ghsync.ParseRepoConfig`,
+from the file on the repository's default branch); the client validates it
+(`mind-palace config` fails on a bad value) and ignores it otherwise. Each
+key it sets wins over the setting on Clued Cloud's Integrations page, and
+an unset key falls back to that page, then to the default:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `github.branches` | `active` | `active`: the default branch plus every branch with an open pull request from the repository or a push within `activeDays`; `default`: the default branch only; `all`: every branch, the `maxBranches` most recently pushed (case and surrounding space ignored) |
+| `github.activeDays` | `14` | How recent a push keeps a branch active; a positive whole number |
+| `github.maxBranches` | `200` | The most branches synced under `all`, the default branch included; a positive whole number |
+
+A value out of range makes the file invalid for the sync: code sync from
+GitHub is held back and a `plan_sync_problem` is recorded until the file
+is fixed. The same sync honours `codeSync: false` and `remote.project`
+from the default branch's file, and reads `plans.dir` and `stories.dir`
+there to find the documents it mirrors ([docs/github-app.md](docs/github-app.md)).
 
 Storage kinds: `file`, `memory`, `mongodb` (alias `mongo`), `webdav`
 (alias `dav`), `firestore`, `clued`, `sqlite` (alias `sqlite3`), `postgres`

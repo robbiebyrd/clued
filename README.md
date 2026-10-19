@@ -563,6 +563,15 @@ kept up to date as files are added, edited and deleted:
   API: no route returns code, so a leaked client token cannot read any
   back. The routes and the state format are in
   [`PROTOCOL.md`](PROTOCOL.md) sections 7.12 and 4.4.1.
+- **From GitHub.** On Clued Cloud, the clued GitHub App (read-only) can
+  keep a repository's pushed branches, its plans and stories from the
+  default branch and a log of its pushes, pull requests and CI results up
+  to date from GitHub, whether or not anyone runs Claude Code. On such a
+  project the client uploads only what is not on GitHub yet (dirty and
+  unpushed files). Nothing is written back to GitHub, and the data stays
+  until it is wiped; the branch policy is set per repository with
+  `github:` in `mind-palace.config.yaml`. See
+  [`docs/github-app.md`](docs/github-app.md).
 
 ### Running the daemon by hand
 
