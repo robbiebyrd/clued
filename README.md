@@ -321,6 +321,10 @@ as `{"items", "truncated": true, "next"}`; pass `next` as `cursor` to
 continue. An item too large for the budget alone is returned with its
 longest strings clipped.
 
+In remote mode, when the server indexes the project, the server also lists
+the code tools `code_search`, `code_symbol`, `code_neighbors`,
+`code_outline` and `code_context` ([Code graph](#code-graph)).
+
 ### Session commands
 
 The same operations from the shell, via `mind-palace session` (or
@@ -513,7 +517,7 @@ rejects the token.
 ### Code sync
 
 In remote mode clued can also mirror the code Claude Code works on to the
-server, for a code graph built there later. It is **off** until you turn it
+server, which builds a [code graph](#code-graph) from it. It is **off** until you turn it
 on: `"codeSync": true` in `config.json` (or `CLUED_CODE_SYNC=true`), which
 `/clued-setup` asks about. Turned on, **the source of every git repository
 Claude Code works in on this machine is uploaded to the clued server**, and
@@ -572,6 +576,32 @@ kept up to date as files are added, edited and deleted:
   until it is wiped; the branch policy is set per repository with
   `github:` in `mind-palace.config.yaml`. See
   [`docs/github-app.md`](docs/github-app.md).
+
+### Code graph
+
+A clued server started with `--graph` (on in the `server init` stack, with
+FalkorDB as its fourth container) parses the collected code with
+tree-sitter and keeps one graph per project: symbols with their signatures
+and doc comments, imports, calls and references, in layers for the default
+branch, each pushed branch and each checkout's own uncommitted and
+unpushed edits. Once a project is indexed, the `clued` MCP server lists
+five more tools that read it for the session's own working tree and answer
+with `path:line` locations, so an agent opens only the lines it needs:
+
+| Tool | Does |
+|---|---|
+| `code_search` | Find symbols by name, qualified name or words in their names, signatures and doc comments |
+| `code_symbol` | One symbol: signature, doc, children and its source lines |
+| `code_neighbors` | Callers, callees, references, implementations, a file's imports or a package's importers, up to three hops |
+| `code_outline` | The symbols of a file or package in order, without bodies |
+| `code_context` | For a task in plain words: the best matches, their callers and callees, and the bodies that fit a token budget |
+
+Each is capped in tokens like the session tools. Nobody sees another
+account's local edits, nothing is sent to a third party (no embeddings),
+and no raw query reaches the graph. The layers, the tools' results, the
+languages understood today and rebuilding a graph are in
+[`docs/code-graph.md`](docs/code-graph.md); running it is in
+[`docs/server.md`](docs/server.md#the-code-graph).
 
 ### Running the daemon by hand
 

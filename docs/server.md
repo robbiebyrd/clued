@@ -24,6 +24,12 @@ How it fits together:
   repository's pushed code, plans and stories straight from GitHub through
   the clued GitHub App ([github-app.md](github-app.md)); a self-hosted
   server does not run the app.
+- **The code graph** (`--graph`, on in the `server init` stack) is built
+  on the server from that collected code: a FalkorDB graph per project with
+  the symbols, imports and calls of every file, read by agents through the
+  `code_search`, `code_symbol`, `code_neighbors`, `code_outline` and
+  `code_context` tools for their own working tree. See
+  [The code graph](#the-code-graph) and [code-graph.md](code-graph.md).
 - **MCP** stays available through the plugin's stdio servers, which in remote
   mode read and write through the server, and additionally over HTTPS at
   `/mcp` for clients that want no local process at all.
@@ -61,6 +67,7 @@ be configured without arguments:
 | `--config` | `MIND_PALACE_CONFIG` | `mind-palace.config.yaml` in the working directory | Plan and story storage, see below |
 | `--session-config` | | `~/.claude/plugins/data/clued/config.json` | Session storage and enrichers; `CLUED_MONGO_URL` and `CLUED_DB_NAME` override its `mongoUrl` and `dbName` |
 | `--code-store` | `CLUED_SERVER_CODE_STORE` | `mongo` (`memory` with `--store memory`) | Where collected code goes: `mongo`, `memory` or `off`; see [Collected code](#collected-code) |
+| `--graph` | `CLUED_SERVER_GRAPH` | off | The code graph: a FalkorDB URL (`redis://[user:password@]host:port`, `rediss://` for TLS) or `memory`; runs the indexer and serves the graph read routes. Needs a code store; see [The code graph](#the-code-graph) |
 | `--version` | | the build's version | Reported by `/health` and `/api/v1/whoami` |
 
 Sessions always live in MongoDB: set `CLUED_MONGO_URL` (for example
@@ -133,7 +140,7 @@ The directory holds everything the stack needs and is the server's home:
 | File | What it is |
 |---|---|
 | `stack.json` | Which runtime runs the stack, the proxy, the port, the server URL and the `up`, `down` and `logs` commands |
-| `docker-compose.yml` | Runtime `compose`. Three services: `nginx` (publishes `--port`, 8443 by default, over HTTPS and forwards to the server), `clued-server` (plain HTTP inside the compose network, `CLUED_SERVER_BEHIND_PROXY=true`, runs as your uid so it can read the token file) and `mongo` (`mongo:8` on the named volume `clued_mongo_data`, not published). The server image is the release of the plugin that ran `init` (`ghcr.io/robbiebyrd/clued-server:v<version>`, `:latest` from a bare binary; `--image` overrides it). Every value is literal, with no `${VAR:-default}` interpolation (Apple's compose plugin, among others, does not support it): change one by rerunning `init` with the matching flag |
+| `docker-compose.yml` | Runtime `compose`. Four services: `nginx` (publishes `--port`, 8443 by default, over HTTPS and forwards to the server), `clued-server` (plain HTTP inside the compose network, `CLUED_SERVER_BEHIND_PROXY=true`, runs as your uid so it can read the token file, the code store and the code graph on), `mongo` (`mongo:8` on the named volume `clued_mongo_data`, not published) and `falkordb` (the code graph, `falkordb/falkordb:v4.22.1` by default, `--falkordb-image` to change it: not published, no browser, no volume; the server starts once it is healthy). The server image is the release of the plugin that ran `init` (`ghcr.io/robbiebyrd/clued-server:v<version>`, `:latest` from a bare binary; `--image` overrides it). Every value is literal, with no `${VAR:-default}` interpolation (Apple's compose plugin, among others, does not support it): change one by rerunning `init` with the matching flag |
 | `up.sh`, `down.sh` | Runtime `apple`. `up.sh` starts `container system` when needed, creates the `clued_mongo_data` volume, starts `clued-mongo`, waits for it with `mongosh`, starts `clued-server` with the MongoDB address from `container inspect` (container names do not resolve inside Apple containers without a DNS domain set up with sudo) and, with nginx, renders `run/nginx/clued.conf` with the server's address and starts `clued-nginx` publishing `--port` on every interface. It is a no-op while the containers run (`up.sh --recreate` replaces them, which a rerun of `init` needs) and installs the launchd agent. The server container runs as root because bind-mounted files appear root-owned inside Apple containers. `down.sh` removes the containers and the agent; `down.sh --volumes` deletes the data too |
 | `launchd/com.robbiebyrd.clued-server.plist` | Runtime `apple`: the agent `up.sh` copies into `~/Library/LaunchAgents` so the stack starts at login (Apple Containers have no restart policy); it logs to `launchd/up.log` |
 | `run/` | Runtime `apple`: the storage and nginx configs rendered with the addresses of the current start |
@@ -142,9 +149,12 @@ The directory holds everything the stack needs and is the server's home:
 | `tls/ca.pem`, `tls/ca-key.pem` | A private CA, valid ten years and name-constrained to the hosts below (it can sign for this server and nothing else); clients put `ca.pem` in `serverCaFile`, or this machine trusts it with [`server trust`](#trusting-the-ca-on-this-machine) |
 | `tls/cert.pem`, `tls/key.pem` | The server certificate signed by that CA, valid two years, covering `localhost`, `127.0.0.1`, `::1`, this host's name and every `--host` |
 | `tokens.json` | The token file; `init` mints one token named after the host (`--name`, `--project`, `--account` as for `server token create`) and `mind-palace server token …` finds the file here by default |
+| `falkordb.password` | FalkorDB's password (0600): 32 random bytes as hex, generated by the first `init` and kept by every rerun, so a running FalkorDB keeps accepting the server. One of your own must be 16 or more letters and digits; delete the file to have a new one generated |
+| `falkordb.env` | FalkorDB's environment (0600): `REDIS_ARGS=--requirepass … --save --appendonly no` (persistence off) and `REDISCLI_AUTH` so the health check authenticates without the password on its command line; regenerated by each `init` |
+| `graph.env` | The server's environment (0600): `CLUED_SERVER_GRAPH=redis://default:…@falkordb:6379`, the `--graph` of `server run`; regenerated by each `init` (runtime `apple` renders `run/graph.env` with FalkorDB's address at each start) |
 
-`init` is safe to rerun: the runtime's files and the nginx and storage files
-are regenerated (so a plugin upgrade re-pins the image with another `init`,
+`init` is safe to rerun: the runtime's files and the nginx, storage and env
+files are regenerated (so a plugin upgrade re-pins the image with another `init`,
 followed by the `up` command again: `docker compose … up -d`, or `up.sh
 --recreate`), `tls/` and `tokens.json` are kept, and a token whose name
 exists is not minted again (`notes` says so). `--force` reissues the server
@@ -155,7 +165,8 @@ new CA, and `--new-ca` asks for one outright. Either way `notes` says when
 the CA changed, and every machine that trusted the old one must trust the
 new one (`server trust` again here, a new `ca.pem` in `serverCaFile`
 elsewhere). The result names the CA file and its SHA-256 fingerprint (`ca`,
-`ca_fingerprint`):
+`ca_fingerprint`), and says whether FalkorDB's password was `generated` or
+`kept` (`graph`; the password itself is never printed):
 
 ```bash
 mind-palace server init --host clued.home.arpa --host 192.168.1.20 --force --no-token
@@ -445,8 +456,9 @@ Clients that turn on `codeSync` upload the source of the repositories
 Claude Code works in to the code transport under
 `/api/v1/projects/{project}/code/` (PROTOCOL.md section 7.12). The server
 keeps it per namespaced project: each file's content once by SHA-256, a
-tree per worktree and branch, and an ordered change log, ready for a code
-graph indexer. No route serves the code back.
+tree per worktree and branch, and an ordered change log. No route of the
+code transport serves the code back; only the [code graph](#the-code-graph)
+reads it, for the caller's own view.
 
 | `--code-store` | What it does |
 |---|---|
@@ -486,6 +498,69 @@ self-hosted server sets no `GitHubBacked` (`github` is always false) and
 does not serve the webhook; the packages it would need (`ghapp`, `ghsync`)
 are in the public module. Permissions, what is stored, the branch policy
 and how to remove it are in [github-app.md](github-app.md).
+
+### The code graph
+
+With `--graph` the server turns the collected code into a code graph and
+serves the first routes that read code back: typed, token-capped queries
+under `/api/v1/projects/{project}/code/graph/` (`search`, `symbol`,
+`neighbors`, `outline`, `context`; PROTOCOL.md section 7.14), each answering
+for the caller's own view (the base, a branch, or the caller's own session
+overlay; never another account's). The plugin's `clued` MCP server offers
+them to agents as `code_search`, `code_symbol`, `code_neighbors`,
+`code_outline` and `code_context` once the project is indexed. What the
+graph holds, the layers and views, privacy and the languages understood
+are in [code-graph.md](code-graph.md).
+
+| `--graph` | What it does |
+|---|---|
+| `redis://[user:password@]host:port[/db]`, `rediss://…` | FalkorDB, one graph per project keyed by its namespace. The URL is not dialled at start: while FalkorDB is unreachable the indexer backs off (up to 5 minutes) without losing its place and the read routes answer 503 `unavailable`, so agents fall back to grep |
+| `memory` | In the process, lost on restart; for tests and trials |
+| unset or `off` | No indexer, no graph routes (404), and the plugin lists no code tools |
+
+The graph needs a code store (`--graph` with `--code-store off` is refused).
+The server runs the indexer in the process: it replays each project's change
+log in batches under a lease and a cursor, kept in the session MongoDB's
+`code_index_cursors` with `--code-store mongo` (in memory otherwise), is
+woken by every commit, polls every 2 seconds, parses each new file version
+once (tree-sitter, pure Go, in memory cache) and checks every project
+against its trees once an hour, repairing drift. The graph is a cache:
+FalkorDB needs no persistence and no backup, since everything in it can be
+written again from MongoDB.
+
+The stack of `server init` runs FalkorDB as its fourth container with a
+generated password and persistence off, and points the server at it through
+`graph.env`; FalkorDB is published on no port. To run without the graph in
+a stack, remove `graph.env` from the server's `env_file` (or its
+`--env-file` in `up.sh`) and restart it. With the binary, start a FalkorDB
+of your own with a password and no published port beyond what the server
+needs:
+
+```bash
+docker run -d --name falkordb -p 127.0.0.1:6379:6379 -e BROWSER=0 \
+  -e REDIS_ARGS="--requirepass $(cat ~/.clued-server/falkordb.password) --save --appendonly no" falkordb/falkordb:v4.22.1
+CLUED_SERVER_GRAPH="redis://default:$(cat ~/.clued-server/falkordb.password)@127.0.0.1:6379" \
+  mind-palace server run …
+```
+
+Rebuild, status and the consistency check run beside the server, against
+the same MongoDB and FalkorDB (they take the project's lease, so they never
+write while the server's indexer does; `--code-store mongo` only):
+
+```bash
+export CLUED_SERVER_GRAPH="redis://default:<password>@127.0.0.1:6379"   # the stack's is in graph.env
+mind-palace server graph status github.com__owner__repo                  # cursor, pending changes, lease, layers
+mind-palace server graph status github.com__owner__repo --check --repair # compare with the code store, fix drift
+mind-palace server graph rebuild github.com__owner__repo                 # drop the graph and rebuild it
+```
+
+The stack publishes no FalkorDB port, so run these inside the stack's
+network (`docker compose -f ~/.clued-server/docker-compose.yml exec
+clued-server mind-palace server graph …` with the server's own environment)
+or against a FalkorDB you published yourself. `rebuild` is the answer to a
+parser or schema upgrade, a graph that drifted and a FalkorDB that was
+restarted empty (the server's hourly check repairs those too, within the
+hour). Output and exit codes are in PROTOCOL.md section 9.
 
 ## Client setup
 
