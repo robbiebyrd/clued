@@ -36,9 +36,12 @@ import (
 // export *. A re-export itself binds nothing in its own file, nor does a
 // side-effect import or a dynamic import() that names nothing. A renamed
 // import (TypeScript's query writes "a as b", "default as b", "type a",
-// "a: b"; see JSImportName) binds nothing, since its references name b and
-// the definition is a, except default as b, which binds b to the default
-// export. Profile options: moduleSystems ("esm", "commonjs") choose which
+// "a: b"; see JSImportName) binds b as a renamed name (Scope.Renamed): a
+// reference to b, or b.x, reaches a in its module (and, through a
+// re-export that renamed it, export {x as a} from, the original x there);
+// default as b binds b to the default export. A module's members are
+// reachable through its namespace (ns.T.f; the engine's ImportMembers
+// finds module.exports = { f } members by their exported table). Profile options: moduleSystems ("esm", "commonjs") choose which
 // forms count; resolveExtensions or extensions, indexFile or indexFiles,
 // and tsconfig (the config file's name) tune the lookup. A file of one
 // language also tries the other's extensions (a mixed project).
@@ -56,7 +59,7 @@ func init() { Register(codeparse.FamilyJSTS, jsts{}) }
 
 type jsts struct{}
 
-var jstsRules = Rules{Separators: []string{"."}, NameFallback: true, MemberFallback: true}
+var jstsRules = Rules{Separators: []string{"."}, NameFallback: true, MemberFallback: true, ImportMembers: true}
 
 // Rules implements Resolver.
 func (jsts) Rules() Rules { return jstsRules }
@@ -139,8 +142,8 @@ func (jsts) Scope(ctx context.Context, v View, f *File) (Scope, error) {
 			if err != nil {
 				return s, err
 			}
-			for _, p := range def {
-				s.AddName(im.Alias, p)
+			for _, o := range def {
+				s.AddName(im.Alias, o.Package)
 			}
 		}
 		for _, written := range im.Names {
@@ -148,17 +151,20 @@ func (jsts) Scope(ctx context.Context, v View, f *File) (Scope, error) {
 			if name == "*" || local == "" {
 				continue
 			}
-			if name != local && name != "default" {
-				// import {a as b}: the reference is b, the definition a;
-				// a definition named b is not what it names.
-				continue
-			}
 			from, ns, err := r.export(mods, name)
 			if err != nil {
 				return s, err
 			}
-			for _, p := range from {
-				s.AddName(local, p)
+			for _, o := range from {
+				switch {
+				case name == "default" || o.Name == local:
+					s.AddName(local, o.Package)
+				default:
+					// import {a as b}, or a re-export that renamed it
+					// (export {x as a} from): the reference is b, the
+					// definition the original name in its module.
+					s.AddRenamed(local, o.Package, o.Name)
+				}
 			}
 			for _, p := range ns {
 				s.AddQualifier(local, p)
@@ -1007,12 +1013,13 @@ func jsExportTarget(raw json.RawMessage, star string, conditions []string, depth
 	return "", false
 }
 
-// export returns the modules a name exported by mods comes from: each
-// module itself, and the modules it re-exports that name from (export {n}
-// from, export {m as n} from, and export * for a name other than default),
-// transitively. ns are the modules a re-export binds the name to as a
-// namespace (export * as n from).
-func (r *jsModules) export(mods []string, n string) (from, ns []string, err error) {
+// export returns the definitions a name exported by mods comes from, as
+// the name each module defines it under: each module itself with n, and
+// the modules it re-exports that name from (export {n} from, export {m as
+// n} from, which names m there, and export * for a name other than
+// default), transitively. ns are the modules a re-export binds the name to
+// as a namespace (export * as n from).
+func (r *jsModules) export(mods []string, n string) (from []Original, ns []string, err error) {
 	seen := map[string]bool{}
 	var walk func(key, n string, depth int) error
 	walk = func(key, n string, depth int) error {
@@ -1020,7 +1027,9 @@ func (r *jsModules) export(mods []string, n string) (from, ns []string, err erro
 			return nil
 		}
 		seen[key+"\x00"+n] = true
-		from = appendNew(from, key)
+		if o := (Original{Package: key, Name: n}); !slices.Contains(from, o) {
+			from = append(from, o)
+		}
 		for _, mf := range r.v.Package(codeparse.FamilyJSTS, key) {
 			if mf.Facts == nil {
 				continue

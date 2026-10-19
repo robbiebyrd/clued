@@ -23,7 +23,8 @@ import (
 // What a require brings into scope:
 //   - local m = require("a.b") binds m as the module's qualifier: m.f, m.T.f
 //     and m:f reach the module's definitions (the table the module returns
-//     and what it holds);
+//     and what it holds: m.f finds M.f of a module that returns M, the
+//     engine's ImportMembers, with confidence qualified);
 //   - local f = require("a.b").f binds the bare name f to the module;
 //   - a require whose value is not kept (require "a.b", pcall(require,
 //     "a.b")) runs the module for its globals: the module is open;
@@ -46,7 +47,7 @@ func init() { Register(codeparse.FamilyLua, lua{}) }
 
 type lua struct{}
 
-var luaRules = Rules{Separators: []string{".", ":"}, NameFallback: true, MemberFallback: true}
+var luaRules = Rules{Separators: []string{".", ":"}, NameFallback: true, MemberFallback: true, ImportMembers: true}
 
 // Rules implements Resolver.
 func (lua) Rules() Rules { return luaRules }
