@@ -177,7 +177,9 @@ func (e *cfamilyEnv) out(rel codegraph.Relation, p, id string) map[string]string
 	return got
 }
 
-func (e *cfamilyEnv) callees(p, id string) map[string]string { return e.out(codegraph.RelCallees, p, id) }
+func (e *cfamilyEnv) callees(p, id string) map[string]string {
+	return e.out(codegraph.RelCallees, p, id)
+}
 
 // referrers returns who refers to p#id (REFERENCES), sorted.
 func (e *cfamilyEnv) referrers(p, id string) []string {
@@ -209,14 +211,14 @@ func cfamilyWantList(t *testing.T, what string, got []string, want ...string) {
 const (
 	cfamilyInclude       = resolvers.CKindInclude
 	cfamilyIncludeSystem = resolvers.CKindIncludeSystem
-	cfamilyKFn            = codeparse.KindFunction
-	cfamilyKMethod        = codeparse.KindMethod
-	cfamilyKVar           = codeparse.KindVar
-	cfamilyKConst         = codeparse.KindConst
-	cfamilyKNS            = codeparse.KindNamespace
-	cfamilyKClass         = codeparse.KindClass
-	cfamilyKStruct        = codeparse.KindStruct
-	cfamilyKField         = codeparse.KindField
+	cfamilyKFn           = codeparse.KindFunction
+	cfamilyKMethod       = codeparse.KindMethod
+	cfamilyKVar          = codeparse.KindVar
+	cfamilyKConst        = codeparse.KindConst
+	cfamilyKNS           = codeparse.KindNamespace
+	cfamilyKClass        = codeparse.KindClass
+	cfamilyKStruct       = codeparse.KindStruct
+	cfamilyKField        = codeparse.KindField
 )
 
 func Test_cfamilyRegistered(t *testing.T) {
@@ -535,7 +537,9 @@ func cfamilyReached(t *testing.T, r resolvers.Resolver, v *cfamilyView, from str
 	return out
 }
 
-func cfamilyHdr(name string) *cfamilySrc { return cfamilyFile("c").def(cfamilyKFn, name, name, "", "void "+name+"(void);") }
+func cfamilyHdr(name string) *cfamilySrc {
+	return cfamilyFile("c").def(cfamilyKFn, name, name, "", "void "+name+"(void);")
+}
 
 // Test_cfamilyIncludes checks where includes resolve: next to the file
 // (quoted only), the include directories of compile_commands.json and
