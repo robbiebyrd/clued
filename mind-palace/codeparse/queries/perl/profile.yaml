@@ -1,4 +1,5 @@
-# Perl: a file's package is its first `package NAME;` statement; a block
+# Perl: a file's package is its first `package NAME;` statement, and each
+# such statement qualifies the definitions up to the next one; a block
 # package (`package NAME { ... }`) and a 5.38 `class` are symbols holding
 # their subs. `use` and `require` are imports; `Package::sub` calls carry
 # the package as their qualifier, `Class->method` the class. Moose's `has`

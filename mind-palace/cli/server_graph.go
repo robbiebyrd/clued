@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"github.com/robbiebyrd/clued/mind-palace/code"
 	"github.com/robbiebyrd/clued/mind-palace/code/mongocode"
@@ -17,6 +18,7 @@ import (
 	"github.com/robbiebyrd/clued/mind-palace/codegraph/falkor"
 	"github.com/robbiebyrd/clued/mind-palace/codeindex"
 	"github.com/robbiebyrd/clued/mind-palace/codeparse"
+	"github.com/robbiebyrd/clued/mind-palace/codeparse/mongocache"
 	"github.com/robbiebyrd/clued/mind-palace/service"
 	"github.com/robbiebyrd/clued/mind-palace/session"
 )
@@ -52,7 +54,27 @@ type graphEnv struct {
 	Code     func(ctx context.Context, project string) (code.Store, error)
 	Graphs   codegraph.Opener
 	Cursors  codeindex.Cursors
-	Close    func(ctx context.Context) error
+	// Cache keeps parsed facts across runs and restarts; nil parses into
+	// a memory cache that lives as long as the indexer.
+	Cache codeparse.Cache
+	Close func(ctx context.Context) error
+}
+
+// parseCacheTTL is how long a parsed file's facts stay in the MongoDB
+// parse cache after their last use.
+const parseCacheTTL = 30 * 24 * time.Hour
+
+// newParseCache is the MongoDB parse cache in db (code_parses), with
+// its indexes ensured; an index error is logged, not fatal, since the
+// cache works without them (the TTL index only expires old entries).
+func newParseCache(ctx context.Context, db *mongo.Database, logger *slog.Logger) codeparse.Cache {
+	c := mongocache.New(db, mongocache.Options{TTL: parseCacheTTL, Logger: logger})
+	ictx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if err := c.EnsureIndexes(ictx); err != nil && logger != nil {
+		logger.Warn("code graph: parse cache indexes", "err", err)
+	}
+	return c
 }
 
 // openGraphEnv opens the graph environment of o; tests replace it.
@@ -80,6 +102,7 @@ var openGraphEnv = func(ctx context.Context, o graphCmdOptions) (*graphEnv, erro
 		},
 		Graphs:  graphs,
 		Cursors: codeindex.NewMongoCursors(db, "", nil),
+		Cache:   newParseCache(ctx, db, slog.Default()),
 		Close: func(ctx context.Context) error {
 			return errors.Join(graphs.Close(), client.Disconnect(ctx))
 		},
@@ -99,6 +122,7 @@ func graphIndexer(env *graphEnv, logger *slog.Logger) (*codeindex.Service, error
 		Code:         env.Code,
 		Graphs:       env.Graphs,
 		Cursors:      env.Cursors,
+		Cache:        env.Cache,
 		Parse:        codeparse.Parse,
 		ParseVersion: codeparse.ParseVersion,
 		Apply:        codeindex.NewResolver(codeindex.ResolverOptions{Profiles: engine.Profiles()}),

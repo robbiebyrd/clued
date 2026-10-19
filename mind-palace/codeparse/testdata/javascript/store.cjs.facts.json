@@ -242,7 +242,7 @@
       "spec": "util",
       "names": [
         "promisify",
-        "inspect"
+        "inspect: show"
       ],
       "kind": "require",
       "start": {

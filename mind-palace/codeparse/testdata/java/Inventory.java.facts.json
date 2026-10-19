@@ -140,7 +140,7 @@
       "kind": "method",
       "name": "add",
       "qualName": "com.example.store.Inventory.add",
-      "signature": "@Override public boolean add(T item) throws StoreException",
+      "signature": "public boolean add(T item) throws StoreException",
       "doc": "Adds an item.\n\n@return whether it was added",
       "start": {
         "line": 37,
@@ -197,7 +197,7 @@
       "kind": "method",
       "name": "close",
       "qualName": "com.example.store.Inventory.close",
-      "signature": "@Override public void close()",
+      "signature": "public void close()",
       "start": {
         "line": 60,
         "column": 4,
@@ -385,7 +385,7 @@
       "kind": "method",
       "name": "label",
       "qualName": "com.example.store.Status.label",
-      "signature": "@Override public String label()",
+      "signature": "public String label()",
       "start": {
         "line": 89,
         "column": 4,

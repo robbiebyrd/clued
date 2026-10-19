@@ -168,7 +168,7 @@
       "alias": "React",
       "names": [
         "useState",
-        "useEffect"
+        "useEffect as useMountEffect"
       ],
       "kind": "import",
       "start": {

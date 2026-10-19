@@ -378,10 +378,10 @@
       "exported": true
     },
     {
-      "id": "Drawable.drawInRect",
+      "id": "Drawable.drawInRect:context:",
       "kind": "method",
-      "name": "drawInRect",
-      "qualName": "Drawable.drawInRect",
+      "name": "drawInRect:context:",
+      "qualName": "Drawable.drawInRect:context:",
       "signature": "- (void)drawInRect:(CGRect)rect context:(CGContextRef)context;",
       "doc": "Draws the receiver.",
       "start": {
@@ -588,10 +588,10 @@
       "exported": true
     },
     {
-      "id": "Shape.initWithName",
+      "id": "Shape.initWithName:sides:",
       "kind": "method",
-      "name": "initWithName",
-      "qualName": "Shape.initWithName",
+      "name": "initWithName:sides:",
+      "qualName": "Shape.initWithName:sides:",
       "signature": "- (instancetype)initWithName:(NSString *)name sides:(NSInteger)sides NS_DESIGNATED_INITIALIZER;",
       "doc": "Creates a shape.",
       "start": {
@@ -608,10 +608,10 @@
       "exported": true
     },
     {
-      "id": "Shape.shapeNamed",
+      "id": "Shape.shapeNamed:",
       "kind": "method",
-      "name": "shapeNamed",
-      "qualName": "Shape.shapeNamed",
+      "name": "shapeNamed:",
+      "qualName": "Shape.shapeNamed:",
       "signature": "+ (Shape *)shapeNamed:(NSString *)name;",
       "start": {
         "line": 90,
@@ -646,10 +646,10 @@
       "exported": true
     },
     {
-      "id": "Shape.splitInto",
+      "id": "Shape.splitInto:",
       "kind": "method",
-      "name": "splitInto",
-      "qualName": "Shape.splitInto",
+      "name": "splitInto:",
+      "qualName": "Shape.splitInto:",
       "signature": "- (NSArray\u003cShape *\u003e *)splitInto:(NSUInteger)parts;",
       "start": {
         "line": 92,
@@ -684,10 +684,10 @@
       "exported": true
     },
     {
-      "id": "ShapeBox.shapeAtIndex",
+      "id": "ShapeBox.shapeAtIndex:",
       "kind": "method",
-      "name": "shapeAtIndex",
-      "qualName": "ShapeBox.shapeAtIndex",
+      "name": "shapeAtIndex:",
+      "qualName": "ShapeBox.shapeAtIndex:",
       "signature": "- (nullable ObjectType)shapeAtIndex:(NSUInteger)index;",
       "start": {
         "line": 98,
@@ -907,7 +907,7 @@
         "column": 20,
         "offset": 1385
       },
-      "enclosing": "Drawable.drawInRect"
+      "enclosing": "Drawable.drawInRect:context:"
     },
     {
       "name": "CGContextRef",
@@ -917,7 +917,7 @@
         "column": 41,
         "offset": 1406
       },
-      "enclosing": "Drawable.drawInRect"
+      "enclosing": "Drawable.drawInRect:context:"
     },
     {
       "name": "SKScale",
@@ -1037,7 +1037,7 @@
         "column": 30,
         "offset": 2012
       },
-      "enclosing": "Shape.initWithName"
+      "enclosing": "Shape.initWithName:sides:"
     },
     {
       "name": "NSInteger",
@@ -1047,7 +1047,7 @@
         "column": 53,
         "offset": 2035
       },
-      "enclosing": "Shape.initWithName"
+      "enclosing": "Shape.initWithName:sides:"
     },
     {
       "name": "Shape",
@@ -1057,7 +1057,7 @@
         "column": 3,
         "offset": 2081
       },
-      "enclosing": "Shape.shapeNamed"
+      "enclosing": "Shape.shapeNamed:"
     },
     {
       "name": "NSString",
@@ -1067,7 +1067,7 @@
         "column": 23,
         "offset": 2101
       },
-      "enclosing": "Shape.shapeNamed"
+      "enclosing": "Shape.shapeNamed:"
     },
     {
       "name": "NSArray",
@@ -1077,7 +1077,7 @@
         "column": 3,
         "offset": 2137
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "Shape",
@@ -1087,7 +1087,7 @@
         "column": 11,
         "offset": 2145
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "NSUInteger",
@@ -1097,7 +1097,7 @@
         "column": 33,
         "offset": 2167
       },
-      "enclosing": "Shape.splitInto"
+      "enclosing": "Shape.splitInto:"
     },
     {
       "name": "ObjectType",
@@ -1147,7 +1147,7 @@
         "column": 12,
         "offset": 2324
       },
-      "enclosing": "ShapeBox.shapeAtIndex"
+      "enclosing": "ShapeBox.shapeAtIndex:"
     },
     {
       "name": "NSUInteger",
@@ -1157,7 +1157,7 @@
         "column": 37,
         "offset": 2349
       },
-      "enclosing": "ShapeBox.shapeAtIndex"
+      "enclosing": "ShapeBox.shapeAtIndex:"
     },
     {
       "name": "NSString",

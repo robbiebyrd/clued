@@ -63,7 +63,7 @@
       "kind": "class",
       "name": "Route",
       "qualName": "Route",
-      "signature": "#[Attribute(Attribute::TARGET_CLASS)] final class Route",
+      "signature": "final class Route",
       "start": {
         "line": 43,
         "column": 4,

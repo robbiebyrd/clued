@@ -27,7 +27,7 @@ import (
 // registration, query files and profile) is versioned by its profile digest
 // instead (Profile.FactsVersion), so a language story never edits Go code to
 // invalidate its cache entries.
-const Version = "2"
+const Version = "3"
 
 // Facts are everything the indexer needs from one file version.
 type Facts struct {

@@ -8,16 +8,17 @@
 ; The grammar writes a qualified name as one token (Carp::croak,
 ; My::Other::helper); #strip! cuts it into the bare name and its package.
 ;
-; Known limits: a statement package does not contain the subs after it, so
-; every definition of a file with several `package NAME;` statements is
-; qualified by the first; `sub Other::f` keeps the file's package in front
-; of its receiver; a forward declaration (`sub f;`) is parsed by the grammar
-; as a sub whose body runs on to the end of the file.
+; A `package NAME;` statement qualifies the definitions after it, up to the
+; next one (the extractor scopes statement packages); `sub Other::f` is
+; Other::f wherever it is written. Known limit: a forward declaration
+; (`sub f;`) is parsed by the grammar as a sub whose body runs on to the
+; end of the file.
 
 ; ---- package and imports
 
-; The file's package: its first `package NAME;` statement (the extractor
-; keeps the first). A block package is a symbol instead (below).
+; The file's package is its first `package NAME;` statement; each one
+; qualifies the definitions up to the next. A block package is a symbol
+; instead (below).
 (package_statement
   name: (package) @package
   ";")

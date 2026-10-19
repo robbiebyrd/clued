@@ -12,11 +12,10 @@
 ; captured on its declaration.
 ;
 ; Docs are the extractor's default, the comments on the lines just above
-; the definition: a member's annotations (@override) stand between them,
-; and so does the first line of a signature cut over several lines, so
-; those definitions get no doc. Capturing the doc comments and annotations
-; before a signature takes patterns of three or more siblings, some
-; quantified, which gotreesitter v0.56.0 matches in time quadratic in the
+; the definition, or above its @signature when that comes first, past a
+; member's annotations (@override). Capturing the doc comments and
+; annotations before a signature in the query takes patterns of three or
+; more siblings, some quantified, which gotreesitter v0.56.0 matches in time quadratic in the
 ; number of a class's or file's members (it collects every later candidate
 ; sibling before it checks an anchor) and drops past its work budget. So
 ; every definition pattern starts at a named parent (a pattern starting at

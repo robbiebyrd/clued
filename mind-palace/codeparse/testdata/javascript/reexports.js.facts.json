@@ -61,7 +61,7 @@
       "spec": "./shapes.mjs",
       "names": [
         "round",
-        "load"
+        "load as loadShapes"
       ],
       "kind": "export",
       "start": {
@@ -73,7 +73,7 @@
     {
       "spec": "./shapes.mjs",
       "names": [
-        "default"
+        "default as Canvas"
       ],
       "kind": "export",
       "start": {
@@ -108,8 +108,8 @@
       "spec": "quoted-lib",
       "names": [
         "a",
-        "b",
-        "default"
+        "b as c",
+        "default as d"
       ],
       "kind": "import",
       "start": {

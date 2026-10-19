@@ -877,7 +877,7 @@
       "kind": "macro",
       "name": "stringify",
       "qualName": "stringify",
-      "signature": "@freestanding(expression)",
+      "signature": "public macro stringify\u003cT\u003e(_ value: T) -\u003e (T, String) = #externalMacro(module: \"ShapeMacros\", type: \"StringifyMacro\")",
       "start": {
         "line": 123,
         "column": 0,

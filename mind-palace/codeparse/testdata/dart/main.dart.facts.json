@@ -25,6 +25,7 @@
       "name": "greet",
       "qualName": "greet",
       "signature": "String greet(String name)",
+      "doc": "Greets [name].",
       "start": {
         "line": 5,
         "column": 26,
@@ -80,37 +81,21 @@
       "hash": "0620e97ce951a0598483836a4008a7b10139768121693944db1fc8808e9043ca"
     },
     {
-      "id": "L3#1",
-      "kind": "window",
+      "id": "greet#1",
+      "kind": "symbol",
+      "symbolId": "greet",
       "start": {
         "line": 3,
         "column": 0,
         "offset": 84
       },
       "end": {
-        "line": 4,
-        "column": 27,
-        "offset": 130
-      },
-      "text": "/// Greets [name].\n@pragma('vm:prefer-inline')",
-      "hash": "31d59843816819acb9baac1e9efb1ce345f02fdf516c54aa359be9620664b0a7"
-    },
-    {
-      "id": "greet#1",
-      "kind": "symbol",
-      "symbolId": "greet",
-      "start": {
-        "line": 5,
-        "column": 26,
-        "offset": 157
-      },
-      "end": {
         "line": 5,
         "column": 54,
         "offset": 185
       },
-      "text": "=\u003e 'Hello, ${name.trim()}!';",
-      "hash": "5c93a97de71ded1a98d6ae8cc39237d867ebbba82904d82ab7f592aac12f6735"
+      "text": "/// Greets [name].\n@pragma('vm:prefer-inline')\nString greet(String name) =\u003e 'Hello, ${name.trim()}!';",
+      "hash": "fd223a3982f18a5c144b7e71a270998f0f310810d189ebee41afa11e70ee8c6d"
     }
   ]
 }

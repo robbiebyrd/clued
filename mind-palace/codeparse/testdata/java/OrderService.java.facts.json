@@ -7,7 +7,7 @@
       "kind": "class",
       "name": "OrderService",
       "qualName": "com.example.orders.OrderService",
-      "signature": "@Service @Transactional(readOnly = false) public final class OrderService extends BaseService\u003cOrder\u003e implements OrderApi, java.io.Serializable",
+      "signature": "public final class OrderService extends BaseService\u003cOrder\u003e implements OrderApi, java.io.Serializable",
       "doc": "OrderService places orders against an inventory.",
       "start": {
         "line": 11,
@@ -117,7 +117,7 @@
       "kind": "method",
       "name": "place",
       "qualName": "com.example.orders.OrderService.place",
-      "signature": "@Override public String place(List\u003cItem\u003e items) throws OrderException",
+      "signature": "public String place(List\u003cItem\u003e items) throws OrderException",
       "doc": "Places an order for the items, returning its id.",
       "start": {
         "line": 29,
@@ -137,7 +137,7 @@
       "kind": "method",
       "name": "run",
       "qualName": "com.example.orders.OrderService.place.run",
-      "signature": "@Override public void run()",
+      "signature": "public void run()",
       "start": {
         "line": 40,
         "column": 12,
