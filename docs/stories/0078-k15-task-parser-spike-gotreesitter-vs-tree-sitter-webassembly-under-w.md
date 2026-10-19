@@ -3,11 +3,12 @@ id: 0078-k15
 title: 'Parser spike: gotreesitter vs tree-sitter WebAssembly under wazero'
 purpose: Decides the pure-Go tree-sitter runtime every language story uses.
 type: task
-status: ready
+status: in_progress
 priority: "3"
 effort: M
 created: "2026-10-19T18:07:07.216Z"
-updated: "2026-10-19T18:28:39.442Z"
+updated: "2026-10-19T18:58:08.521Z"
+started: "2026-10-19T18:58:05.291Z"
 tags:
   - plan-0012-cgi
   - wave-1
@@ -28,7 +29,7 @@ links:
     - ["0012-cgi", "included", ["1.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
     status: pending
   "3":
