@@ -3,11 +3,13 @@ id: 0127-0sp
 title: FalkorDB in the `server init` stack
 purpose: Self-hosted servers get the graph with no manual setup.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:12:09.305Z"
-updated: "2026-10-19T18:33:56.594Z"
+updated: "2026-10-19T20:04:34.501Z"
+started: "2026-10-19T19:58:13.843Z"
+completed: "2026-10-19T20:04:34.501Z"
 tags:
   - plan-0012-cgi
   - wave-8
@@ -35,13 +37,13 @@ links:
     - ["0012-cgi", "included", ["6.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # FalkorDB in the `server init` stack
@@ -74,9 +76,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./server/stack/... ./cli/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./server/stack/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./server/stack/... ./cli/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./server/stack/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -87,3 +89,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/server/stack/stack_test.go` - generated files
 
 ## Work Log
+
+### 2026-10-19T20:04:28.452Z - FalkorDB in the server init stack. server/stack: DefaultFalkorDBImage falkordb/falkordb:v4.22.1 (Options.FalkorDBImage, server init --falkordb-image); FalkorDB password generated once (32 random bytes hex) into falkordb.password 0600 and kept on reruns (Result.Graph generated|kept; a hand-made one must be 16+ letters/digits, errors never carry it); falkordb.env (REDIS_ARGS --requirepass, --save with no value, --appendonly no; REDISCLI_AUTH for the health check) and graph.env (CLUED_SERVER_GRAPH=redis://default:<pw>@falkordb:6379), both 0600, narrowed before every write. Compose: falkordb service, no ports, no volume, BROWSER=0, env_file, redis-cli health check; clued-server env_file graph.env and depends_on falkordb healthy. Apple: up.sh starts clued-falkordb with --env-file (no publish), renders run/graph.env with its address under umask 077, server gets --env-file; down.sh removes it. The password is on no command line and in no compose/script/stack.json/result. Tests: TestInitRunsFalkorDBForTheCodeGraph (4 runtime/proxy cases), TestInitKeepsTheGraphPassword; go test -race ./server/stack/... ./cli/... ok; gofmt/vet/build clean; compose service smoke-tested with docker (falkordb:latest since Docker Hub rate-limited the v4.22.1 pull): healthy, NOAUTH without password, save empty, no published port. Outside the Files list: server/stack/apple_test.go (existing exact-string expectations of the container list and the server's run line updated for the new container).

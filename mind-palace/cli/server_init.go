@@ -25,13 +25,18 @@ func (a *App) serverInitCmd() *cobra.Command {
 	var image, rt string
 	cmd := &cobra.Command{
 		Use:   "init [--dir ~/.clued-server] [--runtime auto|compose|apple] [--proxy nginx|none] [--port 8443] [--host name]... [--name token]",
-		Short: "Prepare a container stack: the server, MongoDB, an nginx TLS front-end, a CA and a token",
+		Short: "Prepare a container stack: the server, MongoDB, FalkorDB, an nginx TLS front-end, a CA and a token",
 		Long: `Writes the directory a container deployment of the clued server runs from
-(default ~/.clued-server): the server, its MongoDB and, by default, an nginx
-container that terminates TLS on --port, as docker-compose.yml (--runtime
+(default ~/.clued-server): the server, its MongoDB, a FalkorDB for the code
+graph and, by default, an nginx container that terminates TLS on --port, as docker-compose.yml (--runtime
 compose) or as up.sh, down.sh and a launchd agent driving Apple's container
 CLI (--runtime apple, macOS 26), with the code store on in the same MongoDB
-(CLUED_SERVER_CODE_STORE=mongo); nginx/clued.conf; mind-palace.config.yaml
+(CLUED_SERVER_CODE_STORE=mongo) and the code graph on in FalkorDB (the
+server's --graph, CLUED_SERVER_GRAPH, from graph.env); FalkorDB's password,
+generated once into falkordb.password and handed to FalkorDB and the server
+through falkordb.env and graph.env (all 0600, never printed), with no port
+published and persistence off, since the server rebuilds the graph from the
+code store; nginx/clued.conf; mind-palace.config.yaml
 (plans and stories in MongoDB, per project); a private CA and a server
 certificate under tls/ covering localhost, this host's name and every
 --host; a first token in tokens.json, printed once; and stack.json saying
@@ -45,7 +50,8 @@ CLI installed.
 plain HTTP for another terminator (Caddy, Traefik, an nginx of your own, an
 ingress). --no-tls skips the CA and uses the tls/cert.pem and tls/key.pem you
 supply (mkcert, a real CA). Rerunning regenerates the runtime's files, the
-nginx and storage files and keeps tls/ and tokens.json; --force reissues the
+nginx, storage and env files and keeps tls/, tokens.json and
+falkordb.password; --force reissues the
 server certificate under the same CA (kept while it covers every host, so a
 machine that trusts it keeps trusting the server); --new-ca replaces the CA
 too; a token whose name exists is not minted again. The CA is
@@ -91,6 +97,7 @@ otherwise.`,
 	f.StringVar(&image, "image", "", "clued server image (default: "+stack.DefaultServerImage+":v<plugin version>)")
 	f.StringVar(&o.NginxImage, "nginx-image", stack.DefaultNginxImage, "nginx image")
 	f.StringVar(&o.MongoImage, "mongo-image", stack.DefaultMongoImage, "MongoDB image")
+	f.StringVar(&o.FalkorDBImage, "falkordb-image", stack.DefaultFalkorDBImage, "FalkorDB image (the code graph)")
 	return cmd
 }
 
