@@ -1,0 +1,1251 @@
+{
+  "lang": "objc",
+  "symbols": [
+    {
+      "id": "SKErrorDomain",
+      "kind": "const",
+      "name": "SKErrorDomain",
+      "qualName": "SKErrorDomain",
+      "signature": "NSString *const SKErrorDomain = @\"com.example.ShapeKit\";",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 39
+      },
+      "end": {
+        "line": 4,
+        "column": 56,
+        "offset": 95
+      },
+      "exported": true
+    },
+    {
+      "id": "ShapeKitVersionNumber",
+      "kind": "var",
+      "name": "ShapeKitVersionNumber",
+      "qualName": "ShapeKitVersionNumber",
+      "signature": "double ShapeKitVersionNumber = 1.0;",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 96
+      },
+      "end": {
+        "line": 5,
+        "column": 35,
+        "offset": 131
+      },
+      "exported": true
+    },
+    {
+      "id": "sShapeCount",
+      "kind": "var",
+      "name": "sShapeCount",
+      "qualName": "sShapeCount",
+      "signature": "static NSInteger sShapeCount = 0;",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 133
+      },
+      "end": {
+        "line": 7,
+        "column": 33,
+        "offset": 166
+      },
+      "exported": true
+    },
+    {
+      "id": "Shape",
+      "kind": "extension",
+      "name": "Shape",
+      "qualName": "Shape",
+      "signature": "@interface Shape () \u003cNSSecureCoding\u003e",
+      "doc": "The private part of Shape.",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 198
+      },
+      "end": {
+        "line": 13,
+        "column": 4,
+        "offset": 308
+      },
+      "exported": true
+    },
+    {
+      "id": "Shape.kind",
+      "kind": "property",
+      "name": "kind",
+      "qualName": "Shape.kind",
+      "signature": "@property (nonatomic, readwrite) ShapeKind kind;",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 235
+      },
+      "end": {
+        "line": 11,
+        "column": 48,
+        "offset": 283
+      },
+      "parent": "Shape",
+      "exported": true
+    },
+    {
+      "id": "Shape.invalidate",
+      "kind": "method",
+      "name": "invalidate",
+      "qualName": "Shape.invalidate",
+      "signature": "- (void)invalidate;",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 284
+      },
+      "end": {
+        "line": 12,
+        "column": 19,
+        "offset": 303
+      },
+      "parent": "Shape",
+      "exported": true
+    },
+    {
+      "id": "Shape~2",
+      "kind": "impl",
+      "name": "Shape",
+      "qualName": "Shape",
+      "signature": "@implementation Shape",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 310
+      },
+      "end": {
+        "line": 74,
+        "column": 4,
+        "offset": 1770
+      },
+      "exported": true
+    },
+    {
+      "id": "Shape.initWithName",
+      "kind": "method",
+      "name": "initWithName",
+      "qualName": "Shape.initWithName",
+      "signature": "- (instancetype)initWithName:(NSString *)name sides:(NSInteger)sides",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 377
+      },
+      "end": {
+        "line": 28,
+        "column": 1,
+        "offset": 616
+      },
+      "parent": "Shape~2",
+      "exported": true
+    },
+    {
+      "id": "Shape.shapeNamed",
+      "kind": "method",
+      "name": "shapeNamed",
+      "qualName": "Shape.shapeNamed",
+      "signature": "+ (Shape *)shapeNamed:(NSString *)name",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 618
+      },
+      "end": {
+        "line": 32,
+        "column": 1,
+        "offset": 713
+      },
+      "parent": "Shape~2",
+      "exported": true
+    },
+    {
+      "id": "Shape.area",
+      "kind": "method",
+      "name": "area",
+      "qualName": "Shape.area",
+      "signature": "- (double)area",
+      "start": {
+        "line": 34,
+        "column": 0,
+        "offset": 715
+      },
+      "end": {
+        "line": 38,
+        "column": 1,
+        "offset": 847
+      },
+      "parent": "Shape~2",
+      "exported": true
+    },
+    {
+      "id": "Shape.splitInto",
+      "kind": "method",
+      "name": "splitInto",
+      "qualName": "Shape.splitInto",
+      "signature": "- (NSArray\u003cShape *\u003e *)splitInto:(NSUInteger)parts",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 849
+      },
+      "end": {
+        "line": 47,
+        "column": 1,
+        "offset": 1203
+      },
+      "parent": "Shape~2",
+      "exported": true
+    },
+    {
+      "id": "Shape.drawInRect",
+      "kind": "method",
+      "name": "drawInRect",
+      "qualName": "Shape.drawInRect",
+      "signature": "- (void)drawInRect:(CGRect)rect context:(CGContextRef)context",
+      "start": {
+        "line": 49,
+        "column": 0,
+        "offset": 1205
+      },
+      "end": {
+        "line": 56,
+        "column": 1,
+        "offset": 1457
+      },
+      "parent": "Shape~2",
+      "exported": true
+    },
+    {
+      "id": "Shape.scale",
+      "kind": "method",
+      "name": "scale",
+      "qualName": "Shape.scale",
+      "signature": "- (SKScale)scale",
+      "start": {
+        "line": 58,
+        "column": 0,
+        "offset": 1459
+      },
+      "end": {
+        "line": 60,
+        "column": 1,
+        "offset": 1495
+      },
+      "parent": "Shape~2",
+      "exported": true
+    },
+    {
+      "id": "Shape.copyWithZone",
+      "kind": "method",
+      "name": "copyWithZone",
+      "qualName": "Shape.copyWithZone",
+      "signature": "- (id)copyWithZone:(NSZone *)zone",
+      "start": {
+        "line": 62,
+        "column": 0,
+        "offset": 1497
+      },
+      "end": {
+        "line": 64,
+        "column": 1,
+        "offset": 1618
+      },
+      "parent": "Shape~2",
+      "exported": true
+    },
+    {
+      "id": "Shape.invalidate~2",
+      "kind": "method",
+      "name": "invalidate",
+      "qualName": "Shape.invalidate",
+      "signature": "- (void)invalidate",
+      "start": {
+        "line": 66,
+        "column": 0,
+        "offset": 1620
+      },
+      "end": {
+        "line": 68,
+        "column": 1,
+        "offset": 1714
+      },
+      "parent": "Shape~2",
+      "exported": true
+    },
+    {
+      "id": "Shape.supportsSecureCoding",
+      "kind": "method",
+      "name": "supportsSecureCoding",
+      "qualName": "Shape.supportsSecureCoding",
+      "signature": "+ (BOOL)supportsSecureCoding",
+      "start": {
+        "line": 70,
+        "column": 0,
+        "offset": 1716
+      },
+      "end": {
+        "line": 72,
+        "column": 1,
+        "offset": 1764
+      },
+      "parent": "Shape~2",
+      "exported": true
+    },
+    {
+      "id": "Shape.Debugging",
+      "kind": "impl",
+      "name": "Debugging",
+      "qualName": "Shape.Debugging",
+      "signature": "@implementation Shape (Debugging)",
+      "start": {
+        "line": 76,
+        "column": 0,
+        "offset": 1772
+      },
+      "end": {
+        "line": 82,
+        "column": 4,
+        "offset": 1937
+      },
+      "parent": "Shape",
+      "exported": true
+    },
+    {
+      "id": "Shape.Debugging.debugLabel",
+      "kind": "method",
+      "name": "debugLabel",
+      "qualName": "Shape.Debugging.debugLabel",
+      "signature": "- (NSString *)debugLabel",
+      "start": {
+        "line": 78,
+        "column": 0,
+        "offset": 1807
+      },
+      "end": {
+        "line": 80,
+        "column": 1,
+        "offset": 1931
+      },
+      "parent": "Shape.Debugging",
+      "exported": true
+    },
+    {
+      "id": "SKDistance",
+      "kind": "function",
+      "name": "SKDistance",
+      "qualName": "SKDistance",
+      "signature": "double SKDistance(SKPoint3 a, SKPoint3 b)",
+      "start": {
+        "line": 84,
+        "column": 0,
+        "offset": 1939
+      },
+      "end": {
+        "line": 87,
+        "column": 1,
+        "offset": 2089
+      },
+      "exported": true
+    },
+    {
+      "id": "SKMakeShape",
+      "kind": "function",
+      "name": "SKMakeShape",
+      "qualName": "SKMakeShape",
+      "signature": "id\u003cDrawable\u003e SKMakeShape(ShapeKind kind)",
+      "start": {
+        "line": 89,
+        "column": 0,
+        "offset": 2091
+      },
+      "end": {
+        "line": 96,
+        "column": 1,
+        "offset": 2309
+      },
+      "exported": true
+    },
+    {
+      "id": "SKLogShape",
+      "kind": "function",
+      "name": "SKLogShape",
+      "qualName": "SKLogShape",
+      "signature": "static void SKLogShape(Shape *shape)",
+      "start": {
+        "line": 98,
+        "column": 0,
+        "offset": 2311
+      },
+      "end": {
+        "line": 100,
+        "column": 1,
+        "offset": 2389
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "Shapes.h",
+      "kind": "import",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    },
+    {
+      "spec": "Canvas.h",
+      "kind": "import",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 19
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "NSString",
+      "kind": "type",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 39
+      },
+      "enclosing": "SKErrorDomain"
+    },
+    {
+      "name": "NSInteger",
+      "kind": "type",
+      "start": {
+        "line": 7,
+        "column": 7,
+        "offset": 140
+      },
+      "enclosing": "sShapeCount"
+    },
+    {
+      "name": "NSSecureCoding",
+      "kind": "implements",
+      "start": {
+        "line": 10,
+        "column": 21,
+        "offset": 219
+      },
+      "enclosing": "Shape"
+    },
+    {
+      "name": "ShapeKind",
+      "kind": "type",
+      "start": {
+        "line": 11,
+        "column": 33,
+        "offset": 268
+      },
+      "enclosing": "Shape.kind"
+    },
+    {
+      "name": "name",
+      "kind": "value",
+      "start": {
+        "line": 17,
+        "column": 12,
+        "offset": 345
+      },
+      "enclosing": "Shape~2"
+    },
+    {
+      "name": "filled",
+      "kind": "value",
+      "start": {
+        "line": 18,
+        "column": 9,
+        "offset": 368
+      },
+      "enclosing": "Shape~2"
+    },
+    {
+      "name": "NSString",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 30,
+        "offset": 407
+      },
+      "enclosing": "Shape.initWithName"
+    },
+    {
+      "name": "NSInteger",
+      "kind": "type",
+      "start": {
+        "line": 20,
+        "column": 53,
+        "offset": 430
+      },
+      "enclosing": "Shape.initWithName"
+    },
+    {
+      "name": "init",
+      "qualifier": "super",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 18,
+        "offset": 466
+      },
+      "enclosing": "Shape.initWithName"
+    },
+    {
+      "name": "copy",
+      "qualifier": "name",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 22,
+        "offset": 511
+      },
+      "enclosing": "Shape.initWithName"
+    },
+    {
+      "name": "SK_CLAMP",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 17,
+        "offset": 535
+      },
+      "enclosing": "Shape.initWithName"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 30,
+        "column": 3,
+        "offset": 621
+      },
+      "enclosing": "Shape.shapeNamed"
+    },
+    {
+      "name": "NSString",
+      "kind": "type",
+      "start": {
+        "line": 30,
+        "column": 23,
+        "offset": 641
+      },
+      "enclosing": "Shape.shapeNamed"
+    },
+    {
+      "name": "alloc",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 18,
+        "offset": 677
+      },
+      "enclosing": "Shape.shapeNamed"
+    },
+    {
+      "name": "initWithName",
+      "qualifier": "[self alloc]",
+      "kind": "call",
+      "start": {
+        "line": 31,
+        "column": 25,
+        "offset": 684
+      },
+      "enclosing": "Shape.shapeNamed"
+    },
+    {
+      "name": "SKPoint3",
+      "kind": "type",
+      "start": {
+        "line": 35,
+        "column": 4,
+        "offset": 736
+      },
+      "enclosing": "Shape.area"
+    },
+    {
+      "name": "SKPoint3",
+      "kind": "type",
+      "start": {
+        "line": 36,
+        "column": 4,
+        "offset": 769
+      },
+      "enclosing": "Shape.area"
+    },
+    {
+      "name": "SKDistance",
+      "kind": "call",
+      "start": {
+        "line": 37,
+        "column": 11,
+        "offset": 809
+      },
+      "enclosing": "Shape.area"
+    },
+    {
+      "name": "NSArray",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 3,
+        "offset": 852
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 11,
+        "offset": 860
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "NSUInteger",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 33,
+        "offset": 882
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "NSMutableArray",
+      "kind": "type",
+      "start": {
+        "line": 41,
+        "column": 4,
+        "offset": 905
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 41,
+        "column": 19,
+        "offset": 920
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "arrayWithCapacity",
+      "qualifier": "NSMutableArray",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 54,
+        "offset": 955
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "NSUInteger",
+      "kind": "type",
+      "start": {
+        "line": 42,
+        "column": 9,
+        "offset": 990
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 43,
+        "column": 8,
+        "offset": 1034
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "shapeNamed",
+      "qualifier": "Shape",
+      "kind": "call",
+      "start": {
+        "line": 43,
+        "column": 30,
+        "offset": 1056
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "stringWithFormat",
+      "qualifier": "NSString",
+      "kind": "call",
+      "start": {
+        "line": 43,
+        "column": 51,
+        "offset": 1077
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "name",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 43,
+        "column": 84,
+        "offset": 1110
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "addObject",
+      "qualifier": "result",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 16,
+        "offset": 1152
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "copy",
+      "qualifier": "result",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 19,
+        "offset": 1195
+      },
+      "enclosing": "Shape.splitInto"
+    },
+    {
+      "name": "CGRect",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 20,
+        "offset": 1225
+      },
+      "enclosing": "Shape.drawInRect"
+    },
+    {
+      "name": "CGContextRef",
+      "kind": "type",
+      "start": {
+        "line": 49,
+        "column": 41,
+        "offset": 1246
+      },
+      "enclosing": "Shape.drawInRect"
+    },
+    {
+      "name": "CGContextSaveGState",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 4,
+        "offset": 1273
+      },
+      "enclosing": "Shape.drawInRect"
+    },
+    {
+      "name": "strokeRect",
+      "qualifier": "_canvas",
+      "kind": "call",
+      "start": {
+        "line": 51,
+        "column": 13,
+        "offset": 1316
+      },
+      "enclosing": "Shape.drawInRect"
+    },
+    {
+      "name": "scale",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 51,
+        "column": 40,
+        "offset": 1343
+      },
+      "enclosing": "Shape.drawInRect"
+    },
+    {
+      "name": "CGContextRestoreGState",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 4,
+        "offset": 1355
+      },
+      "enclosing": "Shape.drawInRect"
+    },
+    {
+      "name": "completion",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 53,
+        "column": 13,
+        "offset": 1401
+      },
+      "enclosing": "Shape.drawInRect"
+    },
+    {
+      "name": "completion",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 54,
+        "column": 13,
+        "offset": 1428
+      },
+      "enclosing": "Shape.drawInRect"
+    },
+    {
+      "name": "SKScale",
+      "kind": "type",
+      "start": {
+        "line": 58,
+        "column": 3,
+        "offset": 1462
+      },
+      "enclosing": "Shape.scale"
+    },
+    {
+      "name": "NSZone",
+      "kind": "type",
+      "start": {
+        "line": 62,
+        "column": 20,
+        "offset": 1517
+      },
+      "enclosing": "Shape.copyWithZone"
+    },
+    {
+      "name": "class",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 19,
+        "offset": 1552
+      },
+      "enclosing": "Shape.copyWithZone"
+    },
+    {
+      "name": "allocWithZone",
+      "qualifier": "[self class]",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 26,
+        "offset": 1559
+      },
+      "enclosing": "Shape.copyWithZone"
+    },
+    {
+      "name": "initWithName",
+      "qualifier": "[[self class] allocWithZone:zone]",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 46,
+        "offset": 1579
+      },
+      "enclosing": "Shape.copyWithZone"
+    },
+    {
+      "name": "name",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 63,
+        "column": 64,
+        "offset": 1597
+      },
+      "enclosing": "Shape.copyWithZone"
+    },
+    {
+      "name": "performSelector",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 10,
+        "offset": 1651
+      },
+      "enclosing": "Shape.invalidate~2"
+    },
+    {
+      "name": "NSString",
+      "kind": "type",
+      "start": {
+        "line": 78,
+        "column": 3,
+        "offset": 1810
+      },
+      "enclosing": "Shape.Debugging.debugLabel"
+    },
+    {
+      "name": "stringWithFormat",
+      "qualifier": "NSString",
+      "kind": "call",
+      "start": {
+        "line": 79,
+        "column": 21,
+        "offset": 1855
+      },
+      "enclosing": "Shape.Debugging.debugLabel"
+    },
+    {
+      "name": "NSStringFromClass",
+      "kind": "call",
+      "start": {
+        "line": 79,
+        "column": 51,
+        "offset": 1885
+      },
+      "enclosing": "Shape.Debugging.debugLabel"
+    },
+    {
+      "name": "class",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 79,
+        "column": 75,
+        "offset": 1909
+      },
+      "enclosing": "Shape.Debugging.debugLabel"
+    },
+    {
+      "name": "name",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 79,
+        "column": 89,
+        "offset": 1923
+      },
+      "enclosing": "Shape.Debugging.debugLabel"
+    },
+    {
+      "name": "SKPoint3",
+      "kind": "type",
+      "start": {
+        "line": 84,
+        "column": 18,
+        "offset": 1957
+      },
+      "enclosing": "SKDistance"
+    },
+    {
+      "name": "SKPoint3",
+      "kind": "type",
+      "start": {
+        "line": 84,
+        "column": 30,
+        "offset": 1969
+      },
+      "enclosing": "SKDistance"
+    },
+    {
+      "name": "x",
+      "qualifier": "a",
+      "kind": "value",
+      "start": {
+        "line": 85,
+        "column": 18,
+        "offset": 2001
+      },
+      "enclosing": "SKDistance"
+    },
+    {
+      "name": "x",
+      "qualifier": "b",
+      "kind": "value",
+      "start": {
+        "line": 85,
+        "column": 24,
+        "offset": 2007
+      },
+      "enclosing": "SKDistance"
+    },
+    {
+      "name": "y",
+      "qualifier": "a",
+      "kind": "value",
+      "start": {
+        "line": 85,
+        "column": 34,
+        "offset": 2017
+      },
+      "enclosing": "SKDistance"
+    },
+    {
+      "name": "y",
+      "qualifier": "b",
+      "kind": "value",
+      "start": {
+        "line": 85,
+        "column": 40,
+        "offset": 2023
+      },
+      "enclosing": "SKDistance"
+    },
+    {
+      "name": "z",
+      "qualifier": "a",
+      "kind": "value",
+      "start": {
+        "line": 85,
+        "column": 50,
+        "offset": 2033
+      },
+      "enclosing": "SKDistance"
+    },
+    {
+      "name": "z",
+      "qualifier": "b",
+      "kind": "value",
+      "start": {
+        "line": 85,
+        "column": 56,
+        "offset": 2039
+      },
+      "enclosing": "SKDistance"
+    },
+    {
+      "name": "sqrt",
+      "kind": "call",
+      "start": {
+        "line": 86,
+        "column": 11,
+        "offset": 2053
+      },
+      "enclosing": "SKDistance"
+    },
+    {
+      "name": "Drawable",
+      "kind": "type",
+      "start": {
+        "line": 89,
+        "column": 3,
+        "offset": 2094
+      },
+      "enclosing": "SKMakeShape"
+    },
+    {
+      "name": "ShapeKind",
+      "kind": "type",
+      "start": {
+        "line": 89,
+        "column": 25,
+        "offset": 2116
+      },
+      "enclosing": "SKMakeShape"
+    },
+    {
+      "name": "shapeNamed",
+      "qualifier": "Shape",
+      "kind": "call",
+      "start": {
+        "line": 92,
+        "column": 22,
+        "offset": 2202
+      },
+      "enclosing": "SKMakeShape"
+    },
+    {
+      "name": "alloc",
+      "qualifier": "Shape",
+      "kind": "call",
+      "start": {
+        "line": 94,
+        "column": 23,
+        "offset": 2261
+      },
+      "enclosing": "SKMakeShape"
+    },
+    {
+      "name": "initWithName",
+      "qualifier": "[Shape alloc]",
+      "kind": "call",
+      "start": {
+        "line": 94,
+        "column": 30,
+        "offset": 2268
+      },
+      "enclosing": "SKMakeShape"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 98,
+        "column": 23,
+        "offset": 2334
+      },
+      "enclosing": "SKLogShape"
+    },
+    {
+      "name": "NSLog",
+      "kind": "call",
+      "start": {
+        "line": 99,
+        "column": 4,
+        "offset": 2354
+      },
+      "enclosing": "SKLogShape"
+    },
+    {
+      "name": "debugLabel",
+      "qualifier": "shape",
+      "kind": "call",
+      "start": {
+        "line": 99,
+        "column": 24,
+        "offset": 2374
+      },
+      "enclosing": "SKLogShape"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 7,
+        "column": 33,
+        "offset": 166
+      },
+      "text": "#import \"Shapes.h\"\n#import \"Canvas.h\"\n\nNSString *const SKErrorDomain = @\"com.example.ShapeKit\";\ndouble ShapeKitVersionNumber = 1.0;\n\nstatic NSInteger sShapeCount = 0;",
+      "hash": "e5100246234c72dfa06d8a733c443d0b89ef21299836b10589bb7d56d2a1335a"
+    },
+    {
+      "id": "Shape#1",
+      "kind": "symbol",
+      "symbolId": "Shape",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 168
+      },
+      "end": {
+        "line": 13,
+        "column": 4,
+        "offset": 308
+      },
+      "text": "// The private part of Shape.\n@interface Shape () \u003cNSSecureCoding\u003e\n@property (nonatomic, readwrite) ShapeKind kind;\n- (void)invalidate;\n@end",
+      "hash": "f07323abf8e503d0020cd044d648e8471fe6a248c788a3df75ceeed5f0966355"
+    },
+    {
+      "id": "Shape~2#1",
+      "kind": "symbol",
+      "symbolId": "Shape~2",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 310
+      },
+      "end": {
+        "line": 74,
+        "column": 4,
+        "offset": 1770
+      },
+      "text": "@implementation Shape\n\n@synthesize name = _name;\n@dynamic filled;\n\n- (instancetype)initWithName:(NSString *)name sides:(NSInteger)sides {\n    self = [super init];\n    if (self) {\n        _name = [name copy];\n        _sides = SK_CLAMP(sides, 0, SK_MAX_SIDES);\n        sShapeCount++;\n    }\n    return self;\n}\n\n+ (Shape *)shapeNamed:(NSString *)name {\n    return [[self alloc] initWithName:name sides:0];\n}\n\n- (double)area {\n    SKPoint3 origin = {0, 0, 0};\n    SKPoint3 corner = {1, 1, 0};\n    return SKDistance(origin, corner) * _sides;\n}\n\n- (NSArray\u003cShape *\u003e *)splitInto:(NSUInteger)parts {\n    NSMutableArray\u003cShape *\u003e *result = [NSMutableArray arrayWithCapacity:parts];\n    for (NSUInteger i = 0; i \u003c parts; i++) {\n        Shape *piece = [Shape shapeNamed:[NSString stringWithFormat:@\"%@-%lu\", self.name, (unsigned long)i]];\n        [result addObject:piece];\n    }\n    return [result copy];\n}\n\n- (void)drawInRect:(CGRect)rect context:(CGContextRef)context {\n    CGContextSaveGState(context);\n    [_canvas strokeRect:rect width:self.scale];\n    CGContextRestoreGState(context);\n    if (self.completion) {\n        self.completion(YES, nil);\n    }\n}\n\n- (SKScale)scale {\n    return 1.0;\n}\n\n- (id)copyWithZone:(NSZone *)zone {\n    return [[[self class] allocWithZone:zone] initWithName:self.name sides:_sides];\n}\n\n- (void)invalidate {\n    [self performSelector:@selector(area) withObject:nil afterDelay:0];\n}\n\n+ (BOOL)supportsSecureCoding {\n    return YES;\n}\n\n@end",
+      "hash": "6522bbb41a15f527237abdc99af38d40dead6e732a08ed4e9b90410f0977b12a"
+    },
+    {
+      "id": "Shape.Debugging#1",
+      "kind": "symbol",
+      "symbolId": "Shape.Debugging",
+      "start": {
+        "line": 76,
+        "column": 0,
+        "offset": 1772
+      },
+      "end": {
+        "line": 82,
+        "column": 4,
+        "offset": 1937
+      },
+      "text": "@implementation Shape (Debugging)\n\n- (NSString *)debugLabel {\n    return [NSString stringWithFormat:@\"\u003c%@: %@\u003e\", NSStringFromClass([self class]), self.name];\n}\n\n@end",
+      "hash": "33e02e5957702929839d59075faeaa2a48b1fa9435db22e49a24be25aa345868"
+    },
+    {
+      "id": "SKDistance#1",
+      "kind": "symbol",
+      "symbolId": "SKDistance",
+      "start": {
+        "line": 84,
+        "column": 0,
+        "offset": 1939
+      },
+      "end": {
+        "line": 87,
+        "column": 1,
+        "offset": 2089
+      },
+      "text": "double SKDistance(SKPoint3 a, SKPoint3 b) {\n    double dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;\n    return sqrt(dx * dx + dy * dy + dz * dz);\n}",
+      "hash": "6d4fe3aa6b8d79808c6850a4abf92b9e2022cdd7e95cb6eeb6a47edf4ddd4ba7"
+    },
+    {
+      "id": "SKMakeShape#1",
+      "kind": "symbol",
+      "symbolId": "SKMakeShape",
+      "start": {
+        "line": 89,
+        "column": 0,
+        "offset": 2091
+      },
+      "end": {
+        "line": 96,
+        "column": 1,
+        "offset": 2309
+      },
+      "text": "id\u003cDrawable\u003e SKMakeShape(ShapeKind kind) {\n    switch (kind) {\n    case ShapeKindCircle:\n        return [Shape shapeNamed:@\"circle\"];\n    default:\n        return [[Shape alloc] initWithName:@\"polygon\" sides:5];\n    }\n}",
+      "hash": "ff9df76a9a4d97f693b1672da9c1e050feca8376df3a32fee63fa48ec46ee52d"
+    },
+    {
+      "id": "SKLogShape#1",
+      "kind": "symbol",
+      "symbolId": "SKLogShape",
+      "start": {
+        "line": 98,
+        "column": 0,
+        "offset": 2311
+      },
+      "end": {
+        "line": 100,
+        "column": 1,
+        "offset": 2389
+      },
+      "text": "static void SKLogShape(Shape *shape) {\n    NSLog(@\"%@\", [shape debugLabel]);\n}",
+      "hash": "52c15c8db43a6a77659d0298409b9e4b84b93afaa1d3b8ae5780e61532a81061"
+    }
+  ]
+}

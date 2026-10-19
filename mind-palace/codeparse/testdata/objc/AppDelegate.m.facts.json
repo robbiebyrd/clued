@@ -1,0 +1,960 @@
+{
+  "lang": "objc",
+  "symbols": [
+    {
+      "id": "AppDelegate",
+      "kind": "extension",
+      "name": "AppDelegate",
+      "qualName": "AppDelegate",
+      "signature": "@interface AppDelegate () \u003cUITableViewDataSource, CanvasDelegate\u003e",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 93
+      },
+      "end": {
+        "line": 9,
+        "column": 4,
+        "offset": 263
+      },
+      "exported": true
+    },
+    {
+      "id": "AppDelegate.canvas",
+      "kind": "property",
+      "name": "canvas",
+      "qualName": "AppDelegate.canvas",
+      "signature": "@property (nonatomic, strong) Canvas *canvas;",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 159
+      },
+      "end": {
+        "line": 7,
+        "column": 45,
+        "offset": 204
+      },
+      "parent": "AppDelegate",
+      "exported": true
+    },
+    {
+      "id": "AppDelegate.box",
+      "kind": "property",
+      "name": "box",
+      "qualName": "AppDelegate.box",
+      "signature": "@property (nonatomic, strong) ShapeBox\u003cShape *\u003e *box;",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 205
+      },
+      "end": {
+        "line": 8,
+        "column": 53,
+        "offset": 258
+      },
+      "parent": "AppDelegate",
+      "exported": true
+    },
+    {
+      "id": "AppDelegate~2",
+      "kind": "impl",
+      "name": "AppDelegate",
+      "qualName": "AppDelegate",
+      "signature": "@implementation AppDelegate",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 265
+      },
+      "end": {
+        "line": 63,
+        "column": 4,
+        "offset": 2045
+      },
+      "exported": true
+    },
+    {
+      "id": "AppDelegate._launchCount",
+      "kind": "field",
+      "name": "_launchCount",
+      "qualName": "AppDelegate._launchCount",
+      "signature": "NSUInteger _launchCount;",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 299
+      },
+      "end": {
+        "line": 12,
+        "column": 28,
+        "offset": 323
+      },
+      "parent": "AppDelegate~2",
+      "exported": true
+    },
+    {
+      "id": "AppDelegate._forward",
+      "kind": "field",
+      "name": "_forward",
+      "qualName": "AppDelegate._forward",
+      "signature": "__weak id\u003cCanvasDelegate\u003e _forward;",
+      "start": {
+        "line": 13,
+        "column": 4,
+        "offset": 328
+      },
+      "end": {
+        "line": 13,
+        "column": 39,
+        "offset": 363
+      },
+      "parent": "AppDelegate~2",
+      "exported": true
+    },
+    {
+      "id": "AppDelegate.application",
+      "kind": "method",
+      "name": "application",
+      "qualName": "AppDelegate.application",
+      "signature": "- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 367
+      },
+      "end": {
+        "line": 42,
+        "column": 1,
+        "offset": 1379
+      },
+      "parent": "AppDelegate~2",
+      "exported": true
+    },
+    {
+      "id": "AppDelegate.tableView",
+      "kind": "method",
+      "name": "tableView",
+      "qualName": "AppDelegate.tableView",
+      "signature": "- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section",
+      "start": {
+        "line": 46,
+        "column": 0,
+        "offset": 1419
+      },
+      "end": {
+        "line": 48,
+        "column": 1,
+        "offset": 1559
+      },
+      "parent": "AppDelegate~2",
+      "exported": true
+    },
+    {
+      "id": "AppDelegate.tableView~2",
+      "kind": "method",
+      "name": "tableView",
+      "qualName": "AppDelegate.tableView",
+      "signature": "- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath",
+      "start": {
+        "line": 50,
+        "column": 0,
+        "offset": 1561
+      },
+      "end": {
+        "line": 55,
+        "column": 1,
+        "offset": 1893
+      },
+      "parent": "AppDelegate~2",
+      "exported": true
+    },
+    {
+      "id": "AppDelegate.canvas~2",
+      "kind": "method",
+      "name": "canvas",
+      "qualName": "AppDelegate.canvas",
+      "signature": "- (void)canvas:(Canvas *)canvas didSelectShape:(Shape *)shape",
+      "start": {
+        "line": 59,
+        "column": 0,
+        "offset": 1926
+      },
+      "end": {
+        "line": 61,
+        "column": 1,
+        "offset": 2039
+      },
+      "parent": "AppDelegate~2",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "UIKit",
+      "kind": "module",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      }
+    },
+    {
+      "spec": "CoreData",
+      "names": [
+        "NSManagedObject"
+      ],
+      "kind": "module",
+      "start": {
+        "line": 2,
+        "column": 0,
+        "offset": 15
+      }
+    },
+    {
+      "spec": "AppDelegate.h",
+      "kind": "import",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 49
+      }
+    },
+    {
+      "spec": "Shapes.h",
+      "kind": "import",
+      "start": {
+        "line": 4,
+        "column": 0,
+        "offset": 73
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "UITableViewDataSource",
+      "kind": "implements",
+      "start": {
+        "line": 6,
+        "column": 27,
+        "offset": 120
+      },
+      "enclosing": "AppDelegate"
+    },
+    {
+      "name": "CanvasDelegate",
+      "kind": "implements",
+      "start": {
+        "line": 6,
+        "column": 50,
+        "offset": 143
+      },
+      "enclosing": "AppDelegate"
+    },
+    {
+      "name": "Canvas",
+      "kind": "type",
+      "start": {
+        "line": 7,
+        "column": 30,
+        "offset": 189
+      },
+      "enclosing": "AppDelegate.canvas"
+    },
+    {
+      "name": "ShapeBox",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 30,
+        "offset": 235
+      },
+      "enclosing": "AppDelegate.box"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 8,
+        "column": 39,
+        "offset": 244
+      },
+      "enclosing": "AppDelegate.box"
+    },
+    {
+      "name": "NSUInteger",
+      "kind": "type",
+      "start": {
+        "line": 12,
+        "column": 4,
+        "offset": 299
+      },
+      "enclosing": "AppDelegate._launchCount"
+    },
+    {
+      "name": "CanvasDelegate",
+      "kind": "type",
+      "start": {
+        "line": 13,
+        "column": 14,
+        "offset": 338
+      },
+      "enclosing": "AppDelegate._forward"
+    },
+    {
+      "name": "UIApplication",
+      "kind": "type",
+      "start": {
+        "line": 16,
+        "column": 21,
+        "offset": 388
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "NSDictionary",
+      "kind": "type",
+      "start": {
+        "line": 16,
+        "column": 80,
+        "offset": 447
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "window",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 17,
+        "column": 9,
+        "offset": 487
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "alloc",
+      "qualifier": "UIWindow",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 29,
+        "offset": 507
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "initWithFrame",
+      "qualifier": "[UIWindow alloc]",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 36,
+        "offset": 514
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "mainScreen",
+      "qualifier": "UIScreen",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 61,
+        "offset": 539
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "bounds",
+      "qualifier": "[UIScreen mainScreen]",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 73,
+        "offset": 551
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "canvas",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 19,
+        "column": 9,
+        "offset": 593
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "alloc",
+      "qualifier": "Canvas",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 27,
+        "offset": 611
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "init",
+      "qualifier": "[Canvas alloc]",
+      "kind": "call",
+      "start": {
+        "line": 19,
+        "column": 34,
+        "offset": 618
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "canvas",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 20,
+        "column": 9,
+        "offset": 634
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "delegate",
+      "qualifier": "self.canvas",
+      "kind": "value",
+      "start": {
+        "line": 20,
+        "column": 16,
+        "offset": 641
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 662
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 21,
+        "offset": 679
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "SKMakeShape",
+      "kind": "call",
+      "start": {
+        "line": 21,
+        "column": 29,
+        "offset": 687
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "completion",
+      "qualifier": "square",
+      "kind": "value",
+      "start": {
+        "line": 22,
+        "column": 11,
+        "offset": 728
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "NSError",
+      "kind": "type",
+      "start": {
+        "line": 22,
+        "column": 41,
+        "offset": 758
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "NSLog",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 12,
+        "offset": 813
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "localizedDescription",
+      "qualifier": "error",
+      "kind": "value",
+      "start": {
+        "line": 24,
+        "column": 31,
+        "offset": 832
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "canvas",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 27,
+        "column": 10,
+        "offset": 882
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "addShape",
+      "qualifier": "self.canvas",
+      "kind": "call",
+      "start": {
+        "line": 27,
+        "column": 17,
+        "offset": 889
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "dispatch_async",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 4,
+        "offset": 952
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "dispatch_get_main_queue",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 19,
+        "offset": 967
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "canvas",
+      "qualifier": "weakSelf",
+      "kind": "value",
+      "start": {
+        "line": 30,
+        "column": 18,
+        "offset": 1015
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "setNeedsDisplay",
+      "qualifier": "weakSelf.canvas",
+      "kind": "call",
+      "start": {
+        "line": 30,
+        "column": 25,
+        "offset": 1022
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "Protocol",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 4,
+        "offset": 1052
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "Drawable",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 34,
+        "offset": 1082
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "conformsToProtocol",
+      "qualifier": "square",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 16,
+        "offset": 1109
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "drawInRect",
+      "qualifier": "square",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 16,
+        "offset": 1156
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "UIGraphicsGetCurrentContext",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 46,
+        "offset": 1186
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "window",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 37,
+        "column": 14,
+        "offset": 1249
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "makeKeyAndVisible",
+      "qualifier": "self.window",
+      "kind": "call",
+      "start": {
+        "line": 37,
+        "column": 21,
+        "offset": 1256
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "NSException",
+      "kind": "type",
+      "start": {
+        "line": 38,
+        "column": 14,
+        "offset": 1290
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "NSLog",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 8,
+        "offset": 1324
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "reason",
+      "qualifier": "exception",
+      "kind": "value",
+      "start": {
+        "line": 39,
+        "column": 31,
+        "offset": 1347
+      },
+      "enclosing": "AppDelegate.application"
+    },
+    {
+      "name": "NSInteger",
+      "kind": "type",
+      "start": {
+        "line": 46,
+        "column": 3,
+        "offset": 1422
+      },
+      "enclosing": "AppDelegate.tableView"
+    },
+    {
+      "name": "UITableView",
+      "kind": "type",
+      "start": {
+        "line": 46,
+        "column": 24,
+        "offset": 1443
+      },
+      "enclosing": "AppDelegate.tableView"
+    },
+    {
+      "name": "NSInteger",
+      "kind": "type",
+      "start": {
+        "line": 46,
+        "column": 71,
+        "offset": 1490
+      },
+      "enclosing": "AppDelegate.tableView"
+    },
+    {
+      "name": "NSInteger",
+      "kind": "type",
+      "start": {
+        "line": 47,
+        "column": 12,
+        "offset": 1522
+      },
+      "enclosing": "AppDelegate.tableView"
+    },
+    {
+      "name": "canvas",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 47,
+        "column": 27,
+        "offset": 1537
+      },
+      "enclosing": "AppDelegate.tableView"
+    },
+    {
+      "name": "shapes",
+      "qualifier": "self.canvas",
+      "kind": "value",
+      "start": {
+        "line": 47,
+        "column": 34,
+        "offset": 1544
+      },
+      "enclosing": "AppDelegate.tableView"
+    },
+    {
+      "name": "count",
+      "qualifier": "self.canvas.shapes",
+      "kind": "value",
+      "start": {
+        "line": 47,
+        "column": 41,
+        "offset": 1551
+      },
+      "enclosing": "AppDelegate.tableView"
+    },
+    {
+      "name": "UITableViewCell",
+      "kind": "type",
+      "start": {
+        "line": 50,
+        "column": 3,
+        "offset": 1564
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "UITableView",
+      "kind": "type",
+      "start": {
+        "line": 50,
+        "column": 32,
+        "offset": 1593
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "NSIndexPath",
+      "kind": "type",
+      "start": {
+        "line": 50,
+        "column": 79,
+        "offset": 1640
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "UITableViewCell",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 4,
+        "offset": 1670
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "dequeueReusableCellWithIdentifier",
+      "qualifier": "tableView",
+      "kind": "call",
+      "start": {
+        "line": 51,
+        "column": 39,
+        "offset": 1705
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 52,
+        "column": 4,
+        "offset": 1777
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "box",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 52,
+        "column": 25,
+        "offset": 1798
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "shapeAtIndex",
+      "qualifier": "self.box",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 29,
+        "offset": 1802
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "row",
+      "qualifier": "indexPath",
+      "kind": "value",
+      "start": {
+        "line": 52,
+        "column": 52,
+        "offset": 1825
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "textLabel",
+      "qualifier": "cell",
+      "kind": "value",
+      "start": {
+        "line": 53,
+        "column": 9,
+        "offset": 1840
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "text",
+      "qualifier": "cell.textLabel",
+      "kind": "value",
+      "start": {
+        "line": 53,
+        "column": 19,
+        "offset": 1850
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "debugLabel",
+      "qualifier": "shape",
+      "kind": "value",
+      "start": {
+        "line": 53,
+        "column": 32,
+        "offset": 1863
+      },
+      "enclosing": "AppDelegate.tableView~2"
+    },
+    {
+      "name": "Canvas",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 16,
+        "offset": 1942
+      },
+      "enclosing": "AppDelegate.canvas~2"
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 59,
+        "column": 48,
+        "offset": 1974
+      },
+      "enclosing": "AppDelegate.canvas~2"
+    },
+    {
+      "name": "canvas",
+      "qualifier": "super",
+      "kind": "call",
+      "start": {
+        "line": 60,
+        "column": 11,
+        "offset": 2001
+      },
+      "enclosing": "AppDelegate.canvas~2"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 4,
+        "column": 18,
+        "offset": 91
+      },
+      "text": "@import UIKit;\n@import CoreData.NSManagedObject;\n#import \"AppDelegate.h\"\n#import \"Shapes.h\"",
+      "hash": "be03fea3e89be96b4537e260e89780a6f5ed0d866bab99cd54fd95d621adce84"
+    },
+    {
+      "id": "AppDelegate#1",
+      "kind": "symbol",
+      "symbolId": "AppDelegate",
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 93
+      },
+      "end": {
+        "line": 9,
+        "column": 4,
+        "offset": 263
+      },
+      "text": "@interface AppDelegate () \u003cUITableViewDataSource, CanvasDelegate\u003e\n@property (nonatomic, strong) Canvas *canvas;\n@property (nonatomic, strong) ShapeBox\u003cShape *\u003e *box;\n@end",
+      "hash": "43f9339dd7e50747bccc8dd677658b9283d2ed6026d18792853cd81f0f88d195"
+    },
+    {
+      "id": "AppDelegate~2#1",
+      "kind": "symbol",
+      "symbolId": "AppDelegate~2",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 265
+      },
+      "end": {
+        "line": 63,
+        "column": 4,
+        "offset": 2045
+      },
+      "text": "@implementation AppDelegate {\n    NSUInteger _launchCount;\n    __weak id\u003cCanvasDelegate\u003e _forward;\n}\n\n- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {\n    self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];\n    _launchCount += 1;\n    self.canvas = [[Canvas alloc] init];\n    self.canvas.delegate = self;\n    Shape *square = (Shape *)SKMakeShape(ShapeKindSquare);\n    square.completion = ^(BOOL finished, NSError *error) {\n        if (!finished) {\n            NSLog(@\"%@\", error.localizedDescription);\n        }\n    };\n    [self.canvas addShape:square];\n    __weak typeof(self) weakSelf = self;\n    dispatch_async(dispatch_get_main_queue(), ^{\n        [weakSelf.canvas setNeedsDisplay];\n    });\n    Protocol *drawing = @protocol(Drawable);\n    if ([square conformsToProtocol:drawing]) {\n        [square drawInRect:CGRectZero context:UIGraphicsGetCurrentContext()];\n    }\n    @try {\n        [self.window makeKeyAndVisible];\n    } @catch (NSException *exception) {\n        NSLog(@\"%@\", exception.reason);\n    }\n    return YES;\n}\n\n#pragma mark - UITableViewDataSource\n\n- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {\n    return (NSInteger)self.canvas.shapes.count;\n}\n\n- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {\n    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@\"Shape\" forIndexPath:indexPath];\n    Shape *shape = [self.box shapeAtIndex:indexPath.row];\n    cell.textLabel.text = shape.debugLabel;\n    return cell;\n}\n\n#pragma mark - CanvasDelegate\n\n- (void)canvas:(Canvas *)canvas didSelectShape:(Shape *)shape {\n    [super canvas:canvas didSelectShape:shape];\n}\n\n@end",
+      "hash": "2c5c27a5315c55aa971593077d92d4636f941c9e9f2b4716e223c786f562c5d8"
+    }
+  ]
+}

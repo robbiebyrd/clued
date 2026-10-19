@@ -3,11 +3,13 @@ id: 0089-99h
 title: Extraction for Objective-C
 purpose: 'Adds Objective-C to the indexer: files .m, .mm, .h.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:36.538Z"
-updated: "2026-10-19T18:29:49.987Z"
+updated: "2026-10-19T20:58:14.221Z"
+started: "2026-10-19T20:46:50.663Z"
+completed: "2026-10-19T20:58:14.221Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for Objective-C
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/objc'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/objc'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/objc'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/objc'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/objc.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:58:04.115Z - Objective-C extraction: grammars/objc.go registers gotreesitter's objc grammar; queries/objc/profile.yaml (cfamily, .m/.mm/.h, packageBy none, separator '.', kind category, options includeKinds/moduleKinds for the resolver) and tags.scm: classes (@interface with superclass or root), class extensions (kind extension), categories (kind category, member of their class via @receiver), @implementation blocks (kind impl; category implementations under their class), protocols, methods (declarations and definitions, named by the selector's first keyword; the full selector is in the signature, so tableView:numberOfRowsInSection: and tableView:cellForRowAtIndexPath: are tableView and tableView~2), properties, instance variables, C functions and prototypes, structs, unions, enums (C and the three shapes the grammar gives NS_ENUM/NS_OPTIONS), typedefs, fields, enumerators, macros, file-level constants and variables; imports #import/#include (kinds import, import_system, include, include_system) and @import (kind module, submodules as names); references: message sends (first keyword, receiver as qualifier), C calls, superclass and protocol-list extends/implements, @class/@protocol forward declarations, @protocol(), method and C types, property accesses, @synthesize/@dynamic. Each declarator shape is its own pattern (the alternation @name bug). Goldens: Shapes.h, Shape.m, AppDelegate.m, Bridge.mm (Objective-C++, C++ parts parse with errors), broken.m. gofmt/vet/build clean; go test -race ./codeparse/... ok (TestGolden/objc: 5 inputs pass). Only the three listed paths changed. Engine note: a symbol name is one node, so a multi-keyword selector cannot be its name; joining repeated @name captures (with ':') would give full selectors.
