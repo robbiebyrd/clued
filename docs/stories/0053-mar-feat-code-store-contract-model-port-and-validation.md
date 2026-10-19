@@ -3,11 +3,13 @@ id: 0053-mar
 title: 'Code store contract: model, port and validation'
 purpose: Every other 0010, 0011 and 0012 story builds against `code.Store` and its model.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:04:50.160Z"
-updated: "2026-10-19T18:25:59.276Z"
+updated: "2026-10-19T19:03:06.035Z"
+started: "2026-10-19T18:58:14.876Z"
+completed: "2026-10-19T19:03:02.868Z"
 tags:
   - plan-0010-awy
   - wave-1
@@ -31,15 +33,15 @@ links:
     - ["0010-awy", "included", ["1.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Code store contract: model, port and validation
@@ -76,9 +78,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] [MANUAL] `code.Store` and the model compile and are documented; nothing implements them yet
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./code/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] [MANUAL] `code.Store` and the model compile and are documented; nothing implements them yet
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./code/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -88,3 +90,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/code/validate_test.go` - table tests for every validator
 
 ## Work Log
+
+### 2026-10-19T19:03:06.035Z - Added mind-palace/code: model.go (Blob, Entry with GitOID/Dirty/Unpushed/Session, Worktree with Owner/Source/DefaultBranch/Refs/Sessions, SessionSeen, Change with Owner/Upstream/Ahead; SourceClient/SourceGitHub constants, empty Source = client; tombstone change shape documented), store.go (code.Store exactly as plan 0010 Design, plus sentinel errors ErrNotFound, ErrInvalid, ErrMissingBlob for codetest/codeapi to match on), validate.go (ValidPath, ValidSHA256 with ValidSHA alias for the plan's name, ValidGitOID, ValidWorktreeID, ValidRef following git check-ref-format --branch plus detached@<7-64 hex>; MaxPathBytes, MaxRefBytes). validate_test.go: 5 table tests, 102 subtests, all pass with -race; gofmt/vet/build clean. Only the four listed files changed. Nothing implements Store yet.
