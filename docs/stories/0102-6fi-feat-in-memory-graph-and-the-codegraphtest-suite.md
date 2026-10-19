@@ -3,11 +3,13 @@ id: 0102-6fi
 title: In-memory graph and the `codegraphtest` suite
 purpose: Gives every later story a graph to test against without FalkorDB, and pins the behaviour FalkorDB must match.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:09:43.796Z"
-updated: "2026-10-19T18:31:14.456Z"
+updated: "2026-10-19T19:16:05.697Z"
+started: "2026-10-19T19:05:50.687Z"
+completed: "2026-10-19T19:16:05.697Z"
 tags:
   - plan-0012-cgi
   - wave-2
@@ -31,13 +33,13 @@ links:
     - ["0012-cgi", "included", ["2.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # In-memory graph and the `codegraphtest` suite
@@ -70,9 +72,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codegraph/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codegraph/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codegraph/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codegraph/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -81,3 +83,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codegraph/memgraph/memgraph_test.go` - runs the suite
 
 ## Work Log
+
+### 2026-10-19T19:16:00.148Z - Added codegraph/memgraph (Opener over per-key maps, Graph implementing the whole port) and codegraph/codegraphtest (Run(t, Factory) with Factory func(*testing.T) codegraph.Opener; the suite opens random u<hex>__cgt-<test> keys, drops each graph and closes the opener). 22 subtests: layers, ApplyFile/Files (tombstones, id ownership per layer), replace semantics, hiddenBy kept on nil, resolved edges kept for surviving (layer,id) and dropped otherwise, RemoveFile, hiddenBy across base/branch/overlay/other, tombstones, per-layer edges (overlay rename), PutEdges replace/validation/atomicity, DropLayer, Drop and rebuild, FindSymbols, Symbol, Neighbors (relations, depth, cycles, imports/importers), Outline, SearchText, view validation, concurrent writes, Opener isolation. Behaviour the contract left open and the suite now pins: Files of an unknown layer is ErrNotFound; RemoveFile in an unknown layer is a no-op; a symbol or chunk id held by another path of the layer is ErrInvalid; packages keep the kind they were created with (empty = package); one id visible in several layers answers from the highest (FindSymbols and SearchText too); Neighbors rows ordered by depth, From then To (path, start, id, name, layer), type, alias; importers of a package absent from the view is ErrNotFound; Outline with no visible match is ErrNotFound; SearchText ANDs case-insensitive terms, supports trailing-* prefixes, treats query syntax as text. go test -race ./codegraph/... passes; gofmt/vet/build clean. Only the three listed files changed.
