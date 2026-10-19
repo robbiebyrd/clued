@@ -1,0 +1,1184 @@
+{
+  "lang": "lisp",
+  "dialect": "commonlisp",
+  "package": "geometry",
+  "symbols": [
+    {
+      "id": "geometry:geometry",
+      "kind": "package",
+      "name": "geometry",
+      "qualName": "geometry:geometry",
+      "signature": "(defpackage #:geometry",
+      "doc": "Shapes and their areas.",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 69
+      },
+      "end": {
+        "line": 8,
+        "column": 45,
+        "offset": 305
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:*default-scale*",
+      "kind": "var",
+      "name": "*default-scale*",
+      "qualName": "geometry:*default-scale*",
+      "signature": "(defvar *default-scale* 1.0",
+      "doc": "The scale every shape is drawn at.",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 353
+      },
+      "end": {
+        "line": 15,
+        "column": 39,
+        "offset": 420
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:*registry*",
+      "kind": "var",
+      "name": "*registry*",
+      "qualName": "geometry:*registry*",
+      "signature": "(defparameter *registry* (make-hash-table :test 'equal))",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 422
+      },
+      "end": {
+        "line": 17,
+        "column": 56,
+        "offset": 478
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:+epsilon+",
+      "kind": "const",
+      "name": "+epsilon+",
+      "qualName": "geometry:+epsilon+",
+      "signature": "(defconstant +epsilon+ 1d-9 \"Tolerance of comparisons.\")",
+      "doc": "Tolerance of comparisons.",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 480
+      },
+      "end": {
+        "line": 19,
+        "column": 56,
+        "offset": 536
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:coordinate",
+      "kind": "type",
+      "name": "coordinate",
+      "qualName": "geometry:coordinate",
+      "signature": "(deftype coordinate () '(real -1000 1000))",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 538
+      },
+      "end": {
+        "line": 21,
+        "column": 42,
+        "offset": 580
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:shape",
+      "kind": "class",
+      "name": "shape",
+      "qualName": "geometry:shape",
+      "signature": "(defclass shape ()",
+      "doc": "Something with an area.",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 610
+      },
+      "end": {
+        "line": 27,
+        "column": 45,
+        "offset": 792
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:shape:name",
+      "kind": "field",
+      "name": "name",
+      "qualName": "geometry:shape:name",
+      "signature": "(name :initarg :name :reader shape-name)",
+      "start": {
+        "line": 25,
+        "column": 3,
+        "offset": 632
+      },
+      "end": {
+        "line": 25,
+        "column": 43,
+        "offset": 672
+      },
+      "parent": "geometry:shape",
+      "exported": true
+    },
+    {
+      "id": "geometry:shape:origin",
+      "kind": "field",
+      "name": "origin",
+      "qualName": "geometry:shape:origin",
+      "signature": "(origin :initarg :origin :initform (make-point 0 0) :accessor origin)",
+      "start": {
+        "line": 26,
+        "column": 3,
+        "offset": 676
+      },
+      "end": {
+        "line": 26,
+        "column": 72,
+        "offset": 745
+      },
+      "parent": "geometry:shape",
+      "exported": true
+    },
+    {
+      "id": "geometry:circle",
+      "kind": "class",
+      "name": "circle",
+      "qualName": "geometry:circle",
+      "signature": "(defclass circle (shape a:mixin)",
+      "start": {
+        "line": 29,
+        "column": 0,
+        "offset": 794
+      },
+      "end": {
+        "line": 30,
+        "column": 45,
+        "offset": 872
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:circle:radius",
+      "kind": "field",
+      "name": "radius",
+      "qualName": "geometry:circle:radius",
+      "signature": "(radius :initarg :radius :reader radius)",
+      "start": {
+        "line": 30,
+        "column": 3,
+        "offset": 830
+      },
+      "end": {
+        "line": 30,
+        "column": 43,
+        "offset": 870
+      },
+      "parent": "geometry:circle",
+      "exported": true
+    },
+    {
+      "id": "geometry:point",
+      "kind": "struct",
+      "name": "point",
+      "qualName": "geometry:point",
+      "signature": "(defstruct (point (:include base-point) (:constructor make-point (x y)))",
+      "doc": "A point in the plane.",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 874
+      },
+      "end": {
+        "line": 35,
+        "column": 25,
+        "offset": 1002
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:point:x",
+      "kind": "field",
+      "name": "x",
+      "qualName": "geometry:point:x",
+      "signature": "x",
+      "start": {
+        "line": 34,
+        "column": 2,
+        "offset": 975
+      },
+      "end": {
+        "line": 34,
+        "column": 3,
+        "offset": 976
+      },
+      "parent": "geometry:point",
+      "exported": true
+    },
+    {
+      "id": "geometry:point:y",
+      "kind": "field",
+      "name": "y",
+      "qualName": "geometry:point:y",
+      "signature": "(y 0 :type coordinate)",
+      "start": {
+        "line": 35,
+        "column": 2,
+        "offset": 979
+      },
+      "end": {
+        "line": 35,
+        "column": 24,
+        "offset": 1001
+      },
+      "parent": "geometry:point",
+      "exported": true
+    },
+    {
+      "id": "geometry:invalid-shape",
+      "kind": "class",
+      "name": "invalid-shape",
+      "qualName": "geometry:invalid-shape",
+      "signature": "(define-condition invalid-shape (error)",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 1004
+      },
+      "end": {
+        "line": 40,
+        "column": 74,
+        "offset": 1204
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:invalid-shape:shape",
+      "kind": "field",
+      "name": "shape",
+      "qualName": "geometry:invalid-shape:shape",
+      "signature": "(shape :initarg :shape :reader invalid-shape-shape)",
+      "start": {
+        "line": 38,
+        "column": 3,
+        "offset": 1047
+      },
+      "end": {
+        "line": 38,
+        "column": 54,
+        "offset": 1098
+      },
+      "parent": "geometry:invalid-shape",
+      "exported": true
+    },
+    {
+      "id": "geometry:area",
+      "kind": "function",
+      "name": "area",
+      "qualName": "geometry:area",
+      "signature": "defgeneric area (shape)",
+      "doc": "The area of SHAPE.",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 1206
+      },
+      "end": {
+        "line": 43,
+        "column": 40,
+        "offset": 1271
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:area~2",
+      "kind": "method",
+      "name": "area",
+      "qualName": "geometry:area",
+      "signature": "defmethod area ((c circle))",
+      "start": {
+        "line": 45,
+        "column": 0,
+        "offset": 1273
+      },
+      "end": {
+        "line": 46,
+        "column": 29,
+        "offset": 1331
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:area~3",
+      "kind": "method",
+      "name": "area",
+      "qualName": "geometry:area",
+      "signature": "defmethod area :around ((s shape))",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 1333
+      },
+      "end": {
+        "line": 52,
+        "column": 12,
+        "offset": 1483
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:make-circle",
+      "kind": "function",
+      "name": "make-circle",
+      "qualName": "geometry:make-circle",
+      "signature": "defun make-circle (radius \u0026key (name \"circle\"))",
+      "doc": "Makes a circle of RADIUS, registered under NAME.",
+      "start": {
+        "line": 54,
+        "column": 0,
+        "offset": 1485
+      },
+      "end": {
+        "line": 59,
+        "column": 7,
+        "offset": 1719
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:scale",
+      "kind": "function",
+      "name": "scale",
+      "qualName": "geometry:scale",
+      "signature": "defun scale (shape factor)",
+      "doc": "Scales a shape; returns the new one.",
+      "start": {
+        "line": 62,
+        "column": 0,
+        "offset": 1762
+      },
+      "end": {
+        "line": 65,
+        "column": 49,
+        "offset": 1920
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:total-area",
+      "kind": "function",
+      "name": "total-area",
+      "qualName": "geometry:total-area",
+      "signature": "defun total-area (shapes)",
+      "start": {
+        "line": 67,
+        "column": 0,
+        "offset": 1922
+      },
+      "end": {
+        "line": 68,
+        "column": 54,
+        "offset": 2003
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:safe-area",
+      "kind": "function",
+      "name": "safe-area",
+      "qualName": "geometry:safe-area",
+      "signature": "defun safe-area (shape)",
+      "start": {
+        "line": 70,
+        "column": 0,
+        "offset": 2005
+      },
+      "end": {
+        "line": 74,
+        "column": 10,
+        "offset": 2114
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:with-scale",
+      "kind": "macro",
+      "name": "with-scale",
+      "qualName": "geometry:with-scale",
+      "signature": "defmacro with-scale ((factor) \u0026body body)",
+      "doc": "Runs BODY with *default-scale* bound to FACTOR.",
+      "start": {
+        "line": 76,
+        "column": 0,
+        "offset": 2116
+      },
+      "end": {
+        "line": 80,
+        "column": 13,
+        "offset": 2288
+      },
+      "exported": true
+    },
+    {
+      "id": "geometry:draw-all",
+      "kind": "function",
+      "name": "draw-all",
+      "qualName": "geometry:draw-all",
+      "signature": "defun draw-all (shapes stream)",
+      "start": {
+        "line": 82,
+        "column": 0,
+        "offset": 2290
+      },
+      "end": {
+        "line": 86,
+        "column": 31,
+        "offset": 2461
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "cl",
+      "kind": "use",
+      "start": {
+        "line": 4,
+        "column": 2,
+        "offset": 94
+      }
+    },
+    {
+      "spec": "alexandria",
+      "names": [
+        "when-let",
+        "ensure-list"
+      ],
+      "kind": "import_from",
+      "start": {
+        "line": 5,
+        "column": 2,
+        "offset": 108
+      }
+    },
+    {
+      "spec": "alexandria",
+      "alias": "a",
+      "kind": "use",
+      "start": {
+        "line": 6,
+        "column": 20,
+        "offset": 181
+      }
+    },
+    {
+      "spec": "sb-posix",
+      "kind": "require",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 332
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "make-hash-table",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 26,
+        "offset": 448
+      },
+      "enclosing": "geometry:*registry*"
+    },
+    {
+      "name": "make-point",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 39,
+        "offset": 712
+      },
+      "enclosing": "geometry:shape:origin"
+    },
+    {
+      "name": "shape",
+      "kind": "extends",
+      "start": {
+        "line": 29,
+        "column": 18,
+        "offset": 812
+      },
+      "enclosing": "geometry:circle"
+    },
+    {
+      "name": "mixin",
+      "qualifier": "a",
+      "kind": "extends",
+      "start": {
+        "line": 29,
+        "column": 26,
+        "offset": 820
+      },
+      "enclosing": "geometry:circle"
+    },
+    {
+      "name": "base-point",
+      "kind": "extends",
+      "start": {
+        "line": 32,
+        "column": 28,
+        "offset": 902
+      },
+      "enclosing": "geometry:point"
+    },
+    {
+      "name": "error",
+      "kind": "extends",
+      "start": {
+        "line": 37,
+        "column": 33,
+        "offset": 1037
+      },
+      "enclosing": "geometry:invalid-shape"
+    },
+    {
+      "name": "format",
+      "kind": "call",
+      "start": {
+        "line": 40,
+        "column": 14,
+        "offset": 1144
+      },
+      "enclosing": "geometry:invalid-shape"
+    },
+    {
+      "name": "invalid-shape-shape",
+      "kind": "call",
+      "start": {
+        "line": 40,
+        "column": 48,
+        "offset": 1178
+      },
+      "enclosing": "geometry:invalid-shape"
+    },
+    {
+      "name": "circle",
+      "kind": "type",
+      "start": {
+        "line": 45,
+        "column": 20,
+        "offset": 1293
+      },
+      "enclosing": "geometry:area~2"
+    },
+    {
+      "name": "*",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 3,
+        "offset": 1305
+      },
+      "enclosing": "geometry:area~2"
+    },
+    {
+      "name": "expt",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 9,
+        "offset": 1311
+      },
+      "enclosing": "geometry:area~2"
+    },
+    {
+      "name": "radius",
+      "kind": "call",
+      "start": {
+        "line": 46,
+        "column": 15,
+        "offset": 1317
+      },
+      "enclosing": "geometry:area~2"
+    },
+    {
+      "name": "shape",
+      "kind": "type",
+      "start": {
+        "line": 48,
+        "column": 28,
+        "offset": 1361
+      },
+      "enclosing": "geometry:area~3"
+    },
+    {
+      "name": "call-next-method",
+      "kind": "call",
+      "start": {
+        "line": 49,
+        "column": 17,
+        "offset": 1386
+      },
+      "enclosing": "geometry:area~3"
+    },
+    {
+      "name": "minusp",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 11,
+        "offset": 1417
+      },
+      "enclosing": "geometry:area~3"
+    },
+    {
+      "name": "error",
+      "kind": "call",
+      "start": {
+        "line": 51,
+        "column": 7,
+        "offset": 1439
+      },
+      "enclosing": "geometry:area~3"
+    },
+    {
+      "name": "make-instance",
+      "kind": "call",
+      "start": {
+        "line": 56,
+        "column": 12,
+        "offset": 1599
+      },
+      "enclosing": "geometry:make-circle"
+    },
+    {
+      "name": "circle",
+      "kind": "type",
+      "start": {
+        "line": 56,
+        "column": 27,
+        "offset": 1614
+      },
+      "enclosing": "geometry:make-circle"
+    },
+    {
+      "name": "gethash",
+      "kind": "call",
+      "start": {
+        "line": 57,
+        "column": 11,
+        "offset": 1661
+      },
+      "enclosing": "geometry:make-circle"
+    },
+    {
+      "name": "register-shape",
+      "kind": "call",
+      "start": {
+        "line": 58,
+        "column": 5,
+        "offset": 1694
+      },
+      "enclosing": "geometry:make-circle"
+    },
+    {
+      "name": "typep",
+      "kind": "call",
+      "start": {
+        "line": 63,
+        "column": 10,
+        "offset": 1800
+      },
+      "enclosing": "geometry:scale"
+    },
+    {
+      "name": "circle",
+      "kind": "type",
+      "start": {
+        "line": 63,
+        "column": 23,
+        "offset": 1813
+      },
+      "enclosing": "geometry:scale"
+    },
+    {
+      "name": "make-circle",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 10,
+        "offset": 1831
+      },
+      "enclosing": "geometry:scale"
+    },
+    {
+      "name": "*",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 23,
+        "offset": 1844
+      },
+      "enclosing": "geometry:scale"
+    },
+    {
+      "name": "radius",
+      "kind": "call",
+      "start": {
+        "line": 64,
+        "column": 26,
+        "offset": 1847
+      },
+      "enclosing": "geometry:scale"
+    },
+    {
+      "name": "error",
+      "kind": "call",
+      "start": {
+        "line": 65,
+        "column": 12,
+        "offset": 1883
+      },
+      "enclosing": "geometry:scale"
+    },
+    {
+      "name": "reduce",
+      "kind": "call",
+      "start": {
+        "line": 68,
+        "column": 3,
+        "offset": 1952
+      },
+      "enclosing": "geometry:total-area"
+    },
+    {
+      "name": "+",
+      "kind": "call",
+      "start": {
+        "line": 68,
+        "column": 12,
+        "offset": 1961
+      },
+      "enclosing": "geometry:total-area"
+    },
+    {
+      "name": "mapcar",
+      "kind": "call",
+      "start": {
+        "line": 68,
+        "column": 15,
+        "offset": 1964
+      },
+      "enclosing": "geometry:total-area"
+    },
+    {
+      "name": "area",
+      "kind": "call",
+      "start": {
+        "line": 68,
+        "column": 24,
+        "offset": 1973
+      },
+      "enclosing": "geometry:total-area"
+    },
+    {
+      "name": "ensure-list",
+      "qualifier": "a",
+      "kind": "call",
+      "start": {
+        "line": 68,
+        "column": 32,
+        "offset": 1981
+      },
+      "enclosing": "geometry:total-area"
+    },
+    {
+      "name": "area",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 17,
+        "offset": 2047
+      },
+      "enclosing": "geometry:safe-area"
+    },
+    {
+      "name": "invalid-shape",
+      "kind": "type",
+      "start": {
+        "line": 72,
+        "column": 5,
+        "offset": 2064
+      },
+      "enclosing": "geometry:safe-area"
+    },
+    {
+      "name": "e",
+      "kind": "call",
+      "start": {
+        "line": 72,
+        "column": 20,
+        "offset": 2079
+      },
+      "enclosing": "geometry:safe-area"
+    },
+    {
+      "name": "log-problem",
+      "kind": "call",
+      "start": {
+        "line": 73,
+        "column": 7,
+        "offset": 2089
+      },
+      "enclosing": "geometry:safe-area"
+    },
+    {
+      "name": "notify-scale",
+      "kind": "call",
+      "start": {
+        "line": 79,
+        "column": 6,
+        "offset": 2253
+      },
+      "enclosing": "geometry:with-scale"
+    },
+    {
+      "name": "when-let",
+      "kind": "call",
+      "start": {
+        "line": 84,
+        "column": 5,
+        "offset": 2348
+      },
+      "enclosing": "geometry:draw-all"
+    },
+    {
+      "name": "shape-name",
+      "kind": "call",
+      "start": {
+        "line": 84,
+        "column": 21,
+        "offset": 2364
+      },
+      "enclosing": "geometry:draw-all"
+    },
+    {
+      "name": "format",
+      "kind": "call",
+      "start": {
+        "line": 85,
+        "column": 7,
+        "offset": 2386
+      },
+      "enclosing": "geometry:draw-all"
+    },
+    {
+      "name": "area",
+      "kind": "call",
+      "start": {
+        "line": 85,
+        "column": 40,
+        "offset": 2419
+      },
+      "enclosing": "geometry:draw-all"
+    },
+    {
+      "name": "println",
+      "qualifier": "uiop",
+      "kind": "call",
+      "start": {
+        "line": 86,
+        "column": 8,
+        "offset": 2438
+      },
+      "enclosing": "geometry:draw-all"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 19,
+        "column": 56,
+        "offset": 536
+      },
+      "text": ";;;; geometry.lisp --- shapes, areas and a little drawing protocol.\n\n(defpackage #:geometry\n  (:use #:cl)\n  (:import-from #:alexandria #:when-let #:ensure-list)\n  (:local-nicknames (#:a #:alexandria))\n  (:export #:shape #:area #:make-circle #:*default-scale*)\n  (:documentation \"Shapes and their areas.\"))\n\n(in-package #:geometry)\n\n(require :sb-posix)\n\n(defvar *default-scale* 1.0\n  \"The scale every shape is drawn at.\")\n\n(defparameter *registry* (make-hash-table :test 'equal))\n\n(defconstant +epsilon+ 1d-9 \"Tolerance of comparisons.\")",
+      "hash": "808fc47ebfc6d4e17379787af9cc4965fd2f7a90d9d120a8cc614873f0c60f83"
+    },
+    {
+      "id": "geometry:coordinate#1",
+      "kind": "symbol",
+      "symbolId": "geometry:coordinate",
+      "start": {
+        "line": 21,
+        "column": 0,
+        "offset": 538
+      },
+      "end": {
+        "line": 21,
+        "column": 42,
+        "offset": 580
+      },
+      "text": "(deftype coordinate () '(real -1000 1000))",
+      "hash": "8922c7b5ab520135deaee5377714eb5088899f3e296c4b941371cd978bfb27a9"
+    },
+    {
+      "id": "L23#1",
+      "kind": "window",
+      "start": {
+        "line": 23,
+        "column": 0,
+        "offset": 582
+      },
+      "end": {
+        "line": 23,
+        "column": 27,
+        "offset": 609
+      },
+      "text": ";; The root of every shape.",
+      "hash": "846007178ad1aeb6ec222108a7cca2143d1caa3c0ce3714db56e4f5dbdb4f034"
+    },
+    {
+      "id": "geometry:shape#1",
+      "kind": "symbol",
+      "symbolId": "geometry:shape",
+      "start": {
+        "line": 24,
+        "column": 0,
+        "offset": 610
+      },
+      "end": {
+        "line": 27,
+        "column": 45,
+        "offset": 792
+      },
+      "text": "(defclass shape ()\n  ((name :initarg :name :reader shape-name)\n   (origin :initarg :origin :initform (make-point 0 0) :accessor origin))\n  (:documentation \"Something with an area.\"))",
+      "hash": "352b5d274c579e28d95e0cb2df42bf03a947cd7ce49270583ca70bdb67c9e491"
+    },
+    {
+      "id": "geometry:circle#1",
+      "kind": "symbol",
+      "symbolId": "geometry:circle",
+      "start": {
+        "line": 29,
+        "column": 0,
+        "offset": 794
+      },
+      "end": {
+        "line": 30,
+        "column": 45,
+        "offset": 872
+      },
+      "text": "(defclass circle (shape a:mixin)\n  ((radius :initarg :radius :reader radius)))",
+      "hash": "7f6a0f2adb3f97f087bdfb40171006a8a1b377928a68e94a72f108a2c33d9905"
+    },
+    {
+      "id": "geometry:point#1",
+      "kind": "symbol",
+      "symbolId": "geometry:point",
+      "start": {
+        "line": 32,
+        "column": 0,
+        "offset": 874
+      },
+      "end": {
+        "line": 35,
+        "column": 25,
+        "offset": 1002
+      },
+      "text": "(defstruct (point (:include base-point) (:constructor make-point (x y)))\n  \"A point in the plane.\"\n  x\n  (y 0 :type coordinate))",
+      "hash": "025f27be7cd3ac8b401a0a1801e67fcb93a54ec4918a118bf0902988a14a7bc9"
+    },
+    {
+      "id": "geometry:invalid-shape#1",
+      "kind": "symbol",
+      "symbolId": "geometry:invalid-shape",
+      "start": {
+        "line": 37,
+        "column": 0,
+        "offset": 1004
+      },
+      "end": {
+        "line": 40,
+        "column": 74,
+        "offset": 1204
+      },
+      "text": "(define-condition invalid-shape (error)\n  ((shape :initarg :shape :reader invalid-shape-shape))\n  (:report (lambda (c stream)\n             (format stream \"invalid shape ~a\" (invalid-shape-shape c)))))",
+      "hash": "6aaf653f20d52621e9e4c02c38f3e68571d322e7bdec099c3a1a65ac44ca20b7"
+    },
+    {
+      "id": "geometry:area#1",
+      "kind": "symbol",
+      "symbolId": "geometry:area",
+      "start": {
+        "line": 42,
+        "column": 0,
+        "offset": 1206
+      },
+      "end": {
+        "line": 43,
+        "column": 40,
+        "offset": 1271
+      },
+      "text": "(defgeneric area (shape)\n  (:documentation \"The area of SHAPE.\"))",
+      "hash": "aa41bab6b3b401d2c013e5ef78036c663330f6182b1ba38b6cef1710022c118f"
+    },
+    {
+      "id": "geometry:area~2#1",
+      "kind": "symbol",
+      "symbolId": "geometry:area~2",
+      "start": {
+        "line": 45,
+        "column": 0,
+        "offset": 1273
+      },
+      "end": {
+        "line": 46,
+        "column": 29,
+        "offset": 1331
+      },
+      "text": "(defmethod area ((c circle))\n  (* pi (expt (radius c) 2)))",
+      "hash": "c1dcfcfa7a4025c4ab0fc4b8ee6d65e687d23a7c1035e05a6bd2a94f6f2f58cd"
+    },
+    {
+      "id": "geometry:area~3#1",
+      "kind": "symbol",
+      "symbolId": "geometry:area~3",
+      "start": {
+        "line": 48,
+        "column": 0,
+        "offset": 1333
+      },
+      "end": {
+        "line": 52,
+        "column": 12,
+        "offset": 1483
+      },
+      "text": "(defmethod area :around ((s shape))\n  (let ((result (call-next-method)))\n    (when (minusp result)\n      (error 'invalid-shape :shape s))\n    result))",
+      "hash": "01d7744a19b677296a13ca190584037c5dcd933bf0674b495b3424960af1413b"
+    },
+    {
+      "id": "geometry:make-circle#1",
+      "kind": "symbol",
+      "symbolId": "geometry:make-circle",
+      "start": {
+        "line": 54,
+        "column": 0,
+        "offset": 1485
+      },
+      "end": {
+        "line": 59,
+        "column": 7,
+        "offset": 1719
+      },
+      "text": "(defun make-circle (radius \u0026key (name \"circle\"))\n  \"Makes a circle of RADIUS, registered under NAME.\"\n  (let ((c (make-instance 'circle :radius radius :name name)))\n    (setf (gethash name *registry*) c)\n    (register-shape c)\n    c))",
+      "hash": "4be7ff344bd0040a735a9b26caebb155acc75722a61bd63b0e784b9b8459c277"
+    },
+    {
+      "id": "geometry:scale#1",
+      "kind": "symbol",
+      "symbolId": "geometry:scale",
+      "start": {
+        "line": 61,
+        "column": 0,
+        "offset": 1721
+      },
+      "end": {
+        "line": 65,
+        "column": 49,
+        "offset": 1920
+      },
+      "text": ";;; Scales a shape; returns the new one.\n(defun scale (shape factor)\n  (cond ((typep shape 'circle)\n         (make-circle (* (radius shape) factor)))\n        (t (error 'invalid-shape :shape shape))))",
+      "hash": "bdbf7beaadca34747e66143a7d54c6d38c9d62e1f1157dd94abb5984f38ec9a7"
+    },
+    {
+      "id": "geometry:total-area#1",
+      "kind": "symbol",
+      "symbolId": "geometry:total-area",
+      "start": {
+        "line": 67,
+        "column": 0,
+        "offset": 1922
+      },
+      "end": {
+        "line": 68,
+        "column": 54,
+        "offset": 2003
+      },
+      "text": "(defun total-area (shapes)\n  (reduce #'+ (mapcar #'area (a:ensure-list shapes))))",
+      "hash": "17aa9cc3208999e48f7c7d49a7f4ac773f653a9409da88e299fee59aafc33b2b"
+    },
+    {
+      "id": "geometry:safe-area#1",
+      "kind": "symbol",
+      "symbolId": "geometry:safe-area",
+      "start": {
+        "line": 70,
+        "column": 0,
+        "offset": 2005
+      },
+      "end": {
+        "line": 74,
+        "column": 10,
+        "offset": 2114
+      },
+      "text": "(defun safe-area (shape)\n  (handler-case (area shape)\n    (invalid-shape (e)\n      (log-problem e)\n      0)))",
+      "hash": "42b62af2fbdecc9c6e53cd024221f521b66d5b65fe069f7069245fe83cf4f832"
+    },
+    {
+      "id": "geometry:with-scale#1",
+      "kind": "symbol",
+      "symbolId": "geometry:with-scale",
+      "start": {
+        "line": 76,
+        "column": 0,
+        "offset": 2116
+      },
+      "end": {
+        "line": 80,
+        "column": 13,
+        "offset": 2288
+      },
+      "text": "(defmacro with-scale ((factor) \u0026body body)\n  \"Runs BODY with *default-scale* bound to FACTOR.\"\n  `(let ((*default-scale* ,factor))\n     (notify-scale ,factor)\n     ,@body))",
+      "hash": "d08e53f0f34c3c9cac009a2c4038430123cd0cb3d5aef2b35d96010c34ce5af7"
+    },
+    {
+      "id": "geometry:draw-all#1",
+      "kind": "symbol",
+      "symbolId": "geometry:draw-all",
+      "start": {
+        "line": 82,
+        "column": 0,
+        "offset": 2290
+      },
+      "end": {
+        "line": 86,
+        "column": 31,
+        "offset": 2461
+      },
+      "text": "(defun draw-all (shapes stream)\n  (dolist (s shapes)\n    (when-let (name (shape-name s))\n      (format stream \"~a: ~,2f~%\" name (area s))))\n  (uiop:println \"done\" stream))",
+      "hash": "b344c0239f3606271e937d22ff8f120cf2684ab2446d9113bf5172781254d45b"
+    }
+  ]
+}
