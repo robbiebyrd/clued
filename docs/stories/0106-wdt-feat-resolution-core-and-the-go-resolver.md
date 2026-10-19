@@ -3,11 +3,13 @@ id: 0106-wdt
 title: Resolution core and the Go resolver
 purpose: Links references to definitions per layer; the engine every language family plugs into.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-19T18:10:05.235Z"
-updated: "2026-10-19T18:31:40.849Z"
+updated: "2026-10-19T19:57:05.470Z"
+started: "2026-10-19T19:45:12.866Z"
+completed: "2026-10-19T19:57:05.470Z"
 tags:
   - plan-0012-cgi
   - wave-6
@@ -33,15 +35,15 @@ links:
     - ["0012-cgi", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Resolution core and the Go resolver
@@ -78,9 +80,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -90,3 +92,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/resolve_test.go` - engine and Go tests
 
 ## Work Log
+
+### 2026-10-19T19:56:55.936Z - Resolution engine (codeindex/resolve.go: Resolver applier wrapping FileApplier, scope walk scope/file/package/import/open/qualified/member/name, confidence exact/qualified/name, per-layer edges with lower files written only where the layer's view resolves differently, dependents re-resolution by changed names bounded by MaxRefs=5000 with the rest and failed batches carried in memory to the next batch, facts LRU by path+blob). Registry (codeindex/resolvers/registry.go: Resolver interface Rules/Package/Scope/Visible, Register from each family's init, Default for embedding). Go family (resolvers/golang.go: import paths from directory + nearest go.mod, _test packages, aliases, dot/blank imports, package-clause names, exported rule). Integrated through Options.Apply = NewResolver(...): service.go and apply.go unchanged. Tests: 11 new tests (37 PASS lines in codeindex incl. subtests), memgraph and FalkorDB; gofmt/vet/build clean; go test -race ./codeindex/... ok (also with Mongo and FalkorDB).
