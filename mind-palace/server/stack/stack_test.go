@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"math/big"
 	"os"
@@ -312,7 +313,8 @@ func TestInitTurnsTheCodeStoreOnInEveryRuntime(t *testing.T) {
 			if strings.Count(string(b), tc.want) != 1 {
 				t.Errorf("%s does not pass the code store once:\n%s", tc.file, b)
 			}
-			// The code store lives in the stack's MongoDB: no new container.
+			// The code store lives in the stack's MongoDB: no container of
+			// its own; FalkorDB is the code graph's.
 			if tc.runtime == RuntimeCompose {
 				var services []string
 				for _, line := range strings.Split(string(b), "\n") {
@@ -320,7 +322,7 @@ func TestInitTurnsTheCodeStoreOnInEveryRuntime(t *testing.T) {
 						services = append(services, strings.TrimSuffix(strings.TrimSpace(line), ":"))
 					}
 				}
-				want := "clued-server,mongo"
+				want := "clued-server,mongo,falkordb"
 				if tc.proxy == ProxyNginx {
 					want = "nginx," + want
 				}
@@ -330,6 +332,197 @@ func TestInitTurnsTheCodeStoreOnInEveryRuntime(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInitRunsFalkorDBForTheCodeGraph(t *testing.T) {
+	for _, tc := range []struct{ runtime, proxy string }{
+		{RuntimeCompose, ProxyNginx}, {RuntimeCompose, ProxyNone}, {RuntimeApple, ProxyNginx}, {RuntimeApple, ProxyNone},
+	} {
+		t.Run(tc.runtime+"/"+tc.proxy, func(t *testing.T) {
+			opts := testOptions(t)
+			opts.Runtime, opts.Proxy = tc.runtime, tc.proxy
+			res, err := Init(opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.Graph != GraphGenerated || !contains(res.Written, filepath.Join(opts.Dir, GraphPasswordFile)) {
+				t.Errorf("graph = %q, written = %v", res.Graph, res.Written)
+			}
+			// The password: generated, private, and in no file but the 0600 ones.
+			raw, err := os.ReadFile(filepath.Join(opts.Dir, GraphPasswordFile))
+			if err != nil {
+				t.Fatal(err)
+			}
+			password := strings.TrimSpace(string(raw))
+			if len(password) != 64 || !validGraphPassword(password) {
+				t.Fatalf("password is not 32 random bytes in hex (%d characters)", len(password))
+			}
+			for _, f := range []string{GraphPasswordFile, FalkorDBEnvFile, GraphEnvFile, TokensFile} {
+				if m := mode(t, filepath.Join(opts.Dir, f)); m != 0o600 {
+					t.Errorf("%s mode = %o, want 0600", f, m)
+				}
+			}
+			falkorEnv, _ := os.ReadFile(filepath.Join(opts.Dir, FalkorDBEnvFile))
+			for _, want := range []string{"REDIS_ARGS=--requirepass " + password + " --save --appendonly no\n", "REDISCLI_AUTH=" + password + "\n"} {
+				if !strings.Contains(string(falkorEnv), want) {
+					t.Errorf("%s lacks the password or the persistence settings", FalkorDBEnvFile)
+				}
+			}
+			serverEnv, _ := os.ReadFile(filepath.Join(opts.Dir, GraphEnvFile))
+			if !strings.Contains(string(serverEnv), "\nCLUED_SERVER_GRAPH=redis://default:"+password+"@falkordb:6379\n") {
+				t.Errorf("%s does not name the stack's FalkorDB with the password", GraphEnvFile)
+			}
+			entries, err := os.ReadDir(opts.Dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, e := range entries {
+				switch e.Name() {
+				case GraphPasswordFile, FalkorDBEnvFile, GraphEnvFile:
+					continue
+				}
+				if e.IsDir() {
+					continue
+				}
+				b, _ := os.ReadFile(filepath.Join(opts.Dir, e.Name()))
+				if strings.Contains(string(b), password) {
+					t.Errorf("%s carries the FalkorDB password", e.Name())
+				}
+			}
+			out, _ := json.Marshal(res)
+			if strings.Contains(string(out), password) {
+				t.Error("the result carries the FalkorDB password")
+			}
+
+			if tc.runtime == RuntimeCompose {
+				compose, _ := os.ReadFile(res.ComposeFile)
+				falkor := composeService(string(compose), "falkordb")
+				for _, want := range []string{
+					"image: " + DefaultFalkorDBImage + "\n", "container_name: clued-falkordb\n",
+					"env_file:\n      - ./falkordb.env\n", `BROWSER: "0"`, "test: redis-cli ping | grep -q PONG\n",
+				} {
+					if !strings.Contains(falkor, want) {
+						t.Errorf("falkordb service lacks %q:\n%s", want, falkor)
+					}
+				}
+				// Stack network only, and nothing on disk: no port, no volume.
+				if strings.Contains(falkor, "ports:") || strings.Contains(falkor, "volumes:") {
+					t.Errorf("falkordb is published or persisted:\n%s", falkor)
+				}
+				server := composeService(string(compose), "clued-server")
+				for _, want := range []string{"      falkordb:\n        condition: service_healthy\n", "env_file:\n      - ./graph.env\n"} {
+					if !strings.Contains(server, want) {
+						t.Errorf("clued-server service lacks %q:\n%s", want, server)
+					}
+				}
+				if strings.Contains(string(compose), "CLUED_SERVER_GRAPH") && !strings.Contains(string(compose), "# CLUED_SERVER_GRAPH") {
+					t.Error("the graph URL is written into the compose file")
+				}
+				validateCompose(t, res.ComposeFile)
+				return
+			}
+
+			// Apple Containers: up.sh starts FalkorDB unpublished and hands
+			// the server its address through a private run/graph.env.
+			bash, err := exec.LookPath("bash")
+			if err != nil {
+				t.Skip("bash not installed")
+			}
+			binDir, logFile := fakeContainer(t)
+			cmd := exec.Command(bash, filepath.Join(opts.Dir, UpScript), "--recreate")
+			cmd.Env = []string{"HOME=" + t.TempDir(), "PATH=" + binDir + ":" + os.Getenv("PATH")}
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("up.sh: %v\n%s", err, out)
+			}
+			calls, _ := os.ReadFile(logFile)
+			if !strings.Contains(string(calls), "run --detach --name clued-falkordb --env BROWSER=0 --env-file "+opts.Dir+"/falkordb.env "+DefaultFalkorDBImage+"\n") {
+				t.Errorf("FalkorDB not started as expected:\n%s", calls)
+			}
+			if strings.Contains(string(calls), password) {
+				t.Error("a container command line carries the FalkorDB password")
+			}
+			for _, line := range strings.Split(string(calls), "\n") {
+				if strings.Contains(line, "clued-falkordb") && strings.Contains(line, "--publish") {
+					t.Errorf("FalkorDB is published: %s", line)
+				}
+			}
+			runEnv := filepath.Join(opts.Dir, "run", GraphEnvFile)
+			b, _ := os.ReadFile(runEnv)
+			if !strings.Contains(string(b), "\nCLUED_SERVER_GRAPH=redis://default:"+password+"@192.168.64.5:6379\n") {
+				t.Errorf("run/%s not rendered with FalkorDB's address", GraphEnvFile)
+			}
+			if m := mode(t, runEnv); m != 0o600 {
+				t.Errorf("run/%s mode = %o, want 0600", GraphEnvFile, m)
+			}
+		})
+	}
+}
+
+func TestInitKeepsTheGraphPassword(t *testing.T) {
+	opts := testOptions(t)
+	opts.NoToken = true
+	if _, err := Init(opts); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(opts.Dir, GraphPasswordFile)
+	first, _ := os.ReadFile(path)
+	// A rerun keeps the password (a running FalkorDB keeps accepting the
+	// server) and narrows a widened file again.
+	if err := os.Chmod(path, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Join(opts.Dir, GraphEnvFile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res, err := Init(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, _ := os.ReadFile(path)
+	if string(first) != string(again) || res.Graph != GraphKept || !contains(res.Kept, path) {
+		t.Errorf("password not kept: graph = %q, kept = %v", res.Graph, res.Kept)
+	}
+	for _, f := range []string{GraphPasswordFile, GraphEnvFile} {
+		if m := mode(t, filepath.Join(opts.Dir, f)); m != 0o600 {
+			t.Errorf("%s mode = %o after a rerun, want 0600", f, m)
+		}
+	}
+
+	// A password that cannot go into a URL unescaped is refused, without
+	// repeating it.
+	secret := "p@ss word/with:odd#chars"
+	if err := os.WriteFile(path, []byte(secret), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Init(opts); err == nil || strings.Contains(err.Error(), secret) || !strings.Contains(err.Error(), GraphPasswordFile) {
+		t.Errorf("err = %v", err)
+	}
+	// Deleting it generates a new one.
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := Init(opts); err != nil || res.Graph != GraphGenerated {
+		t.Errorf("graph = %q, err = %v", res.Graph, err)
+	}
+}
+
+// composeService returns the lines of one top-level service of a compose
+// file, up to the next service or top-level key.
+func composeService(compose, name string) string {
+	var b strings.Builder
+	in := false
+	for _, line := range strings.Split(compose, "\n") {
+		switch {
+		case line == "  "+name+":":
+			in = true
+		case in && (strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "   ") && strings.HasSuffix(line, ":") || line != "" && !strings.HasPrefix(line, " ")):
+			return b.String()
+		}
+		if in {
+			b.WriteString(line + "\n")
+		}
+	}
+	return b.String()
 }
 
 func TestInitProxyNonePublishesTheServerOnLoopback(t *testing.T) {
