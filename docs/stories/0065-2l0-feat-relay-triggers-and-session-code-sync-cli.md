@@ -3,11 +3,13 @@ id: 0065-2l0
 title: Relay triggers and `session code-sync` CLI
 purpose: Collection has to happen on its own, on the hook events where Claude changes files.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:05:59.414Z"
-updated: "2026-10-19T18:27:17.050Z"
+updated: "2026-10-19T19:59:47.357Z"
+started: "2026-10-19T19:49:18.504Z"
+completed: "2026-10-19T19:59:47.357Z"
 tags:
   - plan-0010-awy
   - wave-7
@@ -33,15 +35,15 @@ links:
     - ["0010-awy", "included", ["3.3"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Relay triggers and `session code-sync` CLI
@@ -78,9 +80,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./cli/... && go test ./plugin/
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./cli/... ./plugin/
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./cli/... && go test ./plugin/
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./cli/... ./plugin/
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -90,3 +92,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/plugin/codesync_test.go` - real hooks against a test server
 
 ## Work Log
+
+### 2026-10-19T19:59:41.968Z - Relay triggers: cli/hook_relay.go maps hook events to codesync.Request (codeSyncRequest) and runs relayCodeSync last, with what is left of the 5 s relay budget capped at codesync.DefaultBudget (3 s); skipped when codeSync is off or CLUED_NO_CAPTURE=1; errors, warnings and the quota line go to relay.log, never the hook. SessionStart and CwdChanged (new_cwd) touch the session (TouchStart; Run decides full vs pending), SessionEnd TouchEnd, PostToolUse Write/Edit/MultiEdit/NotebookEdit send tool_input.file_path / notebook_path (Run keeps it only inside the worktree root), PostToolUse Bash, Stop and SubagentStop the git status delta (Status), FileChanged its file_path, WorktreeCreate a full reconcile of worktree_path when the input names one (otherwise the new worktree's first event does it, having no state), WorktreeRemove codesync.Remove(worktree_path, absolute only); PostToolUseFailure and every other event do nothing. CLI: cli/session_codesync.go adds 'session code-sync [--full] [--dry-run] [--path DIR]' (remote mode required; no time or byte budget; without --full it sends the git status delta, dirty files and the pending queue) and 'session code-sync status [--path DIR]' (local state files only: ref, head, upstream, file/synced/dirty/unpushed counts, pending and refused paths, last full, back-off), both in the ok JSON envelope; registered in cli/session.go. Plugin test plugin/codesync_test.go runs the real event-relay hook and the built binary against an in-test clued server (sessionapi + codeapi over memcode behind auth): SessionStart full tree and session, Write, Edit (relative path), a write outside the worktree (nothing sent), Bash (git rm + git mv), FileChanged, PostToolUseFailure (nothing sent), Stop (out-of-tool edit and generated file), change log attribution, CLI status / dry run / run, SessionEnd (session ended), WorktreeRemove (worktree removed, state dropped); and with codeSync off no code request, no code store, no state dir. Deviation: mind-palace/cli/session_test.go (not under Files) gained 'code-sync' in TestRootGainsOnlySessionGroup's list of session subcommands, the one-word change the new subcommand requires. PROTOCOL.md is left for 0066-zp3 (docs). Tests: gofmt/vet/build clean; go test -race ./cli/... ./plugin/ ok (210 passed, 2 skipped: the Mongo code store test without its URI, the live verify-prime test).
