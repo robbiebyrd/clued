@@ -3,11 +3,13 @@ id: 0091-fcm
 title: Extraction for Kotlin
 purpose: 'Adds Kotlin to the indexer: files .kt, .kts.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:47.069Z"
-updated: "2026-10-19T18:30:02.996Z"
+updated: "2026-10-19T20:59:38.872Z"
+started: "2026-10-19T20:46:58.543Z"
+completed: "2026-10-19T20:59:38.872Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for Kotlin
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/kotlin'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/kotlin'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/kotlin'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/kotlin'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/kotlin.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:59:33.365Z - Kotlin extraction added: grammars/kotlin.go registers gotreesitter's grammars/kotlin; queries/kotlin/profile.yaml (family jvm, .kt/.kts, packageBy declaration, exported declared, options.defaultImports = Kotlin's implicit imports for the JVM resolver) and tags.scm: classes (data/sealed/abstract/value/annotation/inner), interfaces (fun interface too), enums and entries (const), objects and named companions (kind object), typealiases (type), top-level functions, methods (class/enum bodies), extension functions and properties (@receiver = last identifier of the receiver, nullable or generic), properties, const val (const), val/var constructor parameters (property); locals excluded with #not-has-ancestor? statements/function_body; visibility: every definition is two patterns with complementary regexes on its modifier prefix, only private is unexported; imports (plain, alias, wildcard with import.kind wildcard), package header; refs: calls (bare, minus common stdlib helpers; qualified via navigation), types (minus built-ins, qualifier = previous identifier of a qualified type), extends (constructor-invoked supertype, interface supertypes), implements (bare and by-delegated supertypes of classes/objects/object literals), annotations as type refs. Recovers the top-level misparse '@Ann(x) private fun f() {}' (infix_expression). One pattern per name shape (alternation bug). Goldens: Model.kt, Service.kt, Nested.kt, build.gradle.kts, Broken.kt; go test -race ./codeparse/ -run TestGolden/kotlin: 5/5 subtests pass; go test -race ./codeparse/...: ok. Engine limits, not changed (shared files): signatures are the first line (grammar has no body field), so a definition with annotations on their own line has the annotation as its signature; a val/var constructor parameter on the class's first line takes the class's KDoc as its doc. Only the three listed paths changed.

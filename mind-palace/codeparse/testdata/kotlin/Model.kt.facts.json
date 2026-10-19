@@ -1,0 +1,1038 @@
+{
+  "lang": "kotlin",
+  "package": "com.example.shop.model",
+  "symbols": [
+    {
+      "id": "com.example.shop.model.Customer",
+      "kind": "class",
+      "name": "Customer",
+      "qualName": "com.example.shop.model.Customer",
+      "signature": "data class Customer(val id: Long, var name: String, private val secret: String, note: String = \"\")",
+      "doc": "A customer of the shop.\n\n@property id the customer's stable identifier",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 119
+      },
+      "end": {
+        "line": 27,
+        "column": 1,
+        "offset": 598
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Customer.id",
+      "kind": "property",
+      "name": "id",
+      "qualName": "com.example.shop.model.Customer.id",
+      "signature": "val id: Long",
+      "doc": "A customer of the shop.\n\n@property id the customer's stable identifier",
+      "start": {
+        "line": 8,
+        "column": 20,
+        "offset": 139
+      },
+      "end": {
+        "line": 8,
+        "column": 32,
+        "offset": 151
+      },
+      "parent": "com.example.shop.model.Customer",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Customer.name",
+      "kind": "property",
+      "name": "name",
+      "qualName": "com.example.shop.model.Customer.name",
+      "signature": "var name: String",
+      "doc": "A customer of the shop.\n\n@property id the customer's stable identifier",
+      "start": {
+        "line": 8,
+        "column": 34,
+        "offset": 153
+      },
+      "end": {
+        "line": 8,
+        "column": 50,
+        "offset": 169
+      },
+      "parent": "com.example.shop.model.Customer",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Customer.secret",
+      "kind": "property",
+      "name": "secret",
+      "qualName": "com.example.shop.model.Customer.secret",
+      "signature": "private val secret: String",
+      "doc": "A customer of the shop.\n\n@property id the customer's stable identifier",
+      "start": {
+        "line": 8,
+        "column": 52,
+        "offset": 171
+      },
+      "end": {
+        "line": 8,
+        "column": 78,
+        "offset": 197
+      },
+      "parent": "com.example.shop.model.Customer"
+    },
+    {
+      "id": "com.example.shop.model.Customer.displayName",
+      "kind": "property",
+      "name": "displayName",
+      "qualName": "com.example.shop.model.Customer.displayName",
+      "signature": "val displayName: String",
+      "doc": "The name shown on receipts.",
+      "start": {
+        "line": 10,
+        "column": 4,
+        "offset": 263
+      },
+      "end": {
+        "line": 10,
+        "column": 27,
+        "offset": 286
+      },
+      "parent": "com.example.shop.model.Customer",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Customer.visits",
+      "kind": "property",
+      "name": "visits",
+      "qualName": "com.example.shop.model.Customer.visits",
+      "signature": "private var visits = 0",
+      "start": {
+        "line": 13,
+        "column": 4,
+        "offset": 320
+      },
+      "end": {
+        "line": 13,
+        "column": 26,
+        "offset": 342
+      },
+      "parent": "com.example.shop.model.Customer"
+    },
+    {
+      "id": "com.example.shop.model.Customer.visit",
+      "kind": "method",
+      "name": "visit",
+      "qualName": "com.example.shop.model.Customer.visit",
+      "signature": "fun visit()",
+      "doc": "Records one visit.",
+      "start": {
+        "line": 16,
+        "column": 4,
+        "offset": 374
+      },
+      "end": {
+        "line": 18,
+        "column": 5,
+        "offset": 413
+      },
+      "parent": "com.example.shop.model.Customer",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Customer.audit",
+      "kind": "method",
+      "name": "audit",
+      "qualName": "com.example.shop.model.Customer.audit",
+      "signature": "private fun audit(): String = \"$id:$visits\"",
+      "start": {
+        "line": 20,
+        "column": 4,
+        "offset": 419
+      },
+      "end": {
+        "line": 20,
+        "column": 47,
+        "offset": 462
+      },
+      "parent": "com.example.shop.model.Customer"
+    },
+    {
+      "id": "com.example.shop.model.Customer.Factory",
+      "kind": "object",
+      "name": "Factory",
+      "qualName": "com.example.shop.model.Customer.Factory",
+      "signature": "companion object Factory",
+      "start": {
+        "line": 22,
+        "column": 4,
+        "offset": 468
+      },
+      "end": {
+        "line": 26,
+        "column": 5,
+        "offset": 596
+      },
+      "parent": "com.example.shop.model.Customer",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Customer.Factory.MAX_NAME",
+      "kind": "const",
+      "name": "MAX_NAME",
+      "qualName": "com.example.shop.model.Customer.Factory.MAX_NAME",
+      "signature": "const val MAX_NAME = 64",
+      "start": {
+        "line": 23,
+        "column": 8,
+        "offset": 503
+      },
+      "end": {
+        "line": 23,
+        "column": 31,
+        "offset": 526
+      },
+      "parent": "com.example.shop.model.Customer.Factory",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Customer.Factory.of",
+      "kind": "method",
+      "name": "of",
+      "qualName": "com.example.shop.model.Customer.Factory.of",
+      "signature": "fun of(name: String): Customer = Customer(0, name, \"\")",
+      "start": {
+        "line": 25,
+        "column": 8,
+        "offset": 536
+      },
+      "end": {
+        "line": 25,
+        "column": 62,
+        "offset": 590
+      },
+      "parent": "com.example.shop.model.Customer.Factory",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Priced",
+      "kind": "interface",
+      "name": "Priced",
+      "qualName": "com.example.shop.model.Priced",
+      "signature": "interface Priced",
+      "doc": "Something that has a price.",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 635
+      },
+      "end": {
+        "line": 33,
+        "column": 1,
+        "offset": 714
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Priced.price",
+      "kind": "property",
+      "name": "price",
+      "qualName": "com.example.shop.model.Priced.price",
+      "signature": "val price: Long",
+      "start": {
+        "line": 31,
+        "column": 4,
+        "offset": 658
+      },
+      "end": {
+        "line": 31,
+        "column": 19,
+        "offset": 673
+      },
+      "parent": "com.example.shop.model.Priced",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Priced.discounted",
+      "kind": "method",
+      "name": "discounted",
+      "qualName": "com.example.shop.model.Priced.discounted",
+      "signature": "fun discounted(percent: Int): Long",
+      "start": {
+        "line": 32,
+        "column": 4,
+        "offset": 678
+      },
+      "end": {
+        "line": 32,
+        "column": 38,
+        "offset": 712
+      },
+      "parent": "com.example.shop.model.Priced",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Validator",
+      "kind": "interface",
+      "name": "Validator",
+      "qualName": "com.example.shop.model.Validator",
+      "signature": "fun interface Validator",
+      "start": {
+        "line": 35,
+        "column": 0,
+        "offset": 716
+      },
+      "end": {
+        "line": 37,
+        "column": 1,
+        "offset": 784
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Validator.validate",
+      "kind": "method",
+      "name": "validate",
+      "qualName": "com.example.shop.model.Validator.validate",
+      "signature": "fun validate(value: String): Boolean",
+      "start": {
+        "line": 36,
+        "column": 4,
+        "offset": 746
+      },
+      "end": {
+        "line": 36,
+        "column": 40,
+        "offset": 782
+      },
+      "parent": "com.example.shop.model.Validator",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Result",
+      "kind": "class",
+      "name": "Result",
+      "qualName": "com.example.shop.model.Result",
+      "signature": "sealed class Result",
+      "start": {
+        "line": 39,
+        "column": 0,
+        "offset": 786
+      },
+      "end": {
+        "line": 42,
+        "column": 1,
+        "offset": 887
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Result.Empty",
+      "kind": "object",
+      "name": "Empty",
+      "qualName": "com.example.shop.model.Result.Empty",
+      "signature": "object Empty : Result()",
+      "start": {
+        "line": 40,
+        "column": 4,
+        "offset": 812
+      },
+      "end": {
+        "line": 40,
+        "column": 27,
+        "offset": 835
+      },
+      "parent": "com.example.shop.model.Result",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Result.Failure",
+      "kind": "class",
+      "name": "Failure",
+      "qualName": "com.example.shop.model.Result.Failure",
+      "signature": "class Failure(val message: String) : Result()",
+      "start": {
+        "line": 41,
+        "column": 4,
+        "offset": 840
+      },
+      "end": {
+        "line": 41,
+        "column": 49,
+        "offset": 885
+      },
+      "parent": "com.example.shop.model.Result",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Result.Failure.message",
+      "kind": "property",
+      "name": "message",
+      "qualName": "com.example.shop.model.Result.Failure.message",
+      "signature": "val message: String",
+      "start": {
+        "line": 41,
+        "column": 18,
+        "offset": 854
+      },
+      "end": {
+        "line": 41,
+        "column": 37,
+        "offset": 873
+      },
+      "parent": "com.example.shop.model.Result.Failure",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Currency",
+      "kind": "enum",
+      "name": "Currency",
+      "qualName": "com.example.shop.model.Currency",
+      "signature": "enum class Currency(val symbol: String)",
+      "start": {
+        "line": 44,
+        "column": 0,
+        "offset": 889
+      },
+      "end": {
+        "line": 51,
+        "column": 1,
+        "offset": 1094
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Currency.symbol",
+      "kind": "property",
+      "name": "symbol",
+      "qualName": "com.example.shop.model.Currency.symbol",
+      "signature": "val symbol: String",
+      "start": {
+        "line": 44,
+        "column": 20,
+        "offset": 909
+      },
+      "end": {
+        "line": 44,
+        "column": 38,
+        "offset": 927
+      },
+      "parent": "com.example.shop.model.Currency",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Currency.EUR",
+      "kind": "const",
+      "name": "EUR",
+      "qualName": "com.example.shop.model.Currency.EUR",
+      "signature": "EUR(\"€\")",
+      "start": {
+        "line": 45,
+        "column": 4,
+        "offset": 935
+      },
+      "end": {
+        "line": 45,
+        "column": 14,
+        "offset": 945
+      },
+      "parent": "com.example.shop.model.Currency",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Currency.USD",
+      "kind": "const",
+      "name": "USD",
+      "qualName": "com.example.shop.model.Currency.USD",
+      "signature": "USD(\"$\")",
+      "start": {
+        "line": 46,
+        "column": 4,
+        "offset": 951
+      },
+      "end": {
+        "line": 48,
+        "column": 5,
+        "offset": 1028
+      },
+      "parent": "com.example.shop.model.Currency",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Currency.USD.format",
+      "kind": "method",
+      "name": "format",
+      "qualName": "com.example.shop.model.Currency.USD.format",
+      "signature": "override fun format(amount: Long) = \"$symbol$amount\"",
+      "start": {
+        "line": 47,
+        "column": 8,
+        "offset": 970
+      },
+      "end": {
+        "line": 47,
+        "column": 60,
+        "offset": 1022
+      },
+      "parent": "com.example.shop.model.Currency.USD",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Currency.format",
+      "kind": "method",
+      "name": "format",
+      "qualName": "com.example.shop.model.Currency.format",
+      "signature": "open fun format(amount: Long): String = \"$amount $symbol\"",
+      "start": {
+        "line": 50,
+        "column": 4,
+        "offset": 1035
+      },
+      "end": {
+        "line": 50,
+        "column": 61,
+        "offset": 1092
+      },
+      "parent": "com.example.shop.model.Currency",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Catalog",
+      "kind": "object",
+      "name": "Catalog",
+      "qualName": "com.example.shop.model.Catalog",
+      "signature": "object Catalog",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1096
+      },
+      "end": {
+        "line": 57,
+        "column": 1,
+        "offset": 1215
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Catalog.items",
+      "kind": "property",
+      "name": "items",
+      "qualName": "com.example.shop.model.Catalog.items",
+      "signature": "private val items = mutableMapOf\u003cString, Long\u003e()",
+      "start": {
+        "line": 54,
+        "column": 4,
+        "offset": 1117
+      },
+      "end": {
+        "line": 54,
+        "column": 52,
+        "offset": 1165
+      },
+      "parent": "com.example.shop.model.Catalog"
+    },
+    {
+      "id": "com.example.shop.model.Catalog.price",
+      "kind": "method",
+      "name": "price",
+      "qualName": "com.example.shop.model.Catalog.price",
+      "signature": "fun price(sku: String): Long? = items[sku]",
+      "start": {
+        "line": 56,
+        "column": 4,
+        "offset": 1171
+      },
+      "end": {
+        "line": 56,
+        "column": 46,
+        "offset": 1213
+      },
+      "parent": "com.example.shop.model.Catalog",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.CustomerId",
+      "kind": "type",
+      "name": "CustomerId",
+      "qualName": "com.example.shop.model.CustomerId",
+      "signature": "typealias CustomerId = Long",
+      "start": {
+        "line": 59,
+        "column": 0,
+        "offset": 1217
+      },
+      "end": {
+        "line": 59,
+        "column": 27,
+        "offset": 1244
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.DEFAULT_CURRENCY",
+      "kind": "const",
+      "name": "DEFAULT_CURRENCY",
+      "qualName": "com.example.shop.model.DEFAULT_CURRENCY",
+      "signature": "internal const val DEFAULT_CURRENCY = \"EUR\"",
+      "start": {
+        "line": 61,
+        "column": 0,
+        "offset": 1246
+      },
+      "end": {
+        "line": 61,
+        "column": 43,
+        "offset": 1289
+      },
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.SALT",
+      "kind": "const",
+      "name": "SALT",
+      "qualName": "com.example.shop.model.SALT",
+      "signature": "private const val SALT = \"x\"",
+      "start": {
+        "line": 63,
+        "column": 0,
+        "offset": 1291
+      },
+      "end": {
+        "line": 63,
+        "column": 28,
+        "offset": 1319
+      }
+    },
+    {
+      "id": "com.example.shop.model.Customer.initials",
+      "kind": "property",
+      "name": "initials",
+      "qualName": "com.example.shop.model.Customer.initials",
+      "signature": "val Customer.initials: String",
+      "doc": "The customer's initials.",
+      "start": {
+        "line": 66,
+        "column": 0,
+        "offset": 1353
+      },
+      "end": {
+        "line": 66,
+        "column": 29,
+        "offset": 1382
+      },
+      "parent": "com.example.shop.model.Customer",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.Customer.greeting",
+      "kind": "function",
+      "name": "greeting",
+      "qualName": "com.example.shop.model.Customer.greeting",
+      "signature": "fun Customer.greeting(): String = \"Hello, $name\"",
+      "start": {
+        "line": 69,
+        "column": 0,
+        "offset": 1448
+      },
+      "end": {
+        "line": 69,
+        "column": 48,
+        "offset": 1496
+      },
+      "parent": "com.example.shop.model.Customer",
+      "exported": true
+    },
+    {
+      "id": "com.example.shop.model.List.second",
+      "kind": "function",
+      "name": "second",
+      "qualName": "com.example.shop.model.List.second",
+      "signature": "private fun \u003cT\u003e List\u003cT\u003e.second(): T? = getOrNull(1)",
+      "start": {
+        "line": 71,
+        "column": 0,
+        "offset": 1498
+      },
+      "end": {
+        "line": 71,
+        "column": 51,
+        "offset": 1549
+      }
+    },
+    {
+      "id": "com.example.shop.model.String.orBlank",
+      "kind": "function",
+      "name": "orBlank",
+      "qualName": "com.example.shop.model.String.orBlank",
+      "signature": "fun String?.orBlank(): String = this ?: \"\"",
+      "start": {
+        "line": 73,
+        "column": 0,
+        "offset": 1551
+      },
+      "end": {
+        "line": 73,
+        "column": 42,
+        "offset": 1593
+      },
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "trim",
+      "qualifier": "name",
+      "kind": "call",
+      "start": {
+        "line": 11,
+        "column": 21,
+        "offset": 308
+      },
+      "enclosing": "com.example.shop.model.Customer"
+    },
+    {
+      "name": "Customer",
+      "kind": "type",
+      "start": {
+        "line": 25,
+        "column": 30,
+        "offset": 558
+      },
+      "enclosing": "com.example.shop.model.Customer.Factory.of"
+    },
+    {
+      "name": "Customer",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 41,
+        "offset": 569
+      },
+      "enclosing": "com.example.shop.model.Customer.Factory.of"
+    },
+    {
+      "name": "Result",
+      "kind": "extends",
+      "start": {
+        "line": 40,
+        "column": 19,
+        "offset": 827
+      },
+      "enclosing": "com.example.shop.model.Result.Empty"
+    },
+    {
+      "name": "Result",
+      "kind": "extends",
+      "start": {
+        "line": 41,
+        "column": 41,
+        "offset": 877
+      },
+      "enclosing": "com.example.shop.model.Result.Failure"
+    },
+    {
+      "name": "Customer",
+      "kind": "type",
+      "start": {
+        "line": 66,
+        "column": 4,
+        "offset": 1357
+      },
+      "enclosing": "com.example.shop.model.Customer.initials"
+    },
+    {
+      "name": "split",
+      "qualifier": "name",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 17,
+        "offset": 1400
+      }
+    },
+    {
+      "name": "map",
+      "qualifier": "name.split(\" \")",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 28,
+        "offset": 1411
+      }
+    },
+    {
+      "name": "first",
+      "qualifier": "it",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 37,
+        "offset": 1420
+      }
+    },
+    {
+      "name": "joinToString",
+      "qualifier": "name.split(\" \").map { it.first() }",
+      "kind": "call",
+      "start": {
+        "line": 67,
+        "column": 47,
+        "offset": 1430
+      }
+    },
+    {
+      "name": "Customer",
+      "kind": "type",
+      "start": {
+        "line": 69,
+        "column": 4,
+        "offset": 1452
+      },
+      "enclosing": "com.example.shop.model.Customer.greeting"
+    },
+    {
+      "name": "List",
+      "kind": "type",
+      "start": {
+        "line": 71,
+        "column": 16,
+        "offset": 1514
+      },
+      "enclosing": "com.example.shop.model.List.second"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 71,
+        "column": 21,
+        "offset": 1519
+      },
+      "enclosing": "com.example.shop.model.List.second"
+    },
+    {
+      "name": "T",
+      "kind": "type",
+      "start": {
+        "line": 71,
+        "column": 34,
+        "offset": 1532
+      },
+      "enclosing": "com.example.shop.model.List.second"
+    },
+    {
+      "name": "getOrNull",
+      "kind": "call",
+      "start": {
+        "line": 71,
+        "column": 39,
+        "offset": 1537
+      },
+      "enclosing": "com.example.shop.model.List.second"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 1,
+        "column": 30,
+        "offset": 30
+      },
+      "text": "package com.example.shop.model",
+      "hash": "b4d31233173ab498da39e4d701a90205ff1aa82275d206be85ca90c0d8e9355f"
+    },
+    {
+      "id": "com.example.shop.model.Customer#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.model.Customer",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 32
+      },
+      "end": {
+        "line": 27,
+        "column": 1,
+        "offset": 598
+      },
+      "text": "/**\n * A customer of the shop.\n *\n * @property id the customer's stable identifier\n */\ndata class Customer(val id: Long, var name: String, private val secret: String, note: String = \"\") {\n    /** The name shown on receipts. */\n    val displayName: String\n        get() = name.trim()\n\n    private var visits = 0\n\n    // Records one visit.\n    fun visit() {\n        visits += 1\n    }\n\n    private fun audit(): String = \"$id:$visits\"\n\n    companion object Factory {\n        const val MAX_NAME = 64\n\n        fun of(name: String): Customer = Customer(0, name, \"\")\n    }\n}",
+      "hash": "89f53aa865a0fa1c32839b0a37236cb7f9ea6a1fdc429c4f2ad147f423f8d220"
+    },
+    {
+      "id": "com.example.shop.model.Priced#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.model.Priced",
+      "start": {
+        "line": 29,
+        "column": 0,
+        "offset": 600
+      },
+      "end": {
+        "line": 33,
+        "column": 1,
+        "offset": 714
+      },
+      "text": "/** Something that has a price. */\ninterface Priced {\n    val price: Long\n    fun discounted(percent: Int): Long\n}",
+      "hash": "6cb46231b82dbe82f15c4b6c1a8a6ce3627e425d8829d70781fe59efd17c3aae"
+    },
+    {
+      "id": "com.example.shop.model.Validator#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.model.Validator",
+      "start": {
+        "line": 35,
+        "column": 0,
+        "offset": 716
+      },
+      "end": {
+        "line": 37,
+        "column": 1,
+        "offset": 784
+      },
+      "text": "fun interface Validator {\n    fun validate(value: String): Boolean\n}",
+      "hash": "d45dbc6f1eb95db09f5d7afdddc100bd2f9032bf0fbf7d99bdb27a78a9ac3197"
+    },
+    {
+      "id": "com.example.shop.model.Result#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.model.Result",
+      "start": {
+        "line": 39,
+        "column": 0,
+        "offset": 786
+      },
+      "end": {
+        "line": 42,
+        "column": 1,
+        "offset": 887
+      },
+      "text": "sealed class Result {\n    object Empty : Result()\n    class Failure(val message: String) : Result()\n}",
+      "hash": "33dc0e20dc64b39889c48cca270b769b98273a69f93a7f2725d677293545f33d"
+    },
+    {
+      "id": "com.example.shop.model.Currency#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.model.Currency",
+      "start": {
+        "line": 44,
+        "column": 0,
+        "offset": 889
+      },
+      "end": {
+        "line": 51,
+        "column": 1,
+        "offset": 1094
+      },
+      "text": "enum class Currency(val symbol: String) {\n    EUR(\"€\"),\n    USD(\"$\") {\n        override fun format(amount: Long) = \"$symbol$amount\"\n    };\n\n    open fun format(amount: Long): String = \"$amount $symbol\"\n}",
+      "hash": "3191a9d51d1f7cc673013528610899166545ac9d53e3ab9d0c8c1cca09dab4b7"
+    },
+    {
+      "id": "com.example.shop.model.Catalog#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.model.Catalog",
+      "start": {
+        "line": 53,
+        "column": 0,
+        "offset": 1096
+      },
+      "end": {
+        "line": 57,
+        "column": 1,
+        "offset": 1215
+      },
+      "text": "object Catalog {\n    private val items = mutableMapOf\u003cString, Long\u003e()\n\n    fun price(sku: String): Long? = items[sku]\n}",
+      "hash": "23074d5ef918dd5a0a3a5afaab6f43570fc4e24195ecfb3828e3ca0629f40b1c"
+    },
+    {
+      "id": "com.example.shop.model.CustomerId#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.model.CustomerId",
+      "start": {
+        "line": 59,
+        "column": 0,
+        "offset": 1217
+      },
+      "end": {
+        "line": 59,
+        "column": 27,
+        "offset": 1244
+      },
+      "text": "typealias CustomerId = Long",
+      "hash": "e66f580a8837bcba1524537b16b7c4255d22e5722acb78f1447b100921694531"
+    },
+    {
+      "id": "L61#1",
+      "kind": "window",
+      "start": {
+        "line": 61,
+        "column": 0,
+        "offset": 1246
+      },
+      "end": {
+        "line": 67,
+        "column": 63,
+        "offset": 1446
+      },
+      "text": "internal const val DEFAULT_CURRENCY = \"EUR\"\n\nprivate const val SALT = \"x\"\n\n/** The customer's initials. */\nval Customer.initials: String\n    get() = name.split(\" \").map { it.first() }.joinToString(\"\")",
+      "hash": "e54685e9c4926fb53febb93fae84139d37905ef626dc435bf05b07110468b509"
+    },
+    {
+      "id": "com.example.shop.model.Customer.greeting#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.model.Customer.greeting",
+      "start": {
+        "line": 69,
+        "column": 0,
+        "offset": 1448
+      },
+      "end": {
+        "line": 69,
+        "column": 48,
+        "offset": 1496
+      },
+      "text": "fun Customer.greeting(): String = \"Hello, $name\"",
+      "hash": "6ba9ea5fcdf86eafb32be914ef3ce895d60c6ef62c5a35391fd05795c8577843"
+    },
+    {
+      "id": "com.example.shop.model.List.second#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.model.List.second",
+      "start": {
+        "line": 71,
+        "column": 0,
+        "offset": 1498
+      },
+      "end": {
+        "line": 71,
+        "column": 51,
+        "offset": 1549
+      },
+      "text": "private fun \u003cT\u003e List\u003cT\u003e.second(): T? = getOrNull(1)",
+      "hash": "eb0a612540cfb0f2e9cebeffa20c174254a4106de601949fae884e0de168c6d8"
+    },
+    {
+      "id": "com.example.shop.model.String.orBlank#1",
+      "kind": "symbol",
+      "symbolId": "com.example.shop.model.String.orBlank",
+      "start": {
+        "line": 73,
+        "column": 0,
+        "offset": 1551
+      },
+      "end": {
+        "line": 73,
+        "column": 42,
+        "offset": 1593
+      },
+      "text": "fun String?.orBlank(): String = this ?: \"\"",
+      "hash": "bbb19b68994d5bfff28ee11014cbc938d7c3df1c6009bcd653cdcb91cd041e21"
+    }
+  ]
+}
