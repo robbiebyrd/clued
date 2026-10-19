@@ -56,6 +56,17 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      falkordb:
+        # The code graph store (codegraph/falkor); pinned so the suite runs
+        # against the version it was verified with.
+        image: falkordb/falkordb:v4.22.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: mind-palace
@@ -71,6 +82,7 @@ jobs:
       - run: go test -race ./...
         env:
           MIND_PALACE_TEST_MONGODB_URI: mongodb://127.0.0.1:27017
+          MIND_PALACE_TEST_FALKORDB_URL: redis://127.0.0.1:6379
       - name: No dependency under a forbidden, restricted or unknown licence
         # github.com/segmentio/asm is MIT No Attribution, which the
         # classifier does not recognise (scripts/build-binaries.sh

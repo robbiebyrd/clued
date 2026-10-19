@@ -3,11 +3,13 @@ id: 0103-cmc
 title: FalkorDB graph adapter and CI service
 purpose: The production graph store.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: L
 created: "2026-10-19T18:09:49.112Z"
-updated: "2026-10-19T18:31:20.557Z"
+updated: "2026-10-19T19:29:26.283Z"
+started: "2026-10-19T19:17:06.756Z"
+completed: "2026-10-19T19:29:22.820Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -34,15 +36,15 @@ links:
     - ["0012-cgi", "included", ["2.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # FalkorDB graph adapter and CI service
@@ -79,9 +81,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && MIND_PALACE_TEST_FALKORDB_URL=redis://127.0.0.1:6379 go test -race ./codegraph/falkor/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codegraph/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && MIND_PALACE_TEST_FALKORDB_URL=redis://127.0.0.1:6379 go test -race ./codegraph/falkor/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codegraph/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -92,3 +94,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/go.sum` - same
 
 ## Work Log
+
+### 2026-10-19T19:29:26.283Z - Added mind-palace/codegraph/falkor: a codegraph.Opener over FalkorDB's Redis protocol with a stdlib-only RESP2 client (no new dependency; go.mod/go.sum unchanged): pooled connections, redis:// and rediss:// URLs with AUTH and SELECT, connection failures as ErrUnavailable. Every query is a constant Cypher text (labels and edge types from codegraph's schema constants at init) sent with GRAPH.QUERY/GRAPH.RO_QUERY --compact, values only as CYPHER parameters; one graph per namespace key. PutLayer creates missing range indexes and the full-text index via db.idx.fulltext.createNodeIndex (nostem, weights name 3, signature 2, doc 1); SearchText uses db.idx.fulltext.queryNodes with the text reduced to plain letter/digit/underscore terms (query syntax can never reach RediSearch). Verified against falkordb/falkordb v4.22.1: full-text queries are AND, case-insensitive for ASCII, trailing * prefixes, no stemming with nostem, no implicit result limit; a query on a graph without its index returns nothing. Known difference from memgraph: FalkorDB folds case of ASCII letters only. CI: falkordb/falkordb:v4.22.1 service container with a redis-cli health check and MIND_PALACE_TEST_FALKORDB_URL in the test job. Tests: codegraphtest 22/22 subtests pass on FalkorDB (also -race -count=3), plus 6 adapter tests (parameter round trip of awkward strings, query encoding, text query reduction, URL parsing, ErrUnavailable, indexes after drop and rebuild); without the URL the server tests skip. gofmt/vet/build clean; go test -race ./codegraph/... ok.
