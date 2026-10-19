@@ -1,0 +1,589 @@
+{
+  "lang": "php",
+  "package": "App\\Repository",
+  "symbols": [
+    {
+      "id": "App\\Repository\\OrderRepository",
+      "kind": "class",
+      "name": "OrderRepository",
+      "qualName": "App\\Repository\\OrderRepository",
+      "signature": "class OrderRepository extends BaseRepository implements Repository, Countable",
+      "doc": "Stores orders in memory.",
+      "start": {
+        "line": 13,
+        "column": 0,
+        "offset": 180
+      },
+      "end": {
+        "line": 56,
+        "column": 1,
+        "offset": 1379
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Repository\\OrderRepository\\db",
+      "kind": "property",
+      "name": "db",
+      "qualName": "App\\Repository\\OrderRepository\\db",
+      "signature": "private Connection $db;",
+      "start": {
+        "line": 19,
+        "column": 4,
+        "offset": 363
+      },
+      "end": {
+        "line": 19,
+        "column": 27,
+        "offset": 386
+      },
+      "parent": "App\\Repository\\OrderRepository"
+    },
+    {
+      "id": "App\\Repository\\OrderRepository\\__construct",
+      "kind": "method",
+      "name": "__construct",
+      "qualName": "App\\Repository\\OrderRepository\\__construct",
+      "signature": "public function __construct(Connection $db, ?Cache $cache = null)",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 392
+      },
+      "end": {
+        "line": 25,
+        "column": 5,
+        "offset": 531
+      },
+      "parent": "App\\Repository\\OrderRepository",
+      "exported": true
+    },
+    {
+      "id": "App\\Repository\\OrderRepository\\find",
+      "kind": "method",
+      "name": "find",
+      "qualName": "App\\Repository\\OrderRepository\\find",
+      "signature": "public function find(int $id): ?Order",
+      "start": {
+        "line": 27,
+        "column": 4,
+        "offset": 537
+      },
+      "end": {
+        "line": 34,
+        "column": 5,
+        "offset": 782
+      },
+      "parent": "App\\Repository\\OrderRepository",
+      "exported": true
+    },
+    {
+      "id": "App\\Repository\\OrderRepository\\save",
+      "kind": "method",
+      "name": "save",
+      "qualName": "App\\Repository\\OrderRepository\\save",
+      "signature": "public function save(Order|Draft $order): void",
+      "start": {
+        "line": 36,
+        "column": 4,
+        "offset": 788
+      },
+      "end": {
+        "line": 45,
+        "column": 5,
+        "offset": 1151
+      },
+      "parent": "App\\Repository\\OrderRepository",
+      "exported": true
+    },
+    {
+      "id": "App\\Repository\\OrderRepository\\count",
+      "kind": "method",
+      "name": "count",
+      "qualName": "App\\Repository\\OrderRepository\\count",
+      "signature": "public function count(): int",
+      "start": {
+        "line": 47,
+        "column": 4,
+        "offset": 1157
+      },
+      "end": {
+        "line": 55,
+        "column": 5,
+        "offset": 1377
+      },
+      "parent": "App\\Repository\\OrderRepository",
+      "exported": true
+    },
+    {
+      "id": "App\\Repository\\Repository",
+      "kind": "interface",
+      "name": "Repository",
+      "qualName": "App\\Repository\\Repository",
+      "signature": "interface Repository extends \\Countable, Searchable",
+      "start": {
+        "line": 58,
+        "column": 0,
+        "offset": 1381
+      },
+      "end": {
+        "line": 60,
+        "column": 1,
+        "offset": 1436
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "App\\Contracts\\Repository",
+      "start": {
+        "line": 5,
+        "column": 4,
+        "offset": 38
+      }
+    },
+    {
+      "spec": "App\\Contracts\\Countable",
+      "start": {
+        "line": 6,
+        "column": 4,
+        "offset": 68
+      }
+    },
+    {
+      "spec": "App\\Models\\Order",
+      "start": {
+        "line": 7,
+        "column": 4,
+        "offset": 97
+      }
+    },
+    {
+      "spec": "App\\Events\\OrderPlaced",
+      "start": {
+        "line": 8,
+        "column": 4,
+        "offset": 119
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "BaseRepository",
+      "kind": "extends",
+      "start": {
+        "line": 13,
+        "column": 30,
+        "offset": 210
+      },
+      "enclosing": "App\\Repository\\OrderRepository"
+    },
+    {
+      "name": "Repository",
+      "kind": "implements",
+      "start": {
+        "line": 13,
+        "column": 56,
+        "offset": 236
+      },
+      "enclosing": "App\\Repository\\OrderRepository"
+    },
+    {
+      "name": "Countable",
+      "kind": "implements",
+      "start": {
+        "line": 13,
+        "column": 68,
+        "offset": 248
+      },
+      "enclosing": "App\\Repository\\OrderRepository"
+    },
+    {
+      "name": "LogsQueries",
+      "kind": "extends",
+      "start": {
+        "line": 15,
+        "column": 8,
+        "offset": 268
+      },
+      "enclosing": "App\\Repository\\OrderRepository"
+    },
+    {
+      "name": "CachesResults",
+      "kind": "extends",
+      "start": {
+        "line": 15,
+        "column": 21,
+        "offset": 281
+      },
+      "enclosing": "App\\Repository\\OrderRepository"
+    },
+    {
+      "name": "remember",
+      "qualifier": "CachesResults",
+      "kind": "value",
+      "start": {
+        "line": 16,
+        "column": 23,
+        "offset": 320
+      },
+      "enclosing": "App\\Repository\\OrderRepository"
+    },
+    {
+      "name": "Connection",
+      "kind": "type",
+      "start": {
+        "line": 19,
+        "column": 12,
+        "offset": 371
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\db"
+    },
+    {
+      "name": "Connection",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 32,
+        "offset": 420
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\__construct"
+    },
+    {
+      "name": "Cache",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 49,
+        "offset": 437
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\__construct"
+    },
+    {
+      "name": "__construct",
+      "qualifier": "parent",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 16,
+        "offset": 480
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\__construct"
+    },
+    {
+      "name": "Order",
+      "kind": "type",
+      "start": {
+        "line": 27,
+        "column": 36,
+        "offset": 569
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\find"
+    },
+    {
+      "name": "select",
+      "qualifier": "$this-\u003edb",
+      "kind": "call",
+      "start": {
+        "line": 29,
+        "column": 26,
+        "offset": 607
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\find"
+    },
+    {
+      "name": "Row",
+      "kind": "type",
+      "start": {
+        "line": 30,
+        "column": 29,
+        "offset": 669
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\find"
+    },
+    {
+      "name": "NotFoundException",
+      "kind": "type",
+      "start": {
+        "line": 31,
+        "column": 22,
+        "offset": 698
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\find"
+    },
+    {
+      "name": "fromRow",
+      "qualifier": "Order",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 22,
+        "offset": 762
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\find"
+    },
+    {
+      "name": "Order",
+      "kind": "type",
+      "start": {
+        "line": 36,
+        "column": 25,
+        "offset": 809
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "Draft",
+      "kind": "type",
+      "start": {
+        "line": 36,
+        "column": 31,
+        "offset": 815
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "insert",
+      "qualifier": "$this-\u003edb",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 20,
+        "offset": 861
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "toArray",
+      "qualifier": "$order",
+      "kind": "call",
+      "start": {
+        "line": 38,
+        "column": 45,
+        "offset": 886
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "event",
+      "kind": "call",
+      "start": {
+        "line": 39,
+        "column": 8,
+        "offset": 906
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "OrderPlaced",
+      "kind": "type",
+      "start": {
+        "line": 39,
+        "column": 18,
+        "offset": 916
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "flush",
+      "qualifier": "static",
+      "kind": "call",
+      "start": {
+        "line": 40,
+        "column": 16,
+        "offset": 954
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "log",
+      "qualifier": "self",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 14,
+        "offset": 977
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "sprintf",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 18,
+        "offset": 981
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "strtoupper",
+      "kind": "call",
+      "start": {
+        "line": 42,
+        "column": 14,
+        "offset": 1029
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "sum",
+      "qualifier": "App\\Support",
+      "kind": "call",
+      "start": {
+        "line": 43,
+        "column": 30,
+        "offset": 1076
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "TAX_RATE",
+      "qualifier": "Order",
+      "kind": "value",
+      "start": {
+        "line": 43,
+        "column": 56,
+        "offset": 1102
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "audit",
+      "qualifier": "namespace",
+      "kind": "call",
+      "start": {
+        "line": 44,
+        "column": 18,
+        "offset": 1131
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\save"
+    },
+    {
+      "name": "count",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 19,
+        "offset": 1225
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\count"
+    },
+    {
+      "name": "all",
+      "qualifier": "$this-\u003edb",
+      "kind": "call",
+      "start": {
+        "line": 50,
+        "column": 36,
+        "offset": 1242
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\count"
+    },
+    {
+      "name": "QueryException",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 17,
+        "offset": 1275
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\count"
+    },
+    {
+      "name": "RuntimeException",
+      "qualifier": "\\",
+      "kind": "type",
+      "start": {
+        "line": 51,
+        "column": 35,
+        "offset": 1293
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\count"
+    },
+    {
+      "name": "report",
+      "kind": "call",
+      "start": {
+        "line": 52,
+        "column": 12,
+        "offset": 1328
+      },
+      "enclosing": "App\\Repository\\OrderRepository\\count"
+    },
+    {
+      "name": "Countable",
+      "qualifier": "\\",
+      "kind": "extends",
+      "start": {
+        "line": 58,
+        "column": 30,
+        "offset": 1411
+      },
+      "enclosing": "App\\Repository\\Repository"
+    },
+    {
+      "name": "Searchable",
+      "kind": "extends",
+      "start": {
+        "line": 58,
+        "column": 41,
+        "offset": 1422
+      },
+      "enclosing": "App\\Repository\\Repository"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 8,
+        "column": 27,
+        "offset": 142
+      },
+      "text": "\u003c?php\n\nnamespace App\\Repository;\n\nuse App\\Contracts\\Repository;\nuse App\\Contracts\\Countable;\nuse App\\Models\\Order;\nuse App\\Events\\OrderPlaced;",
+      "hash": "af9f47b65bfb4dc1a8069785121f9050bfc21a5dcc28a6dab6aff156554f7d6d"
+    },
+    {
+      "id": "App\\Repository\\OrderRepository#1",
+      "kind": "symbol",
+      "symbolId": "App\\Repository\\OrderRepository",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 144
+      },
+      "end": {
+        "line": 56,
+        "column": 1,
+        "offset": 1379
+      },
+      "text": "/**\n * Stores orders in memory.\n */\nclass OrderRepository extends BaseRepository implements Repository, Countable\n{\n    use LogsQueries, CachesResults {\n        CachesResults::remember insteadof LogsQueries;\n    }\n\n    private Connection $db;\n\n    public function __construct(Connection $db, ?Cache $cache = null)\n    {\n        parent::__construct($cache);\n        $this-\u003edb = $db;\n    }\n\n    public function find(int $id): ?Order\n    {\n        $row = $this-\u003edb-\u003eselect('orders', ['id' =\u003e $id]);\n        if (!$row instanceof Row) {\n            throw new NotFoundException(\"order $id\");\n        }\n        return Order::fromRow($row);\n    }\n\n    public function save(Order|Draft $order): void\n    {\n        $this-\u003edb?-\u003einsert('orders', $order-\u003etoArray());\n        event(new OrderPlaced($order));\n        static::flush();\n        self::log(sprintf('saved %d', $order-\u003eid));\n        $fn = strtoupper(...);\n        $total = \\App\\Support\\sum($order-\u003elines, Order::TAX_RATE);\n        namespace\\audit($order);\n    }\n\n    public function count(): int\n    {\n        try {\n            return count($this-\u003edb-\u003eall('orders'));\n        } catch (QueryException | \\RuntimeException $e) {\n            report($e);\n            return 0;\n        }\n    }\n}",
+      "hash": "0afd6a471e503f17ba97acf7272697e5b6bac998430d00acc6b3ca219cc85b75"
+    },
+    {
+      "id": "App\\Repository\\Repository#1",
+      "kind": "symbol",
+      "symbolId": "App\\Repository\\Repository",
+      "start": {
+        "line": 58,
+        "column": 0,
+        "offset": 1381
+      },
+      "end": {
+        "line": 60,
+        "column": 1,
+        "offset": 1436
+      },
+      "text": "interface Repository extends \\Countable, Searchable\n{\n}",
+      "hash": "07779592150fa8f2dd35b6d2a4e8eef297beee44ccb89b18db708efd98dd8a14"
+    }
+  ]
+}

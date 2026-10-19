@@ -1,0 +1,125 @@
+{
+  "lang": "php",
+  "symbols": [
+    {
+      "id": "item_class",
+      "kind": "function",
+      "name": "item_class",
+      "qualName": "item_class",
+      "signature": "function item_class(\\App\\Models\\Item $item): string",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 88
+      },
+      "end": {
+        "line": 8,
+        "column": 1,
+        "offset": 189
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "__DIR__ . '/layout.php'",
+      "kind": "require",
+      "start": {
+        "line": 3,
+        "column": 0,
+        "offset": 54
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Item",
+      "qualifier": "App\\Models",
+      "kind": "type",
+      "start": {
+        "line": 5,
+        "column": 32,
+        "offset": 120
+      },
+      "enclosing": "item_class"
+    },
+    {
+      "name": "item_class",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 19,
+        "offset": 283
+      }
+    },
+    {
+      "name": "htmlspecialchars",
+      "kind": "call",
+      "start": {
+        "line": 15,
+        "column": 45,
+        "offset": 309
+      }
+    },
+    {
+      "name": "count",
+      "kind": "call",
+      "start": {
+        "line": 18,
+        "column": 10,
+        "offset": 384
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 3,
+        "column": 32,
+        "offset": 86
+      },
+      "text": "\u003c?php\n/** @var array\u003cint, \\App\\Models\\Item\u003e $items */\nrequire __DIR__ . '/layout.php';",
+      "hash": "02666a325739fe7025f9aa607cbbf204c1428e1fd749267faccd6cc0ebb2c93f"
+    },
+    {
+      "id": "item_class#1",
+      "kind": "symbol",
+      "symbolId": "item_class",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 88
+      },
+      "end": {
+        "line": 8,
+        "column": 1,
+        "offset": 189
+      },
+      "text": "function item_class(\\App\\Models\\Item $item): string\n{\n    return $item-\u003eactive ? 'active' : 'idle';\n}",
+      "hash": "c5ad7651900a6545c8bc27690c821e32c2a3f711e490db3cc13e7eae7b6a8811"
+    },
+    {
+      "id": "L9#1",
+      "kind": "window",
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 190
+      },
+      "end": {
+        "line": 22,
+        "column": 7,
+        "offset": 457
+      },
+      "text": "?\u003e\n\u003c!doctype html\u003e\n\u003chtml\u003e\n\u003cbody\u003e\n\u003cul\u003e\n\u003c?php foreach ($items as $item): ?\u003e\n    \u003cli class=\"\u003c?= item_class($item) ?\u003e\"\u003e\u003c?= htmlspecialchars($item-\u003ename) ?\u003e\u003c/li\u003e\n\u003c?php endforeach; ?\u003e\n\u003c/ul\u003e\n\u003c?php if (count($items) === 0) { ?\u003e\n    \u003cp\u003eNo items.\u003c/p\u003e\n\u003c?php } ?\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "hash": "6ba1d353c62b158995a77f00f621716aed54c7907a546400c35d9c99feb65e55"
+    }
+  ]
+}

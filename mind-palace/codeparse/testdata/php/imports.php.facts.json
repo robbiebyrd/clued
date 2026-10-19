@@ -1,0 +1,304 @@
+{
+  "lang": "php",
+  "package": "App\\Http\\Controllers",
+  "symbols": [
+    {
+      "id": "App\\Http\\Controllers\\UserController",
+      "kind": "class",
+      "name": "UserController",
+      "qualName": "App\\Http\\Controllers\\UserController",
+      "signature": "class UserController",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 522
+      },
+      "end": {
+        "line": 28,
+        "column": 1,
+        "offset": 749
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Http\\Controllers\\UserController\\show",
+      "kind": "method",
+      "name": "show",
+      "qualName": "App\\Http\\Controllers\\UserController\\show",
+      "signature": "public function show(int $id): User",
+      "start": {
+        "line": 21,
+        "column": 4,
+        "offset": 549
+      },
+      "end": {
+        "line": 27,
+        "column": 5,
+        "offset": 747
+      },
+      "parent": "App\\Http\\Controllers\\UserController",
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "App\\Models\\User",
+      "start": {
+        "line": 5,
+        "column": 4,
+        "offset": 44
+      }
+    },
+    {
+      "spec": "App\\Models\\Post",
+      "alias": "BlogPost",
+      "start": {
+        "line": 6,
+        "column": 4,
+        "offset": 65
+      }
+    },
+    {
+      "spec": "App\\Services",
+      "names": [
+        "Mailer"
+      ],
+      "start": {
+        "line": 7,
+        "column": 18,
+        "offset": 112
+      }
+    },
+    {
+      "spec": "App\\Services",
+      "alias": "Log",
+      "names": [
+        "Logger"
+      ],
+      "start": {
+        "line": 7,
+        "column": 26,
+        "offset": 120
+      }
+    },
+    {
+      "spec": "Illuminate\\Support\\Facades\\DB",
+      "start": {
+        "line": 8,
+        "column": 4,
+        "offset": 140
+      }
+    },
+    {
+      "spec": "Illuminate\\Support\\Str",
+      "start": {
+        "line": 8,
+        "column": 35,
+        "offset": 171
+      }
+    },
+    {
+      "spec": "App\\Support\\helper",
+      "kind": "function",
+      "start": {
+        "line": 9,
+        "column": 4,
+        "offset": 199
+      }
+    },
+    {
+      "spec": "App\\Support",
+      "names": [
+        "format_date"
+      ],
+      "kind": "function",
+      "start": {
+        "line": 10,
+        "column": 26,
+        "offset": 254
+      }
+    },
+    {
+      "spec": "App\\Support",
+      "alias": "money",
+      "names": [
+        "format_money"
+      ],
+      "kind": "function",
+      "start": {
+        "line": 10,
+        "column": 39,
+        "offset": 267
+      }
+    },
+    {
+      "spec": "App\\Support\\VERSION",
+      "kind": "const",
+      "start": {
+        "line": 11,
+        "column": 4,
+        "offset": 295
+      }
+    },
+    {
+      "spec": "App\\Support",
+      "names": [
+        "LIMIT"
+      ],
+      "kind": "const",
+      "start": {
+        "line": 12,
+        "column": 23,
+        "offset": 345
+      }
+    },
+    {
+      "spec": "App\\Support",
+      "alias": "APP_MODE",
+      "names": [
+        "MODE"
+      ],
+      "kind": "const",
+      "start": {
+        "line": 12,
+        "column": 30,
+        "offset": 352
+      }
+    },
+    {
+      "spec": "__DIR__ . '/../bootstrap.php'",
+      "kind": "require_once",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 372
+      }
+    },
+    {
+      "spec": "config/app.php",
+      "kind": "require",
+      "start": {
+        "line": 15,
+        "column": 0,
+        "offset": 416
+      }
+    },
+    {
+      "spec": "partials/header.php",
+      "kind": "include",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 442
+      }
+    },
+    {
+      "spec": "dirname(__DIR__) . '/helpers.php'",
+      "kind": "include_once",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 473
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "dirname",
+      "kind": "call",
+      "start": {
+        "line": 17,
+        "column": 13,
+        "offset": 486
+      }
+    },
+    {
+      "name": "User",
+      "kind": "type",
+      "start": {
+        "line": 21,
+        "column": 35,
+        "offset": 580
+      },
+      "enclosing": "App\\Http\\Controllers\\UserController\\show"
+    },
+    {
+      "name": "info",
+      "qualifier": "Log",
+      "kind": "call",
+      "start": {
+        "line": 23,
+        "column": 13,
+        "offset": 604
+      },
+      "enclosing": "App\\Http\\Controllers\\UserController\\show"
+    },
+    {
+      "name": "findOrFail",
+      "qualifier": "User",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 22,
+        "offset": 663
+      },
+      "enclosing": "App\\Http\\Controllers\\UserController\\show"
+    },
+    {
+      "name": "send",
+      "qualifier": "Mailer",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 16,
+        "offset": 696
+      },
+      "enclosing": "App\\Http\\Controllers\\UserController\\show"
+    },
+    {
+      "name": "money",
+      "kind": "call",
+      "start": {
+        "line": 25,
+        "column": 28,
+        "offset": 708
+      },
+      "enclosing": "App\\Http\\Controllers\\UserController\\show"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 17,
+        "column": 47,
+        "offset": 520
+      },
+      "text": "\u003c?php\n\nnamespace App\\Http\\Controllers;\n\nuse App\\Models\\User;\nuse App\\Models\\Post as BlogPost;\nuse App\\Services\\{Mailer, Logger as Log};\nuse Illuminate\\Support\\Facades\\DB, Illuminate\\Support\\Str;\nuse function App\\Support\\helper;\nuse function App\\Support\\{format_date, format_money as money};\nuse const App\\Support\\VERSION;\nuse const App\\Support\\{LIMIT, MODE as APP_MODE};\n\nrequire_once __DIR__ . '/../bootstrap.php';\nrequire 'config/app.php';\ninclude 'partials/header.php';\ninclude_once dirname(__DIR__) . '/helpers.php';",
+      "hash": "4fc59701ad53692638f20fe767dbaf59d2ad017a870d1c252c53ebf9ff3aa0ad"
+    },
+    {
+      "id": "App\\Http\\Controllers\\UserController#1",
+      "kind": "symbol",
+      "symbolId": "App\\Http\\Controllers\\UserController",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 522
+      },
+      "end": {
+        "line": 28,
+        "column": 1,
+        "offset": 749
+      },
+      "text": "class UserController\n{\n    public function show(int $id): User\n    {\n        Log::info('showing user', ['id' =\u003e $id]);\n        $user = User::findOrFail($id);\n        Mailer::send($user, money(10));\n        return $user;\n    }\n}",
+      "hash": "7f8b79cf779be85998a43969a7e2af6595744249735aabedd76919766bcbca4f"
+    }
+  ]
+}

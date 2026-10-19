@@ -1,0 +1,921 @@
+{
+  "lang": "php",
+  "package": "App\\Billing",
+  "symbols": [
+    {
+      "id": "App\\Billing\\MAX_INVOICE",
+      "kind": "const",
+      "name": "MAX_INVOICE",
+      "qualName": "App\\Billing\\MAX_INVOICE",
+      "signature": "const MAX_INVOICE = 1_000_000;",
+      "doc": "The largest invoice the service accepts, in cents.",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 119
+      },
+      "end": {
+        "line": 10,
+        "column": 30,
+        "offset": 149
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\BILLING_VERSION",
+      "kind": "const",
+      "name": "BILLING_VERSION",
+      "qualName": "App\\Billing\\BILLING_VERSION",
+      "signature": "define('BILLING_VERSION', '2.4')",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 151
+      },
+      "end": {
+        "line": 12,
+        "column": 32,
+        "offset": 183
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Chargeable",
+      "kind": "interface",
+      "name": "Chargeable",
+      "qualName": "App\\Billing\\Chargeable",
+      "signature": "interface Chargeable",
+      "doc": "Describes anything that can be charged.",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 237
+      },
+      "end": {
+        "line": 25,
+        "column": 1,
+        "offset": 447
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Chargeable\\CURRENCY",
+      "kind": "const",
+      "name": "CURRENCY",
+      "qualName": "App\\Billing\\Chargeable\\CURRENCY",
+      "signature": "public const CURRENCY = 'EUR';",
+      "doc": "The charge's currency, as an ISO 4217 code.",
+      "start": {
+        "line": 20,
+        "column": 4,
+        "offset": 319
+      },
+      "end": {
+        "line": 20,
+        "column": 34,
+        "offset": 349
+      },
+      "parent": "App\\Billing\\Chargeable",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Chargeable\\amount",
+      "kind": "method",
+      "name": "amount",
+      "qualName": "App\\Billing\\Chargeable\\amount",
+      "signature": "public function amount(): int;",
+      "start": {
+        "line": 22,
+        "column": 4,
+        "offset": 355
+      },
+      "end": {
+        "line": 22,
+        "column": 34,
+        "offset": 385
+      },
+      "parent": "App\\Billing\\Chargeable",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Chargeable\\fromArray",
+      "kind": "method",
+      "name": "fromArray",
+      "qualName": "App\\Billing\\Chargeable\\fromArray",
+      "signature": "public static function fromArray(array $data): static;",
+      "start": {
+        "line": 24,
+        "column": 4,
+        "offset": 391
+      },
+      "end": {
+        "line": 24,
+        "column": 58,
+        "offset": 445
+      },
+      "parent": "App\\Billing\\Chargeable",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Timestamps",
+      "kind": "trait",
+      "name": "Timestamps",
+      "qualName": "App\\Billing\\Timestamps",
+      "signature": "trait Timestamps",
+      "doc": "Timestamps a model on creation and update.",
+      "start": {
+        "line": 30,
+        "column": 0,
+        "offset": 503
+      },
+      "end": {
+        "line": 39,
+        "column": 1,
+        "offset": 717
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Timestamps\\createdAt",
+      "kind": "property",
+      "name": "createdAt",
+      "qualName": "App\\Billing\\Timestamps\\createdAt",
+      "signature": "protected ?\\DateTimeImmutable $createdAt = null;",
+      "start": {
+        "line": 32,
+        "column": 4,
+        "offset": 526
+      },
+      "end": {
+        "line": 32,
+        "column": 52,
+        "offset": 574
+      },
+      "parent": "App\\Billing\\Timestamps"
+    },
+    {
+      "id": "App\\Billing\\Timestamps\\touch",
+      "kind": "method",
+      "name": "touch",
+      "qualName": "App\\Billing\\Timestamps\\touch",
+      "signature": "public function touch(): void",
+      "doc": "Marks the model as touched now.",
+      "start": {
+        "line": 35,
+        "column": 4,
+        "offset": 619
+      },
+      "end": {
+        "line": 38,
+        "column": 5,
+        "offset": 715
+      },
+      "parent": "App\\Billing\\Timestamps",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Status",
+      "kind": "enum",
+      "name": "Status",
+      "qualName": "App\\Billing\\Status",
+      "signature": "enum Status: string",
+      "doc": "The states an invoice goes through.",
+      "start": {
+        "line": 44,
+        "column": 0,
+        "offset": 766
+      },
+      "end": {
+        "line": 55,
+        "column": 1,
+        "offset": 960
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Status\\Draft",
+      "kind": "const",
+      "name": "Draft",
+      "qualName": "App\\Billing\\Status\\Draft",
+      "signature": "case Draft = 'draft';",
+      "start": {
+        "line": 46,
+        "column": 4,
+        "offset": 792
+      },
+      "end": {
+        "line": 46,
+        "column": 25,
+        "offset": 813
+      },
+      "parent": "App\\Billing\\Status",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Status\\Paid",
+      "kind": "const",
+      "name": "Paid",
+      "qualName": "App\\Billing\\Status\\Paid",
+      "signature": "case Paid = 'paid';",
+      "start": {
+        "line": 47,
+        "column": 4,
+        "offset": 818
+      },
+      "end": {
+        "line": 47,
+        "column": 23,
+        "offset": 837
+      },
+      "parent": "App\\Billing\\Status",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Status\\DEFAULT",
+      "kind": "const",
+      "name": "DEFAULT",
+      "qualName": "App\\Billing\\Status\\DEFAULT",
+      "signature": "const DEFAULT = self::Draft;",
+      "start": {
+        "line": 49,
+        "column": 4,
+        "offset": 843
+      },
+      "end": {
+        "line": 49,
+        "column": 32,
+        "offset": 871
+      },
+      "parent": "App\\Billing\\Status",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Status\\label",
+      "kind": "method",
+      "name": "label",
+      "qualName": "App\\Billing\\Status\\label",
+      "signature": "public function label(): string",
+      "start": {
+        "line": 51,
+        "column": 4,
+        "offset": 877
+      },
+      "end": {
+        "line": 54,
+        "column": 5,
+        "offset": 958
+      },
+      "parent": "App\\Billing\\Status",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Invoice",
+      "kind": "class",
+      "name": "Invoice",
+      "qualName": "App\\Billing\\Invoice",
+      "signature": "abstract class Invoice implements Chargeable",
+      "doc": "An invoice of one customer.",
+      "start": {
+        "line": 60,
+        "column": 0,
+        "offset": 1001
+      },
+      "end": {
+        "line": 97,
+        "column": 1,
+        "offset": 1771
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Invoice\\PREFIX",
+      "kind": "const",
+      "name": "PREFIX",
+      "qualName": "App\\Billing\\Invoice\\PREFIX",
+      "signature": "public const PREFIX = 'INV-';",
+      "start": {
+        "line": 64,
+        "column": 4,
+        "offset": 1073
+      },
+      "end": {
+        "line": 64,
+        "column": 33,
+        "offset": 1102
+      },
+      "parent": "App\\Billing\\Invoice",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Invoice\\SECRET",
+      "kind": "const",
+      "name": "SECRET",
+      "qualName": "App\\Billing\\Invoice\\SECRET",
+      "signature": "private const SECRET = 'x', OTHER = 'y';",
+      "start": {
+        "line": 65,
+        "column": 4,
+        "offset": 1107
+      },
+      "end": {
+        "line": 65,
+        "column": 44,
+        "offset": 1147
+      },
+      "parent": "App\\Billing\\Invoice"
+    },
+    {
+      "id": "App\\Billing\\Invoice\\OTHER",
+      "kind": "const",
+      "name": "OTHER",
+      "qualName": "App\\Billing\\Invoice\\OTHER",
+      "signature": "private const SECRET = 'x', OTHER = 'y';",
+      "start": {
+        "line": 65,
+        "column": 4,
+        "offset": 1107
+      },
+      "end": {
+        "line": 65,
+        "column": 44,
+        "offset": 1147
+      },
+      "parent": "App\\Billing\\Invoice"
+    },
+    {
+      "id": "App\\Billing\\Invoice\\count",
+      "kind": "property",
+      "name": "count",
+      "qualName": "App\\Billing\\Invoice\\count",
+      "signature": "public static int $count = 0;",
+      "start": {
+        "line": 67,
+        "column": 4,
+        "offset": 1153
+      },
+      "end": {
+        "line": 67,
+        "column": 33,
+        "offset": 1182
+      },
+      "parent": "App\\Billing\\Invoice",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Invoice\\lines",
+      "kind": "property",
+      "name": "lines",
+      "qualName": "App\\Billing\\Invoice\\lines",
+      "signature": "private array $lines = [];",
+      "start": {
+        "line": 69,
+        "column": 4,
+        "offset": 1188
+      },
+      "end": {
+        "line": 69,
+        "column": 30,
+        "offset": 1214
+      },
+      "parent": "App\\Billing\\Invoice"
+    },
+    {
+      "id": "App\\Billing\\Invoice\\__construct",
+      "kind": "method",
+      "name": "__construct",
+      "qualName": "App\\Billing\\Invoice\\__construct",
+      "signature": "public function __construct( private readonly string $number, protected int $total = 0, )",
+      "start": {
+        "line": 71,
+        "column": 4,
+        "offset": 1220
+      },
+      "end": {
+        "line": 76,
+        "column": 5,
+        "offset": 1361
+      },
+      "parent": "App\\Billing\\Invoice",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Invoice\\__construct\\number",
+      "kind": "property",
+      "name": "number",
+      "qualName": "App\\Billing\\Invoice\\__construct\\number",
+      "signature": "private readonly string $number",
+      "start": {
+        "line": 72,
+        "column": 8,
+        "offset": 1257
+      },
+      "end": {
+        "line": 72,
+        "column": 39,
+        "offset": 1288
+      },
+      "parent": "App\\Billing\\Invoice\\__construct"
+    },
+    {
+      "id": "App\\Billing\\Invoice\\__construct\\total",
+      "kind": "property",
+      "name": "total",
+      "qualName": "App\\Billing\\Invoice\\__construct\\total",
+      "signature": "protected int $total = 0",
+      "start": {
+        "line": 73,
+        "column": 8,
+        "offset": 1298
+      },
+      "end": {
+        "line": 73,
+        "column": 32,
+        "offset": 1322
+      },
+      "parent": "App\\Billing\\Invoice\\__construct"
+    },
+    {
+      "id": "App\\Billing\\Invoice\\amount",
+      "kind": "method",
+      "name": "amount",
+      "qualName": "App\\Billing\\Invoice\\amount",
+      "signature": "public function amount(): int",
+      "doc": "The invoice's total, in cents.",
+      "start": {
+        "line": 81,
+        "column": 4,
+        "offset": 1421
+      },
+      "end": {
+        "line": 84,
+        "column": 5,
+        "offset": 1491
+      },
+      "parent": "App\\Billing\\Invoice",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Invoice\\tax",
+      "kind": "method",
+      "name": "tax",
+      "qualName": "App\\Billing\\Invoice\\tax",
+      "signature": "abstract protected function tax(int $amount): int;",
+      "start": {
+        "line": 86,
+        "column": 4,
+        "offset": 1497
+      },
+      "end": {
+        "line": 86,
+        "column": 54,
+        "offset": 1547
+      },
+      "parent": "App\\Billing\\Invoice"
+    },
+    {
+      "id": "App\\Billing\\Invoice\\fromArray",
+      "kind": "method",
+      "name": "fromArray",
+      "qualName": "App\\Billing\\Invoice\\fromArray",
+      "signature": "final public static function fromArray(array $data): static",
+      "start": {
+        "line": 88,
+        "column": 4,
+        "offset": 1553
+      },
+      "end": {
+        "line": 91,
+        "column": 5,
+        "offset": 1689
+      },
+      "parent": "App\\Billing\\Invoice",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Invoice\\secret",
+      "kind": "method",
+      "name": "secret",
+      "qualName": "App\\Billing\\Invoice\\secret",
+      "signature": "private function secret(): string",
+      "start": {
+        "line": 93,
+        "column": 4,
+        "offset": 1695
+      },
+      "end": {
+        "line": 96,
+        "column": 5,
+        "offset": 1769
+      },
+      "parent": "App\\Billing\\Invoice"
+    },
+    {
+      "id": "App\\Billing\\Money",
+      "kind": "class",
+      "name": "Money",
+      "qualName": "App\\Billing\\Money",
+      "signature": "final readonly class Money",
+      "start": {
+        "line": 99,
+        "column": 0,
+        "offset": 1773
+      },
+      "end": {
+        "line": 104,
+        "column": 1,
+        "offset": 1899
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Money\\__construct",
+      "kind": "method",
+      "name": "__construct",
+      "qualName": "App\\Billing\\Money\\__construct",
+      "signature": "public function __construct(public int $cents, public string $currency = 'EUR')",
+      "start": {
+        "line": 101,
+        "column": 4,
+        "offset": 1806
+      },
+      "end": {
+        "line": 103,
+        "column": 5,
+        "offset": 1897
+      },
+      "parent": "App\\Billing\\Money",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Money\\__construct\\cents",
+      "kind": "property",
+      "name": "cents",
+      "qualName": "App\\Billing\\Money\\__construct\\cents",
+      "signature": "public int $cents",
+      "start": {
+        "line": 101,
+        "column": 32,
+        "offset": 1834
+      },
+      "end": {
+        "line": 101,
+        "column": 49,
+        "offset": 1851
+      },
+      "parent": "App\\Billing\\Money\\__construct",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Money\\__construct\\currency",
+      "kind": "property",
+      "name": "currency",
+      "qualName": "App\\Billing\\Money\\__construct\\currency",
+      "signature": "public string $currency = 'EUR'",
+      "start": {
+        "line": 101,
+        "column": 51,
+        "offset": 1853
+      },
+      "end": {
+        "line": 101,
+        "column": 82,
+        "offset": 1884
+      },
+      "parent": "App\\Billing\\Money\\__construct",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\format_amount",
+      "kind": "function",
+      "name": "format_amount",
+      "qualName": "App\\Billing\\format_amount",
+      "signature": "function format_amount(int $cents, string $currency = 'EUR'): string",
+      "doc": "Formats an amount in cents for display.",
+      "start": {
+        "line": 109,
+        "column": 0,
+        "offset": 1952
+      },
+      "end": {
+        "line": 112,
+        "column": 1,
+        "offset": 2080
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\reference_returning",
+      "kind": "function",
+      "name": "reference_returning",
+      "qualName": "App\\Billing\\reference_returning",
+      "signature": "function \u0026reference_returning(array \u0026$items): array",
+      "start": {
+        "line": 114,
+        "column": 0,
+        "offset": 2082
+      },
+      "end": {
+        "line": 117,
+        "column": 1,
+        "offset": 2156
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Legacy",
+      "kind": "class",
+      "name": "Legacy",
+      "qualName": "App\\Billing\\Legacy",
+      "signature": "class Legacy",
+      "start": {
+        "line": 119,
+        "column": 0,
+        "offset": 2158
+      },
+      "end": {
+        "line": 127,
+        "column": 1,
+        "offset": 2256
+      },
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Legacy\\name",
+      "kind": "property",
+      "name": "name",
+      "qualName": "App\\Billing\\Legacy\\name",
+      "signature": "var $name;",
+      "start": {
+        "line": 121,
+        "column": 4,
+        "offset": 2177
+      },
+      "end": {
+        "line": 121,
+        "column": 14,
+        "offset": 2187
+      },
+      "parent": "App\\Billing\\Legacy",
+      "exported": true
+    },
+    {
+      "id": "App\\Billing\\Legacy\\make",
+      "kind": "method",
+      "name": "make",
+      "qualName": "App\\Billing\\Legacy\\make",
+      "signature": "static function make()",
+      "start": {
+        "line": 123,
+        "column": 4,
+        "offset": 2193
+      },
+      "end": {
+        "line": 126,
+        "column": 5,
+        "offset": 2254
+      },
+      "parent": "App\\Billing\\Legacy",
+      "exported": true
+    }
+  ],
+  "refs": [
+    {
+      "name": "DateTimeImmutable",
+      "qualifier": "\\",
+      "kind": "type",
+      "start": {
+        "line": 32,
+        "column": 16,
+        "offset": 538
+      },
+      "enclosing": "App\\Billing\\Timestamps\\createdAt"
+    },
+    {
+      "name": "DateTimeImmutable",
+      "qualifier": "\\",
+      "kind": "type",
+      "start": {
+        "line": 37,
+        "column": 34,
+        "offset": 689
+      },
+      "enclosing": "App\\Billing\\Timestamps\\touch"
+    },
+    {
+      "name": "Draft",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 49,
+        "column": 26,
+        "offset": 865
+      },
+      "enclosing": "App\\Billing\\Status\\DEFAULT"
+    },
+    {
+      "name": "ucfirst",
+      "kind": "call",
+      "start": {
+        "line": 53,
+        "column": 15,
+        "offset": 930
+      },
+      "enclosing": "App\\Billing\\Status\\label"
+    },
+    {
+      "name": "Chargeable",
+      "kind": "implements",
+      "start": {
+        "line": 60,
+        "column": 34,
+        "offset": 1035
+      },
+      "enclosing": "App\\Billing\\Invoice"
+    },
+    {
+      "name": "Timestamps",
+      "kind": "extends",
+      "start": {
+        "line": 62,
+        "column": 8,
+        "offset": 1056
+      },
+      "enclosing": "App\\Billing\\Invoice"
+    },
+    {
+      "name": "SECRET",
+      "qualifier": "self",
+      "kind": "value",
+      "start": {
+        "line": 95,
+        "column": 21,
+        "offset": 1756
+      },
+      "enclosing": "App\\Billing\\Invoice\\secret"
+    },
+    {
+      "name": "sprintf",
+      "kind": "call",
+      "start": {
+        "line": 111,
+        "column": 11,
+        "offset": 2034
+      },
+      "enclosing": "App\\Billing\\format_amount"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 12,
+        "column": 33,
+        "offset": 184
+      },
+      "text": "\u003c?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Billing;\n\n/**\n * The largest invoice the service accepts, in cents.\n */\nconst MAX_INVOICE = 1_000_000;\n\ndefine('BILLING_VERSION', '2.4');",
+      "hash": "61d60776fc52aea97ce8f1b99631a7c19f7bc8d8633191c07bb2e9cd8b77bdc8"
+    },
+    {
+      "id": "App\\Billing\\Chargeable#1",
+      "kind": "symbol",
+      "symbolId": "App\\Billing\\Chargeable",
+      "start": {
+        "line": 14,
+        "column": 0,
+        "offset": 186
+      },
+      "end": {
+        "line": 25,
+        "column": 1,
+        "offset": 447
+      },
+      "text": "/**\n * Describes anything that can be charged.\n */\ninterface Chargeable\n{\n    /** The charge's currency, as an ISO 4217 code. */\n    public const CURRENCY = 'EUR';\n\n    public function amount(): int;\n\n    public static function fromArray(array $data): static;\n}",
+      "hash": "e4bb0fa7d1512ef97bb2a1f4eda5ed739b85313fbc27b7bcf80b0362dafe6e37"
+    },
+    {
+      "id": "App\\Billing\\Timestamps#1",
+      "kind": "symbol",
+      "symbolId": "App\\Billing\\Timestamps",
+      "start": {
+        "line": 27,
+        "column": 0,
+        "offset": 449
+      },
+      "end": {
+        "line": 39,
+        "column": 1,
+        "offset": 717
+      },
+      "text": "/**\n * Timestamps a model on creation and update.\n */\ntrait Timestamps\n{\n    protected ?\\DateTimeImmutable $createdAt = null;\n\n    // Marks the model as touched now.\n    public function touch(): void\n    {\n        $this-\u003ecreatedAt ??= new \\DateTimeImmutable();\n    }\n}",
+      "hash": "92fcd4007dbcb80f01e3e51077ba109eaa69335a47b732747aec34c33494c4ee"
+    },
+    {
+      "id": "App\\Billing\\Status#1",
+      "kind": "symbol",
+      "symbolId": "App\\Billing\\Status",
+      "start": {
+        "line": 41,
+        "column": 0,
+        "offset": 719
+      },
+      "end": {
+        "line": 55,
+        "column": 1,
+        "offset": 960
+      },
+      "text": "/**\n * The states an invoice goes through.\n */\nenum Status: string\n{\n    case Draft = 'draft';\n    case Paid = 'paid';\n\n    const DEFAULT = self::Draft;\n\n    public function label(): string\n    {\n        return ucfirst($this-\u003evalue);\n    }\n}",
+      "hash": "2ee2b5fb9c556be6c5f1cfe03e4cca6b6789ef38e5b8a40c9d6916a9c54dcd6c"
+    },
+    {
+      "id": "App\\Billing\\Invoice#1",
+      "kind": "symbol",
+      "symbolId": "App\\Billing\\Invoice",
+      "start": {
+        "line": 57,
+        "column": 0,
+        "offset": 962
+      },
+      "end": {
+        "line": 97,
+        "column": 1,
+        "offset": 1771
+      },
+      "text": "/**\n * An invoice of one customer.\n */\nabstract class Invoice implements Chargeable\n{\n    use Timestamps;\n\n    public const PREFIX = 'INV-';\n    private const SECRET = 'x', OTHER = 'y';\n\n    public static int $count = 0;\n\n    private array $lines = [];\n\n    public function __construct(\n        private readonly string $number,\n        protected int $total = 0,\n    ) {\n        self::$count++;\n    }\n\n    /**\n     * The invoice's total, in cents.\n     */\n    public function amount(): int\n    {\n        return $this-\u003etotal;\n    }\n\n    abstract protected function tax(int $amount): int;\n\n    final public static function fromArray(array $data): static\n    {\n        return new static($data['number'], $data['total'] ?? 0);\n    }\n\n    private function secret(): string\n    {\n        return self::SECRET;\n    }\n}",
+      "hash": "8c8e452cc2896dda3e14011a78b84725bc0ed42ed9366721ea09dde4e574406a"
+    },
+    {
+      "id": "App\\Billing\\Money#1",
+      "kind": "symbol",
+      "symbolId": "App\\Billing\\Money",
+      "start": {
+        "line": 99,
+        "column": 0,
+        "offset": 1773
+      },
+      "end": {
+        "line": 104,
+        "column": 1,
+        "offset": 1899
+      },
+      "text": "final readonly class Money\n{\n    public function __construct(public int $cents, public string $currency = 'EUR')\n    {\n    }\n}",
+      "hash": "eb20e20929b257dd1972c15631b00efc3963eb4d1eaf4436d487db917e557eda"
+    },
+    {
+      "id": "App\\Billing\\format_amount#1",
+      "kind": "symbol",
+      "symbolId": "App\\Billing\\format_amount",
+      "start": {
+        "line": 106,
+        "column": 0,
+        "offset": 1901
+      },
+      "end": {
+        "line": 112,
+        "column": 1,
+        "offset": 2080
+      },
+      "text": "/**\n * Formats an amount in cents for display.\n */\nfunction format_amount(int $cents, string $currency = 'EUR'): string\n{\n    return sprintf('%s %.2f', $currency, $cents / 100);\n}",
+      "hash": "b6d032fc8e6c2830af9d25f1b7b83d7432e6789406f3ba0fd5414cbcbff14fb4"
+    },
+    {
+      "id": "App\\Billing\\reference_returning#1",
+      "kind": "symbol",
+      "symbolId": "App\\Billing\\reference_returning",
+      "start": {
+        "line": 114,
+        "column": 0,
+        "offset": 2082
+      },
+      "end": {
+        "line": 117,
+        "column": 1,
+        "offset": 2156
+      },
+      "text": "function \u0026reference_returning(array \u0026$items): array\n{\n    return $items;\n}",
+      "hash": "06711814124de93c52385c7d9ab10459d6bce707267ffb271a42850eedde09af"
+    },
+    {
+      "id": "App\\Billing\\Legacy#1",
+      "kind": "symbol",
+      "symbolId": "App\\Billing\\Legacy",
+      "start": {
+        "line": 119,
+        "column": 0,
+        "offset": 2158
+      },
+      "end": {
+        "line": 127,
+        "column": 1,
+        "offset": 2256
+      },
+      "text": "class Legacy\n{\n    var $name;\n\n    static function make()\n    {\n        return new self();\n    }\n}",
+      "hash": "d74f9c18726092135c80a6448591f13d215d4b5f23fbf40d6604d098ce370783"
+    }
+  ]
+}
