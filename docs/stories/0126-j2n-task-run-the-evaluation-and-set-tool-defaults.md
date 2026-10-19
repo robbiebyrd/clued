@@ -3,11 +3,12 @@ id: 0126-j2n
 title: Run the evaluation and set tool defaults
 purpose: Turns the measurements into the tools' defaults and a recorded baseline.
 type: task
-status: ready
+status: in_progress
 priority: "3"
 effort: S
 created: "2026-10-19T18:11:58.507Z"
-updated: "2026-10-19T18:33:50.301Z"
+updated: "2026-10-19T22:27:42.383Z"
+started: "2026-10-19T22:27:42.383Z"
 tags:
   - plan-0012-cgi
   - wave-9
