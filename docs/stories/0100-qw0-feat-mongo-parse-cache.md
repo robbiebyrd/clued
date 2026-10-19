@@ -3,11 +3,13 @@ id: 0100-qw0
 title: Mongo parse cache
 purpose: Parse each file version once across branches, layers and members, and survive restarts.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:09:33.601Z"
-updated: "2026-10-19T18:31:01.619Z"
+updated: "2026-10-19T19:10:35.332Z"
+started: "2026-10-19T19:07:42.451Z"
+completed: "2026-10-19T19:10:35.332Z"
 tags:
   - plan-0012-cgi
   - wave-2
@@ -30,11 +32,11 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
 ---
 
 # Mongo parse cache
@@ -63,9 +65,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./codeparse/mongocache/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/mongocache/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && MIND_PALACE_TEST_MONGODB_URI=mongodb://127.0.0.1:27017 go test -race ./codeparse/mongocache/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/mongocache/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -73,3 +75,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/mongocache/mongocache_test.go` - tests with `MIND_PALACE_TEST_MONGODB_URI`
 
 ## Work Log
+
+### 2026-10-19T19:10:29.967Z - Added codeparse/mongocache: Cache over the code_parses collection (_id "<sha256>@<version>", facts stored as their JSON, lang/put_at/used_at kept), New(db, Options{Collection, TTL, Logger, Now}), EnsureIndexes (version index; optional TTL index on used_at, collMod when it moves, dropped when off), Get (undecodable entry = miss, best-effort used_at touch past TTL/8), Put (upsert, ErrTooLarge over 15 MiB), DeleteVersion, Len. 9 tests, all run against MongoDB (MIND_PALACE_TEST_MONGODB_URI, per-test database) and skip without it; gofmt/vet/build clean, go test -race ./codeparse/... passes. Only the two listed files changed.
