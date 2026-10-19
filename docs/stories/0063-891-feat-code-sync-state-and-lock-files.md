@@ -3,11 +3,13 @@ id: 0063-891
 title: Code sync state and lock files
 purpose: Each worktree's sync needs a stamp cache, a pending queue, refused files and a back-off, kept safely across concurrent hook runs.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:05:47.734Z"
-updated: "2026-10-19T18:27:04.654Z"
+updated: "2026-10-19T19:03:03.403Z"
+started: "2026-10-19T18:58:15.009Z"
+completed: "2026-10-19T19:03:03.403Z"
 tags:
   - plan-0010-awy
   - wave-1
@@ -28,13 +30,13 @@ links:
     - ["0010-awy", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
 ---
 
 # Code sync state and lock files
@@ -67,9 +69,9 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./session/codesync/...
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/codesync/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./session/codesync/...
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/codesync/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -77,3 +79,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/session/codesync/state_test.go` - atomic write, lock takeover
 
 ## Work Log
+
+### 2026-10-19T19:02:57.630Z - Added mind-palace/session/codesync/state.go: exported State (worktree, root, project, defaultBranch, ref, head, upstream, ahead, files stamp cache of FileState{size,mtime,sha256,gitOid,dirty,unpushed,synced}, pending{upserts,deletes}, lastFull, refused path->size+mtime stamp, unsupportedUntil), LoadState/SaveState (temp file + rename, file 0600, dir 0700)/RemoveState under StateDir(configDir)=<config dir>/codesync, AcquireLock (<id>.lock, O_EXCL, StaleAfter 60s, copied from catch-up, which is untouched), WorktreeID/ValidWorktreeID (wt_ + 16 hex of sha256(host NUL root); ids are validated before naming a file), and helpers QueueUpsert/QueueDelete/Dequeue, Refuse/IsRefused, BackOff/BackedOff (24h), FullDue (6h). state_test.go: 16 tests (round trip, JSON field names, atomic write under concurrent readers, failed save keeps old file, corrupt file, bad ids, lock held/release/stale takeover/concurrent single winner). gofmt, go vet, go build ./... clean; go test -race ./session/codesync/... ok. Only the two listed files changed.
