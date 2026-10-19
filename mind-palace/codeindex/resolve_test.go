@@ -487,8 +487,20 @@ func TestDefaultResolver(t *testing.T) {
 
 func TestQualifierHelpers(t *testing.T) {
 	seps := []string{"::", ":"}
-	if got := splitQualifier("a::b:c", seps); !reflect.DeepEqual(got, []string{"a", "b", "c"}) {
-		t.Errorf("splitQualifier = %v", got)
+	if got, want := qualifierPrefixes("a::b:c", seps), []qualifierPrefix{{"a::b:c", ""}, {"a::b", "c"}, {"a", "b:c"}}; !reflect.DeepEqual(got, want) {
+		t.Errorf("qualifierPrefixes = %v, want %v", got, want)
+	}
+	if got := qualifierPrefixes("a", seps); !reflect.DeepEqual(got, []qualifierPrefix{{"a", ""}}) {
+		t.Errorf("qualifierPrefixes(a) = %v", got)
+	}
+	for in, want := range map[string]string{"::Shop::Mailer": "Shop::Mailer", "Shop": "Shop", "::": "::"} {
+		got, abs := trimLeadingSeparator(in, seps)
+		if got != want || abs != (got != in) {
+			t.Errorf("trimLeadingSeparator(%q) = %q, %v", in, got, abs)
+		}
+	}
+	if !sameQualified("Shop::Mailer::x", "Shop::Mailer", "x", seps) || sameQualified("App::Shop::Mailer::x", "Shop::Mailer", "x", seps) {
+		t.Error("sameQualified")
 	}
 	for _, c := range []struct {
 		qualName, qual, name string

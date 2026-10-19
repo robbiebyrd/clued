@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -52,10 +53,12 @@ type Resolver interface {
 // Rules are a family's fixed settings.
 type Rules struct {
 	// Separators join the parts of qualified names and qualifiers (".",
-	// "::"); the engine splits a reference's qualifier and matches
-	// definitions' QualName with them. ["."] when empty.
+	// "::"); the engine cuts a reference's qualifier at them (the longest
+	// leading part a Scope qualifier binds wins: a.b.c, then a.b, then a)
+	// and matches definitions' QualName with them. ["."] when empty.
 	Separators []string
-	// CaseInsensitive names compare without case (SQL, Common Lisp).
+	// CaseInsensitive names compare without case (SQL, Common Lisp, PHP):
+	// definitions, qualifiers, imported and renamed names, package keys.
 	CaseInsensitive bool
 	// NameFallback lets a bare name that no scope defines resolve to any
 	// visible definition of that name in the family (confidence name).
@@ -67,15 +70,37 @@ type Rules struct {
 	// name: in the file, then the package, then the imported packages, then
 	// anywhere in the family (confidence name).
 	MemberFallback bool
+	// ImportMembers lets a reference qualified by an import (m.f) that no
+	// top-level definition of the imported package matches resolve to an
+	// exported member whose parent is an exported top-level definition of
+	// that package (confidence qualified): the table or object a module
+	// exports (Lua's return M, CommonJS module.exports = { f }). Off for
+	// languages whose imports name the package's top level only (Go).
+	ImportMembers bool
+	// ReceiverMembers lets a top-level definition written for a receiver
+	// its file does not define (Kotlin's and Swift's extension functions,
+	// C# extension methods, a Go method or Rust impl whose type is in
+	// another file: the extractor qualifies it by the receiver, its Parent
+	// is empty) take part in the member steps like a nested definition.
+	ReceiverMembers bool
+	// AbsoluteQualifiers says a qualifier names a definition from the root
+	// (Perl's My::Report::emit, Ruby's and C++'s A::B::f, PHP's A\B\f): a
+	// definition whose whole qualified name is the qualifier and the name
+	// is found first, with confidence exact. Without it only a qualifier
+	// written with a leading separator (::A::f, \A\f) is matched whole
+	// first, with confidence qualified.
+	AbsoluteQualifiers bool
 }
 
 // Scope is what a file's imports bring into scope, as package keys (the
 // values Resolver.Package returns).
 type Scope struct {
 	// Qualifiers maps a qualifier as written (an import alias, a package's
-	// default name) to the packages it names. A reference qualified by one
-	// of them resolves only inside those packages; when they are not in
-	// the project (a standard library) it stays unresolved.
+	// default name, a dotted module path such as a.b.c for Python's import
+	// a.b.c) to the packages it names. A reference qualified by one of them,
+	// or by one of them followed by a separator and more parts, resolves
+	// only inside those packages (the longest bound qualifier wins); when
+	// they are not in the project (a standard library) it stays unresolved.
 	Qualifiers map[string][]string
 	// Names maps a bare name imported explicitly (from m import a; import
 	// {a} from "m"; use a::b) to the packages it comes from.
@@ -83,6 +108,31 @@ type Scope struct {
 	// Open are packages whose definitions are reachable unqualified (Go's
 	// dot imports, Java's on-demand imports, C's includes).
 	Open []string
+	// Renamed maps a name an import renames as written (b of import {a as
+	// b}, from m import a as b, use m::a as b, import x.A as B) to the
+	// definitions it names: the original name in a package. A bare
+	// reference b resolves to a top-level a of that package at the import
+	// step, and a qualifier B (B.f) to what the original's qualified name
+	// qualifies there.
+	Renamed map[string][]Original
+}
+
+// Original is the definition a renamed import names: Name in Package.
+type Original struct {
+	Package string
+	Name    string
+}
+
+// AddRenamed records that the local name local is the definition name of
+// package pkg, renamed by an import.
+func (s *Scope) AddRenamed(local, pkg, name string) {
+	if s.Renamed == nil {
+		s.Renamed = map[string][]Original{}
+	}
+	o := Original{Package: pkg, Name: name}
+	if !slices.Contains(s.Renamed[local], o) {
+		s.Renamed[local] = append(s.Renamed[local], o)
+	}
 }
 
 // AddQualifier records that qualifier q names package pkg.
