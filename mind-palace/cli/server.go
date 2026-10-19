@@ -28,7 +28,7 @@ or denies the machines logging in with "session login" over the server's
 API.`,
 	}
 	cmd.PersistentFlags().String(tokensFlag, "", "token file (default: $CLUED_SERVER_TOKENS, then ~/.clued-server/tokens.json)")
-	cmd.AddCommand(a.serverRunCmd(), a.serverInitCmd(), a.serverTrustCmd(), a.serverTokenCmd(), a.serverDeviceCmd())
+	cmd.AddCommand(a.serverRunCmd(), a.serverInitCmd(), a.serverTrustCmd(), a.serverTokenCmd(), a.serverDeviceCmd(), a.serverGraphCmd())
 	return cmd
 }
 

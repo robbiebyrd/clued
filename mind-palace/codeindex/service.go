@@ -345,7 +345,8 @@ func sortedStates(m map[TreeKey]*TreeState) []TreeState {
 }
 
 // selectPlan reads the worktrees and the trees not yet in entries (the
-// cache of this turn) and selects the layers.
+// cache of this turn) and selects the layers, leaving out the overlays that
+// went idle (DropIdleOverlays, lifecycle.go).
 func (s *Service) selectPlan(ctx context.Context, store code.Store, state map[TreeKey]*TreeState, entries map[TreeKey][]code.Entry) (Plan, error) {
 	wts, err := store.Worktrees(ctx)
 	if err != nil {
@@ -370,7 +371,7 @@ func (s *Service) selectPlan(ctx context.Context, store code.Store, state map[Tr
 		}
 		trees = append(trees, Tree{Worktree: w, State: *st, Entries: es})
 	}
-	return Select(trees), nil
+	return DropIdleOverlays(Select(trees), wts, s.opts.Now(), OverlayIdle), nil
 }
 
 // write puts the delta's layer nodes, hands the files to the Applier and
