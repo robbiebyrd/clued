@@ -3,11 +3,13 @@ id: 0121-85d
 title: Resolver for SQL
 purpose: Resolves references for SQL so calls, references and implementations link to the right definitions.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:31.068Z"
-updated: "2026-10-19T18:33:17.286Z"
+updated: "2026-10-19T21:13:57.415Z"
+started: "2026-10-19T21:07:07.164Z"
+completed: "2026-10-19T21:13:57.414Z"
 tags:
   - plan-0012-cgi
   - wave-7
@@ -33,15 +35,15 @@ links:
     - ["0012-cgi", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Resolver for SQL
@@ -78,10 +80,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'sql'
-- [ ] [MANUAL] Only this family's two files changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'sql'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'sql'
+- [x] [MANUAL] Only this family's two files changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'sql'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -89,3 +91,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/resolvers/sql_test.go` - resolution tests over the language goldens
 
 ## Work Log
+
+### 2026-10-19T21:13:50.976Z - Added codeindex/resolvers/sql.go (family sql: package key = default schema from USE <db> else public; bare names in that schema exact, else name fallback to any schema object; schema-qualified names by qualified name (qualified), qualifier bound to the schema's package when it holds definitions written without a schema (exact, e.g. public.invoices); aliases reach columns at name; columns never a bare name's target; CTEs stay unresolved) and sql_test.go (5 tests: rules/SQLIdent/package, scope binding, visibility, engine over hand-built facts, engine over codeparse/testdata/sql goldens plus a view file). gofmt/vet/build clean; go test -race ./codeindex/... ok. Only the two listed files changed. Deviation: the extractor strips quotes from names, so quoted identifiers compare without case too (no case-sensitive match possible); SET search_path is not extracted, so only USE/public set the schema.
