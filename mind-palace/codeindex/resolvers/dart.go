@@ -31,12 +31,14 @@ import (
 // nothing into its own scope. Names starting with an underscore are
 // private to their library.
 //
-// The facts are read this way: an Import's Kind is "" or import, export,
-// part, or part of (spelled with a space, an underscore or a hyphen); its
-// Names are the names of its combinators. Whether those are shown or
-// hidden, and whether a part directive is part of, is read from the
-// directive's source text at Import.Start; a Kind naming hide decides it
-// when the text cannot be read, and the names are shown otherwise.
+// The facts are the Dart extractor's (codeparse/queries/dart): an
+// Import's Kind is "" for an import, deferred, export, conditional (one
+// more URI of the import or export before it), part or part_of; its Names
+// are the shown names; Facts.Package is the name of library a.b; or part
+// of a.b;. Hidden names are not in the facts: the combinators are read
+// from the directive's source text at Import.Start, and without it the
+// shown names are the filter. URIs follow the profile's scope options
+// (DartOptions).
 func init() { Register(codeparse.FamilyDart, dart{}) }
 
 type dart struct{}
@@ -46,8 +48,38 @@ var dartRules = Rules{Separators: []string{"."}, NameFallback: true, MemberFallb
 // Rules implements Resolver.
 func (dart) Rules() Rules { return dartRules }
 
-// PubspecFile is the package file the Dart family reads.
-const PubspecFile = "pubspec.yaml"
+// DartOptions are the profile's scope options the Dart family reads
+// (codeparse/queries/dart/profile.yaml): the package manifest's file name,
+// the package URI scheme, the directory under a package's root that
+// package URIs name, and the SDK's URI scheme.
+type DartOptions struct {
+	Manifest      string
+	PackageScheme string
+	PackageDir    string
+	SDKScheme     string
+}
+
+// DefaultDartOptions are the options without a profile.
+var DefaultDartOptions = DartOptions{Manifest: "pubspec.yaml", PackageScheme: "package:", PackageDir: "lib", SDKScheme: "dart:"}
+
+// DartOptionsOf is f's profile's options over DefaultDartOptions.
+func DartOptionsOf(f *File) DartOptions {
+	o := DefaultDartOptions
+	if f == nil || f.Profile == nil {
+		return o
+	}
+	opts := f.Profile.Scope.Options
+	set := func(dst *string, key string) {
+		if v := opts[key]; v != "" {
+			*dst = v
+		}
+	}
+	set(&o.Manifest, "manifest")
+	set(&o.PackageScheme, "packageScheme")
+	set(&o.PackageDir, "packageDir")
+	set(&o.SDKScheme, "sdkScheme")
+	return o
+}
 
 // Dart directive kinds, as dartKind normalizes them.
 const (
@@ -55,6 +87,9 @@ const (
 	dartExport = "export"
 	dartPart   = "part"
 	dartPartOf = "partof"
+	// dartConditional is the URI an import or export takes on some
+	// platforms (if (dart.library.io) 'io.dart').
+	dartConditional = "conditional"
 )
 
 // dartDirective is one import, export, part or part-of directive of a
@@ -100,16 +135,16 @@ func (fl dartFilter) then(inner dartFilter) dartFilter {
 
 // Package implements Resolver: the file's own path, or, for a part, the
 // path of the library it is part of. A part that names its library by its
-// library name rather than its URI keeps its own path (Visible still lets
-// it and its library see each other's private names).
+// library name rather than its URI keeps its own path: the library opens
+// it, and Visible lets the two see each other's private names.
 func (dart) Package(ctx context.Context, v View, f *File) (string, error) {
-	dirs, err := dartDirectives(ctx, v, f)
+	dirs, err := dartDirectives(ctx, v, f, false)
 	if err != nil {
 		return "", err
 	}
 	for _, d := range dirs {
 		if d.kind == dartPartOf && dartIsURI(d.spec) {
-			return DartURIPath(ctx, v, f.Dir(), d.spec)
+			return DartURIPath(ctx, v, DartOptionsOf(f), f.Dir(), d.spec)
 		}
 	}
 	return f.Path, nil
@@ -125,14 +160,14 @@ func (dart) Scope(ctx context.Context, v View, f *File) (Scope, error) {
 		files = []*File{f}
 	}
 	for _, lf := range files {
-		dirs, err := dartDirectives(ctx, v, lf)
+		dirs, err := dartDirectives(ctx, v, lf, true)
 		if err != nil {
 			return s, err
 		}
 		for _, d := range dirs {
 			switch d.kind {
 			case dartPart:
-				key, err := DartURIPath(ctx, v, lf.Dir(), d.spec)
+				key, err := DartURIPath(ctx, v, DartOptionsOf(lf), lf.Dir(), d.spec)
 				if err != nil {
 					return s, err
 				}
@@ -140,7 +175,7 @@ func (dart) Scope(ctx context.Context, v View, f *File) (Scope, error) {
 					s.AddOpen(key)
 				}
 			case dartImport:
-				key, err := DartURIPath(ctx, v, lf.Dir(), d.spec)
+				key, err := DartURIPath(ctx, v, DartOptionsOf(lf), lf.Dir(), d.spec)
 				if err != nil {
 					return s, err
 				}
@@ -176,7 +211,7 @@ func dartNamespace(ctx context.Context, v View, key string, filter dartFilter) (
 	for i := 0; i < len(out); i++ {
 		cur := out[i]
 		for _, lf := range v.Package(codeparse.FamilyDart, cur.key) {
-			dirs, err := dartDirectives(ctx, v, lf)
+			dirs, err := dartDirectives(ctx, v, lf, true)
 			if err != nil {
 				return nil, err
 			}
@@ -184,7 +219,7 @@ func dartNamespace(ctx context.Context, v View, key string, filter dartFilter) (
 				if d.kind != dartExport && d.kind != dartPart {
 					continue
 				}
-				next, err := DartURIPath(ctx, v, lf.Dir(), d.spec)
+				next, err := DartURIPath(ctx, v, DartOptionsOf(lf), lf.Dir(), d.spec)
 				if err != nil {
 					return nil, err
 				}
@@ -246,39 +281,24 @@ func dartBind(s *Scope, v View, l dartLib) {
 }
 
 // Visible implements Resolver: a public name always; a private one
-// (leading underscore) from the same library, which takes in a part keyed
-// on its own that names the library by its library name.
+// (leading underscore) from the same library: the same package key, or
+// the same library name (library a.b; and part of a.b; both record it as
+// Facts.Package), which takes in a part that names its library by name.
 func (dart) Visible(f *File, c Candidate, _ Step) bool {
 	if !strings.HasPrefix(c.Symbol.Name, "_") || c.File.Package == f.Package {
 		return true
 	}
-	lib, part := dartLibraryName(f), dartPartOfName(f)
-	clib, cpart := dartLibraryName(c.File), dartPartOfName(c.File)
-	return (part != "" && (part == clib || part == cpart)) || (cpart != "" && cpart == lib)
+	lib := dartLibraryName(f)
+	return lib != "" && lib == dartLibraryName(c.File)
 }
 
-// dartLibraryName is the library name a file declares (library a.b;), as
-// the extractor records it in Facts.Package.
+// dartLibraryName is the library name a file declares (library a.b; or
+// part of a.b;), as the extractor records it in Facts.Package.
 func dartLibraryName(f *File) string {
 	if f.Facts == nil {
 		return ""
 	}
 	return f.Facts.Package
-}
-
-// dartPartOfName is the library name of a part of a.b; directive, ""
-// when f has none or names its library by URI. It reads the facts only
-// (a Kind of part of), not the source.
-func dartPartOfName(f *File) string {
-	if f.Facts == nil {
-		return ""
-	}
-	for _, im := range f.Facts.Imports {
-		if dartKind(im.Kind) == dartPartOf && !dartIsURI(im.Spec) {
-			return im.Spec
-		}
-	}
-	return ""
 }
 
 // dartIsURI reports whether a part-of spec is a URI rather than a library
@@ -287,66 +307,61 @@ func dartIsURI(spec string) bool {
 	return strings.HasSuffix(spec, ".dart") || strings.ContainsAny(spec, "/:")
 }
 
-// dartKind normalizes an Import.Kind: import, export, part or partof,
-// with a trailing hide or show dropped.
+// dartKind normalizes an Import.Kind: import (a plain or deferred import),
+// export, part, partof or conditional.
 func dartKind(k string) string {
-	k = strings.ToLower(k)
-	k = strings.NewReplacer(" ", "", "_", "", "-", "").Replace(k)
-	k = strings.TrimSuffix(strings.TrimSuffix(k, "hide"), "show")
-	if k == "" {
+	k = strings.NewReplacer(" ", "", "_", "", "-", "").Replace(strings.ToLower(k))
+	if k == "" || k == "deferred" {
 		return dartImport
 	}
 	return k
 }
 
-// dartDirectives returns f's directives: kind, spec, prefix and
-// combinators, the latter (and part versus part of) from the source when
-// the facts leave them open.
-func dartDirectives(ctx context.Context, v View, f *File) ([]dartDirective, error) {
+// dartDirectives returns f's directives: kind, spec, prefix and, when
+// combinators is set, the show and hide combinators of its imports and
+// exports, read from the source text at Import.Start (the facts carry the
+// shown names only; without the text those are taken as the filter). A
+// conditional URI is one more directive like the import or export it
+// belongs to.
+func dartDirectives(ctx context.Context, v View, f *File, combinators bool) ([]dartDirective, error) {
 	if f.Facts == nil {
 		return nil, nil
 	}
 	var src []byte
 	read := false
-	source := func() ([]byte, error) {
-		if !read {
-			read = true
-			c, ok, err := v.Content(ctx, f.Path)
-			if err != nil {
-				return nil, err
-			}
-			if ok {
-				src = c
-			}
-		}
-		return src, nil
-	}
 	out := make([]dartDirective, 0, len(f.Facts.Imports))
 	for _, im := range f.Facts.Imports {
-		raw := strings.NewReplacer(" ", "", "_", "", "-", "").Replace(strings.ToLower(im.Kind))
 		d := dartDirective{kind: dartKind(im.Kind), spec: im.Spec, prefix: im.Alias}
 		switch d.kind {
-		case dartImport, dartExport, dartPart, dartPartOf:
+		case dartImport, dartExport:
+		case dartPart, dartPartOf:
+			d.prefix = ""
+		case dartConditional:
+			if n := len(out); n > 0 && (out[n-1].kind == dartImport || out[n-1].kind == dartExport) {
+				d = out[n-1]
+				d.spec = im.Spec
+				out = append(out, d)
+			}
+			continue
 		default:
 			continue
 		}
-		if d.kind == dartPart || len(im.Names) > 0 {
-			text, err := source()
-			if err != nil {
-				return nil, err
+		if combinators && (d.kind == dartImport || d.kind == dartExport) {
+			if !read {
+				read = true
+				c, ok, err := v.Content(ctx, f.Path)
+				if err != nil {
+					return nil, err
+				}
+				if ok {
+					src = c
+				}
 			}
-			word, conds, ok := dartParseDirective(text, im.Start.Offset)
-			switch {
-			case ok && d.kind == dartPart && word == dartPartOf:
-				d.kind = dartPartOf
-			case ok && (word == dartImport || word == dartExport):
+			if word, conds, ok := dartParseDirective(src, im.Start.Offset); ok && (word == dartImport || word == dartExport) {
 				d.filter = conds
-			case len(im.Names) > 0:
-				d.filter = dartFilter{{show: !strings.HasSuffix(raw, "hide"), names: dartSet(im.Names)}}
+			} else if len(im.Names) > 0 {
+				d.filter = dartFilter{{show: true, names: dartSet(im.Names)}}
 			}
-		}
-		if d.kind == dartPartOf || d.kind == dartPart {
-			d.prefix = ""
 		}
 		out = append(out, d)
 	}
@@ -435,24 +450,27 @@ func dartParseDirective(src []byte, offset int) (string, dartFilter, bool) {
 
 // DartURIPath resolves an import, export or part URI written in a file of
 // directory dir to the path of the file it names: a relative URI against
-// dir, package:name/rest to rest under the lib/ directory of the package
-// called name (see DartPackageRoot). A dart: URI, a package the project
-// does not hold or a path leaving the project is returned as written.
-func DartURIPath(ctx context.Context, v View, dir, uri string) (string, error) {
+// dir, <packageScheme>name/rest to rest under the <packageDir> directory
+// of the package called name (see DartPackageRoot). An SDK URI, any other
+// scheme, a package the project does not hold or a path leaving the
+// project is returned as written.
+func DartURIPath(ctx context.Context, v View, o DartOptions, dir, uri string) (string, error) {
 	switch {
-	case strings.HasPrefix(uri, "package:"):
-		rest := strings.TrimPrefix(uri, "package:")
+	case o.SDKScheme != "" && strings.HasPrefix(uri, o.SDKScheme):
+		return uri, nil
+	case o.PackageScheme != "" && strings.HasPrefix(uri, o.PackageScheme):
+		rest := strings.TrimPrefix(uri, o.PackageScheme)
 		name, file, ok := strings.Cut(rest, "/")
 		if !ok || name == "" || file == "" {
 			return uri, nil
 		}
-		root, found, err := DartPackageRoot(ctx, v, dir, name)
+		root, found, err := DartPackageRoot(ctx, v, o, dir, name)
 		if err != nil || !found {
 			return uri, err
 		}
-		return dartLocal(path.Join(root, "lib", file), uri), nil
+		return dartLocal(path.Join(root, o.PackageDir, file), uri), nil
 	case strings.Contains(uri, ":"):
-		return uri, nil // dart:, http:, file:
+		return uri, nil // http:, file:
 	case strings.HasPrefix(uri, "/"):
 		return uri, nil
 	}
@@ -469,21 +487,21 @@ func dartLocal(p, fallback string) string {
 }
 
 // DartPackageRoot finds the directory of the package called name, as seen
-// from directory dir: walking up from dir, a pubspec.yaml whose name it
+// from directory dir: walking up from dir, a manifest (pubspec.yaml) whose name it
 // is, a path dependency (or override) of that name, or a workspace member
 // of that name; then a package directory at the root named after it
 // (<name>/, packages/<name>/, pkgs/<name>/).
-func DartPackageRoot(ctx context.Context, v View, dir, name string) (string, bool, error) {
-	check := func(d string) (pubspec, bool, error) {
-		p := path.Join(d, PubspecFile)
+func DartPackageRoot(ctx context.Context, v View, o DartOptions, dir, name string) (string, bool, error) {
+	check := func(d string) (dartPubspec, bool, error) {
+		p := path.Join(d, o.Manifest)
 		if !v.Has(p) {
-			return pubspec{}, false, nil
+			return dartPubspec{}, false, nil
 		}
 		content, ok, err := v.Content(ctx, p)
 		if err != nil || !ok {
-			return pubspec{}, false, err
+			return dartPubspec{}, false, err
 		}
-		return parsePubspec(content), true, nil
+		return dartParsePubspec(content), true, nil
 	}
 	for d := path.Clean(dir); ; d = path.Dir(d) {
 		ps, ok, err := check(d)
@@ -532,8 +550,8 @@ func DartPackageRoot(ctx context.Context, v View, dir, name string) (string, boo
 	return "", false, nil
 }
 
-// pubspec is what the Dart family reads of a pubspec.yaml.
-type pubspec struct {
+// dartPubspec is what the Dart family reads of a pubspec.yaml.
+type dartPubspec struct {
 	Name         string               `yaml:"name"`
 	Workspace    []string             `yaml:"workspace"`
 	Dependencies map[string]yaml.Node `yaml:"dependencies"`
@@ -542,27 +560,27 @@ type pubspec struct {
 	paths        map[string]string    // package name → path dependency's directory
 }
 
-var pubspecCache = struct {
+var dartPubspecCache = struct {
 	sync.Mutex
-	m map[[sha256.Size]byte]pubspec
-}{m: map[[sha256.Size]byte]pubspec{}}
+	m map[[sha256.Size]byte]dartPubspec
+}{m: map[[sha256.Size]byte]dartPubspec{}}
 
-// pubspecCacheSize bounds the parsed pubspec files kept between calls.
-const pubspecCacheSize = 1024
+// dartPubspecCacheSize bounds the parsed pubspec files kept between calls.
+const dartPubspecCacheSize = 1024
 
-// parsePubspec reads a pubspec.yaml's name, workspace members and path
+// dartParsePubspec reads a pubspec.yaml's name, workspace members and path
 // dependencies; a file that does not parse reads as empty.
-func parsePubspec(content []byte) pubspec {
+func dartParsePubspec(content []byte) dartPubspec {
 	key := sha256.Sum256(content)
-	pubspecCache.Lock()
-	ps, ok := pubspecCache.m[key]
-	pubspecCache.Unlock()
+	dartPubspecCache.Lock()
+	ps, ok := dartPubspecCache.m[key]
+	dartPubspecCache.Unlock()
 	if ok {
 		return ps
 	}
-	ps = pubspec{}
+	ps = dartPubspec{}
 	if err := yaml.NewDecoder(bytes.NewReader(content)).Decode(&ps); err != nil {
-		ps = pubspec{}
+		ps = dartPubspec{}
 	}
 	ps.paths = map[string]string{}
 	for _, deps := range []map[string]yaml.Node{ps.DevDeps, ps.Dependencies, ps.Overrides} {
@@ -576,11 +594,11 @@ func parsePubspec(content []byte) pubspec {
 		}
 	}
 	ps.Dependencies, ps.DevDeps, ps.Overrides = nil, nil, nil
-	pubspecCache.Lock()
-	if len(pubspecCache.m) >= pubspecCacheSize {
-		clear(pubspecCache.m)
+	dartPubspecCache.Lock()
+	if len(dartPubspecCache.m) >= dartPubspecCacheSize {
+		clear(dartPubspecCache.m)
 	}
-	pubspecCache.m[key] = ps
-	pubspecCache.Unlock()
+	dartPubspecCache.m[key] = ps
+	dartPubspecCache.Unlock()
 	return ps
 }

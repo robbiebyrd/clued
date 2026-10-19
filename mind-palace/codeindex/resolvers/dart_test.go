@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -64,7 +65,7 @@ func (d *dartSrc) at(offset int) *dartSrc {
 }
 
 func (d *dartSrc) imp(text, spec, alias string, names ...string) *dartSrc {
-	return d.dir(text, "import", spec, alias, names...)
+	return d.dir(text, "", spec, alias, names...)
 }
 
 func dartID(local string) string { return codeparse.SymbolID(local, 1) }
@@ -130,6 +131,42 @@ func dartGitOID(content string) string {
 	return hex.EncodeToString(s[:])
 }
 
+// dartProfiles are the languages' profiles, Dart's included.
+func dartProfiles(t *testing.T) codeparse.Profiles {
+	t.Helper()
+	ps, err := codeparse.LoadProfiles(os.DirFS("../../codeparse/queries"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ps
+}
+
+// dartGolden is a golden input of the Dart extractor as dartParse reads
+// it: the source, then its expected facts.
+func dartGolden(t *testing.T, name string) string {
+	t.Helper()
+	src, err := os.ReadFile("../../codeparse/testdata/dart/" + name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts, err := os.ReadFile("../../codeparse/testdata/dart/" + name + ".facts.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f codeparse.Facts
+	if err := json.Unmarshal(facts, &f); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Validate(); err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	b, err := json.Marshal(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(src) + dartFactsMarker + string(b) + "\n"
+}
+
 // dartEnv indexes a tree with the resolution engine into a memory graph.
 type dartEnv struct {
 	t   *testing.T
@@ -152,7 +189,7 @@ func dartIndex(t *testing.T, tree map[string]string) *dartEnv {
 		},
 		Graphs:  graphs,
 		Cursors: codeindex.NewMemCursors(nil),
-		Apply:   codeindex.NewResolver(codeindex.ResolverOptions{}),
+		Apply:   codeindex.NewResolver(codeindex.ResolverOptions{Profiles: dartProfiles(t)}),
 		Parse:   dartParse,
 		Holder:  "test",
 	})
@@ -213,8 +250,11 @@ func TestResolve_dart(t *testing.T) {
 		imp("import 'package:flutter/material.dart';", "package:flutter/material.dart", "").
 		imp("import 'package:util/util.dart' as u;", "package:util/util.dart", "u").
 		imp("import 'package:app/models/user.dart';", "package:app/models/user.dart", "").
-		imp("import 'widgets.dart' hide Hidden, Other;", "widgets.dart", "", "Hidden", "Other").
+		imp("import 'widgets.dart' hide Hidden, Other;", "widgets.dart", ""). // hidden names are not in the facts
 		imp("import \"helpers.dart\" show helper; // not otherHelper", "helpers.dart", "", "helper").
+		dir("import 'lazy.dart' deferred as lazy;", "deferred", "lazy.dart", "lazy").
+		imp("import 'stub.dart'", "stub.dart", "").
+		dir("    if (dart.library.io) 'io.dart';", "conditional", "io.dart", "").
 		dir("part 'main_part.dart';", "part", "main_part.dart", "").
 		fn("main").class("App").def(codeparse.KindMethod, "App.build").fn("_private").
 		call("main", "runApp").        // Flutter: not in the project
@@ -232,9 +272,11 @@ func TestResolve_dart(t *testing.T) {
 		call("main", "_secret").       // another library's private name
 		call("main", "dup").           // opened twice
 		call("main", "_private").      // the file
+		call("main", "lazy.load").     // a deferred prefix
+		call("main", "openStorage").   // the default and the conditional URI
 		call("App.build", "App.build") // a static through its class
 	part := dartFile("").
-		dir("part of 'main.dart';", "part", "main.dart", "").
+		dir("part of 'main.dart';", "part_of", "main.dart", "").
 		fn("partFn").fn("_partPrivate").
 		call("partFn", "helper"). // the library's imports reach its parts
 		call("partFn", "main").
@@ -248,15 +290,18 @@ func TestResolve_dart(t *testing.T) {
 			class("User").fn("dup").src(),
 		"lib/widgets.dart": dartFile("").class("Shown").class("Hidden").class("Other").fn("dup").src(),
 		"lib/helpers.dart": dartFile("").fn("helper").fn("otherHelper").src(),
+		"lib/lazy.dart":    dartFile("").fn("load").src(),
+		"lib/stub.dart":    dartFile("").fn("openStorage").src(),
+		"lib/io.dart":      dartFile("").fn("openStorage").src(),
 		"lib/other.dart": dartFile("").
-			// combinators the source does not show: the Kind decides
-			dir("// generated", "import_hide", "helpers.dart", "", "helper").at(1<<20).
+			// no source text at the import: the shown names filter
+			imp("// generated", "helpers.dart", "", "helper").at(1<<20).
 			fn("other").call("other", "helper").call("other", "otherHelper").src(),
 		"lib/legacy.dart": dartFile("app.legacy").
 			dir("part 'legacy_part.dart';", "part", "legacy_part.dart", "").
 			fn("legacyFn").fn("_legacyPrivate").call("legacyFn", "_lp").src(),
-		"lib/legacy_part.dart": dartFile("").
-			dir("part of app.legacy;", "part_of", "app.legacy", "").
+		// part of app.legacy; is only Facts.Package
+		"lib/legacy_part.dart": dartFile("app.legacy").
 			fn("_lp").call("_lp", "_legacyPrivate").src(),
 		"packages/util/pubspec.yaml": "name: util\n",
 		"packages/util/lib/util.dart": dartFile("util").
@@ -282,6 +327,8 @@ func TestResolve_dart(t *testing.T) {
 		"lib/main_part.dart#" + dartID("_partPrivate"):               "exact",
 		"lib/models/user.dart#" + dartID("dup"):                      "name",
 		"lib/main.dart#" + dartID("_private"):                        "exact",
+		"lib/lazy.dart#" + dartID("load"):                            "exact",
+		"lib/io.dart#" + dartID("openStorage"):                       "name",
 	})
 	e.want("lib/main.dart", "App.build", map[string]string{"lib/main.dart#" + dartID("App.build"): "qualified"})
 	e.want("lib/main_part.dart", "partFn", map[string]string{
@@ -290,8 +337,8 @@ func TestResolve_dart(t *testing.T) {
 		"lib/main.dart#" + dartID("_private"):  "exact",
 	})
 	e.want("lib/other.dart", "other", map[string]string{
-		"lib/helpers.dart#" + dartID("helper"):      "name",
-		"lib/helpers.dart#" + dartID("otherHelper"): "exact",
+		"lib/helpers.dart#" + dartID("helper"):      "exact",
+		"lib/helpers.dart#" + dartID("otherHelper"): "name",
 	})
 	e.want("lib/legacy.dart", "legacyFn", map[string]string{"lib/legacy_part.dart#" + dartID("_lp"): "exact"})
 	e.want("lib/legacy_part.dart", "_lp", map[string]string{"lib/legacy.dart#" + dartID("_legacyPrivate"): "name"})
@@ -336,15 +383,15 @@ func TestURIPath_dart(t *testing.T) {
 		{"broken/lib", "package:broken/b.dart", "package:broken/b.dart"},
 		{".", "lib/a.dart", "lib/a.dart"},
 	} {
-		got, err := resolvers.DartURIPath(ctx, v, tc.dir, tc.uri)
+		got, err := resolvers.DartURIPath(ctx, v, resolvers.DefaultDartOptions, tc.dir, tc.uri)
 		if err != nil || got != tc.want {
 			t.Errorf("DartURIPath(%q, %q) = %q, %v; want %q", tc.dir, tc.uri, got, err, tc.want)
 		}
 	}
-	if root, ok, err := resolvers.DartPackageRoot(ctx, v, "pkgs/core/lib", "root"); err != nil || !ok || root != "." {
+	if root, ok, err := resolvers.DartPackageRoot(ctx, v, resolvers.DefaultDartOptions, "pkgs/core/lib", "root"); err != nil || !ok || root != "." {
 		t.Errorf("DartPackageRoot(root) = %q, %v, %v", root, ok, err)
 	}
-	if _, ok, _ := resolvers.DartPackageRoot(ctx, v, ".", "outside"); ok {
+	if _, ok, _ := resolvers.DartPackageRoot(ctx, v, resolvers.DefaultDartOptions, ".", "outside"); ok {
 		t.Error("a workspace member outside the project was found")
 	}
 }
@@ -360,6 +407,7 @@ func TestRules_dart(t *testing.T) {
 	}
 	f := &resolvers.File{Path: "lib/a.dart", Package: "lib/a.dart", Facts: &codeparse.Facts{}}
 	other := &resolvers.File{Path: "lib/b.dart", Package: "lib/b.dart", Facts: &codeparse.Facts{}}
+	libPart := &resolvers.File{Path: "lib/p.dart", Package: "lib/p.dart", Facts: &codeparse.Facts{Package: "a.b"}}
 	pub := codeparse.Symbol{Name: "f"}
 	priv := codeparse.Symbol{Name: "_f"}
 	for _, tc := range []struct {
@@ -369,9 +417,71 @@ func TestRules_dart(t *testing.T) {
 		{resolvers.Candidate{File: other, Symbol: &pub}, true},
 		{resolvers.Candidate{File: other, Symbol: &priv}, false},
 		{resolvers.Candidate{File: f, Symbol: &priv}, true},
+		{resolvers.Candidate{File: libPart, Symbol: &priv}, false},
 	} {
 		if got := r.Visible(f, tc.c, resolvers.StepName); got != tc.want {
 			t.Errorf("Visible(%s in %s) = %v", tc.c.Symbol.Name, tc.c.File.Path, got)
 		}
 	}
+}
+
+func TestPrivateAcrossNamedPart_dart(t *testing.T) {
+	_, r, _ := resolvers.ForLang("dart")
+	lib := &resolvers.File{Path: "lib/a.dart", Package: "lib/a.dart", Facts: &codeparse.Facts{Package: "a.b"}}
+	part := &resolvers.File{Path: "lib/p.dart", Package: "lib/p.dart", Facts: &codeparse.Facts{Package: "a.b"}}
+	if !r.Visible(lib, resolvers.Candidate{File: part, Symbol: &codeparse.Symbol{Name: "_x"}}, resolvers.StepOpen) {
+		t.Error("a part of a.b; cannot see library a.b's private names")
+	}
+}
+
+func TestOptions_dart(t *testing.T) {
+	ps := dartProfiles(t)
+	if got := resolvers.DartOptionsOf(&resolvers.File{Profile: ps["dart"]}); got != resolvers.DefaultDartOptions {
+		t.Errorf("the profile's options = %+v, want %+v", got, resolvers.DefaultDartOptions)
+	}
+	o := resolvers.DartOptionsOf(&resolvers.File{Profile: &codeparse.Profile{Scope: codeparse.Scope{
+		Options: map[string]string{"manifest": "pkg.yaml", "packageDir": "src", "packageScheme": "pkg:", "sdkScheme": "sdk:"}}}})
+	v := dartView{"pkg.yaml": "name: m\n", "pubspec.yaml": "name: n\n"}
+	ctx := context.Background()
+	for uri, want := range map[string]string{
+		"pkg:m/a.dart":     "src/a.dart",
+		"package:n/a.dart": "package:n/a.dart",
+		"sdk:core":         "sdk:core",
+	} {
+		if got, err := resolvers.DartURIPath(ctx, v, o, "src", uri); err != nil || got != want {
+			t.Errorf("DartURIPath(%q) = %q, %v; want %q", uri, got, err, want)
+		}
+	}
+}
+
+// TestGoldens_dart resolves the extractor's own goldens: directives.dart
+// (prefixes, show and hide, deferred, conditional URIs, a package: URI of
+// its own package) and user.dart with its generated part user.g.dart.
+func TestGoldens_dart(t *testing.T) {
+	tree := map[string]string{
+		"pubspec.yaml":              "name: demo\n",
+		"lib/directives.dart":       dartGolden(t, "directives.dart"),
+		"lib/src/shapes.dart":       dartGolden(t, "shapes.dart"),
+		"lib/user.dart":             dartGolden(t, "user.dart"),
+		"lib/user.g.dart":           dartGolden(t, "user.g.dart"),
+		"util/strings.dart":         dartFile("").fn("shout").src(),
+		"lib/src/storage_stub.dart": dartFile("").fn("openStorage").src(),
+		"lib/src/colours.dart":      dartFile("").fn("jsonDecode").src(),
+	}
+	e := dartIndex(t, tree)
+	e.want("lib/directives.dart", "save", map[string]string{
+		"util/strings.dart#" + dartID("shout"):               "exact",
+		"lib/src/storage_stub.dart#" + dartID("openStorage"): "exact",
+	})
+	e.want("lib/directives.dart", "watch", map[string]string{
+		"lib/src/shapes.dart#demo.shapes.Circle": "exact",
+		// .printMe() on an expression: a member found by name only
+		"lib/src/shapes.dart#demo.shapes.Printable.printMe": "name",
+	})
+	// jsonDecode comes from dart:convert; the export of colours.dart does
+	// not import it into directives.dart, so only the name fallback finds
+	// the project's one.
+	e.want("lib/directives.dart", "fetchJson", map[string]string{"lib/src/colours.dart#" + dartID("jsonDecode"): "name"})
+	e.want("lib/user.dart", "User.fromJson", map[string]string{"lib/user.g.dart#_$UserFromJson": "exact"})
+	e.want("lib/user.g.dart", "_$UserFromJson", map[string]string{"lib/user.dart#User": "exact"})
 }
