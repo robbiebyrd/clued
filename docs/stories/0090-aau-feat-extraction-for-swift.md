@@ -3,11 +3,13 @@ id: 0090-aau
 title: Extraction for Swift
 purpose: 'Adds Swift to the indexer: files .swift.'
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:08:41.549Z"
-updated: "2026-10-19T18:29:56.517Z"
+updated: "2026-10-19T20:59:13.618Z"
+started: "2026-10-19T20:46:58.865Z"
+completed: "2026-10-19T20:59:13.618Z"
 tags:
   - plan-0012-cgi
   - wave-3
@@ -33,17 +35,17 @@ links:
     - ["0012-cgi", "included", ["1.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
   "6":
-    status: pending
+    status: complete
 ---
 
 # Extraction for Swift
@@ -84,10 +86,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/swift'
-- [ ] [MANUAL] Only files under this story's three paths changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/swift'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeparse/ -run 'TestGolden/swift'
+- [x] [MANUAL] Only files under this story's three paths changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeparse/ -run 'TestGolden/swift'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -96,3 +98,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeparse/grammars/swift.go` - grammar registration (and the grammar itself if the spike found it missing)
 
 ## Work Log
+
+### 2026-10-19T20:59:08.686Z - Swift extraction: grammars/swift.go registers gotreesitter's swift grammar; queries/swift/profile.yaml (family swift, .swift, kinds actor->class, case->const, associatedtype->type; scope separators '.', packageBy directory, exported declared, options module=target/targetRoots Sources,Tests/extensions merge/conformance implements) and tags.scm (imports incl. 'import struct M.T' names, @testable and @_exported kinds; class/struct/enum/actor/protocol/extension (named by the extended type, so members merge into it); top-level functions and operator functions; methods, init/deinit/subscript, properties and typealiases of classes, structs, actors, enums, extensions and protocols, with public/open as exported and public extension/protocol members exported; enum cases; top-level let/var/typealias; macros; inheritance as extends (class first entry, protocol parents) and implements (other entries, struct/enum/actor/extension conformances), stdlib types left out; calls f(x)/f{} not subscripts, qualified calls via name/member/self/super, freestanding macros; type refs minus stdlib types and built-in attributes). No [..] alternation of @name patterns (LANG.md bug). Goldens: Shapes, Imports, ShapeStore, Builders, Broken (5 inputs, 5 subtests pass); gofmt/vet/build clean, go test -race ./codeparse/... ok. Found a gotreesitter v0.56.0 swift bug: a top-level /** */ doc comment can silently drop earlier top-level declarations (protocol and struct before it vanish, no error node, HasError false); the goldens use /// at top level, /** */ only inside a type body where it parses. Limitation: a private member of a public extension is marked exported; a macro declaration whose attribute sits on its own line has that line as signature.
