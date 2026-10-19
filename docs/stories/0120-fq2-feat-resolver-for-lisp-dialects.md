@@ -3,11 +3,13 @@ id: 0120-fq2
 title: Resolver for Lisp dialects
 purpose: Resolves references for Lisp dialects so calls, references and implementations link to the right definitions.
 type: feat
-status: ready
+status: complete
 priority: "3"
 effort: M
 created: "2026-10-19T18:11:25.537Z"
-updated: "2026-10-19T18:33:10.742Z"
+updated: "2026-10-19T21:11:39.484Z"
+started: "2026-10-19T21:06:15.755Z"
+completed: "2026-10-19T21:11:39.484Z"
 tags:
   - plan-0012-cgi
   - wave-7
@@ -33,15 +35,15 @@ links:
     - ["0012-cgi", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Resolver for Lisp dialects
@@ -78,10 +80,10 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'lisp'
-- [ ] [MANUAL] Only this family's two files changed
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'lisp'
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] VERIFY: cd mind-palace && go test -race ./codeindex/resolvers/ -run 'lisp'
+- [x] [MANUAL] Only this family's two files changed
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./codeindex/resolvers/ -run 'lisp'
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
@@ -89,3 +91,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/codeindex/resolvers/lisp_test.go` - resolution tests over the language goldens
 
 ## Work Log
+
+### 2026-10-19T21:11:33.283Z - Added codeindex/resolvers/lisp.go (family lisp: Common Lisp in-package/defpackage :use (open) and :import-from (names) applied package-wide, a file whose only package form is one defpackage belongs to that package, pkg:name/pkg::name to any project package; Clojure ns, :require spec and :as as qualifiers, :refer as names, :import skipped, ns/name to any project namespace; Emacs Lisp one global namespace; Scheme/Racket file modules keyed by path or declared library name, relative/library/collection-path lookup, prefix as qualifier, only as names, whole import opens). Keys are '<dialect group>:<name>'; Visible keeps candidates in the same dialect group (racket+scheme share). Rules: separators : :: /, case-insensitive, name fallback on, member fallback off. Package-name spellings fold so CL qualifiers/names match any case. Tests in lisp_test.go: 7 tests (4 end-to-end through codeindex.NewResolver over memcode+memgraph with hand-built facts per dialect, since 0099 extraction and its testdata/lisp goldens are not in the branch; plus package keys, scope, name helpers), all pass; gofmt/vet/build clean, go test -race ./codeindex/... ok. Status set in_progress with --force (0099-1pa still open). Only the two listed files changed.
