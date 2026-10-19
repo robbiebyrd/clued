@@ -3,11 +3,12 @@ id: 0107-nkl
 title: Resolver for Python
 purpose: Resolves references for Python so calls, references and implementations link to the right definitions.
 type: feat
-status: ready
+status: in_progress
 priority: "3"
 effort: M
 created: "2026-10-19T18:10:10.732Z"
-updated: "2026-10-19T18:31:47.472Z"
+updated: "2026-10-19T21:00:32.189Z"
+started: "2026-10-19T20:51:51.441Z"
 tags:
   - plan-0012-cgi
   - wave-7
@@ -33,15 +34,15 @@ links:
     - ["0012-cgi", "included", ["3.2"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Resolver for Python
