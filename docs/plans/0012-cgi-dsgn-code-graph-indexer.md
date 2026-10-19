@@ -6,7 +6,7 @@ status: pending
 priority: "3"
 effort: XL
 created: "2026-10-19T17:49:42.286Z"
-updated: "2026-10-19T17:49:42.286Z"
+updated: "2026-10-19T17:51:56.623Z"
 tags:
   - code-graph
   - falkordb
@@ -154,7 +154,7 @@ Extraction is generic: each language has a **query file** in tree-sitter's tags-
 | Lua | `.lua` | functions, local functions, table-field functions (`M.f`, `M:f`) | `require`, module tables |
 | Lisp | `.lisp`, `.lsp`, `.cl`, `.asd`, `.el`, `.clj`, `.cljs`, `.cljc`, `.edn`, `.scm`, `.ss`, `.rkt` | `defun`, `defmacro`, `defvar`, `defclass`, `defmethod`, `defpackage` / `ns`, `define` | packages / namespaces (`in-package`, `ns`, `require`), symbol names qualified by package |
 
-- **Lisp** covers Common Lisp first, with Emacs Lisp, Clojure and Scheme/Racket as dialects through their own grammars and query files (see Open Questions).
+- **Lisp** covers Common Lisp, Emacs Lisp, Clojure and Scheme/Racket, each through its own grammar and query file under the one Lisp entry (decided).
 - **Ambiguous extensions**: `.h` is C, C++ or Objective-C by content (`@interface`, `class`, `template`, `namespace`) and by the other files in the same directory; `.m` is Objective-C (MATLAB is not supported).
 - **Mixed files**: `.vue`, `.svelte` and HTML script blocks, SQL embedded in other languages, and Markdown code fences are indexed as text in this plan.
 - **Waves**: all 21 ship in this plan, in three waves so the first is usable early: (1) Go, Python, TypeScript, JavaScript, Java, C#, Rust; (2) C, C++, Objective-C, Swift, Kotlin, Dart, PHP, Ruby; (3) SQL, Perl, OCaml, Lua, Lisp.
@@ -299,23 +299,11 @@ Each task runs in a headless Claude Code session (`claude -p`, remote mode, the 
 
 - Vector embeddings and semantic (vector) search. — Decided: little payoff for code compared with the graph, exact-name and full-text search, and it would add a third-party data flow, cost and consent. The schema leaves room (chunk nodes keyed by content hash) if that ever changes.
 - Precise, compiler-grade resolution (types, overloads, generics, dynamic dispatch). — Name resolution scoped by imports and packages is enough to beat grep; edges carry a confidence so a precise resolver (e.g. `go/types` for Go) can replace them later without a schema change.
-- Languages beyond the 21 listed (and other Lisp dialects than those named under Languages). — Other files get file nodes, full-text and window chunks; another language is a grammar plus a query file and a resolution profile.
+- Languages beyond the 21 listed (and Lisp dialects other than Common Lisp, Emacs Lisp, Clojure and Scheme/Racket). — Other files get file nodes, full-text and window chunks; another language is a grammar plus a query file and a resolution profile.
 - Web pages or visualizations of the graph. — Agents first; server-rendered SVG views (the CSP forbids scripts) are a follow-up plan.
 - Local mode (no server). — The graph runs next to the collected code; a local backend follows the 0010 local-mode follow-up.
 - Raw Cypher from clients. — Every read goes through typed operations so tenancy, layer visibility and token caps can't be bypassed.
 - Git history (blame, symbol history across commits). — The graph reflects current layers; the change log keeps history for a later feature.
-
-## Open Questions
-
-- [ ] Which Lisp dialects count as "Lisp": Common Lisp only, or also Emacs Lisp, Clojure and Scheme/Racket? This plan includes all four as dialects of the one Lisp entry; dropping some removes their grammars and query files. — Robbie
-
----
-
-# Part 2 — Implementation
-
-**Architecture:** `code.Store` (0010, Mongo) → `codeindex` workers (cursor per project) → `codeparse` (parse cache in Mongo) → `codegraph` FalkorDB adapter (one graph per namespace: layers, files, symbols, chunks, per-layer edges, `hiddenBy`) → read API `/api/v1/projects/{project}/code/graph/*` (typed, token-capped, per-view) → MCP tools in the `clued` server → the agent.
-
-**Tech Stack:** Go 1.26; a pure-Go tree-sitter runtime (gotreesitter, MIT, or tree-sitter WebAssembly grammars under wazero, chosen in 1.1) with grammars and query files for the 21 languages; FalkorDB (`falkordb/falkordb` container) over the Redis protocol; MongoDB for the source of truth and the parse cache.
 
 ## Constraints
 
