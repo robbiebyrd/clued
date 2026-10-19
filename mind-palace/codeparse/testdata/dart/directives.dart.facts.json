@@ -1,0 +1,473 @@
+{
+  "lang": "dart",
+  "symbols": [
+    {
+      "id": "fetchJson",
+      "kind": "function",
+      "name": "fetchJson",
+      "qualName": "fetchJson",
+      "signature": "Future\u003cMap\u003cString, dynamic\u003e\u003e fetchJson(Uri url)",
+      "doc": "Fetches [url] and decodes its JSON body.",
+      "start": {
+        "line": 23,
+        "column": 48,
+        "offset": 794
+      },
+      "end": {
+        "line": 29,
+        "column": 1,
+        "offset": 1014
+      },
+      "exported": true
+    },
+    {
+      "id": "save",
+      "kind": "function",
+      "name": "save",
+      "qualName": "save",
+      "signature": "Future\u003cvoid\u003e save(String dir, String name, Object data)",
+      "doc": "Saves [data] under [name] in [dir].",
+      "start": {
+        "line": 32,
+        "column": 56,
+        "offset": 1112
+      },
+      "end": {
+        "line": 38,
+        "column": 1,
+        "offset": 1323
+      },
+      "exported": true
+    },
+    {
+      "id": "watch",
+      "kind": "function",
+      "name": "watch",
+      "qualName": "watch",
+      "signature": "StreamSubscription\u003cShape\u003e watch(Stream\u003cShape\u003e shapes)",
+      "start": {
+        "line": 40,
+        "column": 54,
+        "offset": 1379
+      },
+      "end": {
+        "line": 41,
+        "column": 51,
+        "offset": 1433
+      },
+      "exported": true
+    }
+  ],
+  "imports": [
+    {
+      "spec": "dart:async",
+      "start": {
+        "line": 5,
+        "column": 0,
+        "offset": 125
+      }
+    },
+    {
+      "spec": "dart:convert",
+      "names": [
+        "jsonDecode",
+        "jsonEncode"
+      ],
+      "start": {
+        "line": 6,
+        "column": 0,
+        "offset": 146
+      }
+    },
+    {
+      "spec": "dart:io",
+      "alias": "io",
+      "start": {
+        "line": 7,
+        "column": 0,
+        "offset": 197
+      }
+    },
+    {
+      "spec": "package:http/http.dart",
+      "alias": "http",
+      "start": {
+        "line": 8,
+        "column": 0,
+        "offset": 235
+      }
+    },
+    {
+      "spec": "package:path/path.dart",
+      "alias": "p",
+      "names": [
+        "join",
+        "basename"
+      ],
+      "start": {
+        "line": 9,
+        "column": 0,
+        "offset": 276
+      }
+    },
+    {
+      "spec": "package:demo/src/shapes.dart",
+      "start": {
+        "line": 10,
+        "column": 0,
+        "offset": 334
+      }
+    },
+    {
+      "spec": "../util/strings.dart",
+      "alias": "strings",
+      "kind": "deferred",
+      "start": {
+        "line": 11,
+        "column": 0,
+        "offset": 373
+      }
+    },
+    {
+      "spec": "src/storage_stub.dart",
+      "start": {
+        "line": 12,
+        "column": 0,
+        "offset": 424
+      }
+    },
+    {
+      "spec": "src/storage_io.dart",
+      "kind": "conditional",
+      "start": {
+        "line": 13,
+        "column": 4,
+        "offset": 459
+      }
+    },
+    {
+      "spec": "src/storage_web.dart",
+      "kind": "conditional",
+      "start": {
+        "line": 14,
+        "column": 4,
+        "offset": 506
+      }
+    },
+    {
+      "spec": "src/shapes.dart",
+      "names": [
+        "Shape",
+        "Circle"
+      ],
+      "kind": "export",
+      "start": {
+        "line": 16,
+        "column": 0,
+        "offset": 560
+      }
+    },
+    {
+      "spec": "src/colours.dart",
+      "kind": "export",
+      "start": {
+        "line": 17,
+        "column": 0,
+        "offset": 617
+      }
+    },
+    {
+      "spec": "directives_impl.dart",
+      "kind": "part",
+      "start": {
+        "line": 19,
+        "column": 0,
+        "offset": 645
+      }
+    },
+    {
+      "spec": "directives.g.dart",
+      "kind": "part",
+      "start": {
+        "line": 20,
+        "column": 0,
+        "offset": 674
+      }
+    }
+  ],
+  "refs": [
+    {
+      "name": "Uri",
+      "kind": "type",
+      "start": {
+        "line": 23,
+        "column": 39,
+        "offset": 785
+      }
+    },
+    {
+      "name": "get",
+      "qualifier": "http",
+      "kind": "call",
+      "start": {
+        "line": 24,
+        "column": 30,
+        "offset": 832
+      },
+      "enclosing": "fetchJson"
+    },
+    {
+      "name": "HttpException",
+      "qualifier": "io",
+      "kind": "call",
+      "start": {
+        "line": 26,
+        "column": 13,
+        "offset": 891
+      },
+      "enclosing": "fetchJson"
+    },
+    {
+      "name": "jsonDecode",
+      "kind": "call",
+      "start": {
+        "line": 28,
+        "column": 9,
+        "offset": 962
+      },
+      "enclosing": "fetchJson"
+    },
+    {
+      "name": "File",
+      "qualifier": "io",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 18,
+        "offset": 1138
+      },
+      "enclosing": "save"
+    },
+    {
+      "name": "join",
+      "qualifier": "p",
+      "kind": "call",
+      "start": {
+        "line": 33,
+        "column": 25,
+        "offset": 1145
+      },
+      "enclosing": "save"
+    },
+    {
+      "name": "writeAsString",
+      "qualifier": "file",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 13,
+        "offset": 1176
+      },
+      "enclosing": "save"
+    },
+    {
+      "name": "jsonEncode",
+      "kind": "call",
+      "start": {
+        "line": 34,
+        "column": 27,
+        "offset": 1190
+      },
+      "enclosing": "save"
+    },
+    {
+      "name": "loadLibrary",
+      "qualifier": "strings",
+      "kind": "call",
+      "start": {
+        "line": 35,
+        "column": 16,
+        "offset": 1225
+      },
+      "enclosing": "save"
+    },
+    {
+      "name": "shout",
+      "qualifier": "strings",
+      "kind": "call",
+      "start": {
+        "line": 36,
+        "column": 16,
+        "offset": 1256
+      },
+      "enclosing": "save"
+    },
+    {
+      "name": "basename",
+      "qualifier": "p",
+      "kind": "call",
+      "start": {
+        "line": 36,
+        "column": 24,
+        "offset": 1264
+      },
+      "enclosing": "save"
+    },
+    {
+      "name": "openStorage",
+      "kind": "call",
+      "start": {
+        "line": 37,
+        "column": 2,
+        "offset": 1289
+      },
+      "enclosing": "save"
+    },
+    {
+      "name": "write",
+      "kind": "call",
+      "start": {
+        "line": 37,
+        "column": 16,
+        "offset": 1303
+      },
+      "enclosing": "save"
+    },
+    {
+      "name": "StreamSubscription",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 0,
+        "offset": 1325
+      }
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 19,
+        "offset": 1344
+      }
+    },
+    {
+      "name": "Stream",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 32,
+        "offset": 1357
+      }
+    },
+    {
+      "name": "Shape",
+      "kind": "type",
+      "start": {
+        "line": 40,
+        "column": 39,
+        "offset": 1364
+      }
+    },
+    {
+      "name": "listen",
+      "qualifier": "shapes",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 11,
+        "offset": 1393
+      },
+      "enclosing": "watch"
+    },
+    {
+      "name": "Circle",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 25,
+        "offset": 1407
+      },
+      "enclosing": "watch"
+    },
+    {
+      "name": "printMe",
+      "kind": "call",
+      "start": {
+        "line": 41,
+        "column": 40,
+        "offset": 1422
+      },
+      "enclosing": "watch"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "L1#1",
+      "kind": "window",
+      "start": {
+        "line": 1,
+        "column": 0,
+        "offset": 0
+      },
+      "end": {
+        "line": 20,
+        "column": 25,
+        "offset": 699
+      },
+      "text": "// Directives: imports with prefixes, combinators and deferred loading,\n// conditional imports, exports and parts.\nlibrary;\n\nimport 'dart:async';\nimport 'dart:convert' show jsonDecode, jsonEncode;\nimport 'dart:io' as io hide Platform;\nimport 'package:http/http.dart' as http;\nimport 'package:path/path.dart' as p show join, basename;\nimport 'package:demo/src/shapes.dart';\nimport '../util/strings.dart' deferred as strings;\nimport 'src/storage_stub.dart'\n    if (dart.library.io) 'src/storage_io.dart'\n    if (dart.library.js_interop) 'src/storage_web.dart';\n\nexport 'src/shapes.dart' show Shape, Circle hide Square;\nexport 'src/colours.dart';\n\npart 'directives_impl.dart';\npart 'directives.g.dart';",
+      "hash": "96f1eaf3f394bc13738e9c5d73eacc7ea8e584d0a23481fc550b155f027c4605"
+    },
+    {
+      "id": "fetchJson#1",
+      "kind": "symbol",
+      "symbolId": "fetchJson",
+      "start": {
+        "line": 22,
+        "column": 0,
+        "offset": 701
+      },
+      "end": {
+        "line": 29,
+        "column": 1,
+        "offset": 1014
+      },
+      "text": "/// Fetches [url] and decodes its JSON body.\nFuture\u003cMap\u003cString, dynamic\u003e\u003e fetchJson(Uri url) async {\n  final response = await http.get(url);\n  if (response.statusCode != 200) {\n    throw io.HttpException('status ${response.statusCode}', uri: url);\n  }\n  return jsonDecode(response.body) as Map\u003cString, dynamic\u003e;\n}",
+      "hash": "fc677d90f25bec3d4fd6e80171985b71ad690e6b0c1539d98a01d2d4ca8308f7"
+    },
+    {
+      "id": "save#1",
+      "kind": "symbol",
+      "symbolId": "save",
+      "start": {
+        "line": 31,
+        "column": 0,
+        "offset": 1016
+      },
+      "end": {
+        "line": 38,
+        "column": 1,
+        "offset": 1323
+      },
+      "text": "/// Saves [data] under [name] in [dir].\nFuture\u003cvoid\u003e save(String dir, String name, Object data) async {\n  final file = io.File(p.join(dir, name));\n  await file.writeAsString(jsonEncode(data));\n  await strings.loadLibrary();\n  print(strings.shout(p.basename(file.path)));\n  openStorage().write(name, data);\n}",
+      "hash": "da88b626f9624847f5eb39aafdf155005f0484e38e111682589b7ddbd8933c18"
+    },
+    {
+      "id": "watch#1",
+      "kind": "symbol",
+      "symbolId": "watch",
+      "start": {
+        "line": 40,
+        "column": 54,
+        "offset": 1379
+      },
+      "end": {
+        "line": 41,
+        "column": 51,
+        "offset": 1433
+      },
+      "text": "=\u003e\n    shapes.listen((s) =\u003e Circle(s.area).printMe());",
+      "hash": "471255112d9c7ccf1b5e99730f4c0b1a3b23b8b95ffb68c6bbc89265f0ff35d6"
+    }
+  ]
+}
