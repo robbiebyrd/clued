@@ -242,3 +242,35 @@ func keys(m map[string]Symbol) []string {
 	}
 	return out
 }
+
+func TestDocAboveDartSignature(t *testing.T) {
+	syms := symbolsByQual(t, "w.dart", `class W {
+  /// Builds it.
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return const Text('x');
+  }
+
+  /// Greets.
+  @pragma('vm:prefer-inline')
+  String greet(String name) => 'Hello';
+}
+`)
+	var build, greet Symbol
+	for _, s := range syms {
+		switch s.Name {
+		case "build":
+			build = s
+		case "greet":
+			greet = s
+		}
+	}
+	if build.Doc != "Builds it." {
+		t.Errorf("build doc = %q, want %q (%v)", build.Doc, "Builds it.", keys(syms))
+	}
+	if greet.Doc != "Greets." {
+		t.Errorf("greet doc = %q, want %q", greet.Doc, "Greets.")
+	}
+}

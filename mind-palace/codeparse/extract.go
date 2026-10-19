@@ -439,6 +439,7 @@ type def struct {
 	nameAt    int
 	docs      []*ts.Node
 	signature string
+	head      *ts.Node // a @signature before the definition node (Dart's), where its doc is looked for
 	receiver  string
 	exported  bool
 	order     int
@@ -486,6 +487,7 @@ func (x *extraction) match(m ts.QueryMatch) {
 	var names []string
 	var parts []namePart
 	var signature string
+	var sigNode *ts.Node
 	exported := false
 	for i := range m.Captures {
 		c := &m.Captures[i]
@@ -500,7 +502,7 @@ func (x *extraction) match(m ts.QueryMatch) {
 			docs = append(docs, c.Node)
 		case capSignature:
 			if signature == "" {
-				signature = x.text(*c)
+				signature, sigNode = x.text(*c), c.Node
 			}
 		case capReceiver:
 			receiver = c
@@ -539,13 +541,13 @@ func (x *extraction) match(m ts.QueryMatch) {
 				x.addRef(RefCall, head, int(form.Node.StartByte()), nil, c.Node)
 				continue
 			}
-			x.addDef(c.Node, kind, name, parts, docs, signature, receiver, exported)
+			x.addDef(c.Node, kind, name, parts, docs, signature, sigNode, receiver, exported)
 		case strings.HasPrefix(c.Name, "definition."):
 			kind, ok := x.l.profile.SymbolKind(c.Name)
 			if !ok || (name == nil && parts == nil) {
 				continue
 			}
-			x.addDef(c.Node, kind, name, parts, docs, signature, receiver, exported)
+			x.addDef(c.Node, kind, name, parts, docs, signature, sigNode, receiver, exported)
 		case strings.HasPrefix(c.Name, "reference."):
 			kind, ok := x.l.refKind(c.Name)
 			if !ok {
@@ -594,7 +596,7 @@ func (x *extraction) hasBody(n *ts.Node) bool {
 	return false
 }
 
-func (x *extraction) addDef(n *ts.Node, kind string, name *ts.QueryCapture, parts []namePart, docs []*ts.Node, signature string, receiver *ts.QueryCapture, exported bool) {
+func (x *extraction) addDef(n *ts.Node, kind string, name *ts.QueryCapture, parts []namePart, docs []*ts.Node, signature string, sigNode *ts.Node, receiver *ts.QueryCapture, exported bool) {
 	d := &def{node: n, kind: kind, docs: docs, parts: parts,
 		signature: normalizeSignature(signature), exported: exported, order: x.order}
 	if parts == nil {
@@ -605,6 +607,9 @@ func (x *extraction) addDef(n *ts.Node, kind string, name *ts.QueryCapture, part
 	}
 	if receiver != nil {
 		d.receiver = normalizeSpace(x.text(*receiver))
+	}
+	if sigNode != nil && sigNode.StartByte() < n.StartByte() {
+		d.head = sigNode
 	}
 	x.order++
 	x.defs = append(x.defs, d)
@@ -658,6 +663,9 @@ func (x *extraction) joinParts() {
 			}
 			if first.docs == nil {
 				first.docs = d.docs
+			}
+			if first.head == nil {
+				first.head = d.head
 			}
 			continue
 		}
@@ -1068,7 +1076,9 @@ func (x *extraction) exported(d *def) bool {
 }
 
 // doc returns d's doc: its @doc captures, else the whole-line comments on
-// the lines just above it. It sets d.docStart to where the doc begins when
+// the lines just above it, or above its @signature when that comes before
+// the definition node (Dart's signature and body siblings), past any
+// annotations. It sets d.docStart to where the doc begins when
 // the doc is above the definition.
 func (x *extraction) doc(d *def) string {
 	if len(d.docs) > 0 {
@@ -1085,15 +1095,20 @@ func (x *extraction) doc(d *def) string {
 		x.collectComments()
 	}
 	var above []*ts.Node
-	annotations := x.annotationsBefore(d.node)
-	line := x.lines.line(d.start()) - 1
+	anchor := d.node
+	if d.head != nil {
+		anchor = d.head
+	}
+	top := int(anchor.StartByte())
+	annotations := x.annotationsBefore(anchor)
+	line := x.lines.line(top) - 1
 	for line >= 0 {
 		if a, ok := annotations[line]; ok {
 			line = x.lines.line(int(a.StartByte())) - 1
 			continue
 		}
 		c, ok := x.comments[line]
-		if !ok || int(c.EndByte()) > d.start() {
+		if !ok || int(c.EndByte()) > top {
 			break
 		}
 		above = append(above, c)

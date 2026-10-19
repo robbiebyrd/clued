@@ -350,6 +350,7 @@
       "name": "compareTo",
       "qualName": "demo.shapes.Shape.compareTo",
       "signature": "int compareTo(Shape other)",
+      "doc": "Orders shapes by area.",
       "start": {
         "line": 54,
         "column": 29,
