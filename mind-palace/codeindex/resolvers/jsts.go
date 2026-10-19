@@ -225,8 +225,7 @@ func jsImportsName(f *File, n string) bool {
 // JSImportName splits a name an import or export lists as the extractor
 // writes it into the name the module exports and the local name it binds:
 // "a" → a, a; "a as b" and the destructuring "a: b" → a, b; a TypeScript
-// "type a" → a, a. The JavaScript query writes the exported name alone
-// ("b as c" as "b"), the TypeScript query the whole specifier.
+// "type a" → a, a. Both queries write the whole specifier.
 func JSImportName(written string) (name, local string) {
 	w := strings.TrimSpace(written)
 	if rest, ok := strings.CutPrefix(w, "type "); ok {

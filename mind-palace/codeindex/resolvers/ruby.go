@@ -29,11 +29,16 @@ import (
 //     enclosing definitions of the reference (the engine's scope walk),
 //     the file, the features it loads, then any definition of that name
 //     (Rails and Zeitwerk load constants without a require); a qualified
-//     constant matches a definition whose qualified name ends with it;
+//     constant is first the definition whose whole qualified name it is
+//     (Shop::Mailer.deliver from anywhere: AbsoluteQualifiers, exact),
+//     then one whose qualified name ends with it (Mailer.deliver inside
+//     module Shop: qualified);
 //   - include, extend and prepend are references the extractor gives as
 //     extends: they resolve like any constant, so a class links to the
-//     module it mixes in. A method reached through a receiver resolves as
-//     a member (name confidence), the file's first.
+//     module it mixes in, and a bare call of a method of a top-level
+//     module a loaded feature defines reaches it (ImportMembers,
+//     qualified). A method reached through a receiver resolves as a member
+//     (name confidence), the file's first.
 //
 // Every definition is public to resolution (Ruby's private is a runtime
 // check on the receiver), except Rake's tasks and namespaces, which Ruby
@@ -42,7 +47,7 @@ func init() { Register(codeparse.FamilyRuby, ruby{}) }
 
 type ruby struct{}
 
-var rubyRules = Rules{Separators: []string{"::", "#", "."}, NameFallback: true, MemberFallback: true}
+var rubyRules = Rules{Separators: []string{"::", "#", "."}, NameFallback: true, MemberFallback: true, ImportMembers: true, AbsoluteQualifiers: true}
 
 // Ruby profile options (codeparse/queries/ruby/profile.yaml).
 const (
