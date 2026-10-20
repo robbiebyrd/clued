@@ -751,6 +751,11 @@ func (g *Graph) exists(ctx context.Context) (bool, error) {
 // contains): in the view, not a tombstone, hidden by no layer of the view.
 const visibleF = `f.layer IN $view AND NOT coalesce(f.deleted, false) AND none(h IN coalesce(f.hiddenBy, []) WHERE h IN $view)`
 
+// A query that finds symbols by key and then their files binds the symbols
+// first and passes them on with WITH: without it FalkorDB plans the file
+// match first (an index scan of every visible file) and expands each file's
+// symbols, which on a large graph runs past its query timeout.
+
 // visibleOf is visibleF for another variable.
 func visibleOf(v string) string { return strings.ReplaceAll(visibleF, "f.", v+".") }
 
@@ -817,16 +822,16 @@ WHERE e.layer = $layer AND type(e) IN $types DELETE e`
 	qDropHiddenBy  = `MATCH (f:File) WHERE $layer IN f.hiddenBy SET f.hiddenBy = [h IN f.hiddenBy WHERE h <> $layer]`
 	qDropLayerNode = `MATCH (l:Layer {id: $layer}) DETACH DELETE l`
 
-	qFindByName = `MATCH (s:Symbol {name: $name}) MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + `
+	qFindByName = `MATCH (s:Symbol {name: $name}) WITH s MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + `
 RETURN ` + symbolCols + `, f.lang
 UNION
-MATCH (s:Symbol {qualName: $name}) MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + `
+MATCH (s:Symbol {qualName: $name}) WITH s MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + `
 RETURN ` + symbolCols + `, f.lang`
-	qVisibleCopies = `UNWIND $ids AS id MATCH (s:Symbol {id: id}) MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + `
+	qVisibleCopies = `UNWIND $ids AS id MATCH (s:Symbol {id: id}) WITH s MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + `
 RETURN s.layer, s.id`
-	qSymbolByID = `MATCH (s:Symbol {id: $id}) MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + `
+	qSymbolByID = `MATCH (s:Symbol {id: $id}) WITH s MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + `
 RETURN ` + symbolCols + `, f.lang`
-	qSymbolByQual = `MATCH (s:Symbol {qualName: $qual}) MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + `
+	qSymbolByQual = `MATCH (s:Symbol {qualName: $qual}) WITH s MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + `
 RETURN ` + symbolCols + `, f.lang`
 	qChildren = `MATCH (s:Symbol {layer: $layer, parent: $id}) RETURN ` + symbolCols
 	qChunks   = `MATCH (c:Chunk {layer: $layer, symbol: $id}) RETURN ` + chunkCols
@@ -840,7 +845,7 @@ RETURN e.alias, p.layer, p.name, p.kind`
 	qPackageInView = `MATCH (p:Package {name: $name}) WHERE p.layer IN $view RETURN count(p)`
 	qImporters     = `MATCH (f:File)-[e:IMPORTS]->(p:Package {name: $name}) WHERE ` + visibleF + `
 RETURN ` + fileCols + `, e.alias, p.layer, p.name, p.kind`
-	qVisibleLayersOf = `MATCH (s:Symbol {id: $id}) MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + ` RETURN s.layer`
+	qVisibleLayersOf = `MATCH (s:Symbol {id: $id}) WITH s MATCH (f:File)-[:CONTAINS]->(s) WHERE ` + visibleF + ` RETURN s.layer`
 
 	qSearch = `CALL db.idx.fulltext.queryNodes($label, $query) YIELD node, score
 WITH node AS s, score
@@ -859,12 +864,14 @@ var (
 		false: `UNWIND $frontier AS r
 MATCH (s:Symbol {layer: r.layer, id: r.id})-[e]->(t:Symbol)
 WHERE type(e) IN $types AND e.layer IN $view
+WITH s, e, t
 MATCH (f:File)-[:CONTAINS]->(s) MATCH (g:File)-[:CONTAINS]->(t)
 WHERE ` + visibleF + ` AND ` + visibleOf("g") + `
 RETURN type(e), e.layer, e.confidence, e.line, ` + symbolCols + `, ` + symbolColsOf("t"),
 		true: `UNWIND $frontier AS r
 MATCH (s:Symbol {layer: r.layer, id: r.id})<-[e]-(t:Symbol)
 WHERE type(e) IN $types AND e.layer IN $view
+WITH s, e, t
 MATCH (f:File)-[:CONTAINS]->(s) MATCH (g:File)-[:CONTAINS]->(t)
 WHERE ` + visibleF + ` AND ` + visibleOf("g") + `
 RETURN type(e), e.layer, e.confidence, e.line, ` + symbolColsOf("t") + `, ` + symbolCols,

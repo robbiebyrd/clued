@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -236,6 +237,55 @@ func TestIndexesAfterDrop(t *testing.T) {
 		}
 		if err := g.Drop(ctx); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+// TestPlansStartFromSymbols checks that the lookups by symbol key start from
+// the Symbol index, not from a scan of every visible file.
+func TestPlansStartFromSymbols(t *testing.T) {
+	o := newOpener(t)
+	defer o.Close()
+	ctx := context.Background()
+	g, err := o.Open(ctx, fmt.Sprintf("u%016x__falkor-plans", rand.Uint64()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer g.Drop(ctx)
+	ff := codegraph.FileFacts{File: codegraph.File{Layer: "base", Path: "a.go", Lang: "go"},
+		Symbols: []codegraph.Symbol{{Layer: "base", Path: "a.go", ID: "a#A", Name: "A"}}}
+	if err := g.PutLayer(ctx, codegraph.Layer{ID: codegraph.BaseLayerID, Kind: codegraph.LayerBase}); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.ApplyFile(ctx, ff); err != nil {
+		t.Fatal(err)
+	}
+	view := []string{"base"}
+	cases := map[string]struct {
+		q string
+		p params
+	}{
+		"FindByName":      {qFindByName, params{"name": "A", "view": view}},
+		"VisibleCopies":   {qVisibleCopies, params{"ids": []string{"a#A"}, "view": view}},
+		"SymbolByID":      {qSymbolByID, params{"id": "a#A", "view": view}},
+		"SymbolByQual":    {qSymbolByQual, params{"qual": "A", "view": view}},
+		"VisibleLayersOf": {qVisibleLayersOf, params{"id": "a#A", "view": view}},
+		"HopOut":          {qHop[false], params{"frontier": []map[string]any{{"layer": "base", "id": "a#A"}}, "types": resolvedTypes(), "view": view}},
+		"HopIn":           {qHop[true], params{"frontier": []map[string]any{{"layer": "base", "id": "a#A"}}, "types": resolvedTypes(), "view": view}},
+	}
+	for name, c := range cases {
+		text, err := buildQuery(c.q, c.p)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		reply, err := g.(*Graph).o.do(ctx, "GRAPH.EXPLAIN", g.(*Graph).key, text)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		plan := fmt.Sprint(reply)
+		if strings.Contains(plan, "Node By Index Scan | (f:File)") || strings.Contains(plan, "Label Scan | (f:File)") ||
+			!strings.Contains(plan, "(s:Symbol)") {
+			t.Errorf("%s starts from the files: %s", name, plan)
 		}
 	}
 }
