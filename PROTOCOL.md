@@ -1019,8 +1019,10 @@ the tools; a 404 (the server has no graph routes), 401, 403 or 400 never
 does; `empty`, a 503 or a network failure asks again every 2 minutes, at
 most 720 times, and lists them (`notifications/tools/list_changed`) once the
 answer is `ready` or `indexing`. Their budgets are 2,000 tokens
-(`code_context` 6,000), with `max_tokens` and `cursor` as above; `cursor` is
-the route's `next`.
+(`code_context` 4,000, below the route's 6,000: the evaluation of story
+0126-j2n found the same recall for fewer tokens), with `max_tokens` and
+`cursor` as above; `cursor` is the route's `next`. `code_neighbors` asks for
+`depth` 1 unless given one.
 
 The view is the current session: `CLAUDE_SESSION_ID`, else the newest
 captured session whose project path or cwd is the working directory, sent
