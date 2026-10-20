@@ -17,6 +17,7 @@ package sessionmcp
 // indexed.
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -71,6 +72,26 @@ const (
 	// maxCodeRechecks bounds the rechecks of one server (a day at the
 	// default interval).
 	maxCodeRechecks = 720
+)
+
+// Defaults of the code tools' calls, set from the evaluation (plan 0012,
+// 5.1; story 0126, whose work log holds the numbers). A call that names
+// max_tokens or depth itself keeps its own.
+const (
+	// CodeToolTokens is the budget of code_search, code_symbol,
+	// code_neighbors and code_outline: a symbol search answered in a
+	// median of about 760 tokens and was cut at 2,000 for 4 of 98 tasks,
+	// so a smaller budget would only cut more without saving tokens.
+	CodeToolTokens = codeapi.DefaultGraphTokens
+	// CodeContextTokens is code_context's budget, below the route's
+	// DefaultContextTokens: the ground-truth files it returned were 0.72
+	// of a task's at 4,000 tokens and 0.73 at 6,000 to 12,000, while the
+	// median answer grew from about 2,450 to 3,150 tokens.
+	CodeContextTokens = 4000
+	// CodeNeighborsDepth is code_neighbors' default depth: callers at
+	// depth 2 or 3 found no further file an impact question needed
+	// (recall 0.86, 0.86, 0.85) for three to five times the tokens.
+	CodeNeighborsDepth = 1
 )
 
 // sessionIDEnv names the current Claude Code session when its environment
@@ -304,10 +325,11 @@ type codeArgs struct {
 }
 
 // codeTool adapts a graph call to an MCP handler: it decodes the arguments,
-// opens the graph, reads the current session's view (the ref's when the
+// applies the tool's default budget when the call names none, opens the
+// graph, reads the current session's view (the ref's when the
 // call names one) and, when the server does not know the session, reads
 // the branch instead and says so.
-func codeTool[A any](t *Tools, run func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, args A, b budgetArgs) (codeResult, error)) mcp.ToolHandler {
+func codeTool[A any](t *Tools, budget int, run func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, args A, b budgetArgs) (codeResult, error)) mcp.ToolHandler {
 	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		var args A
 		var common codeArgs
@@ -318,6 +340,9 @@ func codeTool[A any](t *Tools, run func(ctx context.Context, g CodeGraph, view *
 			_ = json.Unmarshal(req.Params.Arguments, &common)
 		}
 		b := budgetOf(req)
+		if b.MaxTokens <= 0 {
+			b.MaxTokens = budget
+		}
 		g, err := t.codeGraph(ctx)
 		if err != nil {
 			return failure(codeError(err)), nil
@@ -579,8 +604,8 @@ func (t *Tools) codeSpecs() []toolSpec {
 			description: "Search the project's code index for symbols (functions, types, methods, constants, sections) by name or words: exact and qualified name matches first, then matches in names, signatures and doc comments. Each result gives where it is as path:start-end (open just those lines), its kind, signature, one-line doc and id (for code_symbol and code_neighbors). It reads the current session's view: the worktree's own edits over its branch and the default branch. Use it instead of grep to find where something is defined.",
 			schema:      `{"type":"object","properties":{"query":{"type":"string","description":"A name (Alloc, pkg.Alloc, T.M) or words to look for"},"kinds":{"type":"array","items":{"type":"string"},"description":"Only these symbol kinds (function, method, struct, interface, …)"},"langs":{"type":"array","items":{"type":"string"},"description":"Only files of these languages (go, typescript, python, …)"},"paths":{"type":"array","items":{"type":"string"},"description":"Only files under these path prefixes"},"limit":{"type":"number","description":"Max results (default 20)"},` + codeRefSchema + `},"required":["query"]}`,
 			readOnly:    true,
-			budget:      codeapi.DefaultGraphTokens,
-			handler: codeTool(t, func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, a codeSearchArgs, b budgetArgs) (codeResult, error) {
+			budget:      CodeToolTokens,
+			handler: codeTool(t, CodeToolTokens, func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, a codeSearchArgs, b budgetArgs) (codeResult, error) {
 				res, err := g.Search(ctx, codeapi.SearchBody{View: view, Query: a.Query, Kinds: a.Kinds, Langs: a.Langs, Paths: a.Paths,
 					Limit: a.Limit, MaxTokens: b.MaxTokens, Cursor: b.Cursor})
 				if err != nil {
@@ -594,8 +619,8 @@ func (t *Tools) codeSpecs() []toolSpec {
 			description: "Read one symbol from the code index by id (from code_search) or qualified name: where it is (path:start-end), its signature and doc, its children (methods, fields) each with path:line, and its source lines from the collected (redacted) code. include picks the parts (default all three); a cut body continues with next.",
 			schema:      `{"type":"object","properties":{"id":{"type":"string","description":"Symbol id from code_search or code_outline"},"qualName":{"type":"string","description":"Qualified name (pkg.Alloc, pkg.T.M) when no id is given"},"include":{"type":"array","items":{"type":"string","enum":["body","doc","children"]},"description":"Parts to include (default all)"},` + codeRefSchema + `}}`,
 			readOnly:    true,
-			budget:      codeapi.DefaultGraphTokens,
-			handler: codeTool(t, func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, a codeSymbolArgs, b budgetArgs) (codeResult, error) {
+			budget:      CodeToolTokens,
+			handler: codeTool(t, CodeToolTokens, func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, a codeSymbolArgs, b budgetArgs) (codeResult, error) {
 				res, err := g.Symbol(ctx, codeapi.SymbolBody{View: view, ID: a.ID, QualName: a.QualName, Include: a.Include,
 					MaxTokens: b.MaxTokens, Cursor: b.Cursor})
 				if err != nil {
@@ -616,12 +641,12 @@ func (t *Tools) codeSpecs() []toolSpec {
 		{
 			name:        "code_neighbors",
 			description: "Walk the code index from a symbol, file or package: callers, callees, references and implementations of a symbol (id), the packages a file imports (path), or the files that import a package. Each edge gives the site as path:line, both ends with their own path:line and id, and its confidence (exact, or name when only the name matched). Use it instead of grepping for call sites, e.g. before changing a function.",
-			schema:      `{"type":"object","properties":{"id":{"type":"string","description":"Symbol id (callers, callees, references, implementations)"},"path":{"type":"string","description":"File path (imports)"},"package":{"type":"string","description":"Package name (importers)"},"relation":{"type":"string","enum":["callers","callees","references","implementations","imports","importers"]},"depth":{"type":"number","description":"Hops to follow (default 1, at most 3)"},"limit":{"type":"number","description":"Max edges"},` + codeRefSchema + `},"required":["relation"]}`,
+			schema:      `{"type":"object","properties":{"id":{"type":"string","description":"Symbol id (callers, callees, references, implementations)"},"path":{"type":"string","description":"File path (imports)"},"package":{"type":"string","description":"Package name (importers)"},"relation":{"type":"string","enum":["callers","callees","references","implementations","imports","importers"]},"depth":{"type":"number","description":"Hops to follow (default 1, at most 3; one hop finds what a change needs, deeper hops mostly add tokens)"},"limit":{"type":"number","description":"Max edges"},` + codeRefSchema + `},"required":["relation"]}`,
 			readOnly:    true,
-			budget:      codeapi.DefaultGraphTokens,
-			handler: codeTool(t, func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, a codeNeighborsArgs, b budgetArgs) (codeResult, error) {
+			budget:      CodeToolTokens,
+			handler: codeTool(t, CodeToolTokens, func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, a codeNeighborsArgs, b budgetArgs) (codeResult, error) {
 				res, err := g.Neighbors(ctx, codeapi.NeighborsBody{View: view, ID: a.ID, Path: a.Path, Package: a.Package, Relation: a.Relation,
-					Depth: a.Depth, Limit: a.Limit, MaxTokens: b.MaxTokens, Cursor: b.Cursor})
+					Depth: cmp.Or(a.Depth, CodeNeighborsDepth), Limit: a.Limit, MaxTokens: b.MaxTokens, Cursor: b.Cursor})
 				if err != nil {
 					return nil, err
 				}
@@ -633,8 +658,8 @@ func (t *Tools) codeSpecs() []toolSpec {
 			description: "Outline a file (path) or a package from the code index: its symbols in order with their kind, signature, nesting depth and path:start-end, without bodies. Cheaper than reading the file to see what it holds.",
 			schema:      `{"type":"object","properties":{"path":{"type":"string","description":"File path relative to the repository root"},"package":{"type":"string","description":"Package name, instead of a path"},` + codeRefSchema + `}}`,
 			readOnly:    true,
-			budget:      codeapi.DefaultGraphTokens,
-			handler: codeTool(t, func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, a codeOutlineArgs, b budgetArgs) (codeResult, error) {
+			budget:      CodeToolTokens,
+			handler: codeTool(t, CodeToolTokens, func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, a codeOutlineArgs, b budgetArgs) (codeResult, error) {
 				res, err := g.Outline(ctx, codeapi.OutlineBody{View: view, Path: a.Path, Package: a.Package, MaxTokens: b.MaxTokens, Cursor: b.Cursor})
 				if err != nil {
 					return nil, err
@@ -651,8 +676,8 @@ func (t *Tools) codeSpecs() []toolSpec {
 			description: "Gather the code a task needs in one call: the best code_search hits for the task's words, one hop of their callers and callees, and the bodies of the best hits that fit the budget, each with path:start-end. Start a change here, then open only the lines it points to.",
 			schema:      `{"type":"object","properties":{"task":{"type":"string","description":"The task in plain words, naming the identifiers you know"},` + codeRefSchema + `},"required":["task"]}`,
 			readOnly:    true,
-			budget:      codeapi.DefaultContextTokens,
-			handler: codeTool(t, func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, a codeContextArgs, b budgetArgs) (codeResult, error) {
+			budget:      CodeContextTokens,
+			handler: codeTool(t, CodeContextTokens, func(ctx context.Context, g CodeGraph, view *codeapi.ViewBody, a codeContextArgs, b budgetArgs) (codeResult, error) {
 				res, err := g.Context(ctx, codeapi.ContextBody{View: view, Task: a.Task, Budget: b.MaxTokens, Cursor: b.Cursor})
 				if err != nil {
 					return nil, err
