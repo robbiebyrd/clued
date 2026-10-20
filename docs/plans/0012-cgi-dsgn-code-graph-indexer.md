@@ -6,7 +6,7 @@ status: pending
 priority: "3"
 effort: XL
 created: "2026-10-19T17:49:42.286Z"
-updated: "2026-10-19T19:48:41.820Z"
+updated: "2026-10-20T00:04:54.757Z"
 tags:
   - code-graph
   - falkordb
@@ -597,3 +597,125 @@ Grammar quirks seen while writing the queries:
 - Dart calls are `(identifier) . (selector (argument_part))` siblings.
 - `Node.Text(src)` and `QueryCapture.Text(src)` return strings.
 - `Node.SExpr(lang)` omits field names.
+
+
+### 2026-10-20 — 5.1 Evaluation run and tool defaults (story 0126-j2n)
+
+**Evaluation run, default condition (subset for budget reasons).** The owner capped the total spend at $50, so this is a subset, not the plan's 101 tasks x 3 arms x 3 runs: **28 tasks x 3 arms (grep, graph, context) x 1 run = 84 sessions**, chosen to keep every family and every language: clued-named-allocateid, clued-named-daemon-ok (shell), clued-concept-sequence-numbers, clued-concept-memory-engines (markdown), clued-impact-relaybudget, clued-edit-limits-model, cloud-named-namespace, cloud-concept-csp, cloud-impact-sessionscan, py-named-merge-setting, c-concept-hooks, cpp-impact-putvarint32, cs-named-serializeobject, objc-concept-server-trust, swift-impact-server-trust, java-named-getadapter, js-concept-etag, ts-impact-subscribe, sql-named-inventory-in-stock, rust-concept-recursion-limit, php-impact-handlerstack-create, perl-named-dequeue, ocaml-concept-safe-to-basic, dart-impact-observer-ontransition, ruby-named-route-bang, kotlin-concept-follow-ups, lua-impact-fzy-sorter, clj-named-wrap-params (hunchentoot and dash-el not indexed, other lisp tasks skipped). Model claude-opus-5-5 (Claude Code 2.1.304 default), `--budget 0.5`, `--plugin-dir` this branch. `--verify-only` passed first (clued, clued-cloud and corpus ground truth).
+
+Setup: an isolated local clued server (`server run --code-store mongo --graph redis://127.0.0.1:6379`, own token file, database `clued_eval_0126j2n`), a scratch HOME whose clued config points at it, production `CLUED_SERVER_*` unset; clued (at this branch's HEAD), clued-cloud and 19 corpus repos code-synced from a checkout on their default branch with the upstream at the pinned commit, so each project's base layer is the commit the eval clones check out; all 21 graphs `--check` consistent. codeSync was off for the eval sessions themselves: their clones are detached, so a sync would push every file as an overlay (seen on a probe: 123 of 123 files); with it off the code tools read the base.
+
+**Result: the agents never called a code tool.** 0 code tool calls in all 56 graph and context sessions; every session in every arm succeeded (100%). In Claude Code the plugin's 25 clued tools are deferred (listed by name, loaded through ToolSearch), and Opus 5.5 answered with Grep, Read and Bash. A probe with `ENABLE_TOOL_SEARCH=false` (all tools loaded up front) also made 0 code tool calls and cost 0.48 vs 0.25-0.29 USD for the same task. So the arm differences below are noise between identical configurations (graph +15%, context -6% median tokens overall, both with 0 code calls).
+
+| arm | tasks | success | median tokens | median turns | median tool calls | median code tool calls | median cost |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| grep | 28 | 100% | 112,727 | 4 | 4 | 0 | 0.153 |
+| graph | 28 | 100% | 129,556 | 5 | 5 | 0 | 0.168 |
+| context | 28 | 100% | 105,782 | 4 | 4.5 | 0 | 0.158 |
+
+By family (grep / graph / context median tokens; success 100% everywhere): named 112,727 / 117,335 / 105,152 (10 tasks); concept 103,745 / 129,439 / 104,448 (9); impact 128,840 / 130,377 / 109,039 (8); edit 319,487 / 498,443 / 454,551 (1). By language, grep arm median tokens and turns: go 225,574 / 6 (7 tasks), shell 204,711 / 6, markdown 139,125 / 4, php 245,176 / 7, csharp 143,215 / 6, typescript 129,732 / 5, lua 127,947 / 5, java 120,766 / 5, dart 117,496 / 4, python 112,956 / 5, lisp 112,497 / 5, objc 107,048 / 4, swift 106,319 / 4, kotlin 103,745 / 4, c 103,798 / 4, rust 97,748 / 4, ruby 97,553 / 4, ocaml 89,708 / 4, javascript 88,843 / 4, cpp 73,856 / 3, sql 67,173 / 3, perl 65,766 / 3; success 100% in every language and arm. The tables follow.
+
+**Retrieval without a model** (all 98 tasks on indexed repos, straight against the local graph routes): code_context recall of the ground-truth files 0.68 at 2,000 tokens, 0.72 at 4,000, 0.73 at 6,000, 8,000 and 12,000 (median answer 1,608 / 2,453 / 3,158 / 3,642 / 3,789 tokens); by family at 6,000: named 0.80, concept 0.62, impact 0.75. code_search of each truth symbol finds 0.80 of the truth files (named 0.90, concept 0.84, impact 0.79), median 762 tokens a query, cut at 2,000 for 4 of 98. callers depth 1 / 2 / 3: median 2 / 6.5 / 7 edges, 314 / 883 / 1,708 tokens, impact-file recall with search 0.86 / 0.86 / 0.85.
+
+**Bug found (outside this story's files): code_context answers 503 on larger graphs.** On clued, clued-cloud, alamofire, bloc, gson, guzzle, newtonsoft-json and okhttp (37 of 98 tasks) every multi-word task failed: `UNWIND $ids AS id MATCH (s:Symbol {id: id}) …` (codegraph/falkor, symbol lookup by id for the full-text hits) hits FalkorDB's query timeout, 1,000 ms by default in the falkordb/falkordb image (`FALKORDB_ARGS=… TIMEOUT 1000 …`), and the route maps it to `unavailable`. code_search on the same words answers in 15 ms. Needs an index on Symbol.id or a bounded id list, in a follow-up story.
+
+Spend so far (captured cost, about 1.2x billed): probe 0.08, smoke 1.65, eager probe 0.48, main 12.97, total 15.18 USD captured (about 18.2 USD billed).
+
+#### Default condition: report (`eval/codesearch` Summarize over the 84 runs)
+
+##### Overall
+
+| tasks | arm | tasks | runs | success | median tokens | vs grep | median turns | median tool calls | median code tool calls | median cost (USD) |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| all | grep | 28 | 28 | 100% | 112726.5 | - | 4 | 4 | 0 | 0.153 |
+| all | graph | 28 | 28 | 100% | 129555.5 | +15% | 5 | 5 | 0 | 0.168 |
+| all | context | 28 | 28 | 100% | 105781.5 | -6% | 4 | 4.5 | 0 | 0.158 |
+
+##### By family
+
+| family | arm | tasks | runs | success | median tokens | vs grep | median turns | median tool calls | median code tool calls | median cost (USD) |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| named | grep | 10 | 10 | 100% | 112726.5 | - | 5 | 4.5 | 0 | 0.135 |
+| named | graph | 10 | 10 | 100% | 117334.5 | +4% | 4.5 | 4.5 | 0 | 0.122 |
+| named | context | 10 | 10 | 100% | 105151.5 | -7% | 4 | 4 | 0 | 0.119 |
+| concept | grep | 9 | 9 | 100% | 103745 | - | 4 | 4 | 0 | 0.148 |
+| concept | graph | 9 | 9 | 100% | 129439 | +25% | 5 | 5 | 0 | 0.169 |
+| concept | context | 9 | 9 | 100% | 104448 | +1% | 4 | 4 | 0 | 0.166 |
+| impact | grep | 8 | 8 | 100% | 128839.5 | - | 5 | 4 | 0 | 0.186 |
+| impact | graph | 8 | 8 | 100% | 130377 | +1% | 5 | 4.5 | 0 | 0.176 |
+| impact | context | 8 | 8 | 100% | 109039 | -15% | 4 | 5 | 0 | 0.181 |
+| edit | grep | 1 | 1 | 100% | 319487 | - | 8 | 11 | 0 | 0.301 |
+| edit | graph | 1 | 1 | 100% | 498443 | +56% | 11 | 12 | 0 | 0.383 |
+| edit | context | 1 | 1 | 100% | 454551 | +42% | 10 | 12 | 0 | 0.381 |
+
+##### By language
+
+| language | arm | tasks | runs | success | median tokens | vs grep | median turns | median tool calls | median code tool calls | median cost (USD) |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| c | grep | 1 | 1 | 100% | 103798 | - | 4 | 4 | 0 | 0.147 |
+| c | graph | 1 | 1 | 100% | 137519 | +32% | 5 | 6 | 0 | 0.181 |
+| c | context | 1 | 1 | 100% | 104448 | +1% | 4 | 4 | 0 | 0.156 |
+| cpp | grep | 1 | 1 | 100% | 73856 | - | 3 | 2 | 0 | 0.135 |
+| cpp | graph | 1 | 1 | 100% | 104945 | +42% | 4 | 3 | 0 | 0.171 |
+| cpp | context | 1 | 1 | 100% | 105885 | +43% | 4 | 5 | 0 | 0.176 |
+| csharp | grep | 1 | 1 | 100% | 143215 | - | 6 | 6 | 0 | 0.145 |
+| csharp | graph | 1 | 1 | 100% | 90534 | -37% | 4 | 5 | 0 | 0.124 |
+| csharp | context | 1 | 1 | 100% | 88558 | -38% | 4 | 3 | 0 | 0.109 |
+| dart | grep | 1 | 1 | 100% | 117496 | - | 4 | 4 | 0 | 0.203 |
+| dart | graph | 1 | 1 | 100% | 106848 | -9% | 4 | 3 | 0 | 0.167 |
+| dart | context | 1 | 1 | 100% | 112193 | -5% | 4 | 4 | 0 | 0.185 |
+| go | grep | 7 | 7 | 100% | 225574 | - | 6 | 7 | 0 | 0.225 |
+| go | graph | 7 | 7 | 100% | 188083 | -17% | 5 | 6 | 0 | 0.222 |
+| go | context | 7 | 7 | 100% | 215548 | -4% | 6 | 6 | 0 | 0.256 |
+| java | grep | 1 | 1 | 100% | 120766 | - | 5 | 6 | 0 | 0.148 |
+| java | graph | 1 | 1 | 100% | 121449 | +1% | 5 | 6 | 0 | 0.156 |
+| java | context | 1 | 1 | 100% | 94722 | -22% | 4 | 6 | 0 | 0.138 |
+| javascript | grep | 1 | 1 | 100% | 88843 | - | 4 | 3 | 0 | 0.120 |
+| javascript | graph | 1 | 1 | 100% | 71077 | -20% | 3 | 4 | 0 | 0.138 |
+| javascript | context | 1 | 1 | 100% | 90285 | +2% | 4 | 3 | 0 | 0.126 |
+| kotlin | grep | 1 | 1 | 100% | 103745 | - | 4 | 3 | 0 | 0.172 |
+| kotlin | graph | 1 | 1 | 100% | 129439 | +25% | 5 | 4 | 0 | 0.169 |
+| kotlin | context | 1 | 1 | 100% | 129426 | +25% | 5 | 4 | 0 | 0.174 |
+| lisp | grep | 1 | 1 | 100% | 112497 | - | 5 | 4 | 0 | 0.107 |
+| lisp | graph | 1 | 1 | 100% | 136689 | +22% | 6 | 5 | 0 | 0.116 |
+| lisp | context | 1 | 1 | 100% | 136045 | +21% | 6 | 5 | 0 | 0.112 |
+| lua | grep | 1 | 1 | 100% | 127947 | - | 5 | 4 | 0 | 0.152 |
+| lua | graph | 1 | 1 | 100% | 131082 | +2% | 5 | 4 | 0 | 0.181 |
+| lua | context | 1 | 1 | 100% | 93302 | -27% | 4 | 5 | 0 | 0.123 |
+| markdown | grep | 1 | 1 | 100% | 139125 | - | 4 | 7 | 0 | 0.202 |
+| markdown | graph | 1 | 1 | 100% | 244874 | +76% | 7 | 8 | 0 | 0.228 |
+| markdown | context | 1 | 1 | 100% | 141291 | +2% | 4 | 7 | 0 | 0.212 |
+| objc | grep | 1 | 1 | 100% | 107048 | - | 4 | 5 | 0 | 0.180 |
+| objc | graph | 1 | 1 | 100% | 140976 | +32% | 5 | 5 | 0 | 0.194 |
+| objc | context | 1 | 1 | 100% | 79515 | -26% | 3 | 3 | 0 | 0.166 |
+| ocaml | grep | 1 | 1 | 100% | 89708 | - | 4 | 3 | 0 | 0.107 |
+| ocaml | graph | 1 | 1 | 100% | 90820 | +1% | 4 | 4 | 0 | 0.112 |
+| ocaml | context | 1 | 1 | 100% | 66913 | -25% | 3 | 3 | 0 | 0.100 |
+| perl | grep | 1 | 1 | 100% | 65766 | - | 3 | 2 | 0 | 0.082 |
+| perl | graph | 1 | 1 | 100% | 91048 | +38% | 4 | 3 | 0 | 0.102 |
+| perl | context | 1 | 1 | 100% | 88650 | +35% | 4 | 3 | 0 | 0.095 |
+| php | grep | 1 | 1 | 100% | 245176 | - | 7 | 6 | 0 | 0.292 |
+| php | graph | 1 | 1 | 100% | 169981 | -31% | 5 | 7 | 0 | 0.255 |
+| php | context | 1 | 1 | 100% | 196893 | -20% | 6 | 6 | 0 | 0.293 |
+| python | grep | 1 | 1 | 100% | 112956 | - | 5 | 4 | 0 | 0.113 |
+| python | graph | 1 | 1 | 100% | 113220 | +0% | 5 | 4 | 0 | 0.112 |
+| python | context | 1 | 1 | 100% | 113342 | +0% | 5 | 4 | 0 | 0.111 |
+| ruby | grep | 1 | 1 | 100% | 97553 | - | 4 | 5 | 0 | 0.125 |
+| ruby | graph | 1 | 1 | 100% | 97089 | -0% | 4 | 4 | 0 | 0.120 |
+| ruby | context | 1 | 1 | 100% | 96961 | -1% | 4 | 5 | 0 | 0.126 |
+| rust | grep | 1 | 1 | 100% | 97748 | - | 4 | 4 | 0 | 0.148 |
+| rust | graph | 1 | 1 | 100% | 124630 | +28% | 5 | 5 | 0 | 0.159 |
+| rust | context | 1 | 1 | 100% | 105678 | +8% | 4 | 6 | 0 | 0.170 |
+| shell | grep | 1 | 1 | 100% | 204711 | - | 6 | 5 | 0 | 0.251 |
+| shell | graph | 1 | 1 | 100% | 203729 | -0% | 6 | 5 | 0 | 0.188 |
+| shell | context | 1 | 1 | 100% | 171488 | -16% | 5 | 4 | 0 | 0.183 |
+| sql | grep | 1 | 1 | 100% | 67173 | - | 3 | 2 | 0 | 0.096 |
+| sql | graph | 1 | 1 | 100% | 91840 | +37% | 4 | 3 | 0 | 0.102 |
+| sql | context | 1 | 1 | 100% | 67051 | -0% | 3 | 2 | 0 | 0.092 |
+| swift | grep | 1 | 1 | 100% | 106319 | - | 4 | 4 | 0 | 0.154 |
+| swift | graph | 1 | 1 | 100% | 107558 | +1% | 4 | 5 | 0 | 0.169 |
+| swift | context | 1 | 1 | 100% | 105375 | -1% | 4 | 5 | 0 | 0.157 |
+| typescript | grep | 1 | 1 | 100% | 129732 | - | 5 | 4 | 0 | 0.170 |
+| typescript | graph | 1 | 1 | 100% | 129672 | -0% | 5 | 4 | 0 | 0.163 |
+| typescript | context | 1 | 1 | 100% | 102365 | -21% | 4 | 3 | 0 | 0.151 |
+
