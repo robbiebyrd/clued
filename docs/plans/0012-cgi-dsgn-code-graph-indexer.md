@@ -6,7 +6,7 @@ status: pending
 priority: "3"
 effort: XL
 created: "2026-10-19T17:49:42.286Z"
-updated: "2026-10-20T00:04:54.757Z"
+updated: "2026-10-20T00:46:20.349Z"
 tags:
   - code-graph
   - falkordb
@@ -719,3 +719,30 @@ Spend so far (captured cost, about 1.2x billed): probe 0.08, smoke 1.65, eager p
 | typescript | graph | 1 | 1 | 100% | 129672 | -0% | 5 | 4 | 0 | 0.163 |
 | typescript | context | 1 | 1 | 100% | 102365 | -21% | 4 | 3 | 0 | 0.151 |
 
+
+
+#### Directed condition (the tools recommended in a user CLAUDE.md)
+
+To see what the tools do when an agent does reach for them, the graph and context arms ran again on the same 28 tasks (56 sessions, 1 run, `--budget 0.5`) with a user-level CLAUDE.md in the sessions' HOME saying to call the clued code tools first (loading them with ToolSearch) and fall back to Grep and Read. The grep arm is the default condition's (the instruction does not change an arm without the tools). These sessions ran the defaults set below (code_context 4,000 tokens, neighbors depth 1): the plugin's shim rebuilt mind-palace from this branch before them.
+
+- Only **8 of 56 sessions called a code tool** (graph 4 of 28, context 4 of 28), **9 calls** in all: code_context 4, code_search 2, code_symbol 2, code_neighbors 1, code_outline 0. Each was one call early on, followed by Grep and Read as before.
+- In those 8 sessions tokens were higher than the same task's grep session (median about +37%, 137k vs 99k for clued-named-allocateid, 341k vs 205k for clued-named-daemon-ok, 249k vs 228k for clued-concept-sequence-numbers; ts-impact-subscribe the only one even, 129k vs 130k). Two of the four code_context calls answered `unavailable` (the FalkorDB timeout above, on clued and clued-cloud).
+- Success stayed 100% in every arm, family and language; no task needed the tools to be answered.
+- Overall medians: grep 112,727 tokens / 4 turns / 4 tool calls, graph 119,743 / 5 / 5 (+6%), context 106,119 / 4 / 5 (-6%); by family (graph, context vs grep): named +6% / -14%, concept +2% / +1%, impact +10% / +28%, edit +41% / -24% (one task).
+
+#### Defaults set (story 0126-j2n, `session/sessionmcp/code_tools.go`)
+
+- **code_context budget 4,000 tokens** (was the route's 6,000): file recall 0.72 at 4,000 against 0.73 at 6,000 to 12,000, for a median answer of about 2,450 instead of 3,150 tokens (and a maximum of 3,972 instead of 5,819). The tool now sends its own default; the route's `DefaultContextTokens` stays 6,000 for other callers.
+- **code_search, code_symbol, code_neighbors, code_outline keep 2,000 tokens**: a symbol search answered in a median of 762 tokens and was cut at 2,000 for 4 of 98 tasks, so a smaller budget would only cut more.
+- **code_neighbors depth 1**, now sent by the tool: depth 2 and 3 found no further impact file (recall 0.86, 0.86, 0.85) for 3 to 5 times the tokens (median 314, 883, 1,708).
+- **Listed tools: all five stay listed, under the same rule** (indexed and allowed). In Claude Code they are deferred, so listing costs a name each. Agents used them rarely: none of 56 sessions by default, 8 of 56 when told to. That is too little use to tell the five apart (code_outline was the only one never called). Listing them up front (`ENABLE_TOOL_SEARCH=false`) did not lead to their use either, and it cost about 1.7 times as much.
+- What the numbers say beyond the defaults: on these tasks Opus 5.5 with Grep and Read already succeeds 100% in about 4 turns, so the tools have no headroom here. Their case rests on larger repositories and on cross-file questions (callers, implementations) that grep answers poorly. Re-run this evaluation when the context timeout below is fixed, and with harder impact tasks.
+
+#### Follow-ups found
+
+- **code_context 503 on larger graphs**: `UNWIND $ids AS id MATCH (s:Symbol {id: id}) …` (the symbol lookup for the full-text hits in codegraph/falkor) exceeds FalkorDB's query timeout of 1,000 ms (the falkordb/falkordb image default, `FALKORDB_ARGS=… TIMEOUT 1000 …`) on clued, clued-cloud, alamofire, bloc, gson, guzzle, newtonsoft-json and okhttp: 37 of 98 tasks answered `unavailable` for every multi-word task. code_search on the same words takes 15 ms. Needs an index on `Symbol.id` or a bounded id list.
+- PROTOCOL.md 6.1.7 and docs/code-graph.md still give code_context's default as 6,000 tokens. They need 4,000 for the tool, but they are outside this story's files.
+
+#### Spend
+
+Captured cost from clued's usage (about 1.2x below the billed `total_cost_usd`: a probe captured 0.065 against 0.077 billed): probe 0.08, smoke 1.65 (9 sessions), eager-tool probe 0.48, default condition 12.97 (75 sessions), directed condition 9.61 (56 sessions). **Total 24.79 USD captured, about 29.75 USD billed**, under the $50 cap.
