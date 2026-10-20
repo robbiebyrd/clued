@@ -7,7 +7,7 @@ status: in_progress
 priority: "3"
 effort: S
 created: "2026-10-19T18:11:58.507Z"
-updated: "2026-10-20T00:04:24.945Z"
+updated: "2026-10-20T00:04:59.509Z"
 started: "2026-10-19T22:27:42.383Z"
 tags:
   - plan-0012-cgi
@@ -100,3 +100,5 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 - `mind-palace/session/sessionmcp/code_tools.go` - default budgets, depth and listed tools from the results
 
 ## Work Log
+
+### 2026-10-20T00:04:59.509Z - Default-condition run (subset for the owner's $50 cap: 28 tasks keeping every family and language x grep, graph, context x 1 run = 84 sessions, Opus 5.5, --budget 0.5, isolated local server): success 100% in every arm; 0 code tool calls in all 56 graph/context sessions (the clued tools are deferred and the agent greps; with ENABLE_TOOL_SEARCH=false also 0, at about 1.7x the cost); median tokens grep 112,727, graph 129,556, context 105,782 (noise between identical configurations); turns 4/5/4. Model-free retrieval over 98 tasks: code_context file recall 0.68/0.72/0.73/0.73/0.73 at 2k/4k/6k/8k/12k tokens; callers depth 1/2/3 impact recall 0.86/0.86/0.85 at 314/883/1,708 median tokens. Bug: code_context 503s on 8 larger graphs (UNWIND symbol-by-id query hits FalkorDB's 1 s TIMEOUT). Tables per family and language are in plan 0012-cgi's work log. Spend so far 15.18 USD captured (about 18.2 billed).
