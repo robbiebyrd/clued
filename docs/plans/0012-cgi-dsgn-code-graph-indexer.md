@@ -2,11 +2,12 @@
 id: 0012-cgi
 title: 'Code graph indexer: tree-sitter parsing for 21 languages, a layered FalkorDB graph and agent tools'
 type: dsgn
-status: pending
+status: complete
 priority: "3"
 effort: XL
 created: "2026-10-19T17:49:42.286Z"
-updated: "2026-10-20T00:46:20.349Z"
+updated: "2026-10-20T01:00:18.921Z"
+completed: "2026-10-20T01:00:18.921Z"
 tags:
   - code-graph
   - falkordb
