@@ -200,16 +200,22 @@ func (e *codeEnv) tools(view sessionmcp.CodeView) *sessionmcp.Tools {
 
 func hasCodeTools(t *testing.T, names map[string]bool) bool {
 	t.Helper()
+	n := countCodeTools(names)
+	if n != 0 && n != len(codeTools) {
+		t.Fatalf("some code tools listed: %v", names)
+	}
+	return n == len(codeTools)
+}
+
+// countCodeTools counts the code tools in names.
+func countCodeTools(names map[string]bool) int {
 	n := 0
 	for _, name := range codeTools {
 		if names[name] {
 			n++
 		}
 	}
-	if n != 0 && n != len(codeTools) {
-		t.Fatalf("some code tools listed: %v", names)
-	}
-	return n == len(codeTools)
+	return n
 }
 
 func decodeCode(t *testing.T, res *mcp.CallToolResult) obj {
@@ -305,7 +311,9 @@ func TestCodeToolsAreAddedOnceTheProjectIsIndexed(t *testing.T) {
 	}
 	e.seed()
 	deadline := time.After(10 * time.Second)
-	for !hasCodeTools(t, toolNames(t, cs)) {
+	// The tools are added one at a time, so a listing in between holds
+	// some of them; the client lists again on the change notice.
+	for countCodeTools(toolNames(t, cs)) != len(codeTools) {
 		select {
 		case <-changed:
 		case <-time.After(20 * time.Millisecond):

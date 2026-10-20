@@ -3,11 +3,13 @@ id: 0126-j2n
 title: Run the evaluation and set tool defaults
 purpose: Turns the measurements into the tools' defaults and a recorded baseline.
 type: task
-status: ready
+status: complete
 priority: "3"
 effort: S
 created: "2026-10-19T18:11:58.507Z"
-updated: "2026-10-19T18:33:50.301Z"
+updated: "2026-10-20T00:47:55.152Z"
+started: "2026-10-19T22:27:42.383Z"
+completed: "2026-10-20T00:47:55.152Z"
 tags:
   - plan-0012-cgi
   - wave-9
@@ -45,15 +47,15 @@ links:
     - ["0012-cgi", "included", ["5.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
-    status: pending
+    status: complete
   "4":
-    status: pending
+    status: complete
   "5":
-    status: pending
+    status: complete
 ---
 
 # Run the evaluation and set tool defaults
@@ -90,12 +92,20 @@ Run `cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./...
 
 ## Acceptance Criteria
 
-- [ ] [MANUAL] The report (tokens, turns, success per family and language) is in the work log
-- [ ] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/sessionmcp/...
-- [ ] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
+- [x] [MANUAL] The report (tokens, turns, success per family and language) is in the work log
+- [x] VERIFY: cd mind-palace && test -z "$(gofmt -l .)" && go vet ./... && go build ./... && go test -race ./session/sessionmcp/...
+- [x] [MANUAL] Only the files listed under Files are changed (`git diff --name-only origin/main...HEAD`; `go.mod`/`go.sum` excepted)
 
 ## Files
 
 - `mind-palace/session/sessionmcp/code_tools.go` - default budgets, depth and listed tools from the results
 
 ## Work Log
+
+### 2026-10-20T00:04:59.509Z - Default-condition run (subset for the owner's $50 cap: 28 tasks keeping every family and language x grep, graph, context x 1 run = 84 sessions, Opus 5.5, --budget 0.5, isolated local server): success 100% in every arm; 0 code tool calls in all 56 graph/context sessions (the clued tools are deferred and the agent greps; with ENABLE_TOOL_SEARCH=false also 0, at about 1.7x the cost); median tokens grep 112,727, graph 129,556, context 105,782 (noise between identical configurations); turns 4/5/4. Model-free retrieval over 98 tasks: code_context file recall 0.68/0.72/0.73/0.73/0.73 at 2k/4k/6k/8k/12k tokens; callers depth 1/2/3 impact recall 0.86/0.86/0.85 at 314/883/1,708 median tokens. Bug: code_context 503s on 8 larger graphs (UNWIND symbol-by-id query hits FalkorDB's 1 s TIMEOUT). Tables per family and language are in plan 0012-cgi's work log. Spend so far 15.18 USD captured (about 18.2 billed).
+
+### 2026-10-20T00:46:43.130Z - Directed condition (user CLAUDE.md recommending the clued code tools; graph and context arms, same 28 tasks, 56 sessions, 1 run): only 8 of 56 sessions called a code tool, 9 calls in all (code_context 4, code_search 2, code_symbol 2, code_neighbors 1, code_outline 0), each once and then Grep and Read as before; those 8 used more tokens than the task's grep session (median about +37%); 2 of the 4 code_context calls answered unavailable (the FalkorDB timeout); success 100% everywhere; median tokens grep 112,727 / graph 119,743 (+6%) / context 106,119 (-6%), turns 4/5/4, tool calls 4/5/5; by family graph and context vs grep: named +6%/-14%, concept +2%/+1%, impact +10%/+28%, edit +41%/-24% (one task). Tables, the per-language report and the reasoning are in plan 0012-cgi's work log (5.1 Evaluation run and tool defaults).
+
+### 2026-10-20T00:46:46.423Z - Defaults set in session/sessionmcp/code_tools.go: code_context sends 4,000 tokens by default (CodeContextTokens; recall 0.72 at 4k vs 0.73 at 6k-12k for about 700 fewer tokens per answer; the route's DefaultContextTokens stays 6,000 for other callers); code_search, code_symbol, code_neighbors and code_outline send 2,000 (CodeToolTokens = codeapi.DefaultGraphTokens; search was cut at 2k for only 4 of 98 tasks, median 762 tokens); code_neighbors sends depth 1 by default (CodeNeighborsDepth; depth 2 and 3 found no further impact file, recall 0.86/0.86/0.85, at 3-5x the tokens), and its depth description says so. Listed tools unchanged: all five stay listed under the indexed-and-allowed rule. They are deferred, so listing costs a name each, and use was too rare to tell them apart (code_outline was never called); listing them up front cost about 1.7x and got no use. Not changed, outside the Files: PROTOCOL.md 6.1.7 and docs/code-graph.md still say 6,000 for code_context; code_context's 503 on larger graphs is a codegraph/falkor query (UNWIND symbol-by-id) over FalkorDB's 1 s TIMEOUT and needs its own story. Total spend 24.79 USD captured, about 29.75 USD billed (cap 50).
+
+### 2026-10-20T00:47:43.983Z - Verify: cd mind-palace && gofmt clean, go vet ./... silent, go build ./... ok, go test -race ./session/sessionmcp/... ok (50 top-level tests pass). Files vs origin/main: mind-palace/session/sessionmcp/code_tools.go plus this story and plan 0012-cgi (CLI-managed work logs).

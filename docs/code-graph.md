@@ -193,7 +193,9 @@ agent opens exactly those lines.
 | `code_outline` | `path` or `package` | `files` (`path`, `lang`, `package`, `parseError`) and `symbols`: the symbol tree in order, `depth` for nesting, with `at`, `kind`, `name`, `signature`, `exported`, `id`; no bodies |
 | `code_context` | `task` (plain words naming the identifiers known) | `hits` (the best eight symbols for the task's words: name matches count most, then full-text prefix matches), `neighbors` (one hop of their callers and callees, five each), `bodies` (the hits' source, best first, as many as fit) |
 
-Budgets: 2,000 tokens by default, 6,000 for `code_context`, at least 200; a
+Budgets: 2,000 tokens by default, 4,000 for `code_context` (the route's
+own default for other callers is 6,000), at least 200; `code_neighbors`
+follows one hop unless `depth` says more; a
 result is sized the way the session tools are (the JSON's length over four).
 A list that does not fit says `truncated` and gives `next`; calling again
 with the same arguments and `cursor` set to `next` continues. `code_context`
@@ -610,7 +612,7 @@ plan's; the evaluation run (story 0126) is what confirms or changes them.
 | `kinds`, `langs`, `paths` filters | 32 values each |
 | Results per read | `search` 20 by default, `neighbors` 50, at most 500 |
 | `neighbors` depth | 1 to 3 |
-| Token budget | 2,000 by default (`code_context` 6,000), at least 200 |
+| Token budget | 2,000 by default (`code_context` 4,000; the `context` route 6,000), at least 200 |
 | Dependents re-resolved per batch | 5,000 references |
 | Idle overlay | dropped after 14 days without session activity and with nothing dirty or unpushed |
 
