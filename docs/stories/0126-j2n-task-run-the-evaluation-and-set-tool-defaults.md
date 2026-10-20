@@ -7,7 +7,7 @@ status: in_progress
 priority: "3"
 effort: S
 created: "2026-10-19T18:11:58.507Z"
-updated: "2026-10-19T22:27:42.383Z"
+updated: "2026-10-20T00:04:24.945Z"
 started: "2026-10-19T22:27:42.383Z"
 tags:
   - plan-0012-cgi
@@ -46,9 +46,9 @@ links:
     - ["0012-cgi", "included", ["5.1"]]
 progress:
   "1":
-    status: pending
+    status: complete
   "2":
-    status: pending
+    status: complete
   "3":
     status: pending
   "4":
