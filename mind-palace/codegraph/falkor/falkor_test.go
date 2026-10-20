@@ -283,9 +283,13 @@ func TestPlansStartFromSymbols(t *testing.T) {
 			t.Fatalf("%s: %v", name, err)
 		}
 		plan := fmt.Sprint(reply)
-		if strings.Contains(plan, "Node By Index Scan | (f:File)") || strings.Contains(plan, "Label Scan | (f:File)") ||
-			!strings.Contains(plan, "(s:Symbol)") {
-			t.Errorf("%s starts from the files: %s", name, plan)
+		// Every property of codegraph.Indexes has its own range index
+		// (Symbol.id, name, qualName, layer), so each lookup must start
+		// from one: neither from the files (a scan of them, expanded to
+		// their symbols) nor from a scan of every symbol.
+		if strings.Contains(plan, "Scan | (f:File)") || strings.Contains(plan, "(f)->(s") ||
+			strings.Contains(plan, "Label Scan") || !strings.Contains(plan, "Node By Index Scan | (s:Symbol)") {
+			t.Errorf("%s does not start from a Symbol index: %s", name, plan)
 		}
 	}
 }
