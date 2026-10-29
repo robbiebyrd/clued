@@ -220,23 +220,28 @@ func (s *Service) Sync(ctx context.Context, project string) (Result, error) {
 }
 
 // turn takes the project's lease and runs up to maxBatches batches (no
-// bound when 0).
+// bound when 0). The lease is kept alive while a batch runs (begin): the
+// first batch of a large project parses its whole base tree, which outlives
+// one lease period, and the cursor is saved only after it.
 func (s *Service) turn(ctx context.Context, project string, maxBatches int) (res Result, err error) {
-	c := s.opts.Cursors
-	lease, cur, err := c.Acquire(ctx, project, s.opts.Holder, s.opts.Lease)
+	t, err := s.begin(ctx, project)
 	if err != nil {
 		return Result{}, err
 	}
+	defer t.end()
 	defer func() {
-		if rerr := c.Release(context.WithoutCancel(ctx), lease); rerr != nil {
-			s.log.Warn("codeindex: release lease", "project", project, "error", rerr)
+		// A lease lost while a batch ran cancelled the turn's context; name
+		// the loss rather than the cancellation.
+		if err != nil {
+			if lost := t.stop(); lost != nil {
+				err = lost
+			}
 		}
 	}()
+	ctx = t.ctx
+	store := t.store
+	cur := t.cursor()
 	res.Seq = cur.Seq
-	store, err := s.opts.Code(ctx, project)
-	if err != nil {
-		return res, fmt.Errorf("codeindex: open code store of %s: %w", project, err)
-	}
 	var (
 		g       codegraph.Graph
 		prev    Plan
@@ -278,8 +283,8 @@ func (s *Service) turn(ctx context.Context, project string, maxBatches int) (res
 		}
 		cur.Seq = changes[len(changes)-1].Seq
 		cur.Trees = sortedStates(state)
-		if lease, err = c.Save(ctx, lease, cur, s.opts.Lease); err != nil {
-			return res, fmt.Errorf("codeindex: save cursor of %s: %w", project, err)
+		if err := t.save(cur); err != nil {
+			return res, err
 		}
 		prev = next
 		res.Seq = cur.Seq
