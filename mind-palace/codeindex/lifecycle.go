@@ -110,15 +110,17 @@ func FilesHash(files []FileSource) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// lifecycleTurn is a lifecycle operation's hold on a project: the lease,
-// kept alive in the background while the operation runs (a rebuild of a
-// large project outlives one lease period), the cursor read with it and the
-// project's code store.
+// lifecycleTurn is an operation's hold on a project: the lease, kept alive
+// in the background while the operation runs (a rebuild of a large project,
+// or the first batch of its incremental build, outlives one lease period),
+// the cursor it last read or saved and the project's code store.
+//
+// mu serializes every Save under the lease: the keep-alive's, which writes
+// the cursor as it stands (cur, so a cursor a batch saved is never rolled
+// back to an earlier one), and save's, which advances it.
 type lifecycleTurn struct {
 	s       *Service
 	project string
-	lease   Lease
-	cur     Cursor
 	store   code.Store
 
 	ctx    context.Context
@@ -126,7 +128,9 @@ type lifecycleTurn struct {
 	done   chan struct{} // closed by stop
 	exited chan struct{} // closed when keepAlive returns
 	mu     sync.Mutex
-	lost   error
+	lease  Lease  // under mu
+	cur    Cursor // under mu: the cursor last acquired or saved
+	lost   error  // under mu
 }
 
 // begin takes project's lease and opens its code store; the turn's context
@@ -141,7 +145,7 @@ func (s *Service) begin(ctx context.Context, project string) (*lifecycleTurn, er
 	}
 	t := &lifecycleTurn{s: s, project: project, lease: lease, cur: cur, done: make(chan struct{}), exited: make(chan struct{})}
 	t.ctx, t.cancel = context.WithCancel(ctx)
-	go t.keepAlive(cur)
+	go t.keepAlive()
 	store, err := s.opts.Code(t.ctx, project)
 	if err != nil {
 		t.end()
@@ -151,10 +155,11 @@ func (s *Service) begin(ctx context.Context, project string) (*lifecycleTurn, er
 	return t, nil
 }
 
-// keepAlive extends the lease every third of its period by saving the
-// cursor as it was acquired, until the turn ends; a lost lease cancels the
-// turn's context.
-func (t *lifecycleTurn) keepAlive(cur Cursor) {
+// keepAlive extends the lease every third of its period (no sooner than
+// every 10 ms; New's MinLease keeps that inside the lease) by saving the
+// cursor as it stands, until the turn ends; a lost lease cancels the turn's
+// context.
+func (t *lifecycleTurn) keepAlive() {
 	defer close(t.exited)
 	tick := time.NewTicker(max(t.s.opts.Lease/3, 10*time.Millisecond))
 	defer tick.Stop()
@@ -165,7 +170,7 @@ func (t *lifecycleTurn) keepAlive(cur Cursor) {
 		case <-t.ctx.Done():
 			return
 		case <-tick.C:
-			if _, err := t.s.opts.Cursors.Save(t.ctx, t.lease, cur, t.s.opts.Lease); err != nil {
+			if err := t.extend(); err != nil {
 				if t.ctx.Err() != nil {
 					return
 				}
@@ -177,6 +182,39 @@ func (t *lifecycleTurn) keepAlive(cur Cursor) {
 			}
 		}
 	}
+}
+
+// extend saves the cursor as it stands, which extends the lease.
+func (t *lifecycleTurn) extend() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	lease, err := t.s.opts.Cursors.Save(t.ctx, t.lease, t.cur, t.s.opts.Lease)
+	if err != nil {
+		return err
+	}
+	t.lease = lease
+	return nil
+}
+
+// save advances the cursor to cur under the lease, which extends it; the
+// keep-alive carries cur from then on. ErrLeaseLost (wrapped) when the
+// lease is gone.
+func (t *lifecycleTurn) save(cur Cursor) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	lease, err := t.s.opts.Cursors.Save(t.ctx, t.lease, cur, t.s.opts.Lease)
+	if err != nil {
+		return fmt.Errorf("codeindex: save cursor of %s: %w", t.project, err)
+	}
+	t.lease, t.cur = lease, cur
+	return nil
+}
+
+// cursor returns the cursor as it stands.
+func (t *lifecycleTurn) cursor() Cursor {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.cur
 }
 
 // stop ends the keep-alive, waiting for a save in flight so it cannot
@@ -200,7 +238,10 @@ func (t *lifecycleTurn) stop() error {
 func (t *lifecycleTurn) end() {
 	_ = t.stop()
 	t.cancel()
-	if err := t.s.opts.Cursors.Release(context.WithoutCancel(t.ctx), t.lease); err != nil {
+	t.mu.Lock()
+	lease := t.lease
+	t.mu.Unlock()
+	if err := t.s.opts.Cursors.Release(context.WithoutCancel(t.ctx), lease); err != nil {
 		t.s.log.Warn("codeindex: release lease", "project", t.project, "error", err)
 	}
 }
@@ -209,8 +250,9 @@ func (t *lifecycleTurn) end() {
 // changes' metadata only (no tree, no write), and returns the states, the
 // new cursor position and how many changes it read.
 func (t *lifecycleTurn) catchUp() (map[TreeKey]*TreeState, int64, int, error) {
-	state := treeStates(t.cur.Trees)
-	seq, n := t.cur.Seq, 0
+	cur := t.cursor()
+	state := treeStates(cur.Trees)
+	seq, n := cur.Seq, 0
 	for {
 		changes, err := t.store.Changes(t.ctx, seq, t.s.opts.BatchSize)
 		if err != nil {
@@ -279,11 +321,11 @@ func (s *Service) Rebuild(ctx context.Context, project string) (RebuildResult, e
 	if err := t.stop(); err != nil {
 		return res, err
 	}
-	cur := t.cur
+	cur := t.cursor()
 	cur.Seq = seq
 	cur.Trees = sortedStates(state)
-	if _, err := s.opts.Cursors.Save(t.ctx, t.lease, cur, s.opts.Lease); err != nil {
-		return res, fmt.Errorf("codeindex: save cursor of %s: %w", project, err)
+	if err := t.save(cur); err != nil {
+		return res, err
 	}
 	res.Seq = seq
 	res.Layers = len(next.Layers)
@@ -363,16 +405,17 @@ func (s *Service) Check(ctx context.Context, project string, repair bool) (Check
 		return CheckReport{}, err
 	}
 	defer t.end()
-	rep := CheckReport{Project: project, Seq: t.cur.Seq}
-	pending, err := t.store.Changes(t.ctx, t.cur.Seq, 1)
+	cur := t.cursor()
+	rep := CheckReport{Project: project, Seq: cur.Seq}
+	pending, err := t.store.Changes(t.ctx, cur.Seq, 1)
 	if err != nil {
-		return rep, fmt.Errorf("codeindex: changes of %s after %d: %w", project, t.cur.Seq, err)
+		return rep, fmt.Errorf("codeindex: changes of %s after %d: %w", project, cur.Seq, err)
 	}
 	if len(pending) > 0 {
 		rep.Behind = true
 		return rep, nil
 	}
-	want, err := s.selectPlan(t.ctx, t.store, treeStates(t.cur.Trees), map[TreeKey][]code.Entry{})
+	want, err := s.selectPlan(t.ctx, t.store, treeStates(cur.Trees), map[TreeKey][]code.Entry{})
 	if err != nil {
 		return rep, err
 	}

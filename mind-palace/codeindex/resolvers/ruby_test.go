@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/code"
 	"github.com/robbiebyrd/clued/mind-palace/code/memcode"
@@ -224,9 +225,10 @@ func indexRuby(t *testing.T, tree map[string]string) *rubyEnv {
 			}
 			return store, nil
 		},
-		Graphs:       graphs,
-		Cursors:      codeindex.NewMemCursors(nil),
-		Apply:        codeindex.NewResolver(codeindex.ResolverOptions{Profiles: engine.Profiles()}),
+		Graphs:  graphs,
+		Cursors: codeindex.NewMemCursors(nil),
+		Apply: codeindex.NewResolver(codeindex.ResolverOptions{Profiles: engine.Profiles(),
+			Files: codeindex.FileApplier{ParseTimeout: 5 * time.Minute}}),
 		Parse:        codeparse.Parse,
 		ParseVersion: codeparse.ParseVersion,
 		Holder:       "test",

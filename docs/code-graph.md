@@ -533,8 +533,11 @@ says what a package is, what imports bind and what is visible:
 
 The server's indexer (`server run --graph`) replays each project's change log
 in batches of 500 under a one-minute lease, so only one worker writes a
-project at a time; a write to the code transport wakes it at once, and it
-polls every 2 seconds otherwise. When FalkorDB cannot be reached it backs
+project at a time; the lease is extended in the background while a batch
+runs (the first batch of a large project parses its whole base tree, which
+takes longer than a lease period), and the cursor is saved after each batch.
+A write to the code transport wakes it at once, and it polls every 2 seconds
+otherwise. When FalkorDB cannot be reached it backs
 off (up to 5 minutes) and its cursor does not move. Every hour it also
 compares each project's graph with its current trees and repairs drift.
 

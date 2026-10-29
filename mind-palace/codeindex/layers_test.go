@@ -588,6 +588,159 @@ func TestSyncBatchesCursorAndLease(t *testing.T) {
 	}
 }
 
+// laggingApplier delays every batch past the lease period and fails the
+// batch numbered failAt (1-based; 0 never fails), so a sync outlives its
+// lease and the cursor saved by an earlier batch can be checked.
+type laggingApplier struct {
+	Applier
+	delay  time.Duration
+	failAt int
+	n      atomic.Int64
+}
+
+func (a *laggingApplier) Apply(ctx context.Context, s *Service, b Batch) error {
+	time.Sleep(a.delay)
+	if n := a.n.Add(1); a.failAt > 0 && int(n) == a.failAt {
+		return codegraph.ErrUnavailable
+	}
+	return a.Applier.Apply(ctx, s, b)
+}
+
+func TestSyncKeepsItsLeaseAlive(t *testing.T) {
+	f := newFixture(t, func(o *Options) { o.BatchSize = 2 })
+	a := wtID(1)
+	f.worktree(a, "u1", "", "main")
+	u := commitID("main")
+	for i := range 3 {
+		c := fmt.Sprintf("v%d", i)
+		f.commit(code.Change{Worktree: a, Ref: "main", Head: u, Upstream: u, Upserts: []code.Entry{clean(fmt.Sprintf("f%d.go", i), c)}}, c)
+	}
+	// One batch outlives the lease period: the base build of a large
+	// project parses thousands of files between two cursor saves, so the
+	// turn must extend the lease itself rather than lose it.
+	f.svc.opts.Lease = 300 * time.Millisecond
+	f.svc.opts.Apply = &laggingApplier{Applier: f.rec, delay: time.Second}
+	res, err := f.svc.Sync(f.ctx, project)
+	if err != nil {
+		t.Fatalf("Sync with a short lease = %v", err)
+	}
+	if res.Seq != 3 || res.Batches != 2 || !res.CaughtUp {
+		t.Errorf("result = %+v", res)
+	}
+	if _, cur, err := f.curs.Acquire(f.ctx, project, "probe", time.Second); err != nil || cur.Seq != 3 {
+		t.Errorf("cursor = %+v, %v", cur, err)
+	}
+	f.curs.docs[project].lease = Lease{}
+	if st := f.svc.mustStatus(t, project); st.Holder != "" || st.Pending != 0 {
+		t.Errorf("status after sync = %+v", st)
+	}
+
+	// The keep-alive extends the lease with the latest saved cursor, never
+	// the one the turn started from: when the second batch (another
+	// worktree's tree, so its delta is not empty) fails after outliving a
+	// lease period, the first batch's cursor stands.
+	for i := 3; i < 5; i++ {
+		c := fmt.Sprintf("v%d", i)
+		f.commit(code.Change{Worktree: a, Ref: "main", Head: u, Upstream: u, Upserts: []code.Entry{clean(fmt.Sprintf("f%d.go", i), c)}}, c)
+	}
+	b := wtID(2)
+	f.worktree(b, "u2", "", "main")
+	v := commitID("feature")
+	f.commit(code.Change{Worktree: b, Ref: "feature", Head: v, Upstream: v, Upserts: []code.Entry{clean("g0.go", "g0")}}, "g0")
+	lag := &laggingApplier{Applier: f.rec, delay: time.Second, failAt: 2}
+	f.svc.opts.Apply = lag
+	res, err = f.svc.Sync(f.ctx, project)
+	if !errors.Is(err, codegraph.ErrUnavailable) || res.Batches != 1 || res.Seq != 5 {
+		t.Fatalf("Sync with a failing second batch = %+v, %v, want ErrUnavailable after one batch (applier calls %d)", res, err, lag.n.Load())
+	}
+	if _, cur, err := f.curs.Acquire(f.ctx, project, "probe", time.Second); err != nil || cur.Seq != 5 {
+		t.Errorf("cursor after a failed second batch = %+v, %v (want seq 5: the first batch's save)", cur, err)
+	}
+}
+
+func TestNewRaisesShortLeases(t *testing.T) {
+	f := newFixture(t, func(o *Options) { o.Lease = 5 * time.Millisecond })
+	if f.svc.opts.Lease != MinLease {
+		t.Errorf("Lease = %v, want MinLease %v", f.svc.opts.Lease, MinLease)
+	}
+	// At the minimum the keep-alive still renews inside the lease: a batch
+	// several periods long keeps it.
+	a := wtID(1)
+	f.worktree(a, "u1", "", "main")
+	u := commitID("main")
+	f.commit(code.Change{Worktree: a, Ref: "main", Head: u, Upstream: u, Upserts: []code.Entry{clean("f0.go", "v0")}}, "v0")
+	f.svc.opts.Apply = &laggingApplier{Applier: f.rec, delay: 5 * MinLease}
+	if res, err := f.svc.Sync(f.ctx, project); err != nil || res.Seq != 1 {
+		t.Errorf("Sync at the minimum lease = %+v, %v", res, err)
+	}
+}
+
+// losingCursors drops the lease after the first save that advances the
+// cursor (a turn's, after its batch): every later Save fails with
+// ErrLeaseLost, as the keep-alive's do once another worker holds the lease.
+type losingCursors struct {
+	Cursors
+	lost atomic.Bool
+}
+
+func (c *losingCursors) Save(ctx context.Context, l Lease, cur Cursor, ttl time.Duration) (Lease, error) {
+	if c.lost.Load() {
+		return Lease{}, ErrLeaseLost
+	}
+	lease, err := c.Cursors.Save(ctx, l, cur, ttl)
+	if err == nil && cur.Seq > 0 {
+		c.lost.Store(true)
+	}
+	return lease, err
+}
+
+// slowChanges delays every read of the change log after the first, so a
+// turn's final read (the one that finds the log empty) outlives a
+// keep-alive tick, and answers it even once the turn's context is
+// cancelled, as a store whose reply was already on the wire does.
+type slowChanges struct {
+	code.Store
+	delay time.Duration
+	n     atomic.Int64
+}
+
+func (s *slowChanges) Changes(ctx context.Context, afterSeq int64, limit int) ([]code.Change, error) {
+	if s.n.Add(1) > 1 {
+		time.Sleep(s.delay)
+		ctx = context.WithoutCancel(ctx)
+	}
+	return s.Store.Changes(ctx, afterSeq, limit)
+}
+
+func TestSyncReportsALeaseLostAfterItsLastSave(t *testing.T) {
+	curs := &losingCursors{}
+	f := newFixture(t, func(o *Options) {
+		curs.Cursors = o.Cursors
+		o.Cursors = curs
+		o.Lease = MinLease
+		// A full batch makes the turn read the log once more, to find it
+		// empty: that read is the slow one.
+		o.BatchSize = 1
+	})
+	a := wtID(1)
+	f.worktree(a, "u1", "", "main")
+	u := commitID("main")
+	f.commit(code.Change{Worktree: a, Ref: "main", Head: u, Upstream: u, Upserts: []code.Entry{clean("f0.go", "v0")}}, "v0")
+	// The batch and its save succeed; then the lease is lost while the
+	// turn reads the end of the log, so a keep-alive tick fails and the
+	// turn, though its work is done, reports the loss.
+	f.svc.opts.Code = func(context.Context, string) (code.Store, error) {
+		return &slowChanges{Store: f.store, delay: 5 * MinLease}, nil
+	}
+	if res, err := f.svc.Sync(f.ctx, project); !errors.Is(err, ErrLeaseLost) {
+		t.Fatalf("Sync whose lease was lost after its save = %+v, %v, want ErrLeaseLost", res, err)
+	}
+	// The save made under the lease stands.
+	if _, cur, err := f.curs.Acquire(f.ctx, project, "probe", time.Second); err != nil || cur.Seq != 1 {
+		t.Errorf("cursor = %+v, %v", cur, err)
+	}
+}
+
 func TestNewServiceResumesFromGraphAndCursor(t *testing.T) {
 	f := newFixture(t, nil)
 	a := wtID(1)

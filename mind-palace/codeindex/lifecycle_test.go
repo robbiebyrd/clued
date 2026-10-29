@@ -460,8 +460,9 @@ func TestRebuildKeepsItsLeaseAlive(t *testing.T) {
 	e := newApplyEnv(t, memgraph.New(), nil)
 	lifecycleHistory(e)
 	want := dumpGraph(t, e.ctx, e.g)
-	// The incremental path saves the cursor after every batch; a rebuild
-	// writes the whole graph in one go, so it extends the lease itself.
+	// A rebuild writes the whole graph in one go, so it must extend the
+	// lease itself (the incremental path does the same per batch: see
+	// TestSyncKeepsItsLeaseAlive).
 	e.svc.opts.Lease = 300 * time.Millisecond
 	e.svc.opts.Apply = slowApplier{Applier: FileApplier{}, delay: time.Second}
 	res, err := e.svc.Rebuild(e.ctx, e.project)

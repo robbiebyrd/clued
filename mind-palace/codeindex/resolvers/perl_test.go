@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/code"
 	"github.com/robbiebyrd/clued/mind-palace/code/memcode"
@@ -133,7 +134,9 @@ func newPerlEnv(t *testing.T) *perlEnv {
 		Code:     func(context.Context, string) (code.Store, error) { return e.store, nil },
 		Graphs:   graphs,
 		Cursors:  codeindex.NewMemCursors(nil),
-		Apply:    codeindex.NewResolver(codeindex.ResolverOptions{}),
+		Apply: codeindex.NewResolver(codeindex.ResolverOptions{
+			// Goldens parse under -race on slow runners: never the production timeout.
+			Files: codeindex.FileApplier{ParseTimeout: 5 * time.Minute}}),
 		Parse: func(_ string, content []byte) (codeparse.Facts, error) {
 			var f codeparse.Facts
 			err := json.Unmarshal(content, &f)

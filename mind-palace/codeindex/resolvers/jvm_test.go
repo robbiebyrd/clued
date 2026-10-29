@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/code"
 	"github.com/robbiebyrd/clued/mind-palace/code/memcode"
@@ -48,9 +49,10 @@ func newJVMEnv(t *testing.T, tree map[string]string) *jvmEnv {
 		Code:    func(context.Context, string) (code.Store, error) { return store, nil },
 		Graphs:  graphs,
 		Cursors: codeindex.NewMemCursors(nil),
-		Apply:   codeindex.NewResolver(codeindex.ResolverOptions{Profiles: engine.Profiles()}),
-		Parse:   codeparse.Parse,
-		Holder:  "test",
+		Apply: codeindex.NewResolver(codeindex.ResolverOptions{Profiles: engine.Profiles(),
+			Files: codeindex.FileApplier{ParseTimeout: 5 * time.Minute}}),
+		Parse:  codeparse.Parse,
+		Holder: "test",
 	})
 	if err != nil {
 		t.Fatal(err)

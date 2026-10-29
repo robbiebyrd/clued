@@ -37,6 +37,11 @@ const (
 	DefaultCacheSize  = 4096
 )
 
+// MinLease is the shortest lease New accepts: the keep-alive renews a lease
+// every third of its period and no sooner than every 10 ms, so a shorter
+// lease would expire before its first renewal.
+const MinLease = 30 * time.Millisecond
+
 // ErrNoParser is returned by Facts when the Service has no parser.
 var ErrNoParser = errors.New("codeindex: no parser configured")
 
@@ -103,8 +108,9 @@ type Options struct {
 	// MaxBatches bounds the batches of one lease turn in Run, so one busy
 	// project cannot starve the others (default DefaultMaxBatches).
 	MaxBatches int
-	// Lease is the lease's time to live, extended on every batch (default
-	// DefaultLease).
+	// Lease is the lease's time to live, kept alive while a batch runs and
+	// extended on every cursor save (default DefaultLease; raised to
+	// MinLease when shorter).
 	Lease time.Duration
 	// Interval is how often Run polls the projects (default
 	// DefaultInterval).
@@ -153,6 +159,9 @@ func New(opts Options) (*Service, error) {
 	}
 	if opts.Lease <= 0 {
 		opts.Lease = DefaultLease
+	}
+	if opts.Lease < MinLease {
+		opts.Lease = MinLease
 	}
 	if opts.Interval <= 0 {
 		opts.Interval = DefaultInterval
@@ -220,23 +229,28 @@ func (s *Service) Sync(ctx context.Context, project string) (Result, error) {
 }
 
 // turn takes the project's lease and runs up to maxBatches batches (no
-// bound when 0).
+// bound when 0). The lease is kept alive while a batch runs (begin): the
+// first batch of a large project parses its whole base tree, which outlives
+// one lease period, and the cursor is saved only after it.
 func (s *Service) turn(ctx context.Context, project string, maxBatches int) (res Result, err error) {
-	c := s.opts.Cursors
-	lease, cur, err := c.Acquire(ctx, project, s.opts.Holder, s.opts.Lease)
+	t, err := s.begin(ctx, project)
 	if err != nil {
 		return Result{}, err
 	}
+	defer t.end()
 	defer func() {
-		if rerr := c.Release(context.WithoutCancel(ctx), lease); rerr != nil {
-			s.log.Warn("codeindex: release lease", "project", project, "error", rerr)
+		// A lease lost while the turn ran cancelled its context; report the
+		// loss on every path: in place of the cancellation the batch failed
+		// with, and even when the turn otherwise succeeded, since the
+		// project may be another worker's by now.
+		if lost := t.stop(); lost != nil {
+			err = lost
 		}
 	}()
+	ctx = t.ctx
+	store := t.store
+	cur := t.cursor()
 	res.Seq = cur.Seq
-	store, err := s.opts.Code(ctx, project)
-	if err != nil {
-		return res, fmt.Errorf("codeindex: open code store of %s: %w", project, err)
-	}
 	var (
 		g       codegraph.Graph
 		prev    Plan
@@ -278,8 +292,8 @@ func (s *Service) turn(ctx context.Context, project string, maxBatches int) (res
 		}
 		cur.Seq = changes[len(changes)-1].Seq
 		cur.Trees = sortedStates(state)
-		if lease, err = c.Save(ctx, lease, cur, s.opts.Lease); err != nil {
-			return res, fmt.Errorf("codeindex: save cursor of %s: %w", project, err)
+		if err := t.save(cur); err != nil {
+			return res, err
 		}
 		prev = next
 		res.Seq = cur.Seq
