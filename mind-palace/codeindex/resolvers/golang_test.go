@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/code"
 	"github.com/robbiebyrd/clued/mind-palace/code/memcode"
@@ -35,9 +36,10 @@ func golangCallees(t *testing.T, files map[string]string) func(path, id string) 
 		Code:     func(context.Context, string) (code.Store, error) { return store, nil },
 		Graphs:   graphs,
 		Cursors:  codeindex.NewMemCursors(nil),
-		Apply:    codeindex.NewResolver(codeindex.ResolverOptions{Profiles: eng.Profiles()}),
-		Parse:    codeparse.Parse,
-		Holder:   "test",
+		Apply: codeindex.NewResolver(codeindex.ResolverOptions{Profiles: eng.Profiles(),
+			Files: codeindex.FileApplier{ParseTimeout: 5 * time.Minute}}),
+		Parse:  codeparse.Parse,
+		Holder: "test",
 	})
 	if err != nil {
 		t.Fatal(err)

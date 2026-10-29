@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/code"
 	"github.com/robbiebyrd/clued/mind-palace/code/memcode"
@@ -130,9 +131,11 @@ func cfamilyIndexTree(t *testing.T, tree map[string]string) *cfamilyEnv {
 		Code:     func(context.Context, string) (code.Store, error) { return store, nil },
 		Graphs:   graphs,
 		Cursors:  codeindex.NewMemCursors(nil),
-		Apply:    codeindex.NewResolver(codeindex.ResolverOptions{}),
-		Parse:    cfamilyParse,
-		Holder:   "test",
+		Apply: codeindex.NewResolver(codeindex.ResolverOptions{
+			// Goldens parse under -race on slow runners: never the production timeout.
+			Files: codeindex.FileApplier{ParseTimeout: 5 * time.Minute}}),
+		Parse:  cfamilyParse,
+		Holder: "test",
 	})
 	if err != nil {
 		t.Fatal(err)

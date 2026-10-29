@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/robbiebyrd/clued/mind-palace/code"
 	"github.com/robbiebyrd/clued/mind-palace/code/memcode"
@@ -189,9 +190,10 @@ func dartIndex(t *testing.T, tree map[string]string) *dartEnv {
 		},
 		Graphs:  graphs,
 		Cursors: codeindex.NewMemCursors(nil),
-		Apply:   codeindex.NewResolver(codeindex.ResolverOptions{Profiles: dartProfiles(t)}),
-		Parse:   dartParse,
-		Holder:  "test",
+		Apply: codeindex.NewResolver(codeindex.ResolverOptions{Profiles: dartProfiles(t),
+			Files: codeindex.FileApplier{ParseTimeout: 5 * time.Minute}}),
+		Parse:  dartParse,
+		Holder: "test",
 	})
 	if err != nil {
 		t.Fatal(err)
