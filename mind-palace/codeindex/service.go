@@ -37,6 +37,11 @@ const (
 	DefaultCacheSize  = 4096
 )
 
+// MinLease is the shortest lease New accepts: the keep-alive renews a lease
+// every third of its period and no sooner than every 10 ms, so a shorter
+// lease would expire before its first renewal.
+const MinLease = 30 * time.Millisecond
+
 // ErrNoParser is returned by Facts when the Service has no parser.
 var ErrNoParser = errors.New("codeindex: no parser configured")
 
@@ -103,8 +108,9 @@ type Options struct {
 	// MaxBatches bounds the batches of one lease turn in Run, so one busy
 	// project cannot starve the others (default DefaultMaxBatches).
 	MaxBatches int
-	// Lease is the lease's time to live, extended on every batch (default
-	// DefaultLease).
+	// Lease is the lease's time to live, kept alive while a batch runs and
+	// extended on every cursor save (default DefaultLease; raised to
+	// MinLease when shorter).
 	Lease time.Duration
 	// Interval is how often Run polls the projects (default
 	// DefaultInterval).
@@ -153,6 +159,9 @@ func New(opts Options) (*Service, error) {
 	}
 	if opts.Lease <= 0 {
 		opts.Lease = DefaultLease
+	}
+	if opts.Lease < MinLease {
+		opts.Lease = MinLease
 	}
 	if opts.Interval <= 0 {
 		opts.Interval = DefaultInterval
@@ -230,12 +239,12 @@ func (s *Service) turn(ctx context.Context, project string, maxBatches int) (res
 	}
 	defer t.end()
 	defer func() {
-		// A lease lost while a batch ran cancelled the turn's context; name
-		// the loss rather than the cancellation.
-		if err != nil {
-			if lost := t.stop(); lost != nil {
-				err = lost
-			}
+		// A lease lost while the turn ran cancelled its context; report the
+		// loss on every path: in place of the cancellation the batch failed
+		// with, and even when the turn otherwise succeeded, since the
+		// project may be another worker's by now.
+		if lost := t.stop(); lost != nil {
+			err = lost
 		}
 	}()
 	ctx = t.ctx

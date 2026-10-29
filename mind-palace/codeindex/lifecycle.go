@@ -155,7 +155,8 @@ func (s *Service) begin(ctx context.Context, project string) (*lifecycleTurn, er
 	return t, nil
 }
 
-// keepAlive extends the lease every third of its period by saving the
+// keepAlive extends the lease every third of its period (no sooner than
+// every 10 ms; New's MinLease keeps that inside the lease) by saving the
 // cursor as it stands, until the turn ends; a lost lease cancels the turn's
 // context.
 func (t *lifecycleTurn) keepAlive() {

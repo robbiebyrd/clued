@@ -658,6 +658,89 @@ func TestSyncKeepsItsLeaseAlive(t *testing.T) {
 	}
 }
 
+func TestNewRaisesShortLeases(t *testing.T) {
+	f := newFixture(t, func(o *Options) { o.Lease = 5 * time.Millisecond })
+	if f.svc.opts.Lease != MinLease {
+		t.Errorf("Lease = %v, want MinLease %v", f.svc.opts.Lease, MinLease)
+	}
+	// At the minimum the keep-alive still renews inside the lease: a batch
+	// several periods long keeps it.
+	a := wtID(1)
+	f.worktree(a, "u1", "", "main")
+	u := commitID("main")
+	f.commit(code.Change{Worktree: a, Ref: "main", Head: u, Upstream: u, Upserts: []code.Entry{clean("f0.go", "v0")}}, "v0")
+	f.svc.opts.Apply = &laggingApplier{Applier: f.rec, delay: 5 * MinLease}
+	if res, err := f.svc.Sync(f.ctx, project); err != nil || res.Seq != 1 {
+		t.Errorf("Sync at the minimum lease = %+v, %v", res, err)
+	}
+}
+
+// losingCursors drops the lease after the first save that advances the
+// cursor (a turn's, after its batch): every later Save fails with
+// ErrLeaseLost, as the keep-alive's do once another worker holds the lease.
+type losingCursors struct {
+	Cursors
+	lost atomic.Bool
+}
+
+func (c *losingCursors) Save(ctx context.Context, l Lease, cur Cursor, ttl time.Duration) (Lease, error) {
+	if c.lost.Load() {
+		return Lease{}, ErrLeaseLost
+	}
+	lease, err := c.Cursors.Save(ctx, l, cur, ttl)
+	if err == nil && cur.Seq > 0 {
+		c.lost.Store(true)
+	}
+	return lease, err
+}
+
+// slowChanges delays every read of the change log after the first, so a
+// turn's final read (the one that finds the log empty) outlives a
+// keep-alive tick, and answers it even once the turn's context is
+// cancelled, as a store whose reply was already on the wire does.
+type slowChanges struct {
+	code.Store
+	delay time.Duration
+	n     atomic.Int64
+}
+
+func (s *slowChanges) Changes(ctx context.Context, afterSeq int64, limit int) ([]code.Change, error) {
+	if s.n.Add(1) > 1 {
+		time.Sleep(s.delay)
+		ctx = context.WithoutCancel(ctx)
+	}
+	return s.Store.Changes(ctx, afterSeq, limit)
+}
+
+func TestSyncReportsALeaseLostAfterItsLastSave(t *testing.T) {
+	curs := &losingCursors{}
+	f := newFixture(t, func(o *Options) {
+		curs.Cursors = o.Cursors
+		o.Cursors = curs
+		o.Lease = MinLease
+		// A full batch makes the turn read the log once more, to find it
+		// empty: that read is the slow one.
+		o.BatchSize = 1
+	})
+	a := wtID(1)
+	f.worktree(a, "u1", "", "main")
+	u := commitID("main")
+	f.commit(code.Change{Worktree: a, Ref: "main", Head: u, Upstream: u, Upserts: []code.Entry{clean("f0.go", "v0")}}, "v0")
+	// The batch and its save succeed; then the lease is lost while the
+	// turn reads the end of the log, so a keep-alive tick fails and the
+	// turn, though its work is done, reports the loss.
+	f.svc.opts.Code = func(context.Context, string) (code.Store, error) {
+		return &slowChanges{Store: f.store, delay: 5 * MinLease}, nil
+	}
+	if res, err := f.svc.Sync(f.ctx, project); !errors.Is(err, ErrLeaseLost) {
+		t.Fatalf("Sync whose lease was lost after its save = %+v, %v, want ErrLeaseLost", res, err)
+	}
+	// The save made under the lease stands.
+	if _, cur, err := f.curs.Acquire(f.ctx, project, "probe", time.Second); err != nil || cur.Seq != 1 {
+		t.Errorf("cursor = %+v, %v", cur, err)
+	}
+}
+
 func TestNewServiceResumesFromGraphAndCursor(t *testing.T) {
 	f := newFixture(t, nil)
 	a := wtID(1)
