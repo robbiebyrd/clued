@@ -198,6 +198,38 @@ func TestMemJobsLeaseExpiry(t *testing.T) {
 	}
 }
 
+func TestMemJobsExtend(t *testing.T) {
+	c := newClock()
+	q := NewMemJobs(c.Now)
+	ctx := context.Background()
+	mustEnqueue(t, q, delivery(1, "x"))
+	l := mustClaim(t, q, time.Minute)
+	c.Advance(40 * time.Second)
+	l, err := q.Extend(ctx, l, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := c.Now().Add(time.Minute); !l.Until.Equal(want) {
+		t.Errorf("Until = %v, want %v", l.Until, want)
+	}
+	c.Advance(40 * time.Second) // past the first Until
+	wantNoJob(t, q)
+	expired := l
+	if err := q.Done(ctx, l); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.Extend(ctx, expired, time.Minute); !errors.Is(err, ErrLeaseLost) {
+		t.Errorf("Extend of a finished job = %v, want ErrLeaseLost", err)
+	}
+
+	mustEnqueue(t, q, delivery(2, "y"))
+	l = mustClaim(t, q, time.Minute)
+	c.Advance(time.Minute)
+	if _, err := q.Extend(ctx, l, time.Minute); !errors.Is(err, ErrLeaseLost) {
+		t.Errorf("Extend of an expired lease = %v, want ErrLeaseLost", err)
+	}
+}
+
 func TestMemJobsPauseHoldsInstallation(t *testing.T) {
 	c := newClock()
 	q := NewMemJobs(c.Now)

@@ -411,8 +411,57 @@ func (s *Service) RunOne(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	jobErr := s.runJob(ctx, lease.Job)
+	jobCtx, stop := s.keepLease(ctx, lease)
+	jobErr := s.runJob(jobCtx, lease.Job)
+	lease, lost := stop()
+	if lost {
+		return true, ErrLeaseLost
+	}
 	return true, s.finish(ctx, lease, jobErr)
+}
+
+// maxJobRun bounds one run of a job: without it a job that hangs would keep
+// its lease, and with it its repository's queue, for good.
+const maxJobRun = 6 * time.Hour
+
+// keepLease extends lease while its job runs and cancels the returned
+// context when the lease is lost, so the job stops rather than run beside
+// the worker that takes it next. stop ends that and returns the current
+// lease and whether it was lost. A failed extension other than a lost lease
+// is tried again at the next tick.
+func (s *Service) keepLease(ctx context.Context, lease Lease) (context.Context, func() (Lease, bool)) {
+	jobCtx, cancel := context.WithTimeout(ctx, maxJobRun)
+	done, exited := make(chan struct{}), make(chan struct{})
+	cur, lost := lease, false
+	go func() {
+		defer close(exited)
+		t := time.NewTicker(s.lease / 3)
+		defer t.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-t.C:
+			}
+			l, err := s.Jobs.Extend(jobCtx, cur, s.lease)
+			switch {
+			case errors.Is(err, ErrLeaseLost):
+				lost = true
+				cancel()
+				return
+			case err != nil:
+				s.log.Warn("ghsync: extend a job lease", "job", cur.Job.ID, "err", err)
+			default:
+				cur = l
+			}
+		}
+	}()
+	return jobCtx, func() (Lease, bool) {
+		close(done)
+		<-exited
+		cancel()
+		return cur, lost
+	}
 }
 
 func (s *Service) runJob(ctx context.Context, j Job) error {

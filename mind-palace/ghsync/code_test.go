@@ -393,6 +393,122 @@ func TestFullImportWalksTruncatedTree(t *testing.T) {
 	}
 }
 
+func TestImportDoesNotFetchBinaryFiles(t *testing.T) {
+	env := newCodeEnv(t)
+	env.repo.Commit("main", "init", ghapptest.Put("README.md", "hello\n"), ghapptest.Put("assets/icon.png", "\x89PNG\x00\x00"))
+	env.importRepo()
+	if n := env.f.Count("GET", "/repos/octo/app/git/blobs/"); n != 1 {
+		t.Errorf("blob fetches = %d, want 1 (a .png is never stored)", n)
+	}
+	tr := env.tree("main")
+	if en := tr["assets/icon.png"]; en.SHA256 != "" || en.Size != 6 || !code.ValidGitOID(en.GitOID) {
+		t.Errorf("assets/icon.png = %+v, want metadata only", en)
+	}
+	if en := tr["README.md"]; en.SHA256 != sha256Hex("hello\n") {
+		t.Errorf("README.md = %+v", en)
+	}
+}
+
+// firstPutStore records how many blobs had been fetched when the first blob
+// was stored.
+type firstPutStore struct {
+	code.Store
+	fetched  func() int
+	firstPut *int
+}
+
+func (s firstPutStore) PutBlob(ctx context.Context, b code.Blob) error {
+	if *s.firstPut == 0 {
+		*s.firstPut = s.fetched()
+	}
+	return s.Store.PutBlob(ctx, b)
+}
+
+func TestImportStoresBlobsAsItGoes(t *testing.T) {
+	var env *codeEnv
+	firstPut := 0
+	env = newCodeEnv(t, func(o *Options) {
+		open := o.Code
+		o.Code = func(ctx context.Context, target Target, slug string) (code.Store, error) {
+			s, err := open(ctx, target, slug)
+			if err != nil {
+				return nil, err
+			}
+			return firstPutStore{Store: s, firstPut: &firstPut, fetched: func() int { return env.f.Count("GET", "/repos/octo/app/git/blobs/") }}, nil
+		}
+	})
+	const files = 20
+	var changes []ghapptest.Change
+	for i := range files {
+		changes = append(changes, ghapptest.Put(fmt.Sprintf("f%02d.txt", i), strings.Repeat(string(rune('a'+i)), 1<<20)))
+	}
+	env.repo.Commit("main", "init", changes...)
+	env.importRepo()
+	if limit := blobFlushBytes >> 20; firstPut == 0 || firstPut > limit {
+		t.Errorf("first blob stored after %d fetches of 1 MiB, want at most %d", firstPut, limit)
+	}
+	tr := env.tree("main")
+	if len(tr) != files {
+		t.Fatalf("entries = %d, want %d", len(tr), files)
+	}
+	for p, en := range tr {
+		if _, err := env.store().Blob(context.Background(), en.SHA256); err != nil {
+			t.Errorf("blob of %s: %v", p, err)
+		}
+	}
+}
+
+func TestRunOneKeepsTheLeaseOfALongJob(t *testing.T) {
+	jobs := NewMemJobs(nil)
+	env := newCodeEnv(t, func(o *Options) {
+		o.Jobs = jobs
+		o.Lease = 300 * time.Millisecond
+		o.Claims = claimsFunc(func(context.Context, int64, int64) (Claim, error) {
+			time.Sleep(time.Second) // a job that outlives its first lease
+			return Claim{}, ErrNotClaimed
+		})
+	})
+	if _, err := jobs.Enqueue(context.Background(), Job{Kind: JobImport, Installation: env.inst, Repository: env.repo.ID()}); err != nil {
+		t.Fatal(err)
+	}
+	if ran, err := env.svc.RunOne(context.Background()); !ran || err != nil {
+		t.Fatalf("RunOne = %v, %v", ran, err)
+	}
+	if n := jobs.Len(); n != 0 {
+		t.Errorf("jobs left = %d, want the job finished under its lease", n)
+	}
+}
+
+// lostLeaseJobs refuses every extension.
+type lostLeaseJobs struct{ Jobs }
+
+func (lostLeaseJobs) Extend(context.Context, Lease, time.Duration) (Lease, error) {
+	return Lease{}, ErrLeaseLost
+}
+
+func TestRunOneStopsTheJobWhenItsLeaseIsLost(t *testing.T) {
+	jobs := NewMemJobs(nil)
+	env := newCodeEnv(t, func(o *Options) {
+		o.Jobs = lostLeaseJobs{jobs}
+		o.Lease = 30 * time.Millisecond
+		o.Claims = claimsFunc(func(ctx context.Context, _, _ int64) (Claim, error) {
+			<-ctx.Done() // works until told to stop
+			return Claim{}, ctx.Err()
+		})
+	})
+	if _, err := jobs.Enqueue(context.Background(), Job{Kind: JobImport, Installation: env.inst, Repository: env.repo.ID()}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, err := env.svc.RunOne(ctx); !errors.Is(err, ErrLeaseLost) {
+		t.Fatalf("RunOne = %v, want ErrLeaseLost", err)
+	}
+	if ctx.Err() != nil {
+		t.Error("the job ran on after its lease was lost")
+	}
+}
+
 func TestFilterAndRedaction(t *testing.T) {
 	env := newCodeEnv(t, func(o *Options) { o.MaxFileBytes = 64 })
 	env.patterns = []string{`internal-[0-9]+`}

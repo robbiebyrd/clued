@@ -153,6 +153,11 @@ type Jobs interface {
 	Enqueue(ctx context.Context, job Job) (string, error)
 	// Claim leases the oldest ready job for lease, or returns ErrNoJob.
 	Claim(ctx context.Context, lease time.Duration) (Lease, error)
+	// Extend moves the lease's Until to now plus lease and returns the
+	// lease to use from here on; ErrLeaseLost when it is no longer current.
+	// A worker extends while a job runs, so a long job is not claimed by a
+	// second worker while the first still works on it.
+	Extend(ctx context.Context, lease Lease, d time.Duration) (Lease, error)
 	// Done removes a finished job.
 	Done(ctx context.Context, lease Lease) error
 	// Retry records a failed attempt (cause's message, never a payload)

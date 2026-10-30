@@ -80,6 +80,8 @@ func TestDecide(t *testing.T) {
 		{"over custom cap", "main.go", 10, text[:10], Options{MaxFileBytes: 9}, MetadataOnly, ReasonTooLarge},
 		{"under custom cap", "main.go", 10, text[:10], Options{MaxFileBytes: 10}, Content, ""},
 
+		{"binary name, content unseen", "assets/icon.PNG", 100, nil, opts, MetadataOnly, ReasonBinary},
+		{"text name, content unseen", "src/icon.svg", 100, nil, opts, Content, ""},
 		{"nul byte", "image.png", 8, []byte("\x89PNG\x00\x00\x00\x0d"), opts, MetadataOnly, ReasonBinary},
 		{"nul byte late in sniff window", "data.bin", SniffBytes, append(bytes.Repeat([]byte("a"), SniffBytes-1), 0), opts, MetadataOnly, ReasonBinary},
 		{"nul byte past sniff window", "late.txt", SniffBytes + 1, append(bytes.Repeat([]byte("a"), SniffBytes), 0), opts, Content, ""},

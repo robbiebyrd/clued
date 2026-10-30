@@ -100,6 +100,9 @@ func (o Options) maxFileBytes() int64 {
 //   - codeSyncExclude, then excludePaths: Skip;
 //   - the built-in deny list (Denied), which cannot be switched off: Skip;
 //   - over the size cap: MetadataOnly, without looking at head;
+//   - a name with a binary format's extension (binaryExts): MetadataOnly,
+//     without looking at head, so a caller that has to pay for the content
+//     (the GitHub sync) can ask first with a nil head;
 //   - a NUL byte in the first SniffBytes, or invalid UTF-8: MetadataOnly;
 //   - otherwise Content.
 //
@@ -123,10 +126,25 @@ func Decide(rel string, size int64, head []byte, opts Options) (Decision, string
 	if size > opts.maxFileBytes() {
 		return MetadataOnly, ReasonTooLarge
 	}
+	if binaryExts[strings.ToLower(path.Ext(clean))] {
+		return MetadataOnly, ReasonBinary
+	}
 	if reason := sniff(head, int64(len(head)) < size); reason != "" {
 		return MetadataOnly, reason
 	}
 	return Content, ""
+}
+
+// binaryExts are the extensions of formats that are not text; matched
+// case-insensitively. Text formats such as .svg stay out: the sniff decides
+// those.
+var binaryExts = map[string]bool{
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true, ".avif": true, ".bmp": true, ".ico": true, ".tif": true, ".tiff": true,
+	".mp3": true, ".wav": true, ".aif": true, ".aiff": true, ".ogg": true, ".flac": true, ".m4a": true,
+	".mp4": true, ".mov": true, ".webm": true, ".avi": true, ".mkv": true,
+	".zip": true, ".gz": true, ".tgz": true, ".bz2": true, ".xz": true, ".7z": true, ".rar": true,
+	".pdf": true, ".woff": true, ".woff2": true, ".ttf": true, ".otf": true, ".eot": true,
+	".wasm": true, ".exe": true, ".dll": true, ".so": true, ".dylib": true, ".class": true, ".jar": true, ".pyc": true,
 }
 
 // IsText reports whether content looks like text: no NUL byte in its

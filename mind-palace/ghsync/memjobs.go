@@ -125,6 +125,22 @@ func (m *MemJobs) remove(i int) {
 	m.queue = append(m.queue[:i], m.queue[i+1:]...)
 }
 
+// Extend implements Jobs.
+func (m *MemJobs) Extend(ctx context.Context, l Lease, d time.Duration) (Lease, error) {
+	if err := ctx.Err(); err != nil {
+		return Lease{}, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	i := m.find(l)
+	if i < 0 {
+		return Lease{}, ErrLeaseLost
+	}
+	m.queue[i].until = m.now().Add(d)
+	l.Until = m.queue[i].until
+	return l, nil
+}
+
 // Done implements Jobs.
 func (m *MemJobs) Done(ctx context.Context, l Lease) error {
 	if err := ctx.Err(); err != nil {
