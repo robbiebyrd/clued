@@ -454,6 +454,10 @@ func (r *repoRun) redactorFor(ctx context.Context) (*redact.Redactor, error) {
 // lookupChunk bounds the git ids of one SHA256ForGitOID call.
 const lookupChunk = 500
 
+// blobFlushBytes bounds the fetched content entries holds before storing it,
+// so the memory of an import does not grow with the repository.
+const blobFlushBytes = 16 << 20
+
 // entries turns files into the tree entries to write, fetching, filtering,
 // redacting and storing the content of every blob the store does not hold
 // yet. skipped are the paths left out entirely (deny list, invalid path):
@@ -516,6 +520,30 @@ func (r *repoRun) entries(ctx context.Context, store code.Store, files []gitFile
 	}
 	fetched := map[string]string{} // oid → sha256 ("" for metadata only)
 	blobs := map[string][]byte{}   // sha256 → content to store
+	buffered := 0
+	flush := func() error {
+		if len(blobs) == 0 {
+			return nil
+		}
+		shas := make([]string, 0, len(blobs))
+		for sha := range blobs {
+			shas = append(shas, sha)
+		}
+		slices.Sort(shas)
+		missing, err := store.MissingBlobs(ctx, shas)
+		if err != nil {
+			return fmt.Errorf("ghsync: missing blobs: %w", err)
+		}
+		for _, sha := range missing {
+			c := blobs[sha]
+			if err := store.PutBlob(ctx, code.Blob{SHA256: sha, Size: int64(len(c)), Content: c}); err != nil {
+				return fmt.Errorf("ghsync: put blob: %w", err)
+			}
+		}
+		clear(blobs)
+		buffered = 0
+		return nil
+	}
 	for _, p := range want {
 		if sha, ok := held[p.f.oid]; ok {
 			out[p.idx].SHA256 = sha
@@ -535,6 +563,11 @@ func (r *repoRun) entries(ctx context.Context, store code.Store, files []gitFile
 					sum := sha256.Sum256([]byte(masked))
 					sha = hex.EncodeToString(sum[:])
 					blobs[sha] = []byte(masked)
+					if buffered += len(masked); buffered >= blobFlushBytes {
+						if err := flush(); err != nil {
+							return nil, nil, err
+						}
+					}
 				}
 				if out[p.idx].Size == 0 {
 					out[p.idx].Size = int64(len(b.Content))
@@ -544,22 +577,8 @@ func (r *repoRun) entries(ctx context.Context, store code.Store, files []gitFile
 		}
 		out[p.idx].SHA256 = sha
 	}
-	if len(blobs) > 0 {
-		shas := make([]string, 0, len(blobs))
-		for sha := range blobs {
-			shas = append(shas, sha)
-		}
-		slices.Sort(shas)
-		missing, err := store.MissingBlobs(ctx, shas)
-		if err != nil {
-			return nil, nil, fmt.Errorf("ghsync: missing blobs: %w", err)
-		}
-		for _, sha := range missing {
-			c := blobs[sha]
-			if err := store.PutBlob(ctx, code.Blob{SHA256: sha, Size: int64(len(c)), Content: c}); err != nil {
-				return nil, nil, fmt.Errorf("ghsync: put blob: %w", err)
-			}
-		}
+	if err := flush(); err != nil {
+		return nil, nil, err
 	}
 	return out, skipped, nil
 }

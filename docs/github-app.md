@@ -173,7 +173,8 @@ blob id as `git_oid`, each change has `head = upstream = <commit>`,
 the built-in deny list (`.env`, `*.pem`, `*.key`, `id_rsa*`,
 `credentials*.json`, …; these paths are not stored at all), the 1 MiB
 content cap and binary detection (such files are entries with
-`sha256: ""` and their size), submodules as entries of mode `160000`
+`sha256: ""` and their size; a binary format's extension, such as `.png`,
+is enough, so the file costs no GitHub API request), submodules as entries of mode `160000`
 without content, and the built-in redaction rules plus the account's
 `redactPatterns` applied to content before it is hashed and stored.
 `excludePaths` does not apply (it names local paths), and `.gitignore` is
