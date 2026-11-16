@@ -79,7 +79,7 @@ func (o *Op) InputSchema(svc *service.Service) (*jsonschema.Schema, error) {
 		return o.schemaFn(svc), nil
 	}
 	o.schemaOnce.Do(func() {
-		o.schema, o.schemaErr = jsonschema.ForType(o.paramsType, &jsonschema.ForOptions{IgnoreInvalidTypes: true})
+		o.schema, o.schemaErr = jsonschema.ForType(o.paramsType, forOptions())
 		if o.schemaErr == nil {
 			o.schema = o.reg.publicSchema(o.schema)
 		}
@@ -100,12 +100,26 @@ func (o *Op) CompactInputSchema(svc *service.Service) (*jsonschema.Schema, error
 		return o.InputSchema(svc)
 	}
 	o.compactOnce.Do(func() {
-		o.compact, o.compactErr = jsonschema.ForType(o.paramsType, &jsonschema.ForOptions{IgnoreInvalidTypes: true})
+		o.compact, o.compactErr = jsonschema.ForType(o.paramsType, forOptions())
 		if o.compactErr == nil {
 			o.compact = o.reg.publicSchema(o.compact)
 		}
 	})
 	return o.compact, o.compactErr
+}
+
+// forOptions are the options every parameter schema is inferred with.
+// jsonschema-go describes a json.RawMessage by its Go type, a byte slice:
+// `["null","array"]` of integers 0-255. A client that follows that schema
+// sends create's input object as a string, and create rejects it. The only
+// json.RawMessage parameter is that input, a JSON object.
+func forOptions() *jsonschema.ForOptions {
+	return &jsonschema.ForOptions{
+		IgnoreInvalidTypes: true,
+		TypeSchemas: map[reflect.Type]*jsonschema.Schema{
+			reflect.TypeOf(json.RawMessage(nil)): {Type: "object"},
+		},
+	}
 }
 
 // NewParams returns a zero value of the parameter struct.

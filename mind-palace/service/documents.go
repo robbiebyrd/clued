@@ -131,6 +131,14 @@ func (s *Service) Create(ctx context.Context, input json.RawMessage, templateID 
 // normalizeCreateInput decodes the raw input and maps synonyms to primary
 // values so the schema sees canonical data.
 func (s *Service) normalizeCreateInput(input json.RawMessage) (map[string]any, []string) {
+	// MCP clients that read the old create schema (input as a byte array)
+	// send the object JSON-encoded as a string; unwrap it once.
+	if trimmed := bytes.TrimSpace(input); len(trimmed) > 0 && trimmed[0] == '"' {
+		var inner string
+		if json.Unmarshal(trimmed, &inner) == nil {
+			input = json.RawMessage(inner)
+		}
+	}
 	var raw map[string]any
 	dec := json.NewDecoder(bytes.NewReader(input))
 	dec.UseNumber()

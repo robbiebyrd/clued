@@ -412,6 +412,8 @@ func TestCheckSetupDerivesTheProjectLikeTheServer(t *testing.T) {
 		"git://example.org/some.dir/sub-repo.git",
 		"/srv/git/My Repo.git",
 		"file:///tmp/x.git",
+		// Runs of dots collapse to one; BSD sed once skipped this step.
+		"https://example.org/team/a...b..c.git",
 	}
 	for _, origin := range origins {
 		t.Run(origin, func(t *testing.T) {
@@ -419,8 +421,12 @@ func TestCheckSetupDerivesTheProjectLikeTheServer(t *testing.T) {
 			srv := newRemoteServer(t, slug)
 			home := remoteHome(t, srv.URL(), remoteToken)
 			repo := gitRepoWithOrigin(t, origin)
-			if r := runCheckSetupIn(t, repo, home); r.stdout != "" {
+			r := runCheckSetupIn(t, repo, home)
+			if r.stdout != "" {
 				t.Errorf("token covers %q, yet: %s", slug, r.stdout)
+			}
+			if strings.Contains(r.stderr, "sed:") {
+				t.Errorf("sed failed while deriving the slug: %s", r.stderr)
 			}
 			other := newRemoteServer(t, "github.com__someone__else")
 			msg := systemMessage(t, runCheckSetupIn(t, repo, remoteHome(t, other.URL(), remoteToken)))

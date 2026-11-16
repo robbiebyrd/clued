@@ -115,6 +115,25 @@ func TestCreate(t *testing.T) {
 	}
 }
 
+// TestCreateAcceptsInputEncodedAsAString covers MCP clients that read the
+// old create schema and send the input object JSON-encoded as a string.
+func TestCreateAcceptsInputEncodedAsAString(t *testing.T) {
+	s, _, _ := newService(t)
+	obj := `{"frontMatter":{"title":"Quoted","type":"drft","priority":"1"},"body":{"summary":{"goal":"g","problem":"p"},"design":{}}}`
+	quoted, _ := json.Marshal(obj)
+	p, err := s.Create(ctx, json.RawMessage(quoted), "")
+	if err != nil {
+		t.Fatalf("string-encoded input: %v", err)
+	}
+	if p.FrontMatter.Title != "Quoted" {
+		t.Errorf("title: %q", p.FrontMatter.Title)
+	}
+	// A string that is not an object is still rejected.
+	if _, err := s.Create(ctx, json.RawMessage(`"nope"`), ""); !IsKind(err, KindValidation) {
+		t.Errorf("non-object string: %v", err)
+	}
+}
+
 func TestCreateValidation(t *testing.T) {
 	s, _, _ := newService(t)
 	// Unknown status.

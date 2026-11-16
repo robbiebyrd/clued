@@ -85,7 +85,10 @@ project_slug() {
   for part in "${parts[@]}"; do
     [[ -n "$part" && "$part" != "." && "$part" != ".." ]] && slug+="${slug:+__}${part}"
   done
-  slug=$(printf '%s' "$slug" | sed -E 's/[^a-z0-9._-]+/-/g; s/^[._-]+//; s/[._-]+$//; :a; s/\.\./\./g; ta' | cut -c1-200 | sed -E 's/[._-]+$//')
+  # `s/\.+/./g` collapses runs of dots the way projects.Slug's ".." loop
+  # does. A `:a; …; ta` loop is GNU-only: BSD sed (macOS) takes the rest of
+  # the script as the label's name, so the collapse never ran there.
+  slug=$(printf '%s' "$slug" | sed -E 's/[^a-z0-9._-]+/-/g; s/^[._-]+//; s/[._-]+$//; s/\.+/./g' | cut -c1-200 | sed -E 's/[._-]+$//')
   [[ -n "$slug" ]] || return 1
   printf '%s' "$slug"
 }

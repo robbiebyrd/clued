@@ -251,7 +251,8 @@ func (a *App) run(cmd *cobra.Command, kindName, op string, params any) error {
 	}
 	raw, err := json.Marshal(params)
 	if err != nil {
-		return a.fail(err)
+		// Only a json.RawMessage the user supplied can fail to marshal here.
+		return a.fail(&service.Error{Kind: service.KindBadRequest, Message: "parameters are not valid JSON: " + err.Error()})
 	}
 	svc, err := a.palace.Service(kindName)
 	if err != nil {
@@ -302,6 +303,21 @@ func (a *App) readInput(arg string, allowInline bool) (string, error) {
 		return "", err
 	}
 	return arg, nil
+}
+
+// readJSONInput is readInput for a flag that takes JSON: it also checks the
+// value parses, so a truncated or malformed document is reported as the
+// flag's fault instead of failing later inside the operation.
+func (a *App) readJSONInput(flag, arg string) (string, error) {
+	data, err := a.readInput(arg, true)
+	if err != nil {
+		return "", err
+	}
+	var v any
+	if err := json.Unmarshal([]byte(data), &v); err != nil {
+		return "", fmt.Errorf("%s is not valid JSON: %v", flag, err)
+	}
+	return data, nil
 }
 
 // Root builds the cobra command tree.
@@ -416,7 +432,7 @@ func (kc *kindCommands) createCmd() *cobra.Command {
 			if input == "" {
 				return kc.badRequest("--input is required (a file, - for stdin, or inline JSON)")
 			}
-			data, err := kc.readInput(input, true)
+			data, err := kc.readJSONInput("--input", input)
 			if err != nil {
 				return kc.badRequest(err.Error())
 			}
@@ -1236,7 +1252,7 @@ func (a *App) callCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			raw := "{}"
 			if params != "" {
-				data, err := a.readInput(params, true)
+				data, err := a.readJSONInput("--params", params)
 				if err != nil {
 					return a.fail(&service.Error{Kind: service.KindBadRequest, Message: err.Error()})
 				}

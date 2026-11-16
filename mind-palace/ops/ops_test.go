@@ -95,6 +95,30 @@ func TestRegistrySchemasAndNames(t *testing.T) {
 	}
 }
 
+// TestCompactCreateSchemaTypesInputAsObject guards the core-tier create
+// schema: inferred from json.RawMessage, input used to read as an array of
+// bytes, so MCP clients sent the object as a string.
+func TestCompactCreateSchemaTypesInputAsObject(t *testing.T) {
+	regs := All()
+	palace := newPalace(t)
+	for _, k := range kind.All() {
+		create, _ := regs[k.Name].Get("create")
+		svc, _ := palace.Service(k.Name)
+		s, err := create.CompactInputSchema(svc)
+		if err != nil {
+			t.Fatalf("%s create: %v", k.Name, err)
+		}
+		input := s.Properties["input"]
+		if input == nil || input.Type != "object" || len(input.Types) != 0 || input.Items != nil {
+			b, _ := json.Marshal(input)
+			t.Errorf("%s create input should be an object, got %s", k.Name, b)
+		}
+		if input != nil && input.Description == "" {
+			t.Errorf("%s create input lost its description", k.Name)
+		}
+	}
+}
+
 func TestInvoke(t *testing.T) {
 	regs := All()
 	palace := newPalace(t)

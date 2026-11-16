@@ -77,6 +77,15 @@ func TestCLIFlow(t *testing.T) {
 	if r.code != 3 || !strings.Contains(r.stderr, "ValidationError") {
 		t.Errorf("validation exit code: %+v", r)
 	}
+	// Truncated JSON is the caller's mistake (BadRequest), not a StorageError.
+	r = exec(t, dir, "plan", "create", "--input", `{"frontMatter":{"title":"Cut","type":"drft","priority":"1"},"body":{"summary":{"goal":"g","problem":"p"},"design":{}}`)
+	if r.code != 2 || !strings.Contains(r.stderr, "--input is not valid JSON") {
+		t.Errorf("truncated input: %+v", r)
+	}
+	r = exec(t, dir, "call", "list", "--params", `{"type":`)
+	if r.code != 2 || !strings.Contains(r.stderr, "--params is not valid JSON") {
+		t.Errorf("truncated params: %+v", r)
+	}
 	r = exec(t, dir, "plan", "get", "0099-zzz")
 	if r.code != 4 {
 		t.Errorf("not found exit code: %+v", r)
